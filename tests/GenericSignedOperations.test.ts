@@ -84,10 +84,11 @@ test("a priority queue orders negative elements correctly", () => {
 }, 60000);
 
 test("signed aliases retain arithmetic and comparison semantics in generic frames", () => {
-  expectCorrectnessSuite([{
-    name: "generic-signed-alias-operations",
-    validateLlvm: true,
-    source: `
+  expectCorrectnessSuite([
+    {
+      name: "generic-signed-alias-operations",
+      validateLlvm: true,
+      source: `
       import printf from "std/c.bpl";
       type Signed=int; type Tiny=i8; type Wide=long; type Unsigned=u32;
       type Identity<T>=T;
@@ -105,6 +106,7 @@ test("signed aliases retain arithmetic and comparison semantics in generic frame
         return 0;
       }
     `,
-    expectedStdout: "1 -3 -128\n-3 1 2147483647\n",
-  }]);
+      expectedStdout: "1 -3 -128\n-3 1 2147483647\n",
+    },
+  ]);
 }, 60000);

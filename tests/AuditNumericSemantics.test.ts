@@ -2,11 +2,12 @@ import { it } from "bun:test";
 import { expectCorrectnessSuite } from "./helpers/compilerCorrectness";
 
 it("promotes f32 variadic arguments while preserving fixed f32 parameters", () => {
-  expectCorrectnessSuite([{
-    name: "f32 C variadic promotion",
-    validateLlvm: true,
-    expectedStdout: "1.50 -2.25 3.50 4.50\n",
-    source: `
+  expectCorrectnessSuite([
+    {
+      name: "f32 C variadic promotion",
+      validateLlvm: true,
+      expectedStdout: "1.50 -2.25 3.50 4.50\n",
+      source: `
       extern printf(fmt: string, ...) ret int;
       extern fabsf(value: f32) ret f32;
       frame main() ret int {
@@ -17,16 +18,18 @@ it("promotes f32 variadic arguments while preserving fixed f32 parameters", () =
         return 0;
       }
     `,
-  }]);
+    },
+  ]);
 }, 60000);
 
 // spec: R-TYPE-9
 it("keeps scalar and aggregate NaN inequality complementary to equality", () => {
-  expectCorrectnessSuite([{
-    name: "NaN equality laws",
-    validateLlvm: true,
-    expectedStdout: "0 1 1\n1 1 0 1\n0 1\n",
-    source: `
+  expectCorrectnessSuite([
+    {
+      name: "NaN equality laws",
+      validateLlvm: true,
+      expectedStdout: "0 1 1\n1 1 0 1\n0 1\n",
+      source: `
       extern printf(fmt: string, ...);
       extern nan(tag: string) ret float;
       struct Box { value: float }
@@ -39,16 +42,18 @@ it("keeps scalar and aggregate NaN inequality complementary to equality", () => 
         return 0;
       }
     `,
-  }]);
+    },
+  ]);
 }, 60000);
 
 // spec: R-TYPE-8
 it("preserves signed zero through floating-point negation", () => {
-  expectCorrectnessSuite([{
-    name: "signed zero negation",
-    validateLlvm: true,
-    expectedStdout: "-1.0 1.0 -2.5\n",
-    source: `
+  expectCorrectnessSuite([
+    {
+      name: "signed zero negation",
+      validateLlvm: true,
+      expectedStdout: "-1.0 1.0 -2.5\n",
+      source: `
       extern printf(fmt: string, ...);
       extern copysign(x: float, y: float) ret float;
       frame negate(x: float) ret float { return -x; }
@@ -59,16 +64,18 @@ it("preserves signed zero through floating-point negation", () => {
         return 0;
       }
     `,
-  }]);
+    },
+  ]);
 }, 60000);
 
 // spec: R-TYPE-6, R-TYPE-7
 it("supports every float spelling through arithmetic, calls, and explicit conversions", () => {
-  expectCorrectnessSuite([{
-    name: "f32 and f64 arithmetic",
-    validateLlvm: true,
-    expectedStdout: "-1.5 2.5 3.0 0.5 0.8\n3 -3 7.0\n8.0 0 1\n",
-    source: `
+  expectCorrectnessSuite([
+    {
+      name: "f32 and f64 arithmetic",
+      validateLlvm: true,
+      expectedStdout: "-1.5 2.5 3.0 0.5 0.8\n3 -3 7.0\n8.0 0 1\n",
+      source: `
       extern printf(fmt: string, ...);
       frame negate(x: f32) ret f32 { return -x; }
       frame main() ret int {
@@ -86,5 +93,6 @@ it("supports every float spelling through arithmetic, calls, and explicit conver
         return 0;
       }
     `,
-  }]);
+    },
+  ]);
 }, 60000);

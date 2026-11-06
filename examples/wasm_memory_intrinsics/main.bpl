@@ -9,14 +9,12 @@ frame main() ret int {
     if (memset(cast<*void>(buffer), fill, size) != cast<*void>(buffer)) {
         return 1;
     }
-
     buffer[1] = cast<i8>(66);
     buffer[2] = cast<i8>(67);
 
     if (memcpy(cast<*void>(copy), cast<*void>(buffer), size) != cast<*void>(copy)) {
         return 2;
     }
-
     memmove(cast<*void>(copy + 2), cast<*void>(copy), 4);
 
     local result: int = cast<int>(copy[0]) + cast<int>(copy[1]) + cast<int>(copy[2]) + cast<int>(copy[3]);

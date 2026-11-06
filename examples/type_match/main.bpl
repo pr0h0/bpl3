@@ -1,6 +1,5 @@
 import [IO] from "std/io.bpl";
 import [Any] from "std/type.bpl";
-import [TypeInfo] from "std/reflection.bpl";
 
 frame main() ret int {
     IO.printString("--- Type Match Test ---");

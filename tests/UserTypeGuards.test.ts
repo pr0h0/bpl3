@@ -51,7 +51,9 @@ describe("Direct type narrowing", () => {
     const returnType = guard.returnType as AST.BasicTypeNode;
 
     expect(returnType.name).toBe("bool");
-    expect((guard as unknown as Record<string, unknown>).typeGuard).toBeUndefined();
+    expect(
+      (guard as unknown as Record<string, unknown>).typeGuard,
+    ).toBeUndefined();
   });
 
   it("formats helper checks as normal bool-returning functions", () => {

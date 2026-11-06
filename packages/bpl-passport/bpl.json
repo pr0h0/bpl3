@@ -1,1 +1,8 @@
-{"name":"bpl-passport","version":"0.1.0","description":"Optional named authentication strategies for BPL web applications","main":"index.bpl","license":"MIT","dependencies":{"bpl-express":"file:../bpl-express/bpl-express-0.1.0.tgz"}}
+{
+  "name": "bpl-passport",
+  "version": "0.1.0",
+  "description": "Optional named authentication strategies for BPL web applications",
+  "main": "index.bpl",
+  "license": "MIT",
+  "dependencies": { "bpl-express": "file:../bpl-express/bpl-express-0.1.0.tgz" }
+}

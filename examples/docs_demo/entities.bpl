@@ -1,4 +1,4 @@
-import [Vec2], [Vec3] from "./math.bpl";
+import [Vec3] from "./math.bpl";
 
 export [EntityType];
 export [Entity];

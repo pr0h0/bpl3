@@ -1,7 +1,6 @@
 import [String] from "std/string.bpl";
 import [Comparable] from "std/core_specs.bpl";
 import ctpop, ctlz, cttz, bswap, bitreverse from "./intrinsics.bpl";
-import memcpy, memmove, memset from "./intrinsics.bpl";
 
 extern sprintf(str: string, format: string, ...) ret int;
 extern snprintf(str: string, size: long, format: string, ...) ret int;
@@ -222,7 +221,9 @@ struct Short {
     }
     frame trailingZeros(this: *Short) ret uint {
         local bits: uint = cast<uint>(this.value) & cast<uint>(65535);
-        if (bits == cast<uint>(0)) { return cast<uint>(16); }
+        if (bits == cast<uint>(0)) {
+            return cast<uint>(16);
+        }
         return bits.trailingZeros();
     }
     frame byteSwap(this: *Short) ret uint {
@@ -258,7 +259,9 @@ struct UShort {
     }
     frame trailingZeros(this: *UShort) ret uint {
         local bits: uint = cast<uint>(this.value) & cast<uint>(65535);
-        if (bits == cast<uint>(0)) { return cast<uint>(16); }
+        if (bits == cast<uint>(0)) {
+            return cast<uint>(16);
+        }
         return bits.trailingZeros();
     }
     frame byteSwap(this: *UShort) ret uint {

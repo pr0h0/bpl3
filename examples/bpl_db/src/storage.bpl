@@ -5,8 +5,7 @@ export [Database];
 
 import [Value], [DataType], serialize_value, deserialize_value from "./types.bpl";
 import [Array] from "std/array.bpl";
-import [String] from "std/string.bpl";
-import [Map], [Pair], [MapIterator], [MapNode] from "std/map.bpl";
+import [Map], [MapNode] from "std/map.bpl";
 import [Option] from "std/option.bpl";
 import [File] from "std/fs.bpl";
 import [StringUtils] from "std/string_utils.bpl";
@@ -15,7 +14,6 @@ import [free], [printf], [sprintf] from "std/c.bpl";
 extern malloc(size: long) ret string;
 import [atoi] from "std/c.bpl";
 import [strlen] from "std/c.bpl";
-import [strcmp] from "std/c.bpl";
 
 frame alloc<T>() ret *T {
     return cast<*T>(malloc(sizeof<T>()));
@@ -208,14 +206,13 @@ struct Database {
 
         loop (f.readLine(buf, 4096)) {
             local len: int = strlen(buf);
-            len = len; # Suppress unused variable warning
             # printf("Line len: %d, last: %d\n", len, buf[len-1]);
             if ((len > 0) && (buf[len - 1] == 10)) {
                 # printf("Stripping newline at %d\n", len-1);
                 buf[len - 1] = 0;
             }
             # Strip CR
-            if ((len > 1) && (buf[len - 2] == 13)) 
+            if ((len > 1) && (buf[len - 2] == 13))
                 buf[len - 2] = 0;
             # Re-calculate len after stripping? Or just rely on string functions.
 
@@ -248,11 +245,10 @@ struct Database {
                             }
 
                             local type_int: int = atoi(ptr + space_idx + 1);
-                            type_int = type_int; # Suppress unused variable warning
                             local type_kind: DataType = DataType.Int;
-                            if (type_int == 1) 
+                            if (type_int == 1)
                                 type_kind = DataType.Str;
-                            if (type_int == 2) 
+                            if (type_int == 2)
                                 type_kind = DataType.Bool;
                             current_table.add_column(name, type_kind);
                         }
@@ -268,7 +264,7 @@ struct Database {
                                 # printf("Loading Row ID: %d\n", id);
 
                                 local row: Row = Row.new(id);
-                                if (id >= current_table.next_id) 
+                                if (id >= current_table.next_id)
                                     current_table.next_id = id + 1;
                                 ptr = ptr + space_idx + 1;
 

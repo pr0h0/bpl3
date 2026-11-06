@@ -47,4 +47,9 @@ struct TypeInfo {
 
     # For Arrays/Pointers
     element_type: *TypeInfo,
+
+    # Vtable a constructor installs as the first field of a struct with
+    # methods; null otherwise. Code that builds objects from raw memory
+    # (such as JSON.parse) must store it before calling methods.
+    vtable: *void,
 }

@@ -102,8 +102,8 @@ describe("TypeChecker - Extended Tests", () => {
           return 0;
         }
       `;
-      // int and i32 are aliases, so this might be ambiguous or accepted as duplicate
-      // Depending on implementation
+      // int and i32 are aliases, so the second declaration is a duplicate.
+      expect(() => check(source)).toThrow(CompilerError);
     });
   });
 
@@ -337,8 +337,9 @@ describe("TypeChecker - Extended Tests", () => {
           local x: int = 10;
         }
       `;
-      // Some compilers check this, some don't
-      // expect(() => check(source)).toThrow(CompilerError);
+      expect(() => check(source)).toThrow(
+        /may not return a value on all code paths/,
+      );
     });
 
     it("should allow void functions without return", () => {
@@ -621,8 +622,9 @@ describe("TypeChecker - Extended Tests", () => {
           }
         }
       `;
-      // This should fail if we enforce constant case values
-      // expect(() => check(source)).toThrow(CompilerError);
+      expect(() => check(source)).toThrow(
+        /Switch case values must be constants/,
+      );
     });
   });
 });

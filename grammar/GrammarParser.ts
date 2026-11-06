@@ -8,11 +8,14 @@ import type { Grammar, GrammarRule } from "./types";
  * stripped and multiline rules are flattened until a terminating `;` is found.
  */
 export class GrammarParser {
-  constructor(private readonly grammarPath: string) {}
+  constructor(private readonly source: string) {}
+
+  static fromFile(grammarPath: string): GrammarParser {
+    return new GrammarParser(readFileSync(grammarPath, "utf-8"));
+  }
 
   parse(): Grammar {
-    const raw = readFileSync(this.grammarPath, "utf-8");
-    const withoutComments = this.stripComments(raw);
+    const withoutComments = this.stripComments(this.source);
     const ruleStrings = this.splitIntoRules(withoutComments);
 
     const rules = new Map<string, GrammarRule>();

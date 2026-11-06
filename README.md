@@ -39,7 +39,7 @@ frame main() ret int {
 
 ### 🏗️ Modern Language Features
 
-- **Object-Oriented**: Structs with methods, single and multiple inheritance
+- **Object-Oriented**: Structs with methods, single inheritance, and specs (interfaces)
 - **Module System**: Organize code with imports and exports
 - **Exception Handling**: Try/catch blocks for robust error management
 - **Pattern Matching**: Type-safe conditional logic
@@ -62,17 +62,29 @@ frame main() ret int {
 
 ## 📦 Installation
 
+### Prebuilt executable
+
+Install the standalone `bpl` for Linux or macOS (needs Clang to compile
+programs, but no Bun or checkout):
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/pr0h0/bpl3/master/scripts/install.sh | sh
+```
+
 ### Build from Source
 
 ```bash
 git clone https://github.com/pr0h0/bpl3.git
 cd bpl3
-bun install --frozen-lockfile
-bun run build
-export BPL_HOME="$PWD"
-export PATH="$BPL_HOME:$PATH"
-bpl --version
+bun run setup   # install deps, build, link `bpl` into ~/.local/bin
+bpl doctor      # after applying the PATH line setup prints, if any
 ```
+
+If `~/.local/bin` is not on `PATH`, setup prints the `export PATH=...` line to
+add to your shell configuration; apply it (or open a new shell) before running
+`bpl`. `bun run setup --bin-dir <dir>` links elsewhere; `--no-build` only
+refreshes the link. On Windows, setup builds but does not link: add the checkout
+to `PATH` instead (WSL is the supported native workflow).
 
 ### Prerequisites
 
@@ -268,10 +280,10 @@ You can compile snippets or piped input directly:
   cat examples/hello-world/main.bpl | bpl --stdin
   ```
 
-`--emit tokens|ast|formatted|llvm` works with both `-e` and `--stdin`;
-diagnostics show `<eval>`/`<stdin>` in locations. Without `-o`, LLVM output is
-printed to stdout after backend validation and no `<eval>` or `<stdin>` files
-are left in the working directory. Use `-o <path>` to keep LLVM and executable
+Both compile and run the program like `bpl run` and exit with its status.
+`--emit llvm` prints the LLVM IR instead, and `--emit tokens|ast|formatted`
+work as for files; diagnostics show `<eval>`/`<stdin>` in locations. Without
+`-o`, no `<eval>` or `<stdin>` files are left in the working directory. Use `-o <path>` to keep LLVM and executable
 artifacts. JSON mode reports virtual-source IR as `output.inlineLlvm`.
 
 ### More Examples
@@ -416,7 +428,7 @@ Comprehensive documentation is available in the [`docs/`](docs/) directory:
 
 ### Reference
 
-- **[Language Specification](LANGUAGE_SPEC.md)** - Formal specification
+- **[Language Specification](docs/LANGUAGE_SPEC.md)** - Formal specification
 - **[CLI Reference](docs/39-compiler-options.md)** - All command-line options
 - **[Standard Library API](docs/48-stdlib-api.md)** - Complete API reference
 
@@ -487,7 +499,7 @@ bpl dev main.bpl --no-run
 Explicitly compile a program:
 
 ```bash
-# Basic compilation (generates LLVM IR)
+# Basic compilation (writes main.ll and the executable main)
 bpl build main.bpl
 
 # Specify output filename
@@ -513,6 +525,18 @@ bpl check src/*.bpl
 
 # JSON output for tooling
 bpl check main.bpl --json
+```
+
+#### `bpl test [paths...]`
+
+Run the test frames (`frame testName()` or `frame test_name()`) in every
+`*_test.bpl` file, each in its own process; a test fails when it throws (for
+example from `Assert.that`) or returns a nonzero `int`:
+
+```bash
+bpl test
+bpl test tests/ --filter Parser
+bpl test --json
 ```
 
 #### `bpl new <name>`
@@ -739,26 +763,37 @@ frame main() ret int {
 
 ### Inheritance
 
-Single and multiple inheritance supported:
+A struct has at most one parent struct and can implement any number of specs:
 
 ```bpl
+import printf from "std/c.bpl";
+
+spec Swimmer {
+    frame swim(this: *Self);
+}
+
 struct Animal {
     name: string,
-    frame speak() { printf("...\n"); }
+    frame speak(this: *Animal) { printf("...\n"); }
 }
 
 struct Dog : Animal {
     breed: string,
-    frame speak() { printf("Woof!\n"); }  # Override
+    frame speak(this: *Dog) { printf("Woof!\n"); }  # Override
 }
 
-struct Bird : Animal {
-    wingspan: float
-}
-
-# Multiple inheritance
+# One parent struct plus a spec
 struct Platypus : Animal, Swimmer {
-    # ...
+    frame swim(this: *Platypus) { printf("Paddle\n"); }
+}
+
+frame main() ret int {
+    local d: Dog = Dog { name: "Rex", breed: "Lab" };
+    local animal: *Animal = cast<*Animal>(&d);
+    animal.speak(); # Woof!
+    local p: Platypus = Platypus { name: "Perry" };
+    p.swim();
+    return 0;
 }
 ```
 
@@ -821,53 +856,37 @@ See the [Standard Library documentation](docs/28-stdlib-io.md) for complete API 
 
 ```
 bpl3/
+├── index.ts            # CLI entry point (`bun index.ts …`; compiled into `bpl`)
 ├── compiler/           # Compiler implementation
-│   ├── frontend/       # Lexer (Peggy) and parser
-│   ├── middleend/      # Type checker, module resolver, linker
-│   ├── backend/        # LLVM IR code generation
-│   │   └── codegen/    # Generators for expressions, types, etc.
+│   ├── frontend/       # Lexer, Peggy parser (generated/), parser facade
+│   ├── middleend/      # Type checker, module resolver, package manager
+│   ├── backend/        # LLVM IR code generation (codegen/)
 │   ├── formatter/      # Code formatter
-│   ├── linter/         # Code linting
-│   ├── docs/           # Documentation generator
-│   └── common/         # Shared utilities
-│       ├── AST.ts      # AST definitions
-│       ├── CompilerError.ts # Error handling
-│       ├── Config.ts   # Centralized configuration
-│       ├── Logger.ts   # Structured logging
-│       └── ...         # Path resolution, source management
+│   ├── linter/         # Linter
+│   ├── docs/           # Documentation generator (`bpl docs`)
+│   └── common/         # AST, diagnostics, config, path resolution
 ├── cli/                # Command-line interface
-│   ├── index.ts        # CLI entry point
 │   ├── commands/       # Subcommand handlers
-│   └── completions/    # Shell completions
-├── docs/               # Comprehensive documentation
-│   ├── 01-introduction.md
-│   ├── 02-installation.md
-│   ├── 03-quick-start.md
-│   └── ...             # 70+ documentation files
-├── examples/           # 450+ examples and regression programs
-│   ├── hello-world/
-│   ├── fibonacci/
-│   ├── generics/
-│   ├── stdlib_*/       # Standard library examples
-│   └── ...
-├── grammar/            # PEG grammar definitions
-│   └── bpl.peggy       # Language grammar
-├── lib/                # Standard library
-│   ├── io.bpl          # Input/output
-│   ├── array.bpl       # Dynamic arrays
-│   ├── map.bpl         # Hash maps
-│   ├── string.bpl      # String utilities
-│   └── ...             # 50+ stdlib modules
-├── tests/              # Comprehensive test suite
-│   ├── Integration.test.ts
-│   ├── Parser.test.ts
-│   └── ...
+│   └── completions/    # Completion script generator
+├── grammar/            # PEG grammar (bpl.peggy) and the token grammar
+├── lib/                # Standard library and native/WASM runtime sources
+├── packages/           # Bundled packages (web, database, auth, …)
+├── schemas/            # JSON schemas for bpl.json and .bplfmt.json
+├── completions/        # Generated bash/zsh completion scripts
+├── docs/               # Guides, reference, and the language specification
+│   ├── LANGUAGE_SPEC.md
+│   └── project/        # BUGS.md, TODO.md, PLAN.md (work tracking)
+├── examples/           # Example and regression programs
+├── tests/              # Test suite (bun test)
+├── fuzz/               # Compiler fuzzer and regression promotion
 ├── benchmark/          # Performance benchmarks
-├── vscode-ext/         # VS Code extension
-├── playground/         # Web playground (optional)
-├── index.ts            # Main entry point
-├── LANGUAGE_SPEC.md    # Language specification
-└── README.md           # This file
+├── tools/ scripts/     # Release, CI, and code-generation helpers
+├── docker/             # Compiler and playground images
+├── playground/         # Web playground
+├── vscode-ext/         # VS Code extension and language server
+├── src/                # Self-hosting compiler experiment (BPL sources)
+├── AGENTS.md           # Concise language and contributor reference
+└── CHANGELOG.md
 ```
 
 ## 🧪 Examples
@@ -895,7 +914,7 @@ The [`examples/`](examples/) directory contains 450+ working examples and regres
 - `generics/` - Generic programming
 - `generics_advanced/` - Complex generics
 - `objects_inheritance/` - OOP patterns
-- `multi_inheritance/` - Multiple inheritance
+- `multi_inheritance/` - Multi-level inheritance chains
 - `error_handling/` - Exception handling
 
 ### Standard Library Examples
@@ -915,9 +934,9 @@ The [`examples/`](examples/) directory contains 450+ working examples and regres
 
 Each example includes:
 
-- Source code (`.bpl` files)
-- Expected output (in test configurations)
-- Build and test scripts
+- Source code (`main.bpl` and any modules)
+- Expected output and arguments in `test_config.json`, run by
+  `tests/Integration.test.ts`
 
 Run any example:
 
@@ -930,16 +949,29 @@ bpl run main.bpl
 
 ### Work Tracking
 
-Active BPL implementation work is tracked on the project-scoped BPL Agent Board.
-Use the board as the source of truth for task ownership, acceptance criteria,
-progress notes, review status, and time tracking. Keep repository artifacts in
-sync with the board: user-visible behavior changes should update
-`CHANGELOG.md`, docs should change with documented behavior, and completed work
-should include the relevant test or verification output in the board summary.
+Work is tracked in the repository: [docs/project/BUGS.md](docs/project/BUGS.md)
+logs defects and follow-ups, [docs/project/TODO.md](docs/project/TODO.md) is the
+implementation-status inventory, and [docs/project/PLAN.md](docs/project/PLAN.md)
+sets priorities. A change that alters user-visible behavior updates
+`CHANGELOG.md` and the affected docs in the same commit, with regression tests.
 
-Do not commit Agent Board credentials, API keys, local environment files, or
-private endpoint details. Board updates should describe the work and evidence,
-not secrets.
+### Formatting and baseline logs
+
+`bun install --frozen-lockfile` installs the pinned Prettier version. Use
+`bun run format` to format supported repository files and `bun run format:check`
+for a read-only style check. Dependencies and generated output are excluded by
+`.prettierignore`. Use `bpl format` for BPL source files; `bun run
+format:bpl:check` checks `lib/`, `packages/` and `examples/`. CI runs both
+checks. `bun run format:examples` formats only the `examples/` tree,
+including `.bpl` and `.x` sources, and respects `.bplignore` and discovery exclusions.
+
+`bun run test:baseline` saves combined test output to `test-baseline.txt` and
+returns a nonzero status when tests fail. Without arguments it runs the test
+files in batches of `BPL_BASELINE_BATCH_SIZE` (default 40), each in its own
+`bun test` process, so a full run fits on smaller machines. Arguments are passed
+to a single `bun test` run, for example
+`bun run test:baseline tests/ParserRecovery.test.ts`. `bun run report:file-sizes`
+lists the largest tracked compiler, CLI and extension sources.
 
 ### Running Tests
 
@@ -1024,7 +1056,7 @@ BPL_REQUIRE_WASM_LD=1 bun run test:wasm
 
 # Start the playground. The Run Wasm button compiles hosted wasm and executes it
 # in the browser with JavaScript host imports.
-cd playground && bun run start
+bun run playground
 
 # Run sanitizer-backed runtime checks. CI installs compiler-rt so this runs
 # safe programs and checked failure paths under ASan/UBSan; local toolchains
@@ -1102,7 +1134,7 @@ Contributions are welcome! Please:
 5. **Format code** (`bun run format`)
 6. **Commit** (`git commit -m 'Add amazing feature'`)
 7. **Push** (`git push origin feature/amazing-feature`)
-8. **Open a Pull Request**
+8. **Open a Pull Request** against the `staging` branch
 
 Open a pull request after running the relevant tests and type checks.
 
@@ -1111,7 +1143,7 @@ Open a pull request after running the relevant tests and type checks.
 ### Documentation
 
 - Start with the [Quick Start Guide](docs/03-quick-start.md)
-- Read the [Language Specification](LANGUAGE_SPEC.md)
+- Read the [Language Specification](docs/LANGUAGE_SPEC.md)
 - Explore [example programs](examples/)
 - Check the [Standard Library docs](docs/28-stdlib-io.md)
 
@@ -1127,55 +1159,15 @@ Coming soon!
 
 ## 🚦 Roadmap
 
-### Current Status: Beta
+BPL is under active development. The LLVM compiler, type system, modules,
+formatter, package tools, VS Code extension, native runtime, and WebAssembly MVP
+are implemented, with platform and feature limits documented alongside them.
 
-BPL is under active development. The compiler has **1,300+ tests** across 140+ test files, plus hundreds of example and regression programs.
-
-**Build Status:**
-
-- ✅ 1,300+ tests in the checked-in test suite
-- ✅ CI-safe suite includes integration tests, all playground examples, and VS Code extension tests
-- ✅ 0 ESLint errors/warnings
-- ✅ 0 TypeScript errors
-- ✅ 450+ checked-in examples and regression programs
-
-### Completed ✅
-
-- [x] Full LLVM IR backend
-- [x] Static type system with generics
-- [x] Structs with inheritance
-- [x] Module system with imports/exports
-- [x] Exception handling (try/catch)
-- [x] Package manager
-- [x] Code formatter
-- [x] Cross-compilation support
-- [x] Standard library (50+ modules)
-- [x] VS Code extension
-- [x] Comprehensive test suite (1,300+ tests)
-- [x] Documentation (70+ pages)
-- [x] Enum types with pattern matching
-- [x] String interpolation
-- [x] Lambda expressions
-- [x] Tuple destructuring (including nested)
-- [x] Operator overloading (24 operators)
-- [x] Intrinsics (math, bit manipulation, memory)
-- [x] WebAssembly target (freestanding wasm32 plus hosted runtime hooks)
-
-### In Progress 🚧
-
-- [ ] IDE integrations (beyond VS Code)
-- [ ] More stdlib modules (networking, threads)
-- [ ] Optimization passes
-
-### Planned 📋
-
-- [ ] Package registry
-- [ ] Incremental compilation improvements
-- [ ] Inline assembly improvements
-- [ ] C++ interop improvements
-- [ ] Self-hosting compiler
-
-See [TODO.md](TODO.md) for detailed task list.
+[TODO.md](docs/project/TODO.md) is the canonical implementation-status list and extension
+backlog. [PLAN.md](docs/project/PLAN.md) prioritizes correctness, package/import reliability,
+WebAssembly coverage, developer experience, and release stability.
+[BUGS.md](docs/project/BUGS.md) records specific defects and follow-ups. Test and build health
+should be assessed from current validation results rather than fixed counts here.
 
 ## 📊 Benchmarks
 
@@ -1242,7 +1234,7 @@ Need help?
 - **GitHub Repository**: https://github.com/pr0h0/bpl3
 - **Documentation**: [docs/](docs/)
 - **Examples**: [examples/](examples/)
-- **Language Spec**: [LANGUAGE_SPEC.md](LANGUAGE_SPEC.md)
+- **Language Spec**: [LANGUAGE_SPEC.md](docs/LANGUAGE_SPEC.md)
 
 ---
 

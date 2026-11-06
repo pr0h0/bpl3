@@ -1,0 +1,9 @@
+{
+  "expectedOutput": [
+    "empty: 1 0",
+    "small in big: 1, big in small: 0",
+    "empty in small: 1, small in itself: 1",
+    "after adding 9, small in big: 0",
+    "toArray: 3 items, sum 6"
+  ]
+}

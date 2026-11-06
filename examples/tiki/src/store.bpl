@@ -4,7 +4,6 @@ import [strcmp] from "std/c.bpl";
 import [strcpy] from "std/c.bpl";
 import [strlen] from "std/c.bpl";
 extern malloc(size: long) ret string;
-import [free] from "std/c.bpl";
 
 # Simple in-memory storage
 # global const MAX_USERS = 50;
@@ -35,7 +34,7 @@ frame find_user(username: string) ret *User {
 }
 
 frame create_user(username: string, password: string) ret *User {
-    if (_users_count >= 50) 
+    if (_users_count >= 50)
         return nullptr;
     local u: *User = &_users[_users_count];
     u.id = _users_count + 1;
@@ -58,7 +57,7 @@ frame find_note(id: int) ret *Note {
 }
 
 frame create_note(user_id: int, title: string, content: string) ret *Note {
-    if (_notes_count >= 100) 
+    if (_notes_count >= 100)
         return nullptr;
     local n: *Note = &_notes[_notes_count];
     n.id = _notes_count + 1;

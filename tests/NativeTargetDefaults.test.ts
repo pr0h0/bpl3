@@ -41,7 +41,9 @@ for (const [platform, arch, triple, abi] of hosts) {
     expect(result.output).toContain(`target datalayout = "${result.layout}"`);
     expect(result.abi).toBe(abi);
     if (arch === "arm64") {
-      expect(result.output).toContain("declare %struct.Triple @native_triple([3 x double]");
+      expect(result.output).toContain(
+        "declare %struct.Triple @native_triple([3 x double]",
+      );
       expect(result.output).not.toContain("byval(%struct.Triple)");
     } else {
       expect(result.output).toContain("sret(%struct.Triple)");

@@ -1,14 +1,15 @@
 import { expect, test } from "bun:test";
 import { spawnSync } from "node:child_process";
-import { mkdtempSync, writeFileSync, rmSync, readFileSync } from "node:fs";
+import { writeFileSync, rmSync, readFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { createServer } from "node:net";
 import { request } from "node:http";
+import { makeRepoTempDir } from "./helpers/repoTempDir";
 
 test.skipIf(process.platform !== "linux")(
   "HTTP shutdown drains active responses, cleans workers, and bounds stuck handlers",
   async () => {
-    const dir = mkdtempSync(resolve(".web-shutdown-test-"));
+    const dir = makeRepoTempDir("web-shutdown-test-");
     let child: ReturnType<typeof Bun.spawn> | undefined;
     try {
       writeFileSync(

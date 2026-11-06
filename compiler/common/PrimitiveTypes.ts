@@ -14,7 +14,10 @@ for (const bits of [8, 16, 32, 64]) {
   for (const signed of [true, false]) {
     const name = `${signed ? "i" : "u"}${bits}`;
     const label = (
-      { 8: "char", 16: "short", 32: "int", 64: "long" } as Record<number, string>
+      { 8: "char", 16: "short", 32: "int", 64: "long" } as Record<
+        number,
+        string
+      >
     )[bits]!;
     const signedLabel = bits === 8 ? "signed char" : label;
     const signedEncoding = bits === 8 ? 6 : 5;
@@ -58,19 +61,20 @@ canonical.double = {
   debugEncoding: 4,
 };
 
-export const PRIMITIVE_ALIASES: Readonly<Record<string, string>> = Object.freeze({
-  int: "i32",
-  uint: "u32",
-  float: "double",
-  f64: "double",
-  bool: "i1",
-  char: "i8",
-  uchar: "u8",
-  short: "i16",
-  ushort: "u16",
-  long: "i64",
-  ulong: "u64",
-});
+export const PRIMITIVE_ALIASES: Readonly<Record<string, string>> =
+  Object.freeze({
+    int: "i32",
+    uint: "u32",
+    float: "double",
+    f64: "double",
+    bool: "i1",
+    char: "i8",
+    uchar: "u8",
+    short: "i16",
+    ushort: "u16",
+    long: "i64",
+    ulong: "u64",
+  });
 
 const types: Record<string, PrimitiveTypeInfo> = { ...canonical };
 for (const [alias, name] of Object.entries(PRIMITIVE_ALIASES)) {
@@ -88,5 +92,7 @@ export const PRIMITIVE_INTEGER_NAMES = PRIMITIVE_NAMES.filter(
 export const PRIMITIVE_CANONICAL_NAMES = Object.keys(canonical);
 
 export function getPrimitiveType(name: string): PrimitiveTypeInfo | undefined {
-  return Object.hasOwn(PRIMITIVE_TYPES, name) ? PRIMITIVE_TYPES[name] : undefined;
+  return Object.hasOwn(PRIMITIVE_TYPES, name)
+    ? PRIMITIVE_TYPES[name]
+    : undefined;
 }

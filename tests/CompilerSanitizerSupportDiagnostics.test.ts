@@ -16,10 +16,12 @@ function failedProbe(stderr: string): CorrectnessCommandResult {
 describe("Compiler sanitizer support diagnostics", () => {
   test("explains missing compiler-rt sanitizer runtimes without probing the host", () => {
     const reason = explainBplSanitizerSupportFailure(
-      failedProbe([
-        "/usr/bin/ld: cannot find /usr/lib/clang/18/lib/linux/libclang_rt.asan-x86_64.a: No such file or directory",
-        "clang: error: linker command failed with exit code 1",
-      ].join("\n")),
+      failedProbe(
+        [
+          "/usr/bin/ld: cannot find /usr/lib/clang/18/lib/linux/libclang_rt.asan-x86_64.a: No such file or directory",
+          "clang: error: linker command failed with exit code 1",
+        ].join("\n"),
+      ),
     );
 
     expect(reason).toContain("compiler-rt");

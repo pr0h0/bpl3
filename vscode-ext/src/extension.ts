@@ -1,3 +1,4 @@
+import * as fs from "fs";
 import * as path from "path";
 import {
   window,
@@ -29,6 +30,33 @@ import { shouldUseBplSaveFormatting } from "./FormatOnSave";
 
 let client: LanguageClient;
 const formattingFailures = new FormattingFailures();
+
+/**
+ * The `bpl` to run: `<bplHome>/bpl` when the `bplLanguageServer.bplHome`
+ * setting names an installation that has one, with `BPL_HOME` set to it;
+ * otherwise `bpl` on PATH with the environment unchanged. A relative setting
+ * is resolved against the file's workspace folder (or its directory).
+ */
+function bplExecutable(resource: Uri): {
+  command: string;
+  env?: Record<string, string>;
+} {
+  const home = workspace
+    .getConfiguration("bplLanguageServer", resource)
+    .get<string>("bplHome")
+    ?.trim();
+  if (home) {
+    const base =
+      workspace.getWorkspaceFolder(resource)?.uri.fsPath ??
+      path.dirname(resource.fsPath);
+    const root = path.resolve(base, home);
+    const candidate = path.join(root, "bpl");
+    if (fs.existsSync(candidate)) {
+      return { command: candidate, env: { BPL_HOME: root } };
+    }
+  }
+  return { command: "bpl" };
+}
 
 export async function activate(context: ExtensionContext) {
   // The server is implemented in node
@@ -80,6 +108,7 @@ export async function activate(context: ExtensionContext) {
           return;
         }
         const fileUri = uri;
+        const executable = bplExecutable(fileUri);
         const document = await workspace.openTextDocument(fileUri);
         const launched = await saveAndRunDocument(document, () =>
           tasks.executeTask(
@@ -88,13 +117,14 @@ export async function activate(context: ExtensionContext) {
               workspace.getWorkspaceFolder(fileUri) || TaskScope.Global,
               "Run BPL file",
               "BPL",
+              // Strong quoting passes the configured path literally.
               new ShellExecution(
-                "bpl",
+                { value: executable.command, quoting: ShellQuoting.Strong },
                 [
                   "run",
                   { value: fileUri.fsPath, quoting: ShellQuoting.Strong },
                 ],
-                { cwd: path.dirname(fileUri.fsPath) },
+                { cwd: path.dirname(fileUri.fsPath), env: executable.env },
               ),
             ),
           ),

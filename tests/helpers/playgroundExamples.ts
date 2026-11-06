@@ -111,11 +111,7 @@ export function expectedOutputSnippets(
   return Array.isArray(expectedOutput) ? expectedOutput : [expectedOutput];
 }
 
-function validateCode(
-  file: string,
-  value: unknown,
-  errors: string[],
-): void {
+function validateCode(file: string, value: unknown, errors: string[]): void {
   if (typeof value === "string") return;
 
   if (!Array.isArray(value)) {
@@ -173,7 +169,12 @@ function validateWasmMetadata(
   }
 
   validateNonEmptyStringField(file, "wasm.reason", value.reason, errors);
-  validateBooleanField(file, "wasm.browserRuntime", value.browserRuntime, errors);
+  validateBooleanField(
+    file,
+    "wasm.browserRuntime",
+    value.browserRuntime,
+    errors,
+  );
   validateStringField(
     file,
     "wasm.canonicalMatrixFile",

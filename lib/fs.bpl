@@ -22,6 +22,14 @@ extern mkdir(path: string, mode: int) ret int;
 extern __bpl_mkdirp(path: string) ret int;
 extern __bpl_path_exists(path: string) ret int;
 extern __bpl_file_info(path: string, followLinks: int, size: *long, kind: *int) ret int;
+extern remove(path: string) ret int;
+extern rename(oldPath: string, newPath: string) ret int;
+extern fread(buffer: *void, size: long, count: long, stream: *void) ret long;
+extern fwrite(buffer: *void, size: long, count: long, stream: *void) ret long;
+extern ferror(stream: *void) ret int;
+extern realpath(path: string, resolved: string) ret string;
+extern free(ptr: *void);
+extern strcmp(a: string, b: string) ret int;
 
 # Metadata value with no owned resources. Size is the native st_size.
 struct FileInfo {
@@ -38,12 +46,7 @@ frame readFileInfo(path: string, followLinks: int) ret FileInfo {
     if (error != 0) {
         throw IOError { code: error, message: "Cannot read file metadata" };
     }
-    return FileInfo {
-        size: size,
-        isFile: kind == 1,
-        isDir: kind == 2,
-        isSymlink: kind == 3
-    };
+    return FileInfo { size: size, isFile: kind == 1, isDir: kind == 2, isSymlink: kind == 3 };
 }
 
 struct File {
@@ -51,21 +54,27 @@ struct File {
     frame open(path: string, mode: string) ret File {
         local f: File;
         f.handle = nullptr;
-        if (path == nullptr || mode == nullptr) { return f; }
+        if ((path == nullptr) || (mode == nullptr)) {
+            return f;
+        }
         f.handle = fopen(path, mode);
         return f;
     }
 
     # Closing consumes the handle even when buffered writes fail.
     frame close(this: *File) ret bool {
-        if (this.handle == nullptr) { return true; }
+        if (this.handle == nullptr) {
+            return true;
+        }
         local result: int = fclose(this.handle);
         this.handle = nullptr;
         return result == 0;
     }
 
     frame write(this: *File, data: string) ret bool {
-        if (data == nullptr) { return false; }
+        if (data == nullptr) {
+            return false;
+        }
         return __bpl_file_write(this.handle, cast<*void>(data), cast<long>(strlen(data))) == 0;
     }
 
@@ -85,7 +94,7 @@ struct File {
     }
 
     frame readLine(this: *File, buf: string, max_len: int) ret bool {
-        if (this.handle == nullptr || buf == nullptr || max_len <= 1)
+        if ((this.handle == nullptr) || (buf == nullptr) || (max_len <= 1))
             return false;
         local res: string = fgets(buf, max_len, this.handle);
         return res != nullptr;
@@ -108,7 +117,9 @@ struct FS {
     }
 
     frame writeFile(path: string, data: string) ret bool {
-        if (data == nullptr) { return false; }
+        if (data == nullptr) {
+            return false;
+        }
         return __bpl_write_file(path, cast<*void>(data), cast<long>(strlen(data))) == 0;
     }
 
@@ -147,9 +158,100 @@ struct FS {
     }
 
     frame mkdir(path: string) ret bool {
-        if (path == nullptr) { return false; }
+        if (path == nullptr) {
+            return false;
+        }
         # 0777 octal = 511 decimal
         return mkdir(path, 511) == 0;
+    }
+
+    # Deletes a file or an empty directory. Returns false if it does not
+    # exist, is a non-empty directory, or cannot be removed.
+    frame remove(path: string) ret bool {
+        if (path == nullptr) {
+            return false;
+        }
+        return remove(path) == 0;
+    }
+
+    # Moves or renames `fromPath` to `toPath`, replacing an existing file
+    # there.
+    # Returns false on failure, for example across file systems.
+    frame rename(fromPath: string, toPath: string) ret bool {
+        if ((fromPath == nullptr) || (toPath == nullptr)) {
+            return false;
+        }
+        return rename(fromPath, toPath) == 0;
+    }
+
+    # Appends `data` to the file at `path`, creating it if needed.
+    frame appendFile(path: string, data: string) ret bool {
+        if ((path == nullptr) || (data == nullptr)) {
+            return false;
+        }
+        local file: *void = fopen(path, "ab");
+        if (file == nullptr) {
+            return false;
+        }
+        local length: long = strlen(data);
+        local written: long = fwrite(cast<*void>(data), 1, length, file);
+        local closed: bool = fclose(file) == 0;
+        return (written == length) && closed;
+    }
+
+    # Copies the bytes of the file at `fromPath` to `toPath`, replacing it.
+    # Returns false if either cannot be opened, if they are the same file, or
+    # if reading or writing fails; `toPath` may then hold part of the data.
+    frame copyFile(fromPath: string, toPath: string) ret bool {
+        if ((fromPath == nullptr) || (toPath == nullptr)) {
+            return false;
+        }
+        # Opening the destination truncates it, which would destroy a source
+        # reached through the same path.
+        local source: string = realpath(fromPath, nullptr);
+        if (source == nullptr) {
+            return false;
+        }
+        local target: string = realpath(toPath, nullptr);
+        local same: bool = (target != nullptr) && (strcmp(source, target) == 0);
+        free(cast<*void>(source));
+        if (target != nullptr) {
+            free(cast<*void>(target));
+        }
+        if (same) {
+            return false;
+        }
+        local input: *void = fopen(fromPath, "rb");
+        if (input == nullptr) {
+            return false;
+        }
+        local output: *void = fopen(toPath, "wb");
+        if (output == nullptr) {
+            fclose(input);
+            return false;
+        }
+        local buffer: u8[8192];
+        local ok: bool = true;
+        loop {
+            local count: long = fread(cast<*void>(&buffer[0]), 1, 8192, input);
+            if (count > 0) {
+                if (fwrite(cast<*void>(&buffer[0]), 1, count, output) != count) {
+                    ok = false;
+                    break;
+                }
+            }
+            if (count < 8192) {
+                if (ferror(input) != 0) {
+                    ok = false;
+                }
+                break;
+            }
+        }
+        fclose(input);
+        if (fclose(output) != 0) {
+            ok = false;
+        }
+        return ok;
     }
 
     # Create missing path components, preserving roots and checking existing directories.
@@ -178,7 +280,9 @@ struct FS {
         if (error != 0) {
             throw IOError { code: error, message: "Cannot list directory" };
         }
-        defer { __bpl_free_dir_names(names, count); }
+        defer {
+            __bpl_free_dir_names(names, count);
+        }
         local storage: *void = nullptr;
         error = __bpl_fs_allocate_entries(count, cast<long>(sizeof<String>()), &storage);
         if (error != 0) {

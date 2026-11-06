@@ -308,11 +308,7 @@ function resolveScript(command: string | undefined): {
   config: ScriptConfig;
   argv: string[];
 } {
-  if (
-    command !== "run" &&
-    command !== "replay" &&
-    command !== "promote"
-  ) {
+  if (command !== "run" && command !== "replay" && command !== "promote") {
     throw new CliUsageError(
       `Expected fuzz helper command run, replay, or promote.`,
     );

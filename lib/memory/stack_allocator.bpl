@@ -27,7 +27,7 @@ struct StackAllocator: Allocator {
             size = 1024 * 1024;
         # 1MB default
         # Round up to page size
-        if (size > MAX_ALLOCATION - 4095) {
+        if (size > (MAX_ALLOCATION - 4095)) {
             this.base_ptr = nullptr;
             this.capacity = 0;
             this.top_offset = 0;
@@ -51,12 +51,12 @@ struct StackAllocator: Allocator {
     # @param size: Number of bytes to allocate.
     # @returns Pointer to aligned memory, or nullptr on overflow.
     frame alloc(this: *StackAllocator, size: ulong) ret *void {
-        if ((this.base_ptr == nullptr) || (size == 0) || (size > MAX_ALLOCATION - 7))
+        if ((this.base_ptr == nullptr) || (size == 0) || (size > (MAX_ALLOCATION - 7)))
             return nullptr;
         # Align 8
         if ((size % 8) != 0)
             size = size + (cast<ulong>(8) - (size % 8));
-        if ((this.top_offset > this.capacity) || (size > this.capacity - this.top_offset)) {
+        if ((this.top_offset > this.capacity) || (size > (this.capacity - this.top_offset))) {
             return nullptr; # Stack overflow
         }
         local ptr: *u8 = cast<*u8>(cast<ulong>(this.base_ptr) + this.top_offset);

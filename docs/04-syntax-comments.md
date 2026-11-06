@@ -165,7 +165,21 @@ frame main() ret int {
 
 ### Documentation Comments
 
-While BPL doesn't have special doc comment syntax (like `///` or `/**`), you can use comments for documentation:
+`bpl docs` takes a declaration's documentation from the comment directly
+above it (no blank line between): either a `/# ... #/` block or a run of `#`
+line comments, each on its own line. A comment after code on the same line
+(`x: int, # note`) documents nothing. This applies to functions, structs,
+enums, specs, their fields, variants and methods:
+
+```bpl
+# Adds two integers.
+# Returns their sum.
+frame add(a: int, b: int) ret int {
+    return a + b;
+}
+```
+
+A block comment works the same way:
 
 ```bpl
 /#

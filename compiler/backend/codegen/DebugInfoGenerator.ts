@@ -62,7 +62,6 @@ export class DebugInfoGenerator {
 
   constructor(
     private filename: string,
-    private directory: string,
     private target?: string,
   ) {}
 
@@ -110,7 +109,6 @@ export class DebugInfoGenerator {
       producer || getCompilerDriverVersion(this.target),
     );
     const fileId = this.getFileNodeId(this.filename);
-    const _enumsId = this.addNode("!{}"); // Empty enums list for now
 
     const content = `distinct !DICompileUnit(language: DW_LANG_C, file: !${fileId}, producer: "${actualProducer}", isOptimized: false, runtimeVersion: 0, emissionKind: FullDebug, splitDebugInlining: false, nameTableKind: None)`;
 
@@ -156,7 +154,6 @@ export class DebugInfoGenerator {
   ): number {
     // !5 = distinct !DISubprogram(name: "main", scope: !1, file: !1, line: 1, type: !6, isLocal: false, isDefinition: true, scopeLine: 1, flags: DIFlagPrototyped, isOptimized: false, unit: !0, retainedNodes: !2)
     const fileId = this.getFileNodeId(filePath);
-    const _retainedNodesId = this.addNode("!{}");
 
     const content = `distinct !DISubprogram(name: "${name}", scope: !${fileId}, file: !${fileId}, line: ${line}, type: !${typeId}, scopeLine: ${line}, spFlags: DISPFlagDefinition, unit: !${this.compileUnitId})`;
 

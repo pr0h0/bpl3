@@ -1,9 +1,8 @@
 import [Engine] from "../src/engine.bpl";
-import [Database], [Table], [Row] from "../src/storage.bpl";
+import [Table], [Row] from "../src/storage.bpl";
 import [Query], [Command], [Condition], [Operator] from "../src/query.bpl";
 import [Value] from "../src/types.bpl";
 import [Array] from "std/array.bpl";
-import [String] from "std/string.bpl";
 
 import [printf] from "std/c.bpl";
 
@@ -33,7 +32,7 @@ frame insert_book(engine: *Engine, title: string, author: string) {
 frame get_book_availability(engine: *Engine, book_id: int) ret int {
     # Returns 1 if available, 0 if not, -1 if not found
     local t: *Table = engine.db.get_table("books");
-    if (t == nullptr) 
+    if (t == nullptr)
         return -1;
     local result: int = -1;
 

@@ -6,9 +6,7 @@
   "difficulty": "beginner",
   "duration": "12 min",
   "description": "Learn how to work with collections of data using arrays. Store multiple values, iterate through them, and manipulate array data.",
-  "prerequisites": [
-    "functions-basics"
-  ],
+  "prerequisites": ["functions-basics"],
   "objectives": [
     "Create and initialize arrays",
     "Access and modify array elements",
@@ -117,23 +115,13 @@
       "questions": [
         {
           "question": "What is the index of the first element in an array?",
-          "options": [
-            "1",
-            "0",
-            "-1",
-            "Depends on the array"
-          ],
+          "options": ["1", "0", "-1", "Depends on the array"],
           "correct": 1,
           "explanation": "Arrays in BPL (and most languages) are 0-indexed. First element is at index 0."
         },
         {
           "question": "Given `local arr: int[] = [5, 10, 15, 20];`, what is arr[2]?",
-          "options": [
-            "5",
-            "10",
-            "15",
-            "20"
-          ],
+          "options": ["5", "10", "15", "20"],
           "correct": 2,
           "explanation": "arr[0]=5, arr[1]=10, arr[2]=15, arr[3]=20. Index 2 is the third element."
         },

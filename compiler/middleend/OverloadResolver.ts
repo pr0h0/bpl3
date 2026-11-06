@@ -201,7 +201,9 @@ export class OverloadResolver {
         expectedGenericCounts.size > 0 &&
         !expectedGenericCounts.has(genericArgs.length)
       ) {
-        const counts = [...expectedGenericCounts].sort((a, b) => a - b).join(" or ");
+        const counts = [...expectedGenericCounts]
+          .sort((a, b) => a - b)
+          .join(" or ");
         throw new CompilerError(
           `Generic argument count mismatch for call to '${name}': got ${genericArgs.length} type arguments, expected ${counts}.`,
           "Provide explicit type arguments; type arguments are not inferred.\n" +
@@ -228,9 +230,9 @@ export class OverloadResolver {
       const decl = c.declaration as AST.FunctionDecl | AST.ExternDecl;
       // Resolve aliases before substitution so the checked signature and code
       // generator receive the same concrete dimensions and element type.
-      const args = (genericArgs.length > 0 ? genericArgs : vc.inferredArgs)?.map(
-        (arg) => this.ctx.resolveType(arg),
-      );
+      const args = (
+        genericArgs.length > 0 ? genericArgs : vc.inferredArgs
+      )?.map((arg) => this.ctx.resolveType(arg));
 
       if (args && decl.kind === "FunctionDecl") {
         const map = new Map<string, AST.TypeNode>();
@@ -389,7 +391,8 @@ export class OverloadResolver {
         if (this.ctx.areTypesCompatible(paramType, argTypes[i]!)) continue;
         const argument = arguments_?.[i];
         if (
-          i < paramsToCheck && argument &&
+          i < paramsToCheck &&
+          argument &&
           this.ctx.contextualizeArrayLiteral(argument, paramType, false)
         ) {
           needsContextual = true;

@@ -1,5 +1,4 @@
 import [printf] from "std/c.bpl";
-import [Allocator] from "std/memory/allocator.bpl";
 import [PageAllocator] from "std/memory/page_allocator.bpl";
 import [ArenaAllocator] from "std/memory/arena_allocator.bpl";
 import [PoolAllocator] from "std/memory/pool_allocator.bpl";
@@ -78,7 +77,9 @@ frame main() ret int {
     printf("Pool destroyed\n\n");
 
     arena.init(1024);
-    if (arena.alloc(cast<ulong>(0xffffffffffffffff)) != nullptr) { return 1; }
+    if (arena.alloc(cast<ulong>(0xffffffffffffffff)) != nullptr) {
+        return 1;
+    }
     arena.destroy();
     printf("Oversized allocation rejected\n");
     return 0;

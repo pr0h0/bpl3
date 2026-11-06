@@ -62,7 +62,6 @@ export class CallHierarchyProvider {
   ): Promise<CallHierarchyIncomingCall[]> {
     const incomingCalls = new Map<string, CallHierarchyIncomingCall>();
     const targetFuncName = item.name;
-    const _targetUri = item.uri;
 
     // Search for all references to this function across the workspace
     const allFiles = this.astResolver.getAllCachedFiles();
@@ -586,7 +585,9 @@ export class CallHierarchyProvider {
     return {
       name: funcDecl.name,
       kind:
-        funcDecl.kind === "SpecMethod" ? SymbolKind.Method : SymbolKind.Function,
+        funcDecl.kind === "SpecMethod"
+          ? SymbolKind.Method
+          : SymbolKind.Function,
       uri: filePathToUri(filePath),
       range: selectionRange,
       selectionRange: selectionRange,

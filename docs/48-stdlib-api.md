@@ -70,6 +70,19 @@ consumed as a missing value; use `--name=-filename` for a value beginning with
 an option prefix. Negative decimal numbers and a lone `-` are operands.
 `--` stops both option and subcommand recognition for the remaining tokens.
 
+`parsed.getFlag(name)` returns a flag's value as text. `flagInt`, `flagLong`
+and `flagFloat` read it as a number with `Parse` (std/parse.bpl): they store
+it and return `true`, or return `false` and leave the destination unchanged
+when the flag was not given or its value is not a valid number, so a default
+set beforehand stays in place without hiding a typing mistake:
+
+```bpl
+local jobs: int = 4;
+if (parsed.hasFlag("--jobs") && !parsed.flagInt("--jobs", &jobs)) {
+    printf("--jobs must be a number\n");
+}
+```
+
 ### JSON (`std/json.bpl`)
 
 JSON helpers are available directly through `std`:
@@ -88,8 +101,38 @@ ownership, hooks, supported types, and known failures.
 
 ### Logging (`std/log.bpl`)
 
-`Log.debug`, `Log.info`, `Log.warn`, and `Log.error` are available through
-`std` and currently write through the standard IO log path.
+`Log.debug`, `Log.info`, `Log.warn`, and `Log.error` write one line each;
+`Log.write(level, msg)` takes the level as a `LogLevel` (`Debug`, `Info`,
+`Warn`, `Error`, `Off`). Both types are also exported by `std`.
+
+- `Log.setLevel(LogLevel.Warn)` drops less severe messages, and
+  `LogLevel.Off` drops all of them. `Log.enabled(level)` tells whether a
+  message at `level` would be written, so expensive messages can be skipped.
+- `Log.levelFromEnv()` sets the level from `BPL_LOG_LEVEL` (`debug`, `info`,
+  `warn`, `error` or `off`, lower or upper case) and returns false, leaving
+  the level unchanged, when the variable is unset or unrecognized.
+- `Log.setPrefix(true)` starts each line with `[DEBUG] `, `[INFO] `,
+  `[WARN] ` or `[ERROR] `.
+- `Log.setTimestamps(true)` starts each line with the current UTC time in
+  ISO 8601 with milliseconds, such as `2026-11-01T12:34:56.789Z `, before any
+  level prefix.
+- `Log.useStderr(true)` writes to standard error instead of standard output.
+
+By default every level is written to standard output without a prefix. The
+settings are process-wide.
+
+```bpl
+import [Log], [LogLevel] from "std/log.bpl";
+
+frame main() ret int {
+    Log.setPrefix(true);
+    Log.setLevel(LogLevel.Info);
+    Log.levelFromEnv();
+    Log.debug("hidden unless BPL_LOG_LEVEL=debug");
+    Log.info("started");
+    return 0;
+}
+```
 
 ---
 
@@ -315,6 +358,40 @@ Negating or taking the absolute value of `LONG_MIN/1` also returns `0/0`.
 unsigned integer access in either byte order, and failure without partial writes
 or cursor movement. See the [binary data reference](61-stdlib-binary.md).
 
+### Url (`std/url.bpl`)
+
+URL percent-encoding (RFC 3986) and HTML form encoding. `encodeComponent`
+keeps only the unreserved characters `A`-`Z`, `a`-`z`, `0`-`9`, `-`, `_`, `.`
+and `~` and writes every other byte as uppercase `%XX`, as for a path segment
+or query value; `encodeForm` also turns a space into `+`, as in
+`application/x-www-form-urlencoded` data. `decode` turns `%XX` escapes (either
+case) back into bytes and `decodeForm` also turns `+` into a space. The
+decoders return `nullptr` for a `%` without two hex digits after it and for
+`%00`, which would cut the string short. Results are caller-owned
+(`free(cast<*void>(result))`), or `nullptr` if allocation fails.
+
+- `Url.encodeComponent(text: string) ret string`
+- `Url.encodeForm(text: string) ret string`
+- `Url.decode(text: string) ret string`
+- `Url.decodeForm(text: string) ret string`
+
+### Parse (`std/parse.bpl`)
+
+Checked parsing of numbers and booleans, for arguments, environment variables
+and configuration where `atoi` would silently return 0. Each function parses
+the whole text, with no surrounding whitespace, and on success stores the
+value and returns `true`; empty or null text, a stray character or an
+out-of-range value returns `false` and leaves the destination unchanged.
+
+- `Parse.int(text: string, output: *int) ret bool` — decimal, optional sign
+- `Parse.long(text: string, output: *long) ret bool` — decimal, optional sign
+- `Parse.radix(text: string, base: int, output: *long) ret bool` — base 2 to
+  36, letters in either case; base 16, 8 and 2 also accept a `0x`, `0o` or
+  `0b` prefix after the sign
+- `Parse.float(text: string, output: *float) ret bool` — anything `strtod`
+  reads, including exponents, hexadecimal floats, `inf` and `nan`
+- `Parse.bool(text: string, output: *bool) ret bool` — `true` or `false`
+
 ### Base64 (`std/base64.bpl`)
 
 Base64 encoding and decoding.
@@ -348,6 +425,35 @@ Encoded input longer than 2,147,483,647 bytes is rejected before scanning:
 Base64 encoding uses the same checked length calculation before allocating its
 output. `encodeString` checks the byte length before converting it to `int`.
 An allocation failure returns `nullptr`.
+
+URL-safe Base64 (RFC 4648 section 5) uses `-` and `_` and leaves out the `=`
+padding, as in JWTs and URLs. `encodeUrl` and `encodeStringUrl` produce it;
+`decodeUrl` and `decodeUrlToString` accept it with or without padding and
+return `-1` or `nullptr` for input of a length of 1 mod 4 or with characters
+outside the alphabets.
+
+- `Base64.encodeUrl(data: *u8, length: int) ret string`
+- `Base64.encodeStringUrl(str: string) ret string`
+- `Base64.decodeUrl(input: string, output: *u8) ret int`
+- `Base64.decodeUrlToString(input: string) ret string`
+
+### Base32 (`std/base32.bpl`)
+
+Base32 (RFC 4648 section 6), as used for TOTP secrets and case-insensitive
+identifiers. Encoding uses `A`-`Z` and `2`-`7` and pads with `=` to a multiple
+of eight characters; the result is caller-owned (`free(cast<*void>(result))`)
+or `nullptr` if allocation fails. Decoding accepts upper or lower case, with
+or without the padding, and refuses any other character, padding before the
+end, or a length that cannot come from whole bytes (a final group of 1, 3 or
+6 characters). `decode`, `decodedLength` and `isValid` run the same scan, so
+they agree; invalid input gives `-1`, `false` or `nullptr`.
+
+- `Base32.encode(data: *u8, length: long) ret string`
+- `Base32.encodeString(text: string) ret string`
+- `Base32.decode(input: string, output: *u8) ret long` — bytes written, or `-1`
+- `Base32.decodeToString(input: string) ret string` — owned, or `nullptr`
+- `Base32.decodedLength(input: string) ret long` — exact, or `-1`
+- `Base32.isValid(input: string) ret bool`
 
 ### Hex (`std/hex.bpl`)
 
@@ -385,13 +491,318 @@ Encoded input longer than 2,147,483,647 bytes is rejected before scanning:
 - `Hex.decodedLength(input: string) ret int` — exact, or `-1`
 - `Hex.isValid(input: string) ret bool`
 
+### Option (`std/option.bpl`) and Result (`std/result.bpl`)
+
+`Option<T>` is `Some(value)` or `None`; `Result<T, E>` is `Ok(value)` or
+`Err(error)`. Both are enums, so `match` reads them directly; the methods
+cover the common cases.
+
+- `opt.isSome()`, `opt.isNone()`, `opt.unwrap()` (throws `OptionUnwrapError`
+  "Called unwrap on None"), `opt.unwrapOr(default)`
+- `opt.expect(message)` — the value, or throws `OptionUnwrapError` with
+  `message`, so a failure says what was missing
+- `opt.unwrapOrElse(fallback)` — calls `fallback` only when there is no value
+- `opt.map<U>(transform)` — `Some(transform(value))` or `None`
+- `opt.andThen<U>(next)` — `next(value)`, itself an `Option<U>`, or `None`
+- `res.isOk()`, `res.isErr()`, `res.unwrap()` (throws the error),
+  `res.unwrapErr()`, `res.unwrapOr(default)`
+- `res.expect(message)` — the value, or throws `ResultUnwrapError` with
+  `message`
+- `res.map<U>(transform)` and `res.mapErr<F>(transform)` — transform the
+  success value or the error, keeping the other side
+- `res.ok()` — `Some(value)` for success, `None` for an error
+
+```bpl
+import printf from "std/c.bpl";
+import [Option] from "std/option.bpl";
+
+frame main() ret int {
+    local port: Option<int> = Option<int>.Some(8080);
+    local next: Option<int> = port.map<int>(|p: int| ret int {
+        return p + 1;
+    });
+    printf("%d\n", next.expect("port is not configured"));
+    return 0;
+}
+```
+
 ### Hash (`std/hash.bpl`)
 
-Stable non-cryptographic hashing helpers.
+Stable non-cryptographic hashing helpers and checksums. `crc32` is the
+IEEE 802.3 CRC used by zlib, gzip, ZIP and PNG (`crc32String("123456789")` is
+`0xcbf43926`); `crc32Update(crc, data, length)` continues a CRC over more
+data, starting from 0. `adler32` is the zlib stream checksum (RFC 1950). Null
+data counts as empty.
 
 - `Hash.fnv1a32(input: string) ret uint`
+- `Hash.fnv1a64(input: string) ret ulong`
 - `Hash.checksum32(input: string) ret uint`
 - `Hash.combine32(left: uint, right: uint) ret uint`
+- `Hash.crc32(data: *u8, length: long) ret uint`
+- `Hash.crc32Update(crc: uint, data: *u8, length: long) ret uint`
+- `Hash.crc32String(input: string) ret uint`
+- `Hash.adler32(data: *u8, length: long) ret uint`
+
+### Assert (`std/assert.bpl`)
+
+Checks for tests run with `bpl test` and for runtime invariants. A failed
+check prints a message (with the expected and actual values for the
+comparison helpers) and throws `1`, which fails the test or, outside a `try`
+block, ends the program.
+
+- `Assert.that(condition: bool, message: string)`, `Assert.isTrue`,
+  `Assert.isFalse`
+- `Assert.fail(message: string)` — for code that should not be reached
+- `Assert.equalInt(actual: int, expected: int, message: string)`,
+  `Assert.equalLong` — print `message: expected 5, got 4`
+- `Assert.equalString(actual: string, expected: string, message: string)` —
+  compares bytes; `nullptr` equals only `nullptr`
+- `Assert.near(actual: double, expected: double, tolerance: double, message: string)`
+
+### BigInt (`std/bigint.bpl`)
+
+Signed integers of any size, stored as base-10^9 limbs. Every operation returns
+a new `BigInt` the caller owns and must `destroy`; operands are never changed.
+Copying a `BigInt` with `=` shares its limbs, so destroy only one copy, or use
+`clone`. `toString` returns a caller-owned string (release it with
+`free(cast<*void>(text))`).
+
+- `BigInt.fromLong(number: long) ret BigInt`
+- `BigInt.parse(text: string) ret BigInt` — optional `+`/`-`, decimal digits;
+  throws otherwise
+- `value.add(other: *BigInt) ret BigInt`, `subtract`, `multiply`, `negate()`
+- `value.divide(divisor: *BigInt, remainder: *BigInt) ret BigInt` — truncates
+  toward zero; when `remainder` is not null it receives the remainder (with the
+  dividend's sign), which the caller destroys; throws for a zero divisor
+- `value.divideSmall(divisor: int, remainder: *int) ret BigInt` — the same for
+  an `int` divisor, without allocating a remainder
+- `value.compare(other: *BigInt) ret int` (-1, 0, 1), `equals`, `isZero()`,
+  `isNegative()`
+- `value.abs()`, `value.pow(exponent: int)` (throws for a negative exponent;
+  `0^0` is 1), `value.gcd(other: *BigInt)` (of the magnitudes; `gcd(0, 0)` is 0)
+- `value.toLong(out: *long) ret bool` — false when the value does not fit
+- `value.clone() ret BigInt`, `value.toString() ret string`, `value.destroy()`
+
+```bpl
+import printf, free from "std/c.bpl";
+import [BigInt] from "std/bigint.bpl";
+
+frame main() ret int {
+    local base: BigInt = BigInt.parse("123456789012345678901234567890");
+    local square: BigInt = base.multiply(&base);
+    local text: string = square.toString();
+    printf("%s\n", text);
+    free(cast<*void>(text));
+    square.destroy();
+    base.destroy();
+    return 0;
+}
+```
+
+### Regex (`std/regex.bpl`)
+
+Regular expressions over bytes. A pattern is compiled to a Thompson NFA and
+matched by following every state at once, so matching never backtracks and
+takes linear time in the text for each start position. Syntax: literal bytes;
+`.` (any byte except newline); `[abc]`, `[a-z]`, negated `[^...]` (a `]` first
+in a class is literal); `\d \w \s` and their negations `\D \W \S`; `\`
+escaping any other character, plus `\n \t \r`; groups `( )`; alternation
+`|`; greedy `*`, `+` and `?`; counted repetition `{m}`, `{m,}`, `{m,n}` and
+`{,n}` (counts up to 1000; a `{` that does not start a count is a literal
+brace); and the anchors `^` and `$` for the start and end of the text.
+Captures and backreferences are not supported. `find` returns the leftmost match, extended as far as it goes.
+
+- `Regex.compile(pattern: string) ret Regex` — throws a string describing a
+  syntax error
+- `regex.matches(text: string) ret bool` — the whole text matches
+- `regex.find(text: string, begin: long, matchStart: *long, matchEnd: *long)
+ret bool` — byte offsets of the match, end exclusive
+- `regex.contains(text: string) ret bool`
+- `regex.countMatches(text: string) ret long` — non-overlapping matches
+- `regex.replaceAll(text: string, replacement: string) ret string`
+- `regex.replaceFirst(text: string, replacement: string) ret string`
+- `regex.split(text: string) ret Array<string>` — the pieces between matches
+- `regex.destroy()`
+
+`replaceAll` and `replaceFirst` copy `replacement` literally and return a
+caller-owned string, or `nullptr` if allocation fails. Matches do not overlap.
+After an empty match the search moves on one byte, and an empty match right
+after a non-empty one still counts, as in Perl and Python: replacing `a*`
+with `-` in `baaac` gives `-b--c-`. `split` uses the same matches and keeps empty pieces
+before, between and after them, as Python's `re.split` does: splitting
+`a,b,,c` on `,` gives `a`, `b`, an empty piece and `c`. The caller frees each
+piece and destroys the array.
+
+```bpl
+import printf from "std/c.bpl";
+import [Regex] from "std/regex.bpl";
+
+frame main() ret int {
+    local digits: Regex = Regex.compile("\\d+");
+    local start: long = 0;
+    local end: long = 0;
+    if (digits.find("order 66 shipped", 0, &start, &end)) {
+        printf("%ld %ld\n", start, end);
+    }
+    digits.destroy();
+    return 0;
+}
+```
+
+### Sha1 (`std/sha1.bpl`)
+
+SHA-1 digests (FIPS 180-4), with the same interface as `Sha256` and 20-byte
+digests; `hexBytes` and `hex` return a caller-owned 40-character string. SHA-1
+is broken for collision resistance, so do not use it for signatures or new
+designs; it is here for protocols that require it, such as the WebSocket
+handshake (`Sec-WebSocket-Accept` is the Base64 of the SHA-1 of the client key
+followed by `258EAFA5-E914-47DA-95CA-C5AB0DC85B11`), TOTP's default HMAC and
+git object ids.
+
+- `Sha1.new() ret Sha1`
+- `context.init()`
+- `context.update(data: *u8, length: long)`
+- `context.finish(digest: *u8)` — writes 20 bytes
+- `Sha1.digest(data: *u8, length: long, digest: *u8)`
+- `Sha1.hexBytes(data: *u8, length: long) ret string`
+- `Sha1.hex(text: string) ret string`
+
+### Sha256 (`std/sha256.bpl`)
+
+SHA-256 digests (FIPS 180-4), implemented in BPL with no external library.
+Create a streaming context with `Sha256.new()`, feed it with `update`, and call
+`finish` to write the 32-byte digest; `init` resets a context for reuse. The
+static helpers hash a whole buffer at once. `hexBytes` and `hex` return a
+caller-owned 64-character lowercase string (release it with
+`free(cast<*void>(result))`), or `nullptr` if allocation fails. Null or empty
+input hashes the empty message.
+
+- `Sha256.new() ret Sha256`
+- `context.init()`
+- `context.update(data: *u8, length: long)`
+- `context.finish(digest: *u8)` — writes 32 bytes
+- `Sha256.digest(data: *u8, length: long, digest: *u8)`
+- `Sha256.hexBytes(data: *u8, length: long) ret string`
+- `Sha256.hex(text: string) ret string`
+
+```bpl
+import printf, free from "std/c.bpl";
+import [Sha256] from "std/sha256.bpl";
+
+frame main() ret int {
+    local digest: string = Sha256.hex("abc");
+    printf("%s\n", digest);
+    free(cast<*void>(digest));
+    return 0;
+}
+```
+
+### Sha512 (`std/sha512.bpl`)
+
+SHA-512 digests (FIPS 180-4), with the same interface as `Sha256`: a streaming
+context from `Sha512.new()` with `init`, `update` and `finish`, and the
+one-call helpers. Digests are 64 bytes, and `hexBytes` and `hex` return a
+caller-owned 128-character lowercase string, or `nullptr` if allocation
+fails. Messages are processed in 128-byte blocks with a 128-bit length.
+
+- `Sha512.new() ret Sha512`
+- `context.init()`
+- `context.update(data: *u8, length: long)`
+- `context.finish(digest: *u8)` — writes 64 bytes
+- `Sha512.digest(data: *u8, length: long, digest: *u8)`
+- `Sha512.hexBytes(data: *u8, length: long) ret string`
+- `Sha512.hex(text: string) ret string`
+
+### Sha384 (`std/sha384.bpl`)
+
+SHA-384 digests (FIPS 180-4): SHA-512 with its own initial state, cut to 48
+bytes. It is the usual hash for Subresource Integrity and HS384/ES384 tokens.
+The interface matches `Sha512`; `hexBytes` and `hex` return a caller-owned
+96-character string, or `nullptr` if allocation fails.
+
+- `Sha384.new() ret Sha384`
+- `context.init()`
+- `context.update(data: *u8, length: long)`
+- `context.finish(digest: *u8)` — writes 48 bytes
+- `Sha384.digest(data: *u8, length: long, digest: *u8)`
+- `Sha384.hexBytes(data: *u8, length: long) ret string`
+- `Sha384.hex(text: string) ret string`
+
+### Hmac (`std/hmac.bpl`)
+
+HMAC-SHA256 message authentication codes (RFC 2104), built on `Sha256`. Keys
+longer than the 64-byte block are hashed first. Create a keyed context with
+`Hmac.sha256(key, keyLength)`, feed it with `update`, and call `finish` to
+write the 32-byte MAC; a context cannot be reused after `finish`. `hex` returns
+a caller-owned 64-character lowercase string, or `nullptr` if allocation
+fails. Compare MACs with `Hmac.equal`, which looks at every byte so its timing
+does not reveal where two MACs differ.
+
+- `Hmac.sha256(key: *u8, keyLength: long) ret Hmac`
+- `context.update(data: *u8, length: long)`
+- `context.finish(mac: *u8)` — writes 32 bytes
+- `Hmac.digest(key: *u8, keyLength: long, data: *u8, length: long, mac: *u8)`
+- `Hmac.hex(key: string, message: string) ret string`
+- `Hmac.equal(a: *u8, b: *u8, length: long) ret bool`
+
+```bpl
+import printf, free from "std/c.bpl";
+import [Hmac] from "std/hmac.bpl";
+
+frame main() ret int {
+    local mac: string = Hmac.hex("Jefe", "what do ya want for nothing?");
+    printf("%s\n", mac);
+    free(cast<*void>(mac));
+    return 0;
+}
+```
+
+`HmacSha512` is the same construction over `Sha512`: keys longer than its
+128-byte block are hashed first, MACs are 64 bytes, and `hex` returns a
+128-character string. Compare its MACs with `Hmac.equal(a, b, 64)`.
+
+- `HmacSha512.new(key: *u8, keyLength: long) ret HmacSha512`
+- `context.update(data: *u8, length: long)`
+- `context.finish(mac: *u8)` — writes 64 bytes
+- `HmacSha512.digest(key: *u8, keyLength: long, data: *u8, length: long, mac: *u8)`
+- `HmacSha512.hex(key: string, message: string) ret string`
+
+`HmacSha1` is the same construction over `Sha1`, for protocols that require
+it such as HOTP and TOTP: 64-byte block, 20-byte MACs.
+
+- `HmacSha1.new(key: *u8, keyLength: long) ret HmacSha1`
+- `context.update(data: *u8, length: long)`
+- `context.finish(mac: *u8)` — writes 20 bytes
+- `HmacSha1.digest(key: *u8, keyLength: long, data: *u8, length: long, mac: *u8)`
+
+### Otp (`std/otp.bpl`)
+
+One-time passwords as shown by authenticator apps: HOTP (RFC 4226) and TOTP
+(RFC 6238) with HMAC-SHA1. The key is the raw shared secret; decode the Base32
+secret from a QR code with `Base32.decode` first. Codes are returned as integers,
+so print them with leading zeros (`%06d`). Digit counts other than 6 to 9, a
+nonpositive time step and a negative time return `-1`.
+
+- `Otp.hotp(key: *u8, keyLength: long, counter: long, digits: int) ret int`
+- `Otp.totpAt(key: *u8, keyLength: long, unixSeconds: long, stepSeconds: int, digits: int) ret int`
+- `Otp.totp(key: *u8, keyLength: long) ret int` — the current 6-digit,
+  30-second code
+
+### Entropy (`std/entropy.bpl`)
+
+Cryptographically secure random bytes from the operating system
+(`getentropy`), for keys, tokens and nonces. `std/rand.bpl` remains the fast,
+seedable generator for simulations. `fill` returns false when the system
+cannot supply entropy; `bytes`, `nextULong` and `below` throw instead of
+falling back to weaker randomness. `below` draws without modulo bias.
+
+- `Entropy.fill(buffer: *u8, length: long) ret bool`
+- `Entropy.bytes(buffer: *u8, length: long)`
+- `Entropy.nextULong() ret ulong`
+- `Entropy.below(bound: ulong) ret ulong` — in `[0, bound)`; throws for 0
+- `Entropy.hexToken(byteCount: int) ret string` — `byteCount` random bytes as
+  lowercase hex, for session ids, CSRF tokens and nonces (16 bytes give 128
+  bits); caller frees
 
 ---
 
@@ -443,7 +854,8 @@ Fixed-size bit array for efficient flag/set operations.
 
 ### UUID (`std/uuid.bpl`)
 
-UUID formatting, parsing, and v4 generation using native OS entropy. `v4()` throws
+UUID formatting, parsing, and v4 (random) and v7 (time-ordered) generation
+using native OS entropy. `v4()` throws
 a string error if entropy is unavailable; `tryV4(output)` returns false and leaves
 the destination unchanged. There is no time-seeded fallback. Generation requires
 native `getentropy` support (Linux glibc 2.25+ or macOS 10.12+); see the
@@ -451,6 +863,11 @@ native `getentropy` support (Linux glibc 2.25+ or macOS 10.12+); see the
 and [entropy API contract](https://www.gnu.org/software/libc/manual/2.26/html_node/Unpredictable-Bytes.html).
 Random UUIDs do not provide a mathematical uniqueness guarantee or replace a
 purpose-built authentication-token protocol.
+A v7 UUID (RFC 9562) starts with the Unix time in milliseconds, so v7 UUIDs
+sort by creation time, which suits database keys. Within one process each v7
+UUID sorts after the previous one: in the same millisecond, or if the clock
+steps back, its 12-bit counter is incremented. `timestampMs()` returns that
+time for a v7 UUID and `-1` for other versions.
 `fromString` accepts exactly 32 hexadecimal digits or the standard 36-character
 hyphenated form; hexadecimal letters may be upper- or lowercase. Invalid input
 returns nil. `tryFromString(text, output)` distinguishes invalid input from a valid
@@ -462,6 +879,8 @@ or `nullptr` if allocation fails.
 
 - `UUID.v4() ret UUID` - Generate random v4 UUID; throws on entropy failure
 - `UUID.tryV4(output: *UUID) ret bool` - Checked generation; null output returns false
+- `UUID.v7() ret UUID` - Generate time-ordered v7 UUID; throws on entropy failure
+- `UUID.tryV7(output: *UUID) ret bool` - Checked v7 generation
 - `UUID.fromBytes(data: *u8) ret UUID`
 - `UUID.fromString(str: string) ret UUID`
 - `UUID.tryFromString(str: string, output: *UUID) ret bool`
@@ -470,6 +889,7 @@ or `nullptr` if allocation fails.
 **Conversion:**
 
 - `uuid.toString() ret string` - Format: `xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx`
+- `uuid.timestampMs() ret long` - Unix milliseconds of a v7 UUID, or `-1`
 
 **Properties:**
 
@@ -518,6 +938,18 @@ These APIs are not a portable Windows environment abstraction.
 - `Env.getInt(name: string, defaultValue: int) ret int` — optional sign followed by decimal digits; missing, empty, malformed, or out-of-range values return the default
 - `Env.getBool(name: string, defaultValue: bool) ret bool` — accepts exactly `1`/`0`, `true`/`false`, `yes`/`no`, or `on`/`off` (words ignore case); otherwise returns the default
 
+**Dotenv files:**
+
+- `Env.loadFile(path: string, overrideExisting: bool) ret int` — loads
+  `KEY=value` lines into the environment and returns how many variables were
+  set, or `-1` (setting nothing) when the file cannot be read or a line is
+  malformed. Blank lines and `#` comments are skipped and `export ` before a
+  key is allowed. Keys are letters, digits, `_` and `.`, not starting with a
+  digit. A value is unquoted (an inline ` #` starts a comment and surrounding
+  spaces are dropped), single-quoted (literal) or double-quoted (with `\n`,
+  `\t`, `\"` and `\\` escapes); values span one line. Variables already
+  set are kept unless `overrideExisting` is true.
+
 ---
 
 ## Date/Time
@@ -538,6 +970,14 @@ a `T` separator but does not add a timezone suffix or normalize expanded years
 to an interchange standard. All formatting buffers accommodate every stored
 `int` value. `formatSep(0)` omits separators. Allocation failure throws a string.
 
+`Date.tryParse(text, &date)` reads exactly `YYYY-MM-DD`.
+`DateTime.tryParse(text, &dateTime)` reads `YYYY-MM-DD`, a `T`, `t` or space,
+`HH:MM:SS`, optional fractional seconds (ignored), and an optional `Z` or
+`+HH:MM`, `-HH:MM` or `+HHMM` offset; with an offset the result is converted
+to UTC, and without one the fields are kept as written. Both return false and
+leave the destination unchanged for other text or an impossible date or time
+(`2026-02-30`, `24:00:00`).
+
 `dayOfYear()`, `dayOfWeek()`, and `weekOfYear()` reject invalid dates with string
 exceptions. Weekdays use Sunday = 0 through Saturday = 6. ISO week numbers range
 from 1 to 53; an early-January or late-December date can belong to the adjacent
@@ -556,6 +996,7 @@ not change their inputs.
 - `Date.new(year: int, month: int, day: int) ret Date`
 - `Date.today() ret Date` - Current date (UTC)
 - `Date.fromTimestamp(timestamp: long) ret Date`
+- `Date.tryParse(text: string, output: *Date) ret bool` - Parse `YYYY-MM-DD`
 
 **Conversion:**
 
@@ -594,6 +1035,8 @@ the same rules as Date. Operations return new values without mutating the input.
 - `DateTime.new(year, month, day, hour, minute, second: int) ret DateTime`
 - `DateTime.now() ret DateTime` - Current date/time (UTC)
 - `DateTime.fromTimestamp(timestamp: long) ret DateTime`
+- `DateTime.tryParse(text: string, output: *DateTime) ret bool` - Parse ISO 8601
+  date and time; offsets convert to UTC
 
 **Properties:**
 
@@ -644,6 +1087,11 @@ Deterministic PCG32 generator with 64-bit state and a fixed stream (54).
 
 - `rng.shuffleInt(arr: *Array<int>)`
 - `rng.choiceInt(arr: *Array<int>) ret int`
+- `rng.shuffle<T>(arr: *Array<T>)` — shuffles any array in place; with the
+  same seed and length it gives the same order as `shuffleInt`
+- `rng.choice<T>(arr: *Array<T>, output: *T) ret bool` — stores a random
+  element and returns `true`, or returns `false` for an empty array (unlike
+  `choiceInt`, which returns 0)
 - `rng.fillBytes(buf: *u8, len: int)`
 - `rng.weightedChoice(weights: *Array<int>) ret int`
 
@@ -675,22 +1123,22 @@ retain their deterministic selection sequence; zero-weight entries are not selec
 The declaration reference includes every module, including these previously
 omitted areas:
 
-| Modules                                                                                                         | Scope and limits                                                                     |
-| --------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------ |
-| `option.bpl`, `result.bpl`, `errors.bpl`                                                                        | Optional values, results, and error types; unwrap failures throw                     |
-| `char_utils.bpl`, `string_utils.bpl`, `string_builder.bpl`, `fmt.bpl`                                           | Character/string helpers and formatting; inspect ownership per API                   |
-| `utf8.bpl`                                                                                                      | Byte/codepoint helpers; `encode` borrows its input and `decode` copies into a String |
-| `vec2.bpl`, `vec3.bpl`, `range.bpl`                                                                             | Vector and range utilities                                                           |
-| `path.bpl`, `args.bpl`, `arg_parser.bpl`                                                                        | [Path helpers](62-stdlib-path.md) and command-line helpers                             |
+| Modules                                                                                                         | Scope and limits                                                                                                   |
+| --------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
+| `option.bpl`, `result.bpl`, `errors.bpl`                                                                        | Optional values, results, and error types; unwrap failures throw                                                   |
+| `char_utils.bpl`, `string_utils.bpl`, `string_builder.bpl`, `fmt.bpl`                                           | Character/string helpers and formatting; inspect ownership per API                                                 |
+| `utf8.bpl`                                                                                                      | Byte/codepoint helpers; `encode` borrows its input and `decode` copies into a String                               |
+| `vec2.bpl`, `vec3.bpl`, `range.bpl`                                                                             | Vector and range utilities                                                                                         |
+| `path.bpl`, `args.bpl`, `arg_parser.bpl`                                                                        | [Path helpers](62-stdlib-path.md) and command-line helpers                                                         |
 | `memory/allocator.bpl`, `memory/arena_allocator.bpl`, `memory/pool_allocator.bpl`, `memory/stack_allocator.bpl` | [Manual allocator contracts](22-manual-memory.md#manual-allocator-contracts); explicit lifetimes and checked sizes |
-| `memory/page_allocator.bpl`, `memory/syscalls.bpl`                                                              | PageAllocator uses native page alignment; raw syscalls declarations remain low-level                                 |
-| `iter_specs.bpl`, `core_specs.bpl`                                                                              | Interfaces used by implemented collections                                           |
-| `iter.bpl`                                                                                                      | No public API; use implemented collection iterators in `iter_specs.bpl`                          |
-| `thread.bpl`, `sync.bpl`                                                                                        | No public API; native threading/synchronization requires an FFI library                               |
-| `type.bpl`, `primitives.bpl`, `reflection.bpl`, `intrinsics.bpl`                                                | Compiler/runtime support; platform and representation details matter                 |
-| `c.bpl`                                                                                                         | Native C declarations, not a portable or memory-safe wrapper                         |
-| `process.bpl`                                                                                                   | Shell-backed execution; see the [process guide](59-process-execution.md)             |
-| `assert.bpl`, `debug.bpl`, `diagnostics.bpl`, `scope_stack.bpl`                                                 | Assertions, diagnostics, and compiler-oriented utilities                             |
+| `memory/page_allocator.bpl`, `memory/syscalls.bpl`                                                              | PageAllocator uses native page alignment; raw syscalls declarations remain low-level                               |
+| `iter_specs.bpl`, `core_specs.bpl`                                                                              | Interfaces used by implemented collections                                                                         |
+| `iter.bpl`                                                                                                      | No public API; use implemented collection iterators in `iter_specs.bpl`                                            |
+| `thread.bpl`, `sync.bpl`                                                                                        | No public API; native threading/synchronization requires an FFI library                                            |
+| `type.bpl`, `primitives.bpl`, `reflection.bpl`, `intrinsics.bpl`                                                | Compiler/runtime support; platform and representation details matter                                               |
+| `c.bpl`                                                                                                         | Native C declarations, not a portable or memory-safe wrapper                                                       |
+| `process.bpl`                                                                                                   | Shell-free `run`/`runWith` and shell helpers; see the [process guide](59-process-execution.md)                     |
+| `assert.bpl`, `debug.bpl`, `diagnostics.bpl`, `scope_stack.bpl`                                                 | Assertions, diagnostics, and compiler-oriented utilities                                                           |
 
 `Log.debug/info/warn/error` currently share the same output path; they do not
 provide independent level filtering or destinations. See the linked module

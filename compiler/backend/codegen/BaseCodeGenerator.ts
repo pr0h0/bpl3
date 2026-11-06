@@ -4,8 +4,7 @@ import { DebugInfoGenerator } from "./DebugInfoGenerator";
 import { getHostTargetTriple } from "../../common/HostTarget";
 
 import { FunctionAttributeGroups } from "./attributes/FunctionAttributeGroups";
-import {
-} from "../../middleend/BuiltinTypes";
+import {} from "../../middleend/BuiltinTypes";
 import {
   parseTargetTriple,
   targetHasAnyComponent,
@@ -200,7 +199,6 @@ export class BaseCodeGenerator {
     });
     this.debugInfoGenerator = new DebugInfoGenerator(
       "unknown.bpl",
-      ".",
       this.target,
     );
 
@@ -355,6 +353,8 @@ export class BaseCodeGenerator {
     expr: AST.LambdaExpr;
     typeMap: Map<string, AST.TypeNode>;
   }[] = [];
+  /** Per-file ordinal that keeps lambda names unique across modules. */
+  protected lambdaFileOrdinals = new Map<string, number>();
 
   /**
    * Create a CompilerError with proper location information

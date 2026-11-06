@@ -98,10 +98,8 @@ The `write` binding is a direct alias for a runtime adapter with signature
 native `size_t` and `ssize_t` are 32-bit. Native calls preserve partial-write
 results and `errno`; negative or unrepresentable counts fail before conversion.
 Hosted Wasm supports descriptors 1 and 2, validates the buffer against memory,
-and returns `-1` for unsupported descriptors, invalid ranges or counts above
-2147483647. Zero-length writes do not access the buffer. The existing explicit
+and returns `-1` for unsupported descriptors, invalid ranges or counts above 2147483647. Zero-length writes do not access the buffer. The existing explicit
 32-bit hosted `write` entry point remains available.
-
 
 ## Linking
 
@@ -153,7 +151,7 @@ The generated BPL is intentionally conservative:
 
 ```bpl
 global const ANSWER: int = 42;
-global const SCIENTIFIC_DOUBLE: double = 1e-3;
+global const SCIENTIFIC_DOUBLE: double = 0.001;
 global const CONTINUED_COUNT: uint = 64;
 global const FEATURE_BITS: uint = 0b1010;
 global const FILE_MODE: int = 0o755;
@@ -207,7 +205,8 @@ pointers. Multidimensional parameter arrays decay at the outer dimension, so
 arrays. Legacy C octal constants such as `0755` are normalized to BPL `0o755`
 syntax, binary constants keep `0b` syntax, and exponent-only floating constants
 such as `1e-3` are emitted as `double` so generated bindings preserve C numeric
-semantics.
+semantics. Floating constants are written in plain decimal (`1e-3` becomes
+`0.001`), since BPL has no exponent literals.
 
 Review generated pointer, enum-value, and platform-sized integer mappings before
 publishing bindings for a library. Complex macros, inline functions, function
@@ -305,16 +304,16 @@ raw element pointer and a separate length for variable-sized buffers.
 
 ### Type and ownership rules
 
-| BPL boundary type | C boundary type | Notes |
-| --- | --- | --- |
-| `int` / `uint` | `int32_t` / `uint32_t` | Use fixed widths in bindings |
-| `long` / `ulong` | `int64_t` / `uint64_t` | C `long` is not 64-bit on every target |
-| `f32` | `float` | 32-bit floating point |
-| `float` / `double` | `double` | 64-bit floating point |
-| `bool` | C `_Bool`, C++ `bool` | Use the declared boolean ABI |
-| `string` | NUL-terminated byte pointer | No ownership transfer is implied |
-| `*T` | Pointer to matching layout | Caller keeps storage alive |
-| `Func<R>(...)` | C function pointer | Scalar/pointer signatures only |
+| BPL boundary type  | C boundary type             | Notes                                  |
+| ------------------ | --------------------------- | -------------------------------------- |
+| `int` / `uint`     | `int32_t` / `uint32_t`      | Use fixed widths in bindings           |
+| `long` / `ulong`   | `int64_t` / `uint64_t`      | C `long` is not 64-bit on every target |
+| `f32`              | `float`                     | 32-bit floating point                  |
+| `float` / `double` | `double`                    | 64-bit floating point                  |
+| `bool`             | C `_Bool`, C++ `bool`       | Use the declared boolean ABI           |
+| `string`           | NUL-terminated byte pointer | No ownership transfer is implied       |
+| `*T`               | Pointer to matching layout  | Caller keeps storage alive             |
+| `Func<R>(...)`     | C function pointer          | Scalar/pointer signatures only         |
 
 Callback parameter and return types must match exactly after resolving aliases,
 including integer widths, nested callable signatures, and whether the function

@@ -43,7 +43,7 @@ These functions operate on `float` (f64) values.
 import [Math] from "std/math.bpl";
 
 frame calculate(x: float) ret float {
-    return Math.sqrtFloat(x * x + 10.0);
+    return Math.sqrt(x * x + 10.0);
 }
 ```
 

@@ -131,7 +131,9 @@ describe("BinaryRunner", () => {
   });
 
   test("reports malformed native runtime inputs before invoking clang", () => {
-    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "bpl-binary-runner-"));
+    const tempDir = fs.mkdtempSync(
+      path.join(os.tmpdir(), "bpl-binary-runner-"),
+    );
     const bplHome = path.join(tempDir, "bpl-home");
     const libDir = path.join(bplHome, "lib");
     const irPath = path.join(tempDir, "main.ll");
@@ -252,7 +254,9 @@ describe("BinaryRunner", () => {
       expect(invocations).toHaveLength(1);
       const finalLinkArgs = invocations[0]!;
       expect(finalLinkArgs).not.toContain(".o");
-      expect(finalLinkArgs).not.toContain(path.join(libDir, "runtime_support.o"));
+      expect(finalLinkArgs).not.toContain(
+        path.join(libDir, "runtime_support.o"),
+      );
     } finally {
       fs.rmSync(tempDir, { recursive: true, force: true });
     }
@@ -393,7 +397,9 @@ describe("BinaryRunner", () => {
   });
 
   test("reports missing link object inputs before invoking clang", () => {
-    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "bpl-binary-object-"));
+    const tempDir = fs.mkdtempSync(
+      path.join(os.tmpdir(), "bpl-binary-object-"),
+    );
     const irPath = path.join(tempDir, "main.ll");
     const missingObjectPath = path.join(tempDir, "missing.o");
 
@@ -538,7 +544,9 @@ describe("BinaryRunner", () => {
       expect(
         fs
           .readdirSync(tempDir)
-          .some((entry) => entry.startsWith(".main.") && entry.endsWith(".tmp")),
+          .some(
+            (entry) => entry.startsWith(".main.") && entry.endsWith(".tmp"),
+          ),
       ).toBe(false);
     } finally {
       fs.rmSync(tempDir, { recursive: true, force: true });
@@ -758,9 +766,9 @@ describe("BinaryRunner", () => {
         ],
       );
       fs.writeFileSync(irPath, "define i32 @main() { ret i32 0 }\n");
-      process.env.PATH = [tempDir, originalPath ?? ""].filter(Boolean).join(
-        path.delimiter,
-      );
+      process.env.PATH = [tempDir, originalPath ?? ""]
+        .filter(Boolean)
+        .join(path.delimiter);
       process.env.WASM_LD = "wasm-ld";
       process.env.BPL_WASM_CC = fakeWasmCompiler;
 

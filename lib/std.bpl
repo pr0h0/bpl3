@@ -179,8 +179,9 @@ export [JsonToResult];
 export [JsonParseResult];
 export [Jsonable];
 
-import [Log] from "std/log.bpl";
+import [Log], [LogLevel] from "std/log.bpl";
 export [Log];
+export [LogLevel];
 
 import exec, execStatus, execOutput, execShell, execSilent, sleep, [ProcessResult] from "std/process.bpl";
 export exec;
@@ -198,6 +199,15 @@ export [BitSet];
 import [Base64] from "std/base64.bpl";
 export [Base64];
 
+import [Url] from "std/url.bpl";
+export [Url];
+
+import [Base32] from "std/base32.bpl";
+export [Base32];
+
+import [Parse] from "std/parse.bpl";
+export [Parse];
+
 import [Hex] from "std/hex.bpl";
 export [Hex];
 
@@ -207,6 +217,35 @@ export [ByteWriter];
 
 import [Hash] from "std/hash.bpl";
 export [Hash];
+
+import [Sha1] from "std/sha1.bpl";
+export [Sha1];
+
+import [Sha256] from "std/sha256.bpl";
+export [Sha256];
+
+import [Sha512] from "std/sha512.bpl";
+export [Sha512];
+
+import [Sha384] from "std/sha384.bpl";
+export [Sha384];
+
+import [Regex] from "std/regex.bpl";
+export [Regex];
+
+import [BigInt] from "std/bigint.bpl";
+export [BigInt];
+
+import [Hmac], [HmacSha512], [HmacSha1] from "std/hmac.bpl";
+export [Hmac];
+export [HmacSha512];
+export [HmacSha1];
+
+import [Otp] from "std/otp.bpl";
+export [Otp];
+
+import [Entropy] from "std/entropy.bpl";
+export [Entropy];
 
 import [UUID] from "std/uuid.bpl";
 export [UUID];

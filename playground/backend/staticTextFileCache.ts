@@ -30,8 +30,7 @@ export class StaticTextFileCache {
         };
       });
     this.readTextFile =
-      options.readTextFile ??
-      ((filePath) => readFileSync(filePath, "utf-8"));
+      options.readTextFile ?? ((filePath) => readFileSync(filePath, "utf-8"));
   }
 
   read(filePath: string): string {

@@ -209,17 +209,17 @@ struct Math {
 
     # Utility functions
     frame clamp(x: float, minVal: float, maxVal: float) ret float {
-        if (x < minVal) 
+        if (x < minVal)
             return minVal;
-        if (x > maxVal) 
+        if (x > maxVal)
             return maxVal;
         return x;
     }
 
     frame clamp(x: int, minVal: int, maxVal: int) ret int {
-        if (x < minVal) 
+        if (x < minVal)
             return minVal;
-        if (x > maxVal) 
+        if (x > maxVal)
             return maxVal;
         return x;
     }
@@ -252,17 +252,17 @@ struct Math {
     }
 
     frame sign(x: float) ret float {
-        if (x > 0.0) 
+        if (x > 0.0)
             return 1.0;
-        if (x < 0.0) 
+        if (x < 0.0)
             return -1.0;
         return 0.0;
     }
 
     frame sign(x: int) ret int {
-        if (x > 0) 
+        if (x > 0)
             return 1;
-        if (x < 0) 
+        if (x < 0)
             return -1;
         return 0;
     }
@@ -304,9 +304,13 @@ struct Math {
     }
 
     frame nextPowerOfTwo(x: int) ret int {
-        if (x <= 1) { return 1; }
+        if (x <= 1) {
+            return 1;
+        }
         # 2^30 is the largest positive power of two in a signed int.
-        if (x > 1073741824) { throw "Math.nextPowerOfTwo result exceeds int"; }
+        if (x > 1073741824) {
+            throw "Math.nextPowerOfTwo result exceeds int";
+        }
         local n: int = x - 1;
         n = n | (n >> 1);
         n = n | (n >> 2);
@@ -365,8 +369,10 @@ struct Math {
 
     frame factorial(n: int) ret long {
         # 20! is the last factorial representable by a signed 64-bit long.
-        if (n > 20) { throw "Math.factorial result exceeds long"; }
-        if (n <= 1) 
+        if (n > 20) {
+            throw "Math.factorial result exceeds long";
+        }
+        if (n <= 1)
             return cast<long>(1);
         local result: long = 1;
         local i: int = 2;
@@ -380,10 +386,12 @@ struct Math {
     frame fibonacci(n: int) ret long {
         # F(92) fits; F(93) does not. Check before entering the loop so very
         # large indices cannot wrap either the result or the int loop counter.
-        if (n > 92) { throw "Math.fibonacci result exceeds long"; }
-        if (n <= 0) 
+        if (n > 92) {
+            throw "Math.fibonacci result exceeds long";
+        }
+        if (n <= 0)
             return cast<long>(0);
-        if (n == 1) 
+        if (n == 1)
             return cast<long>(1);
         local a: long = 0;
         local b: long = 1;

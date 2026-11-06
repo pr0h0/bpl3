@@ -21,11 +21,7 @@ export interface GenericParam {
 // --- Types ---
 
 export type TypeNode =
-  | BasicTypeNode
-  | TupleTypeNode
-  | FunctionTypeNode
-  | LambdaTypeNode
-  | MetaType;
+  BasicTypeNode | TupleTypeNode | FunctionTypeNode | LambdaTypeNode | MetaType;
 
 export interface BasicTypeNode extends ASTNode {
   kind: "BasicType";
@@ -34,12 +30,7 @@ export interface BasicTypeNode extends ASTNode {
   pointerDepth: number;
   arrayDimensions: (number | null)[];
   resolvedDeclaration?:
-    | StructDecl
-    | EnumDecl
-    | SpecDecl
-    | TypeAliasDecl
-    | VariableDecl
-    | Parameter;
+    StructDecl | EnumDecl | SpecDecl | TypeAliasDecl | VariableDecl | Parameter;
   aliasDeclaration?: TypeAliasDecl;
   // Instantiated alias target, before modifiers added at the use site.
   aliasTarget?: TypeNode;
@@ -325,6 +316,8 @@ export interface PatternEnum extends ASTNode {
   kind: "PatternEnum";
   enumName: string;
   variantName: string;
+  /** Set by the type checker; used for exhaustiveness analysis. */
+  resolvedEnum?: EnumDecl;
   genericArgs?: TypeNode[];
 }
 
@@ -332,6 +325,8 @@ export interface PatternEnumTuple extends ASTNode {
   kind: "PatternEnumTuple";
   enumName: string;
   variantName: string;
+  /** Set by the type checker; used for exhaustiveness analysis. */
+  resolvedEnum?: EnumDecl;
   bindings: Pattern[];
   genericArgs?: TypeNode[];
 }
@@ -340,10 +335,15 @@ export interface PatternEnumStruct extends ASTNode {
   kind: "PatternEnumStruct";
   enumName: string;
   variantName: string;
+  /** Set by the type checker; used for exhaustiveness analysis. */
+  resolvedEnum?: EnumDecl;
   fields: {
     fieldName: string;
+    /** The name the field binds, or `_` when it binds none. */
     binding: string;
     bindingDeclaration?: VariableDecl;
+    /** A nested pattern the field must match (its `binding` is then `_`). */
+    pattern?: Pattern;
   }[];
   genericArgs?: TypeNode[];
 }
@@ -510,9 +510,7 @@ export interface EnumVariant extends ASTNode {
 }
 
 export type EnumVariantData =
-  | EnumVariantUnit
-  | EnumVariantTuple
-  | EnumVariantStruct;
+  EnumVariantUnit | EnumVariantTuple | EnumVariantStruct;
 
 export interface EnumVariantUnit extends ASTNode {
   kind: "EnumVariantUnit";

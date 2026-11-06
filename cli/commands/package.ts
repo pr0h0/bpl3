@@ -48,14 +48,13 @@ const PACKAGE_IR_VERIFY_TIMEOUT_MS =
   TIMEOUT_ENV_DEFAULTS.BPL_PACKAGE_IR_VERIFY_TIMEOUT_MS;
 const ANSI_ESCAPE_PATTERN = /\u001b\[[0-9;?]*[ -/]*[@-~]/g;
 type PackageManagerConstructor =
-  typeof import("../../compiler/middleend/PackageManager")["PackageManager"];
+  (typeof import("../../compiler/middleend/PackageManager"))["PackageManager"];
 
 async function createPackageManager(
   ...args: ConstructorParameters<PackageManagerConstructor>
 ): Promise<InstanceType<PackageManagerConstructor>> {
-  const { PackageManager } = await import(
-    "../../compiler/middleend/PackageManager"
-  );
+  const { PackageManager } =
+    await import("../../compiler/middleend/PackageManager");
   return new PackageManager(...args);
 }
 
@@ -191,8 +190,12 @@ export function registerPackageCommands(program: Command): void {
 
   // Install command
   program
-    .command("install [package]")
+    .command("install")
     .description("Install a BPL package")
+    .argument(
+      "[package]",
+      "package archive (.tgz, path or file:) or a globally installed package name; omit to install bpl.json dependencies",
+    )
     .option("-g, --global", "install package globally")
     .option("-v, --verbose", "verbose output")
     .option("--locked", "verify bpl.lock without changing installed packages")
@@ -313,10 +316,7 @@ export function registerPackageCommands(program: Command): void {
             console.log(
               JSON.stringify(
                 createJsonReport(CLI_JSON_CHECKS.packageInstall, true, {
-                  ...formatPackageInstallJsonPayload(
-                    undefined,
-                    installOptions,
-                  ),
+                  ...formatPackageInstallJsonPayload(undefined, installOptions),
                   ...formatPackageInstallResultJsonPayload(
                     projectInstallResult,
                   ),
@@ -470,8 +470,9 @@ export function registerPackageCommands(program: Command): void {
 
   // Init command
   program
-    .command("init [name]")
+    .command("init")
     .description("Initialize a new BPL project")
+    .argument("[name]", "project name (default: the current directory name)")
     .option("--json", "output machine-readable init result")
     .action(
       async (
@@ -495,6 +496,7 @@ export function registerPackageCommands(program: Command): void {
                   package: result.manifest.name,
                   version: result.manifest.version,
                   manifestPath: result.manifestPath,
+                  ...(result.entryPath ? { entryPath: result.entryPath } : {}),
                 }),
                 null,
                 2,
@@ -502,7 +504,11 @@ export function registerPackageCommands(program: Command): void {
             );
             return;
           }
-          log.info("Initialized new BPL project");
+          log.info(
+            result.entryPath
+              ? `Initialized new BPL project with ${path.basename(result.entryPath)}; run it with 'bpl run'`
+              : "Initialized new BPL project",
+          );
         } catch (e) {
           if (outputJson) {
             console.log(
@@ -827,7 +833,8 @@ export function registerPackageCommands(program: Command): void {
 
 function formatPackageCommandError(error: unknown): string {
   if (error instanceof CompilerError) {
-    return error.toString();
+    // Honors NO_COLOR, --no-color and non-terminal stderr, unlike toString().
+    return diagnosticFormatter.formatError(error);
   }
 
   return error instanceof Error ? error.message : String(error);
@@ -847,9 +854,7 @@ function formatPackageCommandErrorCode(
   return {};
 }
 
-function formatPackageInstalledNameJsonPayload(
-  error: unknown,
-):
+function formatPackageInstalledNameJsonPayload(error: unknown):
   | {
       issuesFound: number;
       issueKinds: string[];
@@ -872,12 +877,13 @@ function formatPackageInstalledNameJsonPayload(
       path: issue.path,
       paths: issue.paths,
     }))
-    .sort((left, right) =>
-      [
-        left.packageName.localeCompare(right.packageName),
-        left.kind.localeCompare(right.kind),
-        left.path.localeCompare(right.path),
-      ].find((comparison) => comparison !== 0) ?? 0,
+    .sort(
+      (left, right) =>
+        [
+          left.packageName.localeCompare(right.packageName),
+          left.kind.localeCompare(right.kind),
+          left.path.localeCompare(right.path),
+        ].find((comparison) => comparison !== 0) ?? 0,
     );
 
   return {
@@ -887,9 +893,7 @@ function formatPackageInstalledNameJsonPayload(
   };
 }
 
-function formatPackageLockVerificationJsonPayload(
-  error: unknown,
-):
+function formatPackageLockVerificationJsonPayload(error: unknown):
   | {
       action: "verification-failed";
       packagesChecked: number;
@@ -937,12 +941,13 @@ function formatPackageLockVerificationJsonPayload(
         : {}),
       ...(issue.paths ? { paths: issue.paths } : {}),
     }))
-    .sort((left, right) =>
-      [
-        left.packageName.localeCompare(right.packageName),
-        left.kind.localeCompare(right.kind),
-        (left.dependencyOf ?? "").localeCompare(right.dependencyOf ?? ""),
-      ].find((comparison) => comparison !== 0) ?? 0,
+    .sort(
+      (left, right) =>
+        [
+          left.packageName.localeCompare(right.packageName),
+          left.kind.localeCompare(right.kind),
+          (left.dependencyOf ?? "").localeCompare(right.dependencyOf ?? ""),
+        ].find((comparison) => comparison !== 0) ?? 0,
     );
 
   return {
@@ -1062,7 +1067,9 @@ function getPackageIrVerifyTimeoutMs(): number {
 }
 
 function formatSpawnFailure(error: Error, command: string): string {
-  return formatCommandSpawnFailure(command, error) ?? `${command}: ${error.message}`;
+  return (
+    formatCommandSpawnFailure(command, error) ?? `${command}: ${error.message}`
+  );
 }
 
 function getPackageVerifierDriver(): string | null {
@@ -1135,7 +1142,9 @@ function logPackageCacheVerificationReport(
     return;
   }
 
-  log.error(`Package cache FAIL (${summary}, ${report.issues.length} issue(s))`);
+  log.error(
+    `Package cache FAIL (${summary}, ${report.issues.length} issue(s))`,
+  );
   for (const issue of report.issues) {
     log.error(`  ${formatPackageCacheVerificationIssue(issue)}`);
   }

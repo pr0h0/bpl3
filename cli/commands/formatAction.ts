@@ -4,6 +4,7 @@
  */
 
 import * as fs from "fs";
+import { unifiedDiff } from "../FormatDiff";
 import * as path from "path";
 import { expandSourceInputs } from "../SourceInputs";
 import type { Command } from "commander";
@@ -15,6 +16,8 @@ import {
   setLogLevel,
 } from "../../compiler/common/Logger";
 import { assertWritableInputFilePath, writeFileAtomically } from "../utils";
+import { CompilerError } from "../../compiler/common/CompilerError";
+import { diagnosticFormatter } from "../DiagnosticFormatter";
 import {
   CLI_JSON_CHECKS,
   createJsonReport,
@@ -30,6 +33,13 @@ import {
 } from "./format";
 
 const log = new Logger("Format");
+
+let stdinLabel = "<stdin>";
+
+/** How an input is named in human output; `-` reads standard input. */
+function displayName(filePath: string): string {
+  return filePath === "-" ? stdinLabel : filePath;
+}
 
 interface FormatFileReport {
   file: string;
@@ -47,6 +57,9 @@ export async function runFormatCommand(
 ): Promise<void> {
   const globalOpts = command.parent?.opts() || {};
   const outputJson = Boolean(options.json || globalOpts.json);
+  // --diff is a check that also shows what formatting would change.
+  if (options.diff) options = { ...options, check: true };
+  stdinLabel = options.stdinFilepath || "<stdin>";
   if (outputJson) {
     setLogLevel(LogLevel.SILENT);
   }
@@ -68,22 +81,7 @@ export async function runFormatCommand(
     }
 
     if (!files || files.length === 0) {
-      if (outputJson) {
-        emitFormatJsonAndExit(
-          createFormatJsonReport(false, {
-            mode: "check",
-            totalFiles: 0,
-            formattedFiles: 0,
-            unformattedFiles: 0,
-            errorCount: 1,
-            files: [],
-            error: "No files specified.",
-            errorCode: FORMAT_NO_INPUTS_CODE,
-          }),
-        );
-      }
-      log.error("No files specified.");
-      process.exit(1);
+      exitNoFormatInputs(outputJson, "No files specified.");
     }
     if (options.write && options.check) {
       if (outputJson) {
@@ -105,8 +103,12 @@ export async function runFormatCommand(
     }
 
     files = expandSourceInputs(files);
-    if (!files.length)
-      throw new Error("No BPL sources found in the supplied directories.");
+    if (!files.length) {
+      exitNoFormatInputs(
+        outputJson,
+        "No BPL sources found in the supplied directories.",
+      );
+    }
     if (files.includes("-") && options.write)
       throw new Error(
         "Cannot use --write with stdin; redirect formatted output instead.",
@@ -200,7 +202,12 @@ export async function runFormatCommand(
                 errorCode: FORMAT_NOT_FORMATTED_CODE,
               });
             } else {
-              log.error(`${filePath} is not formatted`);
+              log.error(`${displayName(filePath)} is not formatted`);
+              if (options.diff) {
+                process.stdout.write(
+                  unifiedDiff(displayName(filePath), content, formatted),
+                );
+              }
             }
           } else {
             formattedFiles++;
@@ -212,7 +219,7 @@ export async function runFormatCommand(
                 changed: false,
               });
             } else {
-              log.info(`${filePath} is formatted`);
+              log.info(`${displayName(filePath)} is formatted`);
             }
           }
         } else if (options.write) {
@@ -236,8 +243,11 @@ export async function runFormatCommand(
               FORMAT_PROCESSING_ERROR_CODE,
             ),
           );
+        } else if (e instanceof CompilerError) {
+          // Show where the source fails to parse, as `check` does.
+          console.error(diagnosticFormatter.formatError(e));
         } else {
-          log.error(`Error processing ${filePath}: ${message}`);
+          log.error(`Error processing ${displayName(filePath)}: ${message}`);
         }
         hasError = true;
         errorCount++;
@@ -290,6 +300,25 @@ export async function runFormatCommand(
       resetLogLevel();
     }
   }
+}
+
+function exitNoFormatInputs(outputJson: boolean, message: string): never {
+  if (outputJson) {
+    emitFormatJsonAndExit(
+      createFormatJsonReport(false, {
+        mode: "check",
+        totalFiles: 0,
+        formattedFiles: 0,
+        unformattedFiles: 0,
+        errorCount: 1,
+        files: [],
+        error: message,
+        errorCode: FORMAT_NO_INPUTS_CODE,
+      }),
+    );
+  }
+  log.error(message);
+  process.exit(1);
 }
 
 function emitFormatJsonAndExit(

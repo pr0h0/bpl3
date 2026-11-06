@@ -3,11 +3,13 @@ import { expectCorrectnessSuite } from "./helpers/compilerCorrectness";
 
 describe("Audit scope-exit regressions", () => {
   it("runs case cleanup before numeric and string fallthrough in LIFO order", () => {
-    expectCorrectnessSuite([{
-      name: "fallthrough cleanup",
-      validateLlvm: true,
-      expectedStdout: "one\ninner\nsecond\nfirst\ntwo\ncase-two\nthree\nstring\nnext\nouter\n",
-      source: `
+    expectCorrectnessSuite([
+      {
+        name: "fallthrough cleanup",
+        validateLlvm: true,
+        expectedStdout:
+          "one\ninner\nsecond\nfirst\ntwo\ncase-two\nthree\nstring\nnext\nouter\n",
+        source: `
         extern printf(fmt: string, ...);
         frame main() ret int {
           defer printf("outer\\n");
@@ -31,17 +33,19 @@ describe("Audit scope-exit regressions", () => {
           return 0;
         }
       `,
-    }]);
+      },
+    ]);
   }, 60000);
 });
 
-
 it("cleans nested match yields without destroying enclosing scopes or moved values", () => {
-  expectCorrectnessSuite([{
-    name: "match yield scope cleanup",
-    validateLlvm: true,
-    expectedStdout: "nested\narm\nvalue=7\nenum\nstring\ntuple\nchecks=3\nresource=9\ndestroy 9\nfunction\n",
-    source: `
+  expectCorrectnessSuite([
+    {
+      name: "match yield scope cleanup",
+      validateLlvm: true,
+      expectedStdout:
+        "nested\narm\nvalue=7\nenum\nstring\ntuple\nchecks=3\nresource=9\ndestroy 9\nfunction\n",
+      source: `
       extern printf(fmt: string, ...);
       enum Choice { Yes, No }
       struct Resource {
@@ -84,15 +88,18 @@ it("cleans nested match yields without destroying enclosing scopes or moved valu
         return 0;
       }
     `,
-  }]);
+    },
+  ]);
 }, 60000);
 
 it("keeps return-transfer exclusions local to each branch", () => {
-  expectCorrectnessSuite([{
-    name: "conditional resource return",
-    validateLlvm: true,
-    expectedStdout: "destroy 2\nchosen 1\ndestroy 1\ndestroy 1\nchosen 2\ndestroy 2\n",
-    source: `
+  expectCorrectnessSuite([
+    {
+      name: "conditional resource return",
+      validateLlvm: true,
+      expectedStdout:
+        "destroy 2\nchosen 1\ndestroy 1\ndestroy 1\nchosen 2\ndestroy 2\n",
+      source: `
       extern printf(fmt: string, ...);
       struct Resource {
         id: int,
@@ -110,5 +117,6 @@ it("keeps return-transfer exclusions local to each branch", () => {
         return 0;
       }
     `,
-  }]);
+    },
+  ]);
 }, 60000);

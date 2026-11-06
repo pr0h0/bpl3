@@ -321,7 +321,7 @@ describe("Integration Tests", () => {
           );
 
           // Prepare command
-          // Use the same CLI path as cmp.sh, but run it asynchronously so examples can overlap.
+          // Run `bpl run` asynchronously so examples can overlap.
           const artifactOutputPath = prepareExampleArtifactOutput(example);
           const command = process.execPath;
           const args = [
@@ -365,8 +365,7 @@ describe("Integration Tests", () => {
           }
 
           // Check exit code
-          // cmp.sh returns the exit code of the program
-          // But if compilation fails, it returns 1.
+          // `bpl run` returns the program's exit code, or 1 if compilation fails.
           // We assume the example should compile and run successfully (exit code 0) unless specified otherwise in config
           const exitCode = config.exitCode;
           if (result.status !== exitCode) {
@@ -385,10 +384,6 @@ describe("Integration Tests", () => {
           }
 
           // Check output
-          // cmp.sh appends "Program exited with code X"
-          // We should filter that out or check if output contains expected output.
-          // The user's hello world prints "Hello, World!\n"
-          // cmp.sh prints "Program exited with code 0\n"
 
           if (config.expectedOutput) {
             if (Array.isArray(config.expectedOutput)) {

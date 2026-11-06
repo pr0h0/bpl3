@@ -18,11 +18,12 @@ test("a failed typed initializer retains its binding for later diagnostics", () 
   const diagnostics = errors(
     `frame main(){local value:int=missing;value;local unused:int=missingToo;}`,
   );
-  expect(diagnostics.filter((message) => message.includes("Undefined symbol"))).toEqual([
-    "Undefined symbol 'missing'",
-    "Undefined symbol 'missingToo'",
-  ]);
-  expect(diagnostics.some((message) => message.includes("Unused variable"))).toBe(false);
+  expect(
+    diagnostics.filter((message) => message.includes("Undefined symbol")),
+  ).toEqual(["Undefined symbol 'missing'", "Undefined symbol 'missingToo'"]);
+  expect(
+    diagnostics.some((message) => message.includes("Unused variable")),
+  ).toBe(false);
 });
 
 test("failed return analysis does not expose parameters to following functions", () => {

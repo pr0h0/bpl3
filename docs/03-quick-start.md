@@ -326,10 +326,10 @@ bpl -e 'frame main() ret int { return 0; }'
 cat examples/hello-world/main.bpl | bpl --stdin
 ```
 
-`--emit tokens|ast|formatted|llvm` works with both `-e` and `--stdin`;
-diagnostics label source locations as `<eval>` or `<stdin>`. Without `-o`,
-LLVM is printed to stdout after backend validation and the compiler removes its
-temporary artifacts. Use `-o <path>` to retain generated files. JSON mode
+Both run the program like `bpl run` and exit with its status. Add
+`--emit llvm` to print the LLVM IR instead; `--emit tokens|ast|formatted` also
+work. Diagnostics label source locations as `<eval>` or `<stdin>`. Without
+`-o`, the compiler removes its temporary artifacts. Use `-o <path>` to retain generated files. JSON mode
 places virtual-source IR in `output.inlineLlvm`.
 
 ## Project Structure
@@ -465,16 +465,14 @@ if (x > 5) {
 ### 4. Wrong loop syntax
 
 ```bpl
-# ❌ Wrong (C-style for loop doesn't exist)
+# ❌ Wrong (there is no `for` keyword, and only prefix `++` exists)
 for (i = 0; i < 10; i++) {
     # ...
 }
 
 # ✅ Correct
-local i: int = 0;
-loop (i < 10) {
+loop (local i: int = 0; i < 10; i = i + 1) {
     # ...
-    i = i + 1;
 }
 ```
 

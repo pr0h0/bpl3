@@ -20,7 +20,7 @@ The configuration file defines the package metadata.
 
 ```json
 {
-  "$schema": "https://raw.githubusercontent.com/pr0h0/bpl3/master/bpl-package.schema.json",
+  "$schema": "https://raw.githubusercontent.com/pr0h0/bpl3/master/schemas/bpl-package.schema.json",
   "name": "my-package",
   "version": "0.1.0",
   "description": "A useful library",
@@ -38,7 +38,7 @@ not start with `0`; for example, `1.2.3` is valid and `01.2.3` is rejected.
 inside the package root, and optional metadata such as `$schema`, `keywords`,
 and `repository` is validated before packing or installing. Invalid manifests
 fail while loading `bpl.json` instead of later during path handling or archive
-creation. The checked-in `bpl-package.schema.json` mirrors these runtime rules
+creation. The checked-in `schemas/bpl-package.schema.json` mirrors these runtime rules
 so editors and CI schema validation catch the same invalid shapes early.
 `bpl init` and `bpl new` include the canonical `$schema` URI in generated
 manifests so editors can find the package manifest contract immediately.
@@ -74,14 +74,19 @@ The template uses the project name as the package manifest name, so `bpl new`
 accepts package-safe names only: lowercase letters, numbers, and hyphens.
 `bpl init [name]` follows the same rule for explicit names. Without a name, it
 derives a package-safe default from the current directory by lowercasing it and
-replacing unsupported characters with hyphens.
+replacing unsupported characters with hyphens. `bpl init` also creates the
+`main` entry (`index.bpl`, a hello-world `main`) unless it already exists, so
+`bpl run` and `bpl pack` work immediately.
 Package init JSON reports are available with `bpl init [name] --json`.
 Successful init runs emit `schemaVersion: 1`, `check: "package-init"`,
-`success: true`, `package`, `version`, and `manifestPath`. JSON-mode validation
+`success: true`, `package`, `version`, `manifestPath`, and `entryPath` when the
+entry file was created. JSON-mode validation
 failures stay on stdout with `success: false`, `package`, `manifestPath`,
 `error`, and stable `errorCode` values including
 `BPL_PACKAGE_INIT_NAME_INVALID` for invalid explicit names and
-`BPL_PACKAGE_INIT_MANIFEST_EXISTS` when `bpl.json` is already present.
+`BPL_PACKAGE_INIT_MANIFEST_EXISTS` when `bpl.json` is already present, and
+`BPL_PACKAGE_INIT_ENTRY_INVALID` when `index.bpl` exists but is a directory or
+symlink.
 Reproduce the focused JSON contract with
 `bun test tests/PackageManagerCLI.test.ts -t "init success and failures as JSON"`.
 
@@ -150,7 +155,19 @@ bpl install file:deps/my-package-0.1.0.tgz
 
 This extracts the package into the `bpl_modules/` directory of your project.
 For local installs, BPL also writes `bpl.lock` with the exact installed package
-version, source archive, and content hash.
+version, source archive, and content hash, and adds the package to the
+project's `bpl.json` dependencies (`"my-package": "file:../path/to/my-package-0.1.0.tgz"`,
+or the version for a globally installed package) unless it is already listed,
+so `bpl lock` and `bpl install --locked` keep it.
+A source is a file only when it is path-like: `file:...`, a relative path
+starting with `.`, a path containing `/` or `\`, an absolute path, or a name
+ending in `.tgz`. A bare name such as `bpl install foo` always resolves from the
+package cache, even if the current directory contains a file named `foo`; use
+`./foo` to install that file (recorded as `file:./foo`).
+Before extraction, an archive must decompress to at most 256 MiB, and every
+member must be a regular file, directory or link (sparse files, devices and PAX
+`size` overrides, which `bpl pack` never writes, are rejected). Extraction
+never applies the archive's owners or permission bits beyond your umask.
 Direct `bpl install` archive paths and manifest `file:` sources both accept `/`
 and `\` as path separators. Existing archives are resolved relative to the
 project or declaring package directory and lockfile sources are recorded with
@@ -251,7 +268,9 @@ bpl install --locked
 `bpl_modules/<package>` is a symlink or non-directory, if the installed manifest
 declares a different name or version than the lock entry, if the recorded source
 archive is missing, a symlink, or reachable only through a symlinked parent
-directory, or if its source hash no longer matches the lockfile. Missing
+directory, or if its source hash no longer matches the lockfile. The content
+hash covers every installed file, including a package's nested `bpl_modules`
+and `node_modules`; only `.git` and `.bpl-cache` are skipped. Missing
 `bpl_modules` roots still report package-missing issues for locked entries;
 symlinked roots are rejected before any locked package manifest or file content
 is read through the link. It also checks installed package manifests for missing
@@ -276,6 +295,11 @@ If those pins conflict with the new requirements, installation fails rather than
 silently upgrading an unchanged package's dependency. Obsolete packages belonging
 only to the old subtree are removed. Lock updates are saved after reconciliation
 succeeds; installed package directories are still updated incrementally.
+`install --update` and `bpl lock` write their replacement lock only after all
+requested installations succeed, so a failed update retains the previous
+lockfile, but package directories replaced earlier in the same operation are
+not rolled back. Lock package names are sorted independently of locale, and
+generated lockfiles end with a newline.
 
 Successful project installs also record `manifestRoots` in the lockfile. Removing
 a previously declared root then makes `--locked` fail until a normal install
@@ -361,6 +385,12 @@ malformed lockfiles, `BPL_PACKAGE_NOT_FOUND` for package lookup misses,
 direct archive paths that are symlinks, pass through symlinked parents, or are
 not files. Reproduce the focused option/archive JSON contracts with
 `bun test tests/PackageJsonFailureContracts.test.ts -t "package install option conflict|direct archive path"`.
+Local version selection considers root and installed dependents' requirements.
+An incompatible shared dependency reports
+`BPL_PACKAGE_DEPENDENCY_VERSION_CONFLICT` before replacing that package.
+Resolution is incremental: earlier package installations are not rolled back
+when a later dependency fails.
+
 PackageManager manifest-loading failures also carry stable
 `BPL_PACKAGE_MANIFEST_*` codes: `BPL_PACKAGE_MANIFEST_MISSING`,
 `BPL_PACKAGE_MANIFEST_SYMLINK`, `BPL_PACKAGE_MANIFEST_NOT_FILE`,
@@ -398,6 +428,8 @@ To inspect why packages are installed and which dependencies are missing, use:
 bpl list --json
 bpl list --tree
 bpl list --tree --json
+bpl list --global
+bpl list --global --tree
 bpl doctor packages
 bpl doctor packages --json
 ```
@@ -874,6 +906,10 @@ treated as missing packages.
 Broken symlink dependency archives are rejected as package archive symlinks
 instead of falling back to a package-name lookup.
 
+Uninstall with `bpl uninstall <package>` (alias `bpl remove`), adding
+`--global` for a global package. Local uninstall removes the package from both
+dependency maps in `bpl.json`, its installation and its lock entry.
+
 `bpl uninstall <package>` only removes real installed package directories. If
 `bpl_modules/<package>` is a symlink, uninstall rejects it and leaves both the
 symlink and its target untouched. Package manifests are validated with the same
@@ -960,6 +996,22 @@ bpl rs build -- --release
   ```
 
 - **Names**: Use unique, lowercase names for packages (kebab-case recommended).
+
+## Troubleshooting
+
+- **Module not found**: check `bpl list` (or `bpl list --global`), that the
+  import name matches the package name exactly, and `bpl doctor packages`.
+  Local packages take precedence over the workspace `packages/` directory and
+  global packages with the same name.
+- **Lock verification fails**: `bpl install --locked` reports the drifted entry.
+  To accept a changed dependency archive, review it and run
+  `bpl install --update`; this reinstalls packages from their archives, so it
+  replaces any edits made inside `bpl_modules/`. To record intentionally
+  edited installed packages instead, preserve the changes and run
+  `bpl install --repair-lock`.
+- **Permission errors on global installs**: global packages live under
+  `~/.bpl/packages/`; install locally instead if that
+  directory is not writable.
 
 ## Release Checks
 
@@ -1070,10 +1122,11 @@ metadata alone does not satisfy the package's source-file requirement.
 Listing and provenance `packageHash` values cover the selected entry source even
 when it has no `.bpl` suffix. These legacy hashes continue to omit automatically
 selected documentation; portable `sha256-tree-v2` lock hashes cover all installed
-files. A historical legacy lock whose hash omitted an existing non-`.bpl` entry
-can now report a hash mismatch. Review the package source, then use an explicit
-`bpl install --update` to record a portable v2 hash. Verification does not silently
-rewrite the old lock or accept a hash that omitted the package's entry code.
+files. A lock entry without `hashAlgorithm: "sha256-tree-v2"` uses the legacy hash,
+which does not cover every installed file, so `bpl install --locked` and lock
+verification always report it as a hash mismatch. Review the package source,
+then use an explicit `bpl install --update` to record a portable v2 hash.
+Verification does not silently rewrite the old lock.
 
 Package archives use a stable member order, zero timestamps and numeric owner
 and group IDs of zero. Staged regular files use mode `0644`, or `0755` when the

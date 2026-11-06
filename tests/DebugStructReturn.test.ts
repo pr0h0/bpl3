@@ -1,4 +1,4 @@
-import { describe, it, expect } from "bun:test";
+import { describe, it } from "bun:test";
 import { lexWithGrammar } from "../compiler/frontend/GrammarLexer";
 import { Parser } from "../compiler/frontend/Parser";
 import { TypeChecker } from "../compiler/middleend/TypeChecker";

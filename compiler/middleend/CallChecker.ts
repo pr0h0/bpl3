@@ -109,6 +109,12 @@ function getAliasedArrayElementType(
 /**
  * Check a call expression
  */
+
+/** Members checked as the callee of a call (`x.m()`), not as values (`x.m`). */
+const CALLEE_MEMBERS = new WeakSet<AST.Expression>();
+/** `case Enum.Variant:` labels name a data-carrying variant without its data. */
+export const ENUM_VARIANT_LABELS = new WeakSet<AST.Expression>();
+
 export function checkCall(
   this: CheckerContext,
   expr: AST.CallExpr,
@@ -209,8 +215,7 @@ export function checkCall(
       );
 
       expr.resolvedDeclaration = match.declaration as
-        | AST.FunctionDecl
-        | AST.ExternDecl;
+        AST.FunctionDecl | AST.ExternDecl;
       expr.callee.resolvedType = match.type;
 
       // Passing a value by value copies it into the callee's own storage.
@@ -226,7 +231,8 @@ export function checkCall(
         const parameterType = match.type.paramTypes[index];
         if (parameterType && index < fixedParamCount) {
           argTypes[index] =
-            this.contextualizeArrayLiteral(argument, parameterType) ?? argTypes[index];
+            this.contextualizeArrayLiteral(argument, parameterType) ??
+            argTypes[index];
           this.checkIntegerConstantRange(argument, parameterType);
         }
         this.rejectOwningCopy(
@@ -271,6 +277,7 @@ export function checkCall(
     }
   }
 
+  if (expr.callee.kind === "Member") CALLEE_MEMBERS.add(expr.callee);
   const calleeType = this.checkExpression(expr.callee);
   const argTypes = expr.args.map((arg) => this.checkExpression(arg));
 
@@ -403,9 +410,15 @@ export function checkCall(
               const isAny =
                 checkType.kind === "BasicType" && checkType.name === "Any";
               if (
-                !isAny && !this.areTypesCompatible(checkType, argType) &&
-                (!allowContextual || variadicElementType !== undefined ||
-                  !this.contextualizeArrayLiteral(expr.args[i]!, checkType, false))
+                !isAny &&
+                !this.areTypesCompatible(checkType, argType) &&
+                (!allowContextual ||
+                  variadicElementType !== undefined ||
+                  !this.contextualizeArrayLiteral(
+                    expr.args[i]!,
+                    checkType,
+                    false,
+                  ))
               ) {
                 match = false;
                 break;
@@ -429,7 +442,9 @@ export function checkCall(
                 j++
               ) {
                 // Check against variadic element type
-                if (!this.areTypesCompatible(variadicElementType, argTypes[j]!)) {
+                if (
+                  !this.areTypesCompatible(variadicElementType, argTypes[j]!)
+                ) {
                   match = false;
                   break;
                 }
@@ -459,7 +474,9 @@ export function checkCall(
 
     // Handle generic method inference
     if (
-      decl && decl.genericParams && decl.genericParams.length > 0 &&
+      decl &&
+      decl.genericParams &&
+      decl.genericParams.length > 0 &&
       expr.callee.kind !== "GenericInstantiation"
     ) {
       // GenericInstantiation already substituted the signature. Inferring
@@ -675,9 +692,11 @@ function handleEnumVariantCall(
         }
         expectedType = this.resolveType(expectedType);
         const actualType =
-          this.contextualizeArrayLiteral(expr.args[i]!, expectedType) ?? argTypes[i];
+          this.contextualizeArrayLiteral(expr.args[i]!, expectedType) ??
+          argTypes[i];
         argTypes[i] = actualType;
-        if (actualType) this.checkIntegerConstantRange(expr.args[i]!, expectedType);
+        if (actualType)
+          this.checkIntegerConstantRange(expr.args[i]!, expectedType);
         if (actualType && !this.areTypesCompatible(expectedType, actualType)) {
           throw new CompilerError(
             `Type mismatch for argument ${i + 1} of '${variant.name}': expected ${this.formatDiagnosticType(
@@ -737,10 +756,7 @@ function validateFunctionCall(
       funcType.paramTypes.length,
     );
   }
-  if (
-    funcType.paramTypes.length !== expr.args.length &&
-    !funcType.isVariadic
-  ) {
+  if (funcType.paramTypes.length !== expr.args.length && !funcType.isVariadic) {
     throw new CompilerError(
       `Expected ${funcType.paramTypes.length} arguments, got ${expr.args.length}`,
       "Argument count mismatch.",
@@ -945,6 +961,26 @@ export function checkMember(
       const variant = enumDecl.variants.find((v) => v.name === expr.property);
 
       if (variant) {
+        // A variant with data is built by calling it; as a plain value it
+        // reached code generation, which failed with a misleading message.
+        if (
+          variant.dataType &&
+          !CALLEE_MEMBERS.has(expr) &&
+          !ENUM_VARIANT_LABELS.has(expr)
+        ) {
+          const usage =
+            variant.dataType.kind === "EnumVariantTuple"
+              ? `${innerType.name}.${variant.name}(${variant.dataType.types
+                  .map((t: AST.TypeNode) => this.formatDiagnosticType(t))
+                  .join(", ")})`
+              : `${innerType.name}.${variant.name} { ... }`;
+          throw new CompilerError(
+            `Enum variant '${innerType.name}.${variant.name}' carries data and must be constructed with it`,
+            `Usage: ${usage}`,
+            expr.location,
+            ENUM_VARIANT_ARGUMENT_COUNT_MISMATCH_CODE,
+          );
+        }
         // Store variant info for code generation
         (expr as any).enumVariantInfo = {
           enumDecl,
@@ -977,10 +1013,7 @@ export function checkMember(
       );
       if (memberContext) {
         const { members, genericMap } = memberContext;
-        if (
-          members.length === 1 &&
-          members[0]?.kind === "FunctionDecl"
-        ) {
+        if (members.length === 1 && members[0]?.kind === "FunctionDecl") {
           const singleMethod = members[0];
           let { returnType, paramTypes } = resolveMethodTypesInModuleContext(
             this,
@@ -1094,7 +1127,9 @@ export function checkMember(
       const member = members[0];
 
       if (member && member.kind === "StructField") {
-        const fieldType = this.resolveType(member.resolvedType ?? (member as AST.StructField).type);
+        const fieldType = this.resolveType(
+          member.resolvedType ?? (member as AST.StructField).type,
+        );
         let resultType = fieldType;
 
         if (genericMap && genericMap.size > 0) {
@@ -1122,8 +1157,7 @@ export function checkMember(
         let rejectedConstantReceiver = false;
         let compatibleMethod: AST.FunctionDecl | AST.SpecMethod | undefined;
         let compatibleMethods:
-          | (AST.FunctionDecl | AST.SpecMethod)[]
-          | undefined;
+          (AST.FunctionDecl | AST.SpecMethod)[] | undefined;
         for (const candidate of members) {
           if (
             candidate.kind !== "FunctionDecl" &&
@@ -1151,7 +1185,9 @@ export function checkMember(
               thisParamType = this.substituteType(thisParamType, genericMap);
             }
 
-            if (implicitlyAddressesConstant(thisParamType, effectiveObjectType)) {
+            if (
+              implicitlyAddressesConstant(thisParamType, effectiveObjectType)
+            ) {
               rejectedConstantReceiver = true;
               continue;
             }
@@ -1223,6 +1259,21 @@ export function checkMember(
               effectiveObjectType,
             )}'`,
             "Static methods must be called on the type, not an instance.",
+            expr.location,
+            INSTANCE_METHOD_NOT_COMPATIBLE_CODE,
+          );
+        }
+
+        // Code generation binds only methods with a body; a spec method on a
+        // spec or constrained receiver has none, so a value of it (single or
+        // overloaded) would be accepted here and then not bound.
+        const specValue = (compatibleMethods ?? [compatibleMethod]).find(
+          (candidate) => candidate?.kind === "SpecMethod",
+        );
+        if (specValue && !CALLEE_MEMBERS.has(expr)) {
+          throw new CompilerError(
+            `Cannot use spec method '${specValue.name}' as a value`,
+            `Call it directly (${expr.property}(...)), or wrap the call in a lambda.`,
             expr.location,
             INSTANCE_METHOD_NOT_COMPATIBLE_CODE,
           );
@@ -1335,8 +1386,10 @@ export function checkMember(
     );
   }
 
+  // Name the type as written: a primitive was swapped for its wrapper struct
+  // (`int` for `Int`) only to look up methods.
   throw new CompilerError(
-    `Cannot access member '${expr.property}' on type '${this.formatDiagnosticType(effectiveObjectType)}'`,
+    `Cannot access member '${expr.property}' on type '${this.formatDiagnosticType(objectType)}'`,
     "Check the type definition for available members.",
     expr.location,
     MEMBER_NOT_FOUND_CODE,

@@ -829,9 +829,7 @@ describe("ModuleCache", () => {
   });
 
   it("rejects cached link outputs through symlinked ancestors before invoking the compiler", () => {
-    const dir = mkdtempSync(
-      join(tmpdir(), "bpl-module-cache-link-ancestor-"),
-    );
+    const dir = mkdtempSync(join(tmpdir(), "bpl-module-cache-link-ancestor-"));
     const previousBplCc = process.env.BPL_CC;
     const realRoot = join(dir, "real-root");
     const linkedRoot = join(dir, "linked-root");

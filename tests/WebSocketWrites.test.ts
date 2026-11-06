@@ -1,7 +1,7 @@
 import { test } from "bun:test";
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
 import { native } from "./helpers/webPackages";
 
 test.skipIf(process.platform !== "linux")(
@@ -39,7 +39,7 @@ ssize_t __wrap_send(int fd, const void *data, size_t length, int flags) {
       );
       native(
         String.raw`
-import writeAll from "../packages/bpl-express/src/http.bpl";
+import writeAll from "${resolve(__dirname, "../packages/bpl-express/src/http.bpl")}";
 extern configureSend(mode:int);
 extern sendCalls()ret int;
 extern sentBytes()ret string;

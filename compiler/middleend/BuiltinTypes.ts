@@ -25,12 +25,18 @@ export const INTERNAL_LOCATION: SourceLocation = {
 /**
  * Base types that are fundamental to the language
  */
-export const BASE_TYPES = [...PRIMITIVE_CANONICAL_NAMES, "void", "null", "nullptr"];
+export const BASE_TYPES = [
+  ...PRIMITIVE_CANONICAL_NAMES,
+  "void",
+  "null",
+  "nullptr",
+];
 
 /**
  * Type aliases mapping user-friendly names to their underlying types
  */
-export const TYPE_ALIASES: [string, string][] = Object.entries(PRIMITIVE_ALIASES);
+export const TYPE_ALIASES: [string, string][] =
+  Object.entries(PRIMITIVE_ALIASES);
 
 /**
  * Mapping from primitive types to their struct wrappers

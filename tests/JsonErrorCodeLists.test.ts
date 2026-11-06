@@ -40,6 +40,7 @@ describe("CLI JSON error-code list exports", () => {
       "doctor",
       "format",
       "lint",
+      "test",
       "project-new",
       "package-init",
       "package-uninstall",

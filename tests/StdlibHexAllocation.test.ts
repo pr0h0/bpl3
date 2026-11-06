@@ -11,22 +11,29 @@ test("Hex checks output limits and handles allocation failures", () => {
     // a synthetic strlen result; no huge buffer or allocation is needed.
     const source = readFileSync(resolve("lib/hex.bpl"), "utf8")
       .replace(/\bmalloc\b/g, "hexTestAllocate")
-      .replace("extern hexTestAllocate(size: long) ret *void;", `
+      .replace(
+        "extern hexTestAllocate(size: long) ret *void;",
+        `
         frame hexTestAllocate(size: long) ret *void {
           if (size <= 0) { throw "invalid allocation size"; }
           return nullptr;
-        }`)
-      .replace("extern strlen(str: string) ret long;", `
+        }`,
+      )
+      .replace(
+        "extern strlen(str: string) ret long;",
+        `
         frame strlen(str: string) ret long {
           if (str == nullptr) { return 0; }
           return cast<long>(2147483648);
-        }`);
+        }`,
+      );
     const module = join(dir, "hex.bpl");
     writeFileSync(module, source);
-    expectCorrectnessSuite([{
-      name: "hex-allocation-boundaries",
-      validateLlvm: true,
-      source: `
+    expectCorrectnessSuite([
+      {
+        name: "hex-allocation-boundaries",
+        validateLlvm: true,
+        source: `
         import [Hex] from "${module}";
         extern strcmp(a: string, b: string) ret int;
         frame main() ret int {
@@ -57,8 +64,9 @@ test("Hex checks output limits and handles allocation failures", () => {
           if (Hex.encodeUpper(nullptr, 0) != nullptr) { return 9; }
           return 0;
         }`,
-      expectedStdout: "",
-    }]);
+        expectedStdout: "",
+      },
+    ]);
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
@@ -66,10 +74,11 @@ test("Hex checks output limits and handles allocation failures", () => {
 
 test("Hex fixed-width encoders preserve every byte and unsigned limits", () => {
   const wideValues = [0n, 1n, 0x123456789abcdefn, 0xffffffffffffffffn];
-  expectCorrectnessSuite([{
-    name: "hex-fixed-width-values",
-    validateLlvm: true,
-    source: `
+  expectCorrectnessSuite([
+    {
+      name: "hex-fixed-width-values",
+      validateLlvm: true,
+      source: `
       import [Hex] from "std/hex.bpl";
       extern printf(fmt: string, ...);
       extern free(ptr: *void);
@@ -79,7 +88,7 @@ test("Hex fixed-width encoders preserve every byte and unsigned limits", () => {
           printf("%s\\n", encoded);
           free(cast<*void>(encoded));
         }
-        local values: u64[${wideValues.length}] = [${wideValues.map(n => `cast<u64>(0x${n.toString(16)})`).join(", ")}];
+        local values: u64[${wideValues.length}] = [${wideValues.map((n) => `cast<u64>(0x${n.toString(16)})`).join(", ")}];
         loop (local i: int = 0; i < ${wideValues.length}; i = i + 1) {
           local encoded32: string = Hex.u32ToHex(cast<u32>(values[i]));
           local encoded64: string = Hex.u64ToHex(values[i]);
@@ -89,9 +98,16 @@ test("Hex fixed-width encoders preserve every byte and unsigned limits", () => {
         }
         return 0;
       }`,
-    expectedStdout: [
-      ...Array.from({ length: 256 }, (_, n) => n.toString(16).padStart(2, "0")),
-      ...wideValues.map(n => `${(n & 0xffffffffn).toString(16).padStart(8, "0")} ${n.toString(16).padStart(16, "0")}`),
-    ].join("\n") + "\n",
-  }]);
+      expectedStdout:
+        [
+          ...Array.from({ length: 256 }, (_, n) =>
+            n.toString(16).padStart(2, "0"),
+          ),
+          ...wideValues.map(
+            (n) =>
+              `${(n & 0xffffffffn).toString(16).padStart(8, "0")} ${n.toString(16).padStart(16, "0")}`,
+          ),
+        ].join("\n") + "\n",
+    },
+  ]);
 }, 60000);

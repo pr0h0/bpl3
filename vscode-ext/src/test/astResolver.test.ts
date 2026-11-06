@@ -326,6 +326,58 @@ describe("ASTResolver", () => {
     expect(resolver.resolveType(identifier, filePath)).toBe("int");
   });
 
+  it("resolves binding types inside nested struct variant field patterns", () => {
+    const symbolIndex = new SymbolIndex();
+    const resolver = new ASTResolver(symbolIndex);
+    const filePath = path.resolve(
+      __dirname,
+      "../../../tmp/nested-struct-pattern-resolve-type.bpl",
+    );
+    const lines = [
+      "enum Code {",
+      "    Num(long),",
+      "    Missing,",
+      "}",
+      "enum Inner {",
+      "    Box { size: double },",
+      "}",
+      "enum Packet {",
+      "    Data { code: Code, inner: Inner, label: string },",
+      "    Empty,",
+      "}",
+      "frame test(value: Packet) ret long {",
+      "    return match (value) {",
+      "        Packet.Data { code: Code.Num(number), inner: Inner.Box { size: amount }, label: _ } => number,",
+      "        Packet.Data { code: Code.Missing, inner: _, label: _ } => 0,",
+      "        Packet.Empty => 0,",
+      "    };",
+      "}",
+    ];
+    resolver.parseDocumentContent(filePath, lines.join("\n"));
+    const at = (name: string, occurrence: number): AST.IdentifierExpr => {
+      const line = lines[13]!;
+      let column = -1;
+      for (let i = 0; i <= occurrence; i++) {
+        column = line.indexOf(name, column + 1);
+      }
+      return {
+        kind: "Identifier",
+        name,
+        location: {
+          file: filePath,
+          startLine: 14,
+          startColumn: column + 1,
+          endLine: 14,
+          endColumn: column + 1 + name.length,
+        },
+      };
+    };
+
+    // The arm body uses `number`; hover on both bindings in the pattern.
+    expect(resolver.resolveType(at("number", 1), filePath)).toBe("long");
+    expect(resolver.resolveType(at("amount", 0), filePath)).toBe("double");
+  });
+
   it("resolves tuple pattern binding types inside match arms", () => {
     const symbolIndex = new SymbolIndex();
     const resolver = new ASTResolver(symbolIndex);

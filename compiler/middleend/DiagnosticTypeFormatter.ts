@@ -45,7 +45,11 @@ export function formatDiagnosticType(type: AST.TypeNode | undefined): string {
     case "FunctionType":
     case "LambdaType": {
       const kind = type.kind === "FunctionType" ? "Func" : "Lambda";
-      body = `${kind}<${formatDiagnosticType(type.returnType)}>(${type.paramTypes.map(formatDiagnosticType).join(", ")})`;
+      const params = type.paramTypes.map(formatDiagnosticType);
+      // A variadic function value differs from the same non-variadic
+      // signature; show it, or the mismatch reads "Func<..> to Func<..>".
+      if (type.kind === "FunctionType" && type.isVariadic) params.push("...");
+      body = `${kind}<${formatDiagnosticType(type.returnType)}>(${params.join(", ")})`;
       break;
     }
     case "TupleType":

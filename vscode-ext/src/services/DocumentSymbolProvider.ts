@@ -27,8 +27,7 @@ export class DocumentSymbolProvider {
     const content = document.getText();
 
     // Parse document
-    this.astResolver.parseDocumentContent(filePath, content);
-    const ast = this.astResolver.getCachedAST(filePath);
+    const ast = this.astResolver.parseDocumentContent(filePath, content);
     if (!ast) return null;
 
     const symbols: DocumentSymbol[] = [];
@@ -106,9 +105,7 @@ export class DocumentSymbolProvider {
     return symbol;
   }
 
-  private specMethodToSymbol(
-    method: AST.SpecMethod,
-  ): DocumentSymbol | null {
+  private specMethodToSymbol(method: AST.SpecMethod): DocumentSymbol | null {
     if (!method.location) return null;
 
     const paramTypes = method.params

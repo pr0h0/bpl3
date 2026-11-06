@@ -88,7 +88,9 @@ describe("CodeGen - Stack Overflow", () => {
     expect(ir).toContain(
       "@__bpl_stack_limit = external thread_local global i8*",
     );
-    expect(ir).not.toContain("@__bpl_stack_limit = external dso_local global i8*");
+    expect(ir).not.toContain(
+      "@__bpl_stack_limit = external dso_local global i8*",
+    );
     expect(ir).toContain("declare void @__bpl_throw_stack_overflow()");
     expect(ir).toContain("call i8* @llvm.stacksave()");
     expect(ir).toContain("declare i8* @llvm.stacksave()");
@@ -100,14 +102,14 @@ describe("CodeGen - Stack Overflow", () => {
     expect(ir).toContain("call i8* @__bpl_initialize_stack_limit(i8*");
     expect(ir).toContain("icmp ult i8*");
     expect(ir).toContain("call void @__bpl_throw_stack_overflow()");
-    expect(ir).not.toContain("@__bpl_stack_depth = external thread_local global i32");
+    expect(ir).not.toContain(
+      "@__bpl_stack_depth = external thread_local global i32",
+    );
     expect(ir).not.toContain("@__bpl_stack_base = external global i8*");
     expect(ir).not.toContain("call i1 @__bpl_enter_stack_frame()");
     expect(ir).not.toContain("call void @__bpl_exit_stack_frame()");
 
-    const fibBody = ir.match(
-      /define dso_local i32 @fib_i32[\s\S]*?\n}\n/,
-    )?.[0];
+    const fibBody = ir.match(/define dso_local i32 @fib_i32[\s\S]*?\n}\n/)?.[0];
     expect(fibBody).toBeDefined();
     expect(fibBody!).not.toContain("alloca i8");
     expect(fibBody!).toMatch(/icmp eq i8\* %[^,]+, null/);
@@ -182,9 +184,7 @@ describe("CodeGen - Stack Overflow", () => {
     )?.[0];
     expect(recurBody).toBeDefined();
     expect(recurBody!).toContain("alloca i8");
-    expect(recurBody!).not.toContain(
-      "call i8* @llvm.frameaddress.p0i8(i32 0)",
-    );
+    expect(recurBody!).not.toContain("call i8* @llvm.frameaddress.p0i8(i32 0)");
   });
 
   it("keeps alloca stack-limit probes for optimized native non-recursive functions", () => {
@@ -205,14 +205,10 @@ describe("CodeGen - Stack Overflow", () => {
     `;
     const ir = generateOptimized(source);
 
-    const sumBody = ir.match(
-      /define dso_local i32 @sum_i32[\s\S]*?\n}\n/,
-    )?.[0];
+    const sumBody = ir.match(/define dso_local i32 @sum_i32[\s\S]*?\n}\n/)?.[0];
     expect(sumBody).toBeDefined();
     expect(sumBody!).toContain("alloca i8");
-    expect(sumBody!).not.toContain(
-      "call i8* @llvm.frameaddress.p0i8(i32 0)",
-    );
+    expect(sumBody!).not.toContain("call i8* @llvm.frameaddress.p0i8(i32 0)");
   });
 
   it("omits optimized stack-limit probes for call-free bounded helper bodies", () => {
@@ -239,9 +235,7 @@ describe("CodeGen - Stack Overflow", () => {
     const helperBody = functionBody(ir, "helper_i32");
     expect(helperBody).not.toContain("alloca i8");
     expect(helperBody).not.toContain("load i8*, i8** @__bpl_stack_limit");
-    expect(helperBody).not.toContain(
-      "call i8* @llvm.frameaddress.p0i8(i32 0)",
-    );
+    expect(helperBody).not.toContain("call i8* @llvm.frameaddress.p0i8(i32 0)");
     expect(helperBody).not.toContain("call void @__bpl_throw_stack_overflow()");
 
     const mainBody = functionBody(ir, "main");

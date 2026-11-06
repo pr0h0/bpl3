@@ -6,9 +6,7 @@
   "difficulty": "intermediate",
   "duration": "15 min",
   "description": "Master anonymous functions and closures. Write inline functions, capture variables, and use higher-order programming.",
-  "prerequisites": [
-    "error-handling"
-  ],
+  "prerequisites": ["error-handling"],
   "objectives": [
     "Create lambda expressions",
     "Understand Lambda vs Func types",

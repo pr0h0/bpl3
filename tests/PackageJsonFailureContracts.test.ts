@@ -412,7 +412,9 @@ describe("Package JSON failure contracts", () => {
         );
         expect(report).toMatchObject({
           ...testCase.expectedPayload,
-          error: expect.stringContaining("Invalid package cache version filter"),
+          error: expect.stringContaining(
+            "Invalid package cache version filter",
+          ),
           errorCode: "BPL_PACKAGE_CACHE_VERSION_INVALID",
         });
       }
@@ -422,7 +424,9 @@ describe("Package JSON failure contracts", () => {
   });
 
   test("surfaces stable package-cache package filter error codes", () => {
-    const tempDir = mkdtempSync(join(tmpdir(), "bpl-package-cache-name-codes-"));
+    const tempDir = mkdtempSync(
+      join(tmpdir(), "bpl-package-cache-name-codes-"),
+    );
 
     try {
       const cases: Array<{
@@ -445,13 +449,7 @@ describe("Package JSON failure contracts", () => {
           },
         },
         {
-          args: [
-            "package-cache",
-            "clean",
-            "Bad_Name",
-            "--dry-run",
-            "--json",
-          ],
+          args: ["package-cache", "clean", "Bad_Name", "--dry-run", "--json"],
           expectedCheck: "package-cache-clean",
           expectedPayload: {
             removed: [],
@@ -459,13 +457,7 @@ describe("Package JSON failure contracts", () => {
           },
         },
         {
-          args: [
-            "package-cache",
-            "repair",
-            "Bad_Name",
-            "--dry-run",
-            "--json",
-          ],
+          args: ["package-cache", "repair", "Bad_Name", "--dry-run", "--json"],
           expectedCheck: "package-cache-repair",
           expectedPayload: {
             dryRun: true,
@@ -503,19 +495,36 @@ describe("Package JSON failure contracts", () => {
     const tempDir = mkdtempSync(join(tmpdir(), "bpl-package-option-codes-"));
 
     try {
-      const conflictContext = projectManifestRoot(tempDir, "dependency-version-conflict");
+      const conflictContext = projectManifestRoot(
+        tempDir,
+        "dependency-version-conflict",
+      );
       const dependencySource = join(tempDir, "dependency-source");
       mkdirSync(dependencySource);
-      writeFileSync(join(dependencySource, "bpl.json"), JSON.stringify({name: "conflict-child", version: "0.1.1", main: "index.bpl"}));
-      writeFileSync(join(dependencySource, "index.bpl"), "frame value(){}export value;");
+      writeFileSync(
+        join(dependencySource, "bpl.json"),
+        JSON.stringify({
+          name: "conflict-child",
+          version: "0.1.1",
+          main: "index.bpl",
+        }),
+      );
+      writeFileSync(
+        join(dependencySource, "index.bpl"),
+        "frame value(){}export value;",
+      );
       const conflictArchive = new PackageManager(dependencySource, {
         globalPackageDir: join(tempDir, "cache"),
         globalBinDir: join(tempDir, "bin"),
       }).pack(dependencySource);
-      writeFileSync(join(conflictContext.cwd, "bpl.json"), JSON.stringify({
-        name: "dependency-version-conflict", version: "0.1.0",
-        dependencies: {"conflict-child": "0.1.0"},
-      }));
+      writeFileSync(
+        join(conflictContext.cwd, "bpl.json"),
+        JSON.stringify({
+          name: "dependency-version-conflict",
+          version: "0.1.0",
+          dependencies: { "conflict-child": "0.1.0" },
+        }),
+      );
       const cases: Array<{
         name: string;
         args: string[];
@@ -593,11 +602,14 @@ describe("Package JSON failure contracts", () => {
       );
 
       for (const testCase of cases) {
-        const report = expectJsonStdoutReport(runCli(testCase.args, testCase.context), {
-          status: 1,
-          check: "package-install",
-          success: false,
-        });
+        const report = expectJsonStdoutReport(
+          runCli(testCase.args, testCase.context),
+          {
+            status: 1,
+            check: "package-install",
+            success: false,
+          },
+        );
         expect(report).toMatchObject({
           error: expect.stringContaining(testCase.expectedError),
           errorCode: testCase.expectedCode,
@@ -674,7 +686,8 @@ describe("Package JSON failure contracts", () => {
           emptyKey: "packages",
           expectedScope: "global",
           expectedCode: "BPL_PACKAGE_SEARCH_DIR_PARENT_NOT_DIRECTORY",
-          expectedError: "Global package directory parent path is not a directory",
+          expectedError:
+            "Global package directory parent path is not a directory",
         },
         {
           name: "global-tree-parent-not-directory",
@@ -688,7 +701,8 @@ describe("Package JSON failure contracts", () => {
           emptyKey: "tree",
           expectedScope: "global",
           expectedCode: "BPL_PACKAGE_SEARCH_DIR_PARENT_NOT_DIRECTORY",
-          expectedError: "Global package directory parent path is not a directory",
+          expectedError:
+            "Global package directory parent path is not a directory",
         },
         {
           name: "global-parent-symlink",
@@ -699,7 +713,8 @@ describe("Package JSON failure contracts", () => {
           emptyKey: "packages",
           expectedScope: "global",
           expectedCode: "BPL_PACKAGE_SEARCH_DIR_PARENT_SYMLINK",
-          expectedError: "Global package directory parent path is a symbolic link",
+          expectedError:
+            "Global package directory parent path is a symbolic link",
         },
         {
           name: "global-tree-parent-symlink",
@@ -713,7 +728,8 @@ describe("Package JSON failure contracts", () => {
           emptyKey: "tree",
           expectedScope: "global",
           expectedCode: "BPL_PACKAGE_SEARCH_DIR_PARENT_SYMLINK",
-          expectedError: "Global package directory parent path is a symbolic link",
+          expectedError:
+            "Global package directory parent path is a symbolic link",
         },
       ];
 
@@ -817,7 +833,10 @@ describe("Package JSON failure contracts", () => {
       const realParent = join(tempDir, "real-parent");
       const linkedParent = join(tempDir, "linked-parent");
       mkdirSync(realParent);
-      writeFileSync(join(realParent, "parent-package.tgz"), "not a real archive");
+      writeFileSync(
+        join(realParent, "parent-package.tgz"),
+        "not a real archive",
+      );
       symlinkSync(realParent, linkedParent, "dir");
 
       const directoryArchive = join(tempDir, "directory-package.tgz");
@@ -851,7 +870,10 @@ describe("Package JSON failure contracts", () => {
 
       for (const testCase of cases) {
         const report = expectJsonStdoutReport(
-          runCli(testCase.args, cleanPackageRoot(tempDir, testCase.expectedCode)),
+          runCli(
+            testCase.args,
+            cleanPackageRoot(tempDir, testCase.expectedCode),
+          ),
           {
             status: 1,
             check: "package-install",
@@ -1049,7 +1071,7 @@ describe("Package JSON failure contracts", () => {
               JSON.stringify({
                 name: "invalid-dependencies",
                 version: "1.0.0",
-                dependencies: { "Bad_Name": "1.0.0" },
+                dependencies: { Bad_Name: "1.0.0" },
               }),
             ),
           expectedCode: "BPL_PACKAGE_MANIFEST_DEPENDENCIES_INVALID",
@@ -1245,14 +1267,11 @@ describe("Package JSON failure contracts", () => {
           }),
         );
 
-        const report = expectJsonStdoutReport(
-          runCli(testCase.args, context),
-          {
-            status: 1,
-            check: "package-install",
-            success: false,
-          },
-        );
+        const report = expectJsonStdoutReport(runCli(testCase.args, context), {
+          status: 1,
+          check: "package-install",
+          success: false,
+        });
 
         expect(report).toMatchObject({
           ...testCase.expectedPayload,
@@ -1342,11 +1361,14 @@ describe("Package JSON failure contracts", () => {
         JSON.stringify({ name: "lock-valid-source", version: "1.0.0" }),
       );
 
-      const report = expectJsonStdoutReport(runCli(["lock", "--json"], context), {
-        status: 0,
-        check: "package-install",
-        success: true,
-      });
+      const report = expectJsonStdoutReport(
+        runCli(["lock", "--json"], context),
+        {
+          status: 0,
+          check: "package-install",
+          success: true,
+        },
+      );
 
       expect(report).toMatchObject({
         mode: "project",
@@ -1439,7 +1461,11 @@ function duplicateInstalledPackageRoot(
     mkdirSync(packageDir, { recursive: true });
     writeFileSync(
       join(packageDir, "bpl.json"),
-      JSON.stringify({ name: packageName, version: "1.0.0", main: "index.bpl" }),
+      JSON.stringify({
+        name: packageName,
+        version: "1.0.0",
+        main: "index.bpl",
+      }),
     );
     writeFileSync(join(packageDir, "index.bpl"), "export value;");
   }

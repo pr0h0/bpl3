@@ -74,7 +74,13 @@ describe("TypeUtils", () => {
     }
 
     for (const name of [
-      "string", "void", "Int", "usize", "constructor", "toString", "__proto__",
+      "string",
+      "void",
+      "Int",
+      "usize",
+      "constructor",
+      "toString",
+      "__proto__",
     ]) {
       expect(TypeUtils.isNumericType(basicType(name))).toBe(false);
     }
@@ -94,9 +100,11 @@ describe("TypeUtils", () => {
       ).toBe(false);
       for (const dimension of [null, 0, 4]) {
         expect(
-          TypeUtils.isNumericType(basicType(name, {
-            arrayDimensions: [dimension],
-          })),
+          TypeUtils.isNumericType(
+            basicType(name, {
+              arrayDimensions: [dimension],
+            }),
+          ),
         ).toBe(false);
       }
     }
@@ -200,7 +208,9 @@ describe("TypeUtils", () => {
     expect(TypeUtils.getIntegerConstantValue(literal("42"))).toBe(42n);
     expect(TypeUtils.getIntegerConstantValue(literal("1_234"))).toBe(1234n);
     expect(TypeUtils.getIntegerConstantValue(literal("1.5"))).toBeUndefined();
-    expect(TypeUtils.getIntegerConstantValue(literal("1_234.5"))).toBeUndefined();
+    expect(
+      TypeUtils.getIntegerConstantValue(literal("1_234.5")),
+    ).toBeUndefined();
 
     const implementation = methodSource(
       "getIntegerConstantValue",

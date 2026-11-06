@@ -163,6 +163,8 @@ function getSourceLines(filePath: string): string[] | null {
 
     if (fs.existsSync(filePath)) {
       const content = fs.readFileSync(filePath, "utf-8");
+      // A binary file (such as a package archive) has no source snippet.
+      if (content.includes("\0")) return null;
       return content.split(/\r\n|\r|\n/);
     }
   } catch {

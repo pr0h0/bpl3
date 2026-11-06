@@ -7,29 +7,43 @@ Strings own their storage: call `destroy` after use.
 
 ## Components and joining
 
-| Call | Result |
-| --- | --- |
-| `Path.join("", "file.txt")` | `file.txt` |
-| `Path.join("", "")` | `.` |
-| `Path.join("a///", "///b")` | `a/b` |
-| `Path.join("/a", "/b")` | `/a/b` |
-| `Path.join("a", "../b")` | `a/../b` |
-| `Path.basename("/a/b///")` | `b` |
-| `Path.basename("/")` | Empty String |
-| `Path.dirname("/a/b///")` | `/a` |
-| `Path.dirname("a")` | `.` |
-| `Path.dirname("///")` | `/` |
-| `Path.extname(".profile")` | Empty String |
-| `Path.extname(".profile.json")` | `.json` |
-| `Path.extname("archive.tar.gz/")` | `.gz` |
-| `Path.extname("name.")` | `.` |
+| Call                                   | Result        |
+| -------------------------------------- | ------------- |
+| `Path.join("", "file.txt")`            | `file.txt`    |
+| `Path.join("", "")`                    | `.`           |
+| `Path.join("a///", "///b")`            | `a/b`         |
+| `Path.join("/a", "/b")`                | `/a/b`        |
+| `Path.join("a", "../b")`               | `a/../b`      |
+| `Path.basename("/a/b///")`             | `b`           |
+| `Path.basename("/")`                   | Empty String  |
+| `Path.dirname("/a/b///")`              | `/a`          |
+| `Path.dirname("a")`                    | `.`           |
+| `Path.dirname("///")`                  | `/`           |
+| `Path.extname(".profile")`             | Empty String  |
+| `Path.extname(".profile.json")`        | `.json`       |
+| `Path.extname("archive.tar.gz/")`      | `.gz`         |
+| `Path.extname("name.")`                | `.`           |
+| `Path.stem("docs/report.md")`          | `report`      |
+| `Path.stem("archive.tar.gz")`          | `archive.tar` |
+| `Path.stem(".bashrc")`                 | `.bashrc`     |
+| `Path.withExtension("a/b.txt", ".md")` | `a/b.md`      |
+| `Path.withExtension("a/b.txt", "")`    | `a/b`         |
+| `Path.withExtension("notes/", ".md")`  | `notes.md`    |
 
 `join` ignores empty arguments, uses `.` when both are empty, and joins two
 nonempty arguments at one slash boundary. It preserves separators inside each
 argument and does not resolve `.` or `..`. An absolute second argument does not
 replace the first; use `resolve` for that behavior.
 
-`basename`, `dirname`, and `extname` ignore trailing slashes. `dirname` removes
+`stem` is the last component without its extension, by the same rule as
+`extname`, so `stem` followed by `extname` gives back the component.
+`withExtension` replaces that extension with the given one, which should
+include its `.`; an empty or null extension removes it. Trailing slashes are
+dropped, and a path whose last component is empty, `.` or `..` is returned
+unchanged.
+
+`basename`, `dirname`, `extname`, `stem` and `withExtension` ignore trailing
+slashes. `dirname` removes
 the final component and its adjacent separators, preserving other interior
 separators. The basename of an empty or all-slash path is empty. `dirname("")`
 is `.`. Extensions come from the final component's last dot, excluding an initial

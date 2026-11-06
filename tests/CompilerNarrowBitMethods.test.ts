@@ -9,36 +9,59 @@ test("Narrow integer bit methods widen results to their declared return type", (
   const checks: string[] = [];
   for (const [, primitive, width, signed] of types) {
     const mask = (1n << BigInt(width)) - 1n;
-    for (const raw of [0n, 1n, 11n, 16n, 0x1234n, mask, 1n << BigInt(width - 1)]) {
+    for (const raw of [
+      0n,
+      1n,
+      11n,
+      16n,
+      0x1234n,
+      mask,
+      1n << BigInt(width - 1),
+    ]) {
       const bits = raw.toString(2).padStart(width, "0");
       const value = signed ? BigInt.asIntN(width, raw) : raw;
       const reverse = BigInt(`0b${[...bits].reverse().join("")}`);
-      const swapped = BigInt(`0x${raw.toString(16).padStart(width / 4, "0").match(/../g)!.reverse().join("")}`);
+      const swapped = BigInt(
+        `0x${raw
+          .toString(16)
+          .padStart(width / 4, "0")
+          .match(/../g)!
+          .reverse()
+          .join("")}`,
+      );
       const results = {
         popCount: BigInt([...bits].filter((bit) => bit === "1").length),
         leadingZeros: BigInt(raw === 0n ? width : bits.indexOf("1")),
-        trailingZeros: BigInt(raw === 0n ? width : width - 1 - bits.lastIndexOf("1")),
+        trailingZeros: BigInt(
+          raw === 0n ? width : width - 1 - bits.lastIndexOf("1"),
+        ),
         byteSwap: swapped,
         reverseBits: reverse,
       };
       const variable = `value${checks.length}`;
-      checks.push(`local ${variable}: ${primitive} = cast<${primitive}>(${value});`);
+      checks.push(
+        `local ${variable}: ${primitive} = cast<${primitive}>(${value});`,
+      );
       for (const [method, rawExpected] of Object.entries(results)) {
         const expected = rawExpected;
         const returnType = "uint";
-        checks.push(`if (${variable}.${method}() != cast<${returnType}>(${expected})) { return 1; }`);
+        checks.push(
+          `if (${variable}.${method}() != cast<${returnType}>(${expected})) { return 1; }`,
+        );
       }
     }
   }
-  expectCorrectnessSuite([{
-    name: "narrow-integer-bit-methods",
-    validateLlvm: true,
-    source: `
+  expectCorrectnessSuite([
+    {
+      name: "narrow-integer-bit-methods",
+      validateLlvm: true,
+      source: `
       import [Long], [ULong], [UInt], [Short], [UShort] from "std/primitives.bpl";
       frame main() ret int {
         ${checks.join("\n")}
         return 0;
       }`,
-    expectedStdout: "",
-  }]);
+      expectedStdout: "",
+    },
+  ]);
 }, 60000);

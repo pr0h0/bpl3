@@ -1,1 +1,7 @@
-{"name":"bpl-csv","version":"0.1.0","description":"Optional CSV report writer with spreadsheet-safe fields","main":"index.bpl","license":"MIT"}
+{
+  "name": "bpl-csv",
+  "version": "0.1.0",
+  "description": "Optional CSV report writer with spreadsheet-safe fields",
+  "main": "index.bpl",
+  "license": "MIT"
+}

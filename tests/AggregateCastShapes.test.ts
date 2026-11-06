@@ -3,8 +3,6 @@ import { CompilerError } from "../compiler/common/CompilerError";
 import { lexWithGrammar } from "../compiler/frontend/GrammarLexer";
 import { Parser } from "../compiler/frontend/Parser";
 import { TypeChecker } from "../compiler/middleend/TypeChecker";
-import { SymbolTable } from "../compiler/middleend/SymbolTable";
-import { TypeComparison } from "../compiler/middleend/TypeUtils";
 import { expectCorrectnessSuite } from "./helpers/compilerCorrectness";
 
 const invalidCasts = [
@@ -57,14 +55,8 @@ for (const [name, sourceType, targetType] of invalidCasts) {
       const variable = bad.body.statements[0]!;
       if (variable.kind !== "VariableDecl")
         throw new Error("Expected cast variable");
-      const comparison = new TypeComparison(
-        new SymbolTable(),
-        (type) => checker.resolveType(type),
-        () => false,
-        () => false,
-      );
       expect(
-        comparison.isCastAllowed(bad.params[0]!.type, variable.typeAnnotation!),
+        checker.isCastAllowed(bad.params[0]!.type, variable.typeAnnotation!),
       ).toBe(false);
     });
   }

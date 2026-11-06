@@ -39,7 +39,8 @@ struct PoolAllocator: Allocator {
         this.block_size = 0;
         this.free_head = nullptr;
         this.chunk_head = nullptr;
-        if (item_size > (MAX_ALLOCATION - sizeof(PoolChunk) - 4095) / 10 - 7) return;
+        if (item_size > (((MAX_ALLOCATION - sizeof(PoolChunk) - 4095) / 10) - 7))
+            return;
         # Ensure item size is at least size of pointer (nested instruction)
         if (item_size < 8)
             item_size = 8;
@@ -72,7 +73,8 @@ struct PoolAllocator: Allocator {
 
     # Internal: Allocate a new chunk from OS and slice it into nodes.
     frame grow(this: *PoolAllocator) {
-        if ((this.block_size < 8) || (this.block_size > (MAX_ALLOCATION - sizeof(PoolChunk) - 4095) / 10)) return;
+        if ((this.block_size < 8) || (this.block_size > ((MAX_ALLOCATION - sizeof(PoolChunk) - 4095) / 10)))
+            return;
         # Allocate a new page (4KB)
         # Or larger if block_size is huge
         local chunk_size: ulong = 4096;
@@ -99,7 +101,7 @@ struct PoolAllocator: Allocator {
         # Add new nodes to FRONT of free_head
 
         local curr_addr: ulong = start_addr;
-        loop (this.block_size <= end_addr - curr_addr) {
+        loop (this.block_size <= (end_addr - curr_addr)) {
             local node: *PoolNode = cast<*PoolNode>(curr_addr);
             node.next = this.free_head;
             this.free_head = node;

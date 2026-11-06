@@ -2,10 +2,11 @@ import { test } from "bun:test";
 import { expectCorrectnessSuite } from "./helpers/compilerCorrectness";
 
 test("weighted choice rejects invalid totals without consuming randomness", () => {
-  expectCorrectnessSuite([{
-    name: "weighted-choice-contract",
-    validateLlvm: true,
-    source: `
+  expectCorrectnessSuite([
+    {
+      name: "weighted-choice-contract",
+      validateLlvm: true,
+      source: `
       import [Rand] from "std/rand.bpl";
       import [Array] from "std/array.bpl";
       extern strcmp(a: string, b: string) ret int;
@@ -42,6 +43,7 @@ test("weighted choice rejects invalid totals without consuming randomness", () =
         weights.destroy();
         return 0;
       }`,
-    expectedStdout: "",
-  }]);
+      expectedStdout: "",
+    },
+  ]);
 }, 60000);

@@ -25,8 +25,7 @@ export class FoldingRangeProvider {
     const content = document.getText();
 
     // Parse document
-    this.astResolver.parseDocumentContent(filePath, content);
-    const ast = this.astResolver.getCachedAST(filePath);
+    const ast = this.astResolver.parseDocumentContent(filePath, content);
     if (!ast) return null;
 
     const ranges: FoldingRange[] = [];
@@ -39,7 +38,21 @@ export class FoldingRangeProvider {
     // Add import region folding
     this.addImportRegion(ast, ranges);
 
-    return ranges.length > 0 ? ranges : null;
+    const seen = new Set<string>();
+    const uniqueRanges = ranges.filter((range) => {
+      if (range.endLine <= range.startLine) return false;
+      const key = JSON.stringify([
+        range.startLine,
+        range.startCharacter,
+        range.endLine,
+        range.endCharacter,
+        range.kind,
+      ]);
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+    return uniqueRanges.length > 0 ? uniqueRanges : null;
   }
 
   /**
@@ -258,14 +271,18 @@ export class FoldingRangeProvider {
         if (firstImportLine === null) {
           firstImportLine = line;
         }
-        lastImportLine = line;
+        lastImportLine = stmt.location.endLine - 1;
       } else if (firstImportLine !== null) {
+        // Line-only folds would also hide code after the final import.
+        if (stmt.location && stmt.location.startLine - 1 === lastImportLine) {
+          return;
+        }
         // Break on first non-import
         break;
       }
     }
 
-    // Create import folding range if there are multiple imports
+    // Fold the complete group, including a single import spanning multiple lines.
     if (
       firstImportLine !== null &&
       lastImportLine !== null &&

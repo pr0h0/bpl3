@@ -1,20 +1,20 @@
 import { describe, expect, test } from "bun:test";
-import {
-  WASM_COMPATIBILITY_MATRIX,
-} from "./helpers/wasmCompatibilityMatrix";
+import { WASM_COMPATIBILITY_MATRIX } from "./helpers/wasmCompatibilityMatrix";
 import { loadPlaygroundExamples } from "./helpers/playgroundExamples";
 
 describe("Playground wasm example metadata", () => {
   test("keeps common C externs centralized in std/c.bpl", () => {
     const commonCExterns =
       /\bextern\s+(?:printf|fprintf|dprintf|sprintf|snprintf|puts|putchar|scanf|gets|write|malloc|free|memcpy|memmove|memset|strlen|strcmp|strncmp|strcpy|strcat|atoi)\b/;
-    const directCExternExamples = loadPlaygroundExamples().flatMap((example) => {
-      const code = Array.isArray(example.code)
-        ? example.code.join("\n")
-        : example.code;
-      const match = code.match(commonCExterns);
-      return match ? [`${example.file}: ${match[0]}`] : [];
-    });
+    const directCExternExamples = loadPlaygroundExamples().flatMap(
+      (example) => {
+        const code = Array.isArray(example.code)
+          ? example.code.join("\n")
+          : example.code;
+        const match = code.match(commonCExterns);
+        return match ? [`${example.file}: ${match[0]}`] : [];
+      },
+    );
 
     expect(directCExternExamples).toEqual([]);
   });

@@ -4,8 +4,11 @@
 
 `typeof<T>()` returns a borrowed pointer to compiler-generated `TypeInfo`
 metadata. Do not free or modify this metadata. It includes the type's name,
-size, kind, reflected fields and methods, and an element type for arrays and
-pointers. See [the declarations](stdlib-reference.md#stdreflectionbpl) for
+size, kind, reflected fields and methods, an element type for arrays and
+pointers, and, for structs with methods, the `vtable` pointer constructors store
+in an object's first word (null otherwise). Code that builds objects from raw
+memory, as `JSON.parse` does, must install it before calling methods. A
+`string` reflects as a string primitive, distinct from `*char`. See [the declarations](stdlib-reference.md#stdreflectionbpl) for
 `TypeInfo`, `FieldInfo`, `MethodInfo`, and the `TYPE_KIND_*` constants.
 
 ```bpl
@@ -52,6 +55,29 @@ frame main() ret int {
 ```
 
 Output: `{"id": 1, "name": "Alice", "active": true}`.
+
+## Pretty-printing and minifying
+
+`JSON.pretty(text, indent)` re-indents JSON text with `indent` spaces (1 to 16)
+per level: one member or element per line, `": "` after keys, and `{}` or `[]`
+for empty containers, as Python's `json.dumps(value, indent=n)` lays it out.
+`JSON.minify(text)` removes all whitespace outside strings. Both copy string
+contents, escapes included, unchanged and return a new string the caller
+frees. They return `nullptr` for another indent, unbalanced or mismatched
+brackets, an unterminated string, or failed allocation; they do not otherwise
+validate values.
+
+```bpl
+import printf, free from "std/c.bpl";
+import [JSON] from "std/json.bpl";
+
+frame main() ret int {
+    local pretty: string = JSON.pretty("{\"id\": 7, \"tags\": [\"a\", \"b\"]}", 2);
+    printf("%s\n", pretty);
+    free(cast<*void>(pretty));
+    return 0;
+}
+```
 
 ## Parsing and cleanup
 
@@ -148,7 +174,8 @@ The implementation is experimental; it is not a general, strict JSON validator.
 | Pointers                                                          | Pointee value or `null`               | Allocated pointee; requires supported element type         |
 | Enums                                                             | Variant name only                     | Variant-name lookup; payloads are not a general round trip |
 
-Missing fields are not required-field validation. Cyclic graphs are unsupported:
+Parsed structs (including `Array<T>`) receive their vtable, so methods can be
+called on the result. Missing fields are not required-field validation. Cyclic graphs are unsupported:
 recursive serialization/freeing has no cycle detection. Fixed arrays reject
 excess elements; shorter inputs retain zero-initialized remaining slots.
 Unsupported primitive destinations return a parse error. Container separators,

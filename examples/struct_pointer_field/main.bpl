@@ -1,5 +1,4 @@
 import [printf] from "std/c.bpl";
-import [malloc] from "std/c.bpl";
 
 struct Node {
     val: int,

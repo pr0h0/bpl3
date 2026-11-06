@@ -2,7 +2,6 @@
 # Tests pointer identity vs value equality semantics
 
 import [String] from "std/string.bpl";
-import [Array] from "std/array.bpl";
 
 import [printf] from "std/c.bpl";
 import [malloc] from "std/c.bpl";

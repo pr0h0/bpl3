@@ -1,66 +1,9 @@
 import { describe, test, expect } from "bun:test";
-import { spawnSync } from "child_process";
-import fs from "fs";
-import path from "path";
-
-const BPL_CLI = path.resolve(__dirname, "../index.ts");
-
-function compileAndRun(sourceCode: string) {
-  const tempFile = path.join(
-    __dirname,
-    `temp_${Math.random().toString(36).substring(7)}.bpl`,
-  );
-
-  try {
-    fs.writeFileSync(tempFile, sourceCode);
-
-    const result = spawnSync("bun", [BPL_CLI, "run", tempFile], {
-      encoding: "utf-8",
-      cwd: __dirname,
-    });
-
-    if (result.status !== 0) {
-      console.error("Compilation/Run failed:");
-      console.error(result.stderr);
-      console.error(result.stdout);
-      throw new Error(`BPL execution failed with code ${result.status}`);
-    }
-
-    return result.stdout;
-  } finally {
-    if (fs.existsSync(tempFile)) fs.unlinkSync(tempFile);
-    const binFile = tempFile.replace(".bpl", "");
-    if (fs.existsSync(binFile)) fs.unlinkSync(binFile);
-    const llFile = tempFile.replace(".bpl", ".ll");
-    if (fs.existsSync(llFile)) fs.unlinkSync(llFile);
-  }
-}
-
-function compileAndExpectError(sourceCode: string) {
-  const tempFile = path.join(
-    __dirname,
-    `temp_${Math.random().toString(36).substring(7)}.bpl`,
-  );
-
-  try {
-    fs.writeFileSync(tempFile, sourceCode);
-
-    const result = spawnSync("bun", [BPL_CLI, tempFile], {
-      encoding: "utf-8",
-      cwd: __dirname,
-    });
-    return result;
-  } finally {
-    if (fs.existsSync(tempFile)) fs.unlinkSync(tempFile);
-    const llFile = tempFile.replace(".bpl", ".ll");
-    if (fs.existsSync(llFile)) fs.unlinkSync(llFile);
-  }
-}
-
+import { compileAndRun, compileAndRunFull } from "./helpers/compileAndRun";
 describe("Generics Constraints", () => {
   test("Basic constraint enforcement", () => {
     // Should fail because String does not implement Number
-    const result = compileAndExpectError(`
+    const result = compileAndRunFull(`
       spec Number {
         frame toInt(this: *Number) ret i32;
       }
@@ -79,7 +22,7 @@ describe("Generics Constraints", () => {
     `);
 
     // We expect an error about constraint not satisfied
-    expect(result.status).not.toBe(0);
+    expect(result.exitCode).not.toBe(0);
     expect(result.stderr + result.stdout).toContain("constraint");
   });
 

@@ -31,18 +31,16 @@ const centralizedCExterns = [
 ];
 
 function collectBplFiles(dir: string): string[] {
-  return fs
-    .readdirSync(dir, { withFileTypes: true })
-    .flatMap((entry) => {
-      const fullPath = path.join(dir, entry.name);
-      if (entry.isDirectory()) {
-        if (entry.name === "node_modules" || entry.name === "bpl_modules") {
-          return [];
-        }
-        return collectBplFiles(fullPath);
+  return fs.readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
+    const fullPath = path.join(dir, entry.name);
+    if (entry.isDirectory()) {
+      if (entry.name === "node_modules" || entry.name === "bpl_modules") {
+        return [];
       }
-      return entry.isFile() && entry.name.endsWith(".bpl") ? [fullPath] : [];
-    });
+      return collectBplFiles(fullPath);
+    }
+    return entry.isFile() && entry.name.endsWith(".bpl") ? [fullPath] : [];
+  });
 }
 
 function isRawFfiExample(relativeFile: string): boolean {

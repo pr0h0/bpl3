@@ -76,14 +76,14 @@ describe("LLVM verifier tooling", () => {
     process.env.BPL_LLC = "/opt/llvm/bin/llc-18";
     process.env.BPL_CC = "/opt/llvm/bin/clang-18";
 
-    expect(getLlvmVerifierCandidates().map((candidate) => candidate.tool)).toEqual(
-      [
-        "/opt/llvm/bin/opt-18",
-        "/opt/llvm/bin/llvm-as-18",
-        "/opt/llvm/bin/llc-18",
-        "/opt/llvm/bin/clang-18",
-      ],
-    );
+    expect(
+      getLlvmVerifierCandidates().map((candidate) => candidate.tool),
+    ).toEqual([
+      "/opt/llvm/bin/opt-18",
+      "/opt/llvm/bin/llvm-as-18",
+      "/opt/llvm/bin/llc-18",
+      "/opt/llvm/bin/clang-18",
+    ]);
   });
 
   test("reports a clear diagnostic when configured verifier tools are unavailable", () => {

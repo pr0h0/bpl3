@@ -19,7 +19,7 @@ if [ $? -eq 0 ]; then
     echo -e "${GREEN}✓ Health check successful${NC}"
     echo "$response" | jq '.'
 else
-    echo -e "${YELLOW}⚠ Server not running. Start with: cd playground/backend && bun run dev${NC}"
+    echo -e "${YELLOW}⚠ Server not running. Start it from the repository root with: bun run playground${NC}"
     exit 1
 fi
 echo ""

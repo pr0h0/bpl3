@@ -50,7 +50,10 @@ describe("timeout environment diagnostics", () => {
     restoreEnv("BPL_PACKAGE_TOOL_TIMEOUT_MS", originalPackageToolTimeout);
     restoreEnv("BPL_OBJECT_SYMBOL_TIMEOUT_MS", originalObjectSymbolTimeout);
     restoreEnv("BPL_RUN_TIMEOUT_MS", originalRunTimeout);
-    restoreEnv("BPL_WASM_LINKER_PROBE_TIMEOUT_MS", originalWasmLinkerProbeTimeout);
+    restoreEnv(
+      "BPL_WASM_LINKER_PROBE_TIMEOUT_MS",
+      originalWasmLinkerProbeTimeout,
+    );
     restoreEnv(
       "SANITIZER_RUNTIME_TEST_TIMEOUT_MS",
       originalSanitizerRuntimeTestTimeout,
@@ -232,8 +235,13 @@ describe("timeout environment diagnostics", () => {
   });
 
   test("clean git timeout invalid values explain the fallback in CLI output", () => {
-    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "bpl-timeout-clean-"));
-    fs.writeFileSync(path.join(tempDir, "main.ll"), "define i32 @main() { ret i32 0 }\n");
+    const tempDir = fs.mkdtempSync(
+      path.join(os.tmpdir(), "bpl-timeout-clean-"),
+    );
+    fs.writeFileSync(
+      path.join(tempDir, "main.ll"),
+      "define i32 @main() { ret i32 0 }\n",
+    );
 
     try {
       const result = spawnSync("bun", [BPL_CLI, "clean", "--dry-run"], {

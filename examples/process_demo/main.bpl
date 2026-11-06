@@ -1,6 +1,5 @@
 import exec, execStatus, execOutput, execShell, execSilent, sleep, [ProcessResult] from "std/process.bpl";
 import [printf] from "std/c.bpl";
-import [String] from "std/string.bpl";
 
 frame main() {
     printf("--- Process Test Start ---\n");

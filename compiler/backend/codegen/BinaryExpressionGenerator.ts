@@ -466,51 +466,6 @@ export abstract class BinaryExpressionGenerator extends AddressExpressionGenerat
   }
 
   /**
-   * Generate fat pointer comparison (Function/Lambda) using memcmp
-   */
-  private generateFatPointerComparison(
-    leftRaw: string,
-    rightRaw: string,
-    type: string,
-    isEqual: boolean,
-  ): string {
-    // Allocate stack
-    const leftPtr = this.allocateStack(`fp_cmp_left_${this.labelCount}`, type);
-    this.emit(`  store ${type} ${leftRaw}, ${type}* ${leftPtr}`);
-
-    const rightPtr = this.allocateStack(
-      `fp_cmp_right_${this.labelCount++}`,
-      type,
-    );
-    this.emit(`  store ${type} ${rightRaw}, ${type}* ${rightPtr}`);
-
-    // Bitcast to i8*
-    const leftI8 = this.newRegister();
-    this.emit(`  ${leftI8} = bitcast ${type}* ${leftPtr} to i8*`);
-    const rightI8 = this.newRegister();
-    this.emit(`  ${rightI8} = bitcast ${type}* ${rightPtr} to i8*`);
-
-    // Call memcmp
-    // Function Fat Pointers are ALWAYS 2 pointers (func ptr + ctx ptr) = 16 bytes on 64-bit
-    const size = 16;
-
-    const res = this.newRegister();
-    this.emit(
-      `  ${res} = call i32 @memcmp(i8* ${leftI8}, i8* ${rightI8}, i64 ${size})`,
-    );
-
-    const cmp = this.newRegister();
-    this.emit(`  ${cmp} = icmp eq i32 ${res}, 0`);
-
-    if (!isEqual) {
-      const not = this.newRegister();
-      this.emit(`  ${not} = xor i1 ${cmp}, true`);
-      return not;
-    }
-    return cmp;
-  }
-
-  /**
    * Generate generic struct literal equality using memcmp and computed sizeof
    */
   private generateGenericStructEquality(
@@ -690,7 +645,11 @@ export abstract class BinaryExpressionGenerator extends AddressExpressionGenerat
 
     let dataEqual = "true";
 
-    for (let variantIndex = 0; variantIndex < enumDecl.variants.length; variantIndex++) {
+    for (
+      let variantIndex = 0;
+      variantIndex < enumDecl.variants.length;
+      variantIndex++
+    ) {
       const variant = enumDecl.variants[variantIndex]!;
       const fieldTypes = this.getEnumVariantPayloadFieldTypes(variant);
       if (fieldTypes.length === 0) {
@@ -729,9 +688,7 @@ export abstract class BinaryExpressionGenerator extends AddressExpressionGenerat
       }
 
       const isVariant = this.newRegister();
-      this.emit(
-        `  ${isVariant} = icmp eq i32 ${leftTag}, ${variantIndex}`,
-      );
+      this.emit(`  ${isVariant} = icmp eq i32 ${leftTag}, ${variantIndex}`);
 
       const isInactiveVariant = this.newRegister();
       this.emit(`  ${isInactiveVariant} = xor i1 ${isVariant}, true`);
@@ -803,7 +760,7 @@ export abstract class BinaryExpressionGenerator extends AddressExpressionGenerat
   /**
    * Handle pointer arithmetic
    */
-  private handlePointerArithmetic(
+  protected handlePointerArithmetic(
     expr: AST.BinaryExpr,
     leftRaw: string,
     rightRaw: string,
@@ -1023,48 +980,33 @@ export abstract class BinaryExpressionGenerator extends AddressExpressionGenerat
         if (isFloat) {
           op = "fcmp olt";
         } else {
-          op = this.isSigned(expr.left.resolvedType!)
-            ? "icmp slt"
-            : "icmp ult";
+          op = this.isSigned(expr.left.resolvedType!) ? "icmp slt" : "icmp ult";
         }
         break;
       case TokenType.LessEqual:
         if (isFloat) {
           op = "fcmp ole";
         } else {
-          op = this.isSigned(expr.left.resolvedType!)
-            ? "icmp sle"
-            : "icmp ule";
+          op = this.isSigned(expr.left.resolvedType!) ? "icmp sle" : "icmp ule";
         }
         break;
       case TokenType.Greater:
         if (isFloat) {
           op = "fcmp ogt";
         } else {
-          op = this.isSigned(expr.left.resolvedType!)
-            ? "icmp sgt"
-            : "icmp ugt";
+          op = this.isSigned(expr.left.resolvedType!) ? "icmp sgt" : "icmp ugt";
         }
         break;
       case TokenType.GreaterEqual:
         if (isFloat) {
           op = "fcmp oge";
         } else {
-          op = this.isSigned(expr.left.resolvedType!)
-            ? "icmp sge"
-            : "icmp uge";
+          op = this.isSigned(expr.left.resolvedType!) ? "icmp sge" : "icmp uge";
         }
         break;
       case TokenType.Percent: {
         const isUnsigned = !isFloat && !this.isSigned(expr.left.resolvedType!);
-        op = this.getModuloOp(
-          expr,
-          isFloat,
-          isUnsigned,
-          left,
-          right,
-          leftType,
-        );
+        op = this.getModuloOp(expr, isFloat, isUnsigned, left, right, leftType);
         break;
       }
       case TokenType.Ampersand:
@@ -1078,19 +1020,11 @@ export abstract class BinaryExpressionGenerator extends AddressExpressionGenerat
         break;
       case TokenType.LessLess:
         op = "shl";
-        finalRight = this.maskShiftAmount(
-          right,
-          leftType,
-          leftType,
-        );
+        finalRight = this.maskShiftAmount(right, leftType, leftType);
         break;
       case TokenType.GreaterGreater:
         op = this.isSigned(expr.left.resolvedType!) ? "ashr" : "lshr";
-        finalRight = this.maskShiftAmount(
-          right,
-          leftType,
-          leftType,
-        );
+        finalRight = this.maskShiftAmount(right, leftType, leftType);
         break;
     }
 
@@ -1304,8 +1238,15 @@ export abstract class BinaryExpressionGenerator extends AddressExpressionGenerat
         const leftElement = this.newRegister();
         const rightElement = this.newRegister();
         this.emit(`  ${leftElement} = extractvalue ${llvmType} ${left}, ${i}`);
-        this.emit(`  ${rightElement} = extractvalue ${llvmType} ${right}, ${i}`);
-        const equal = this.generateValueEquality(leftElement, rightElement, typeNode, array[2]!);
+        this.emit(
+          `  ${rightElement} = extractvalue ${llvmType} ${right}, ${i}`,
+        );
+        const equal = this.generateValueEquality(
+          leftElement,
+          rightElement,
+          typeNode,
+          array[2]!,
+        );
         const next = this.newRegister();
         this.emit(`  ${next} = and i1 ${result}, ${equal}`);
         result = next;
@@ -1563,7 +1504,10 @@ export abstract class BinaryExpressionGenerator extends AddressExpressionGenerat
 
     const expressionKey =
       constantDivisor === undefined
-        ? this.getBasicBlockNonZeroIntegerExpressionKey(divisorExpr, divisorType)
+        ? this.getBasicBlockNonZeroIntegerExpressionKey(
+            divisorExpr,
+            divisorType,
+          )
         : undefined;
     if (
       expressionKey !== undefined &&
@@ -1891,96 +1835,6 @@ export abstract class BinaryExpressionGenerator extends AddressExpressionGenerat
     }
 
     return resultReg;
-  }
-
-  /**
-   * Build DivisionByZeroError struct
-   */
-  private buildDivisionByZeroError(): string {
-    const msg = "Division by zero";
-    if (!this.stringLiterals.has(msg)) {
-      this.stringLiterals.set(
-        msg,
-        `@.div_zero_msg.${this.stringLiterals.size}`,
-      );
-    }
-    const msgLen = msg.length + 1;
-    const msgPtr = `getelementptr inbounds ([${msgLen} x i8], [${msgLen} x i8]* ${this.stringLiterals.get(msg)}, i32 0, i32 0)`;
-
-    const layout = this.structLayouts.get("DivisionByZeroError");
-    let currentStruct = "undef";
-
-    if (layout) {
-      if (layout.has("__vtable__")) {
-        const vtableIndex = layout.get("__vtable__");
-        const vtablePtr = this.newRegister();
-        this.emit(
-          `  ${vtablePtr} = bitcast [3 x i8*]* @DivisionByZeroError_vtable to i8*`,
-        );
-        const nextStruct = this.newRegister();
-        this.emit(
-          `  ${nextStruct} = insertvalue %struct.DivisionByZeroError ${currentStruct}, i8* ${vtablePtr}, ${vtableIndex}`,
-        );
-        currentStruct = nextStruct;
-      }
-
-      if (layout.has("message")) {
-        const idx = layout.get("message");
-        const nextStruct = this.newRegister();
-        this.emit(
-          `  ${nextStruct} = insertvalue %struct.DivisionByZeroError ${currentStruct}, i8* ${msgPtr}, ${idx}`,
-        );
-        currentStruct = nextStruct;
-      }
-      if (layout.has("code")) {
-        const idx = layout.get("code");
-        const nextStruct = this.newRegister();
-        this.emit(
-          `  ${nextStruct} = insertvalue %struct.DivisionByZeroError ${currentStruct}, i32 8, ${idx}`,
-        );
-        currentStruct = nextStruct;
-      }
-
-      if (layout.has("stack_frames")) {
-        const idx = layout.get("stack_frames");
-        const nextStruct = this.newRegister();
-        this.emit(
-          `  ${nextStruct} = insertvalue %struct.DivisionByZeroError ${currentStruct}, i8** null, ${idx}`,
-        );
-        currentStruct = nextStruct;
-      }
-
-      if (layout.has("stack_depth")) {
-        const idx = layout.get("stack_depth");
-        const nextStruct = this.newRegister();
-        this.emit(
-          `  ${nextStruct} = insertvalue %struct.DivisionByZeroError ${currentStruct}, i32 0, ${idx}`,
-        );
-        currentStruct = nextStruct;
-      }
-    } else {
-      // Fallback if layout missing (should not happen)
-      // Assuming manually updated struct layout: { message, code, stack_frames, stack_depth }
-      // message (0), code (1), stack_frames (2), stack_depth (3)
-      const s = this.newRegister();
-      this.emit(
-        `  ${s} = insertvalue %struct.DivisionByZeroError undef, i8* ${msgPtr}, 0`,
-      );
-      const s2 = this.newRegister();
-      this.emit(
-        `  ${s2} = insertvalue %struct.DivisionByZeroError ${s}, i32 8, 1`,
-      );
-      const s3 = this.newRegister();
-      this.emit(
-        `  ${s3} = insertvalue %struct.DivisionByZeroError ${s2}, i8** null, 2`,
-      );
-      const s4 = this.newRegister();
-      this.emit(
-        `  ${s4} = insertvalue %struct.DivisionByZeroError ${s3}, i32 0, 3`,
-      );
-      currentStruct = s4;
-    }
-    return currentStruct;
   }
 
   /**

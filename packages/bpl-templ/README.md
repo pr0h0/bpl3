@@ -20,6 +20,12 @@ bun run build
 # The binary is now at src/bpl-templ
 ```
 
+The committed `src/bpl-templ` (the package's `bin`) is a prebuilt x86-64 Linux
+executable. On other platforms, rebuild it with `bun run build` for local use
+only; do not commit that binary or a refreshed archive. After changing
+`src/cli.bpl` or `lib/`, regenerate both on x86-64 Linux: `bun run build`, then
+`bpl pack`.
+
 ## Usage
 
 ### CLI
@@ -53,7 +59,7 @@ Without an `@args` directive, the component has no arguments.
 - **`@args <signature>`**: Defines the arguments for the generated `render` function.
 - **`@import <module>`**: Imports external BPL modules (e.g., structs used in args).
 
-```html
+```text
 @import [User] from "../models.bpl"
 @args user: *User, title: string
 ```

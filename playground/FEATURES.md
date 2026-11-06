@@ -23,7 +23,7 @@
 - **Output Metrics**: Monitor output size and performance
 - **Phase Breakdown**: Separate timing for lexing, parsing, compilation, and execution
 - **Success Rate Tracking**: Real-time compilation success/failure statistics
-- **Fast Run Responses**: Run Code returns execution output without IR/AST/token payloads; debug tabs request those artifacts lazily
+- **Fast Run Responses**: Run returns execution output without IR/AST/token payloads; debug tabs request those artifacts lazily
 - **Native Runtime Object**: Native playground links reuse the prebuilt `lib/runtime_support.o` when generated IR references runtime symbols
 
 ### 🔌 Extended API Endpoints
@@ -68,10 +68,11 @@ Clear all accumulated logs.
 
 ### 🎨 UI Improvements
 
-- **Execution Info Panel**: Display timing and output size after execution
-- **Live Stats Sidebar**: Real-time server statistics in the sidebar
-- **Enhanced Status Indicators**: Visual feedback for server connectivity
-- **Better Error Display**: Improved error formatting and context
+- **Run status line**: status, run time and output size after each run
+- **Server indicator**: the header shows whether the server answers `/health`
+- **Error display**: compiler errors and partial output in the Output tab
+
+The playground UI no longer shows `/stats`; use the endpoint directly.
 
 ### 🔍 Debug Capabilities
 
@@ -144,8 +145,8 @@ maxBuffer: 1024 * 1024, // 1MB buffer
 ### Stats Update Frequency
 
 ```javascript
-// Frontend polling interval (in app.js)
-setInterval(pollServerStats, 5000); // Update every 5 seconds
+// Frontend health check interval (in app.js)
+setInterval(pollServerStatus, 30000); // GET /health every 30 seconds
 ```
 
 ## Monitoring Best Practices

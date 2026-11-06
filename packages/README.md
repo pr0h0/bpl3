@@ -7,22 +7,22 @@ relative sibling archive references, so keep the package directory layout when
 installing from a checkout. Repack edited packages with `bun index.ts pack
 packages/package-name -o packages/package-name` before distributing them.
 
-| Package | Purpose | Optional native dependency |
-| --- | --- | --- |
-| [bpl-express](bpl-express/README.md) | Routing, middleware, responses, public assets | Linux sockets; OpenSSL 3 for HTTPS |
-| [bpl-http-parser](bpl-http-parser/README.md) | Bounded request framing and decoded queries | None |
-| [bpl-http-client](bpl-http-client/README.md) | Synchronous HTTP/HTTPS requests and bounded responses | Linux sockets; OpenSSL 3 for HTTPS |
-| [bpl-templ](bpl-templ/README.md) | Compiled templates and HTML escaping | Native template CLI |
-| [bpl-db](bpl-db/README.md) | Typed in-memory tables and trusted snapshots | None |
-| [bpl-validation](bpl-validation/README.md) | Input rules and JSON field errors | None |
+| Package                                            | Purpose                                                           | Optional native dependency           |
+| -------------------------------------------------- | ----------------------------------------------------------------- | ------------------------------------ |
+| [bpl-express](bpl-express/README.md)               | Routing, middleware, responses, public assets                     | Linux sockets; OpenSSL 3 for HTTPS   |
+| [bpl-http-parser](bpl-http-parser/README.md)       | Bounded request framing and decoded queries                       | None                                 |
+| [bpl-http-client](bpl-http-client/README.md)       | Synchronous HTTP/HTTPS requests and bounded responses             | Linux sockets; OpenSSL 3 for HTTPS   |
+| [bpl-templ](bpl-templ/README.md)                   | Compiled templates and HTML escaping                              | Native template CLI                  |
+| [bpl-db](bpl-db/README.md)                         | Typed in-memory tables and trusted snapshots                      | None                                 |
+| [bpl-validation](bpl-validation/README.md)         | Input rules and JSON field errors                                 | None                                 |
 | [bpl-web-middleware](bpl-web-middleware/README.md) | Headers, configurable CORS, negotiation, gzip, JSON checks, forms | Uses bpl-express; optional libz.so.1 |
-| [bpl-tls](bpl-tls/README.md) | Native TLS transport with verified client connections | OpenSSL 3 runtime, loaded on use |
-| [bpl-rate-limit](bpl-rate-limit/README.md) | Shared request throttling middleware | SQLite 3.35+ |
-| [bpl-passport](bpl-passport/README.md) | Named authentication strategies | Uses bpl-express |
-| [bpl-passport-local](bpl-passport-local/README.md) | Bounded username/password JSON strategy | Linux/glibc credential wiping |
-| [bpl-auth](bpl-auth/README.md) | Passwords, revocable sessions, CSRF | SQLite and libsodium |
-| [bpl-csv](bpl-csv/README.md) | Optional CSV downloads and reports | None |
-| [bpl-sqlite](bpl-sqlite/README.md) | Prepared statements, migrations, WAL and online backups | Link native SQLite |
+| [bpl-tls](bpl-tls/README.md)                       | Native TLS transport with verified client connections             | OpenSSL 3 runtime, loaded on use     |
+| [bpl-rate-limit](bpl-rate-limit/README.md)         | Shared request throttling middleware                              | SQLite 3.35+                         |
+| [bpl-passport](bpl-passport/README.md)             | Named authentication strategies                                   | Uses bpl-express                     |
+| [bpl-passport-local](bpl-passport-local/README.md) | Bounded username/password JSON strategy                           | Linux/glibc credential wiping        |
+| [bpl-auth](bpl-auth/README.md)                     | Passwords, revocable sessions, CSRF                               | SQLite and libsodium                 |
+| [bpl-csv](bpl-csv/README.md)                       | Optional CSV downloads and reports                                | None                                 |
+| [bpl-sqlite](bpl-sqlite/README.md)                 | Prepared statements, migrations, WAL and online backups           | Link native SQLite                   |
 
 Start with the [college task board](../examples/college_web/README.md). Handler
 signatures follow the familiar Express/Gin pattern: `frame handler(req:
@@ -53,8 +53,9 @@ provides bounded process concurrency with private worker memory. The optional
 bpl-auth package supplies password/session/CSRF handling; application queries
 still enforce ownership. It does not include email verification, reset/MFA,
 roles, a connection pool, or an ORM. The SQLite package offers versioned callback migrations and online
-backups; the college example uses a migration for anonymous-task ownership. Transfer-encoded
-request bodies are rejected explicitly. Public deployment still needs configured certificates and HTTPS,
+backups; the college example uses a migration for anonymous-task ownership. Chunked
+request bodies are decoded with validated trailers; other transfer codings are
+rejected with 501. Public deployment still needs configured certificates and HTTPS,
 traffic management, backups, monitoring, and workload testing. These modules do
 not establish parity with mature frameworks or guarantee a bug-free deployment.
 

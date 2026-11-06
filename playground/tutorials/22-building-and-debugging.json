@@ -6,9 +6,7 @@
   "difficulty": "intermediate",
   "duration": "15 min",
   "description": "Master the BPL compiler. Learn compilation options, debugging techniques, and optimization settings.",
-  "prerequisites": [
-    "ffi"
-  ],
+  "prerequisites": ["ffi"],
   "objectives": [
     "Understand the compilation pipeline",
     "Use compiler flags effectively",
@@ -108,12 +106,7 @@
         },
         {
           "question": "Which flag enables aggressive optimization?",
-          "options": [
-            "-O0",
-            "-O1",
-            "-O3",
-            "-Og"
-          ],
+          "options": ["-O0", "-O1", "-O3", "-Og"],
           "correct": 2,
           "explanation": "-O3 enables aggressive optimizations, while -O0 disables optimization."
         },

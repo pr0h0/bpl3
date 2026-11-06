@@ -39,11 +39,24 @@ bpl run hello.bpl -O 2
 
 # Run while keeping diagnostic LLVM IR
 bpl run hello.bpl --debug-ir-path debug/run.ll
+
+# Keep the executable (and its .ll) instead of using a temporary directory
+bpl run hello.bpl -o build/hello
+
+# Flags meant for the program go after --
+bpl run hello.bpl input.txt -- --verbose
 ```
 
-### `bpl dev <file> [args...]`
+Without `-o`, `bpl run` writes the IR and executable to a temporary directory
+that is removed when the command exits, so no artifacts appear next to the
+source. Options after the file are still parsed by `bpl`; separate program
+flags with `--`. The command exits with the program's exit code.
 
-Development mode with watch and auto-run.
+### `bpl dev [file] [args...]`
+
+Development mode with watch and auto-run. Without a file it watches the
+`main`/`entry` of `./bpl.json` (like `bpl run`), and through it every module
+the project imports; `--project` asks for that explicitly.
 
 **Options:**
 
@@ -69,6 +82,10 @@ bpl dev main.bpl --debug-ir-path debug/dev.ll
 ### `bpl build <file>`
 
 Explicitly compile a program.
+
+With `--json`, `--emit ast`, `--emit tokens`, and `--emit formatted` retain
+their raw artifact output instead of a build-result report. Failures in these
+modes print diagnostics to stderr and return a nonzero exit status.
 
 **Examples:**
 
@@ -99,9 +116,14 @@ Cache stats: modules=11 hits=8 misses=3 compiled=3 reused=8 jobs=4 sizeKb=304.64
 Use this when tuning compile times or checking whether a dependency change
 invalidates more modules than expected.
 
-### `bpl check <files...>`
+### `bpl check [files...]`
 
-Type check files without generating code (fast).
+Type check files without generating code (fast). Without arguments inside a
+project (a directory with `bpl.json`), it checks the whole project, like
+`bpl check .`; dependencies in `bpl_modules`/`node_modules` are skipped.
+`--quiet` hides successful
+check output while keeping input errors and compiler diagnostics on stderr.
+With `--json`, results remain structured JSON on stdout.
 
 **Examples:**
 
@@ -114,7 +136,19 @@ bpl check src/*.bpl
 
 # JSON output
 bpl check main.bpl --json
+
+# Every source in the current project
+bpl check
 ```
+
+Warnings (unreachable code, a local shadowing an outer variable) are printed
+but do not fail the check. With `--json` they appear in each file's
+`diagnostics` with `severity: "warning"`, and the report includes
+`warningCount` next to `errorCount`. Only warnings located in a checked file
+are reported for it; an imported module's warnings belong to that module.
+`bpl build` and `bpl run` print the entry file's warnings on stderr too (not in
+`--json` mode), and never fail because of them. Unreachable code is reported
+once per block, at the first statement that cannot run.
 
 `--json` reports rich diagnostics with `code`, `severity`, source ranges, and a
 source-line preview. Use it in editor integrations and CI tools that need
@@ -153,6 +187,10 @@ JSON-mode validation failures stay on stdout with `success: false`, `file`,
 - `BPL_DOCS_OUTPUT_PARENT_NOT_DIRECTORY`
 - `BPL_DOCS_FAILED`
 
+When `BPL_DOCS_FAILED` comes from a compiler diagnostic that has its own code
+(such as `BPL_SOURCE_COMPLEXITY_LIMIT`), that code is also reported as
+`diagnosticCode`.
+
 Reproduce the focused JSON contract with
 `bun test tests/CLI.test.ts -t "documentation generation success and validation failures as JSON"`.
 
@@ -173,9 +211,12 @@ bpl new my-library --template library
 
 Templates:
 
-- `app` (default): executable project with `main.bpl` and `lib/`
+- `app` (default): executable project with `main.bpl` and `lib/`, holding an
+  example module `lib/math.bpl` and its tests in `lib/math_test.bpl`
 - `library`: package-oriented project with `src/index.bpl`, an exported public
-  API, and `examples/usage.bpl`
+  API, its tests in `src/index_test.bpl`, and `examples/usage.bpl`
+
+Both templates' tests pass with `bpl test`.
 
 Use `--no-git` to skip git initialization.
 Project creation JSON reports are available with `bpl new <name> --json`.
@@ -316,6 +357,8 @@ Format BPL source files.
 
 - `-w, --write`: Write formatted output back to files
 - `--check`: Verify formatting without rewriting files
+- `--diff`: Like `--check`, and print a unified diff of the changes for each
+  unformatted file
 - `--json`: Output a machine-readable format-check report with `--check`
 
 **Examples:**
@@ -337,21 +380,126 @@ checks emit `schemaVersion: 1`, `check: "format"`, `success: true`,
 contract with `bun test tests/CLI.test.ts -t "format check results and
 validation failures as JSON"`.
 
+Directory discovery reads `.bplignore` patterns one per line; LF, CRLF, CR,
+and mixed line endings are supported. Explicit file arguments override ignores.
+
 ### `bpl lint [files...]`
 
-Lint BPL source files for style and package-quality issues.
+Lint BPL source files for style and package-quality issues. Rules:
+
+- `L001` naming: structs are `PascalCase` and functions `camelCase`; a leading
+  underscore marks a private helper (`_siftDown`). `main` and operator and
+  lifecycle hooks such as `__add__` are exempt.
+- `L002` unused import: an imported name (or `import * as` namespace) that
+  nothing outside the import statements refers to. Calls, type annotations,
+  generic arguments, `Enum.Variant`, namespace members, `export` lists and the
+  `${...}` parts of interpolated strings count as uses, and an interpolated
+  string counts as a use of `String`.
+- `L003` unused private function: a top-level frame named `_something` that is
+  not exported and that nothing else in the module names. A call from its own
+  body counts as a use.
+- `L004` constant condition: an `if` or ternary whose condition is `true` or
+  `false`, or a `loop (false)` whose body never runs. `loop (true)` is an
+  ordinary infinite loop and is not reported.
+- `L005` self-assignment: `x = x`, `box.n = box.n` or `a.items[0] = a.items[0]`,
+  which store a value where it already is. Computed indexes and compound
+  assignments such as `x += x` are not reported.
+- `L006` self-comparison: a variable compared with itself, such as `n == n`
+  or `i < i`, whose result is fixed. Only names declared with a primitive,
+  `string` or pointer type are checked. For `float`, `double` and `f32` values
+  only `<` and `>` are reported, because `x != x` is the NaN test.
+- `L007` duplicate condition: an `else if` whose condition repeats an earlier
+  condition of the same chain (`if (x == 1) ... else if (x == 1)`), so its
+  branch never runs. Conditions containing calls, casts or increments are not
+  compared.
+- `L008` empty branch: an `if` or `else` whose block is empty, so the branch
+  does nothing. A block holding only a comment is deliberate and is not
+  reported.
+- `L009` overwritten value: a value stored in a variable (by an initializer or
+  `=`) and replaced by the very next statement before anything reads it, as in
+  `x = 2; x = 3;`. Only call-free first values are reported, and the second
+  store must not read the variable.
+
+Warnings fail the run unless `--no-fail-on-warnings` is given.
 
 **Options:**
 
 - `--json`: Output lint diagnostics in JSON format
 - `-v, --verbose`: Verbose output
+- `--no-fail-on-warnings`: Report warnings without failing
+- `--fix`: Remove unused imports (L002) in place before linting: an import whose
+  names are all unused is deleted with its line, and one with some unused names
+  is rewritten without them. Other findings are only reported. Nothing is
+  changed when L002 is disabled, and standard input (`-`) is never rewritten.
+- `--disable <codes>`: Skip the listed rules, comma-separated and
+  case-insensitive (`--disable L003,L008`); repeatable. An unknown code fails
+  the run with `BPL_LINT_UNKNOWN_RULE` before any file is linted.
 
 **Examples:**
 
 ```bash
 bpl lint src/*.bpl
 bpl lint --json src/*.bpl
+bpl lint --disable L001,L008 src/
+bpl lint --fix src/
 ```
+
+A project can disable rules for every run in a `.bpllint.json` file; `bpl lint`
+uses the nearest one in the linted file's directory or a parent directory, and
+`--disable` adds to it:
+
+```json
+{
+  "$schema": "./schemas/bpl-lint.schema.json",
+  "disable": ["L001", "L008"]
+}
+```
+
+`disable` is the only setting, and codes may use either case. An unknown
+setting or rule code, or invalid JSON, fails that file with
+`BPL_LINT_PROCESSING_ERROR` and a message naming the configuration file. The
+schema ships as `schemas/bpl-lint.schema.json`.
+
+### `bpl test [paths...]`
+
+Run tests. Test files are the `*_test.bpl` sources under the given files and
+directories (default: the current directory; `.bplignore`, `bpl_modules` and
+`node_modules` are skipped as for `check`). A test is a top-level frame named
+`testSomething` or `test_something` with no parameters that returns nothing or
+an `int`. It fails when it throws, for example through `Assert.that` from
+`std/assert.bpl`, when it returns a nonzero `int`, or when the process crashes
+or runs longer than 60 seconds. A test file must not define `main`: `bpl test`
+builds each file once with a generated `main` and runs every test in its own
+process, so one crashing test does not stop the others.
+
+**Options:**
+
+- `-f, --filter <text>`: Run only tests whose name contains the text
+- `-v, --verbose`: Show the output of passing tests too
+- `--list`: Print each test (`file name`) without building or running it
+- `--fail-fast`: Stop after the first failing test or file that does not build
+- `--json`: Output a machine-readable test report (with `--list`, the test
+  names per file)
+
+**Example:**
+
+```bpl
+# math_test.bpl
+import [Assert] from "std/assert.bpl";
+
+frame testAddition() {
+    Assert.that(1 + 1 == 2, "1 + 1 should be 2");
+}
+```
+
+```bash
+bpl test
+bpl test tests/ --filter Addition
+bpl test --json
+```
+
+The command exits with status 1 when a test fails or a test file cannot be
+built.
 
 ### `bpl bindgen <header>`
 
@@ -396,6 +544,11 @@ bpl completion zsh
 bpl completion bash --json
 ```
 
+The scripts complete every command, subcommand (`package-cache list`, ...)
+and option the CLI defines, plus values for options such as `--emit`,
+`--target` and `--template`. They are generated from the command definitions
+by `bun scripts/generate_completions.ts`, so they cannot drift from the CLI.
+
 Completion JSON reports are available with `bpl completion [shell] --json`.
 Successful reports emit `schemaVersion: 1`, `check: "completion"`,
 `success: true`, the selected `shell`, and the generated `script` text. JSON
@@ -410,7 +563,8 @@ Flag availability depends on the command; run `bpl <command> --help` for the exa
 
 - `-o <file>`: Output file name on the default compile command and `bpl build`
 - `-v, --verbose`: Verbose compiler output
-- `-q, --quiet`: Suppress non-error output
+- `-q, --quiet`: Suppress non-error output. Build errors and explicitly requested
+  `--emit` output remain visible; JSON retains its existing output contract.
 - `-O <level>`: Optimization level (0, 1, 2, or 3)
 - `-d, --dwarf`: Generate DWARF debug information on the default compile command
 - `--debug`: Generate DWARF debug information on `run`, `dev`, and `build`
@@ -442,29 +596,30 @@ logger text belongs on stderr for non-JSON failures; JSON-mode failures that are
 part of a command's validation path use stdout with `success: false` or
 `ok: false` so CI and editor integrations can parse the result consistently.
 
-| Command | Stable stdout shape |
-| --- | --- |
-| `bpl --version --json` | Version report with `schemaVersion`, `check: "version"`, `success: true`, and `version`. |
-| `bpl bindgen <header> --json` | Bindgen report with `schemaVersion`, `check: "bindgen"`, `success`, `header`, `outputPath`, and `generatedBytes`; stdout-mode success includes `bindings`, and output-file success writes the file while reporting its path. Validation failures return `success: false`, `error`, and stable `BPL_BINDGEN_*` `errorCode` values for header and output path failures. |
-| `bpl build --json` | Build result report with `schemaVersion`, `check: "build"`, `success`, `file`, `emit`, `target`, `cache`, and output artifact paths. Successful `--eval` and `--stdin` builds without `-o` report generated IR as `output.inlineLlvm` and leave no virtual-source artifacts in the working directory. JSON-mode build failures return `success: false` with `error` on stdout and include `diagnostics` when the failure comes from compiler diagnostics. Build validation failures such as no input files, invalid `-O`, `--emit`, `--wasm-runtime`, `--jobs`, unsupported `--target`, input path, and output path errors are stdout-only JSON reports and do not leave failed LLVM or executable artifacts behind. Codegen diagnostics such as `--debug-ir-path` path-safety failures are promoted to top-level `errorCode` values while preserving the diagnostic object. No-input builds report `errorCode: "BPL_BUILD_NO_INPUTS"`. Unsupported targets report `errorCode: "BPL_BUILD_UNSUPPORTED_TARGET"`. |
-| `bpl check --json` | Type-check report with `schemaVersion`, `check: "check"`, `success`, `totalFiles`, `errorCount`, `timeMs`, and per-file diagnostics or validation errors. Input validation failures keep per-file JSON failure entries with `error` and a stable `errorCode`. |
-| `bpl completion [shell] --json` | Completion report with `schemaVersion`, `check: "completion"`, `success`, `shell`, and `script`; unsupported shells return `success: false`, `shell`, `error`, and `errorCode: "BPL_COMPLETION_SHELL_UNSUPPORTED"` on stdout. |
-| `bpl docs <file> --json` | Documentation-generation report with `schemaVersion`, `check: "docs"`, `success`, `file`, `outputPath`, and `generatedBytes`; validation failures return `success: false`, `error`, and stable `BPL_DOCS_*` `errorCode` values for input and output path failures. The command always writes Markdown to `outputPath`, defaulting to `docs.md`. |
-| `bpl format --check --json` | Format-check report with `schemaVersion`, `check: "format"`, `success`, `mode: "check"`, `totalFiles`, `formattedFiles`, `unformattedFiles`, `errorCount`, and per-file results. Files that need formatting use `BPL_FORMAT_NOT_FORMATTED`; missing and non-file inputs use stable `BPL_FORMAT_INPUT_*` codes. |
-| `bpl lint --json` | Lint report with `schemaVersion`, `check: "lint"`, `success`, `totalFiles`, `errorCount`, and per-file diagnostics or validation errors. Input validation failures keep per-file JSON failure entries with `error` and a stable `errorCode`. |
-| `bpl doctor --json` / `bpl doctor sanitizer --json` / `bpl doctor <unknown> --json` | Toolchain report with `schemaVersion`, `check: "toolchain"`, `success`, `version`, `platform`, `bplHome`, and `checks`. The `wasm linker` check reports `BPL_WASM_LINKER_UNAVAILABLE`, checked candidates, environment values, and recommended commands when linker probing fails. The focused sanitizer scope reports only `sanitizer runtime support`, including `BPL_SANITIZER_RUNTIME_UNAVAILABLE`, environment values, and recommended commands when compiler-rt/libclang_rt probing fails. Unknown doctor scopes in JSON mode return `schemaVersion`, `check: "doctor"`, `success: false`, `error`, and `errorCode: "BPL_DOCTOR_SCOPE_UNKNOWN"`. |
-| `bpl doctor packages --json` | Package project report with `schemaVersion`, `check: "packages"`, `success`, legacy `ok`, lockfile data, installed packages, dependency tree, cache verification, and structured issues. Current-project export and bin-file failures use `kind: "invalid-project-package"` with package identity, manifest `path`, and a fix-exported-files or Fix package bin files hint; installed package export and bin-file failures use `kind: "invalid-installed-package"` with installed package `path` and reinstall hint. Invalid lockfile issues use `kind: "invalid-lockfile"` plus stable `BPL_LOCKFILE_*` codes for malformed JSON, unsupported versions, bad package maps or entries, non-file paths, and symlinked lockfiles. Duplicate installed package issues preserve the compact joined `path` string and include a `paths` array with every conflicting installed directory, including duplicate lock-verification issues marked with `lockVerificationKind: "duplicate-installed-package"`; when lock verification and installed-package scanning find the same duplicate path set, doctor emits only the lock-verification issue. Package-cache warning issues preserve `packageName`, `version`, the cache archive `path`, and `provenancePath` when a malformed, missing, or unsafe sidecar is involved. |
-| `bpl new <name> --json` | Project creation report with `schemaVersion`, `check: "project-new"`, `success`, `name`, `template`, `projectPath`, `manifestPath`, `entrypoint`, and `gitInitialized`; validation failures return `success: false`, `name`, `template`, `projectPath`, `error`, and stable `errorCode` values such as `BPL_NEW_NAME_PATH`, `BPL_NEW_NAME_INVALID`, `BPL_NEW_TEMPLATE_INVALID`, `BPL_NEW_PATH_EXISTS_DIRECTORY`, `BPL_NEW_PATH_EXISTS_SYMLINK`, and `BPL_NEW_PATH_EXISTS_NOT_DIRECTORY`. |
-| `bpl init [name] --json` | Init report with `schemaVersion`, `check: "package-init"`, `success`, `package`, `version`, and `manifestPath`; validation failures return `success: false`, `package`, `manifestPath`, `error`, and stable `errorCode` values such as `BPL_PACKAGE_INIT_NAME_INVALID` and `BPL_PACKAGE_INIT_MANIFEST_EXISTS`. |
-| `bpl install [package] --json`, `bpl lock --json` | Install report with `schemaVersion`, `check: "package-install"`, `success`, `mode`, `target`, `global`, `locked`, `update`, and `repairLock`; `bpl lock --json` is equivalent to `bpl install --update --json` and reports `update: true`. Successful project installs include action details: `action: "noop"`, `"installed"`, or `"restored"` with `packages`; `action: "verified"` with `packagesChecked`; or `action: "repaired"` with `packages`, `updated`, and `removed`. The locked checked count includes locked entries plus untracked `bpl_modules/` roots inspected for drift. Validation failures such as missing manifests, incompatible lock flags, locked verification failures, malformed dependency sources, direct archive path failures, and package arguments with project-only modes return `success: false` and `error` on stdout without logger text on stderr. Lock verification and repair duplicate-installed-package issues include a `paths` array with every conflicting installed directory, and invalid installed package bin or export issues use `invalid-manifest` with package path and version metadata. When a package failure has a stable compiler code, the report also includes `errorCode` such as `BPL_LOCKFILE_UNSUPPORTED_VERSION`, `BPL_PACKAGE_NOT_FOUND`, `BPL_PACKAGE_INSTALL_*_CONFLICT`, `BPL_PACKAGE_ARCHIVE_*`, or the PackageManager manifest-loading failures documented in package management. |
-| `bpl pack [dir] --json` | Pack report with `schemaVersion`, `check: "package-pack"`, `success`, `package`, `version`, `packageDir`, `outputDir`, and `archivePath`; validation failures return `success: false`, `packageDir`, `outputDir`, `error`, and stable PackageManager `errorCode` values when available. |
-| `bpl uninstall <package> --json` | Uninstall report with `schemaVersion`, `check: "package-uninstall"`, `success`, `package`, `version`, and `global`; validation failures return `success: false`, `package`, `global`, `error`, and stable `errorCode` values such as `BPL_PACKAGE_UNINSTALL_NAME_INVALID`, `BPL_PACKAGE_UNINSTALL_NOT_INSTALLED`, `BPL_PACKAGE_UNINSTALL_ROOT_SYMLINK`, `BPL_PACKAGE_UNINSTALL_ROOT_NOT_DIRECTORY`, and `BPL_PACKAGE_UNINSTALL_MANIFEST_MISSING` without logger text on stderr. |
-| `bpl package-cache list [package] --json` | Cache entry report with `schemaVersion`, `check: "package-cache-list"`, `success`, and the existing cache entry payload under `entries`; unsafe cache-root validation failures return `success: false`, `entries: []`, and `error`. Invalid package filters also include `errorCode: "BPL_PACKAGE_CACHE_NAME_INVALID"`. |
-| `bpl package-cache verify [package] --json` | Cache verification report with `schemaVersion`, `check: "package-cache-verify"`, `success`, legacy `ok`, `entriesChecked`, and provenance `issues`; malformed sidecars and symlinked provenance paths use `invalid-provenance` with `provenancePath`, invalid extracted `exports` entries and invalid cached `bin` target files use `invalid-archive`, directory `bin` targets are reported by package-cache `bin` validation, symlinked binary archive members are rejected by archive safety during verification, and validation failures return `success: false`, `ok: false`, `entriesChecked: 0`, `issues: []`, and `error`. Invalid package filters include `errorCode: "BPL_PACKAGE_CACHE_NAME_INVALID"`. |
-| `bpl package-cache clean [package] --json` / `bpl package-cache repair [package] --json` | Cache maintenance reports with `schemaVersion`, `check: "package-cache-clean"` or `check: "package-cache-repair"`, `success`, `dryRun`, and the existing removed/repaired/unchanged/issues payloads; `package-cache repair refuses to regenerate provenance` for archives with invalid extracted `exports` or `bin` targets, including directory `bin` targets and symlinked binary archive members, clean and repair validation failures return `success: false`, the requested `dryRun`, empty collection fields such as `removed: []` or `repaired: []`, and `error`. Invalid package filters include `errorCode: "BPL_PACKAGE_CACHE_NAME_INVALID"`, and invalid `--package-version` values, including zero-padded semantic version segments such as `01.0.0`, include `errorCode: "BPL_PACKAGE_CACHE_VERSION_INVALID"`. |
-| `bpl run-script --list --json` / `bpl run-script <name> --json` failures | Script list with `schemaVersion`, `check: "run-script-list"`, `success: true`, and `scripts`; manifest or list validation failures, including final `bpl.json` symlinks and symlinked manifest parents, return the same `schemaVersion`/`check` with `success: false`, `error`, and a stable `errorCode` on stdout. Named-script validation failures use `check: "run-script"`. |
-| `bpl clean --dry-run --json` | Cleanup preview with `schemaVersion`, `check: "clean"`, `success`, `dryRun`, `count`, and `entries`; use `bpl clean --json` to remove and report the same entry shape. Clean validation failures, including symlinked working-directory paths, return `success: false`, `dryRun`, `count: 0`, `entries: []`, and `error` on stdout. |
-| `bpl list --json` / `bpl list --tree --json` | Package inspection reports with `schemaVersion`, `check: "package-list"` or `check: "package-list-tree"`, `success`, `scope`, and the existing installed package summaries or dependency tree data; package summaries and tree nodes include `problems` arrays for invalid installed exports and bin targets such as missing, directory, or symlinked public subpaths or package binaries. These show up as `invalid exports` or `invalid bin` entries. For unsafe package-root validation failures, reports return `success: false`, `packages: []` or `tree: []`, and `error`. Package list JSON failure codes are exported through `PACKAGE_LIST_JSON_ERROR_CODES` and the public `CLI_JSON_ERROR_CODE_LISTS` `package-list` entry, covering `BPL_PACKAGE_SEARCH_DIR_SYMLINK`, `BPL_PACKAGE_SEARCH_DIR_NOT_DIRECTORY`, `BPL_PACKAGE_SEARCH_DIR_PARENT_NOT_DIRECTORY`, `BPL_PACKAGE_SEARCH_DIR_PARENT_SYMLINK`, and `BPL_PACKAGE_DUPLICATE_INSTALLED`. List and tree duplicate installed package names return `errorCode: "BPL_PACKAGE_DUPLICATE_INSTALLED"`. List and tree duplicate failures also include `issuesFound`, `issueKinds`, and compact `issues` entries with `kind: "duplicate-installed-package"`, the compatibility `path` string, and a `paths` array with every conflicting installed directory. |
+| Command                                                                                  | Stable stdout shape                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| ---------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `bpl --version --json`                                                                   | Version report with `schemaVersion`, `check: "version"`, `success: true`, and `version`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| `bpl bindgen <header> --json`                                                            | Bindgen report with `schemaVersion`, `check: "bindgen"`, `success`, `header`, `outputPath`, and `generatedBytes`; stdout-mode success includes `bindings`, and output-file success writes the file while reporting its path. Validation failures return `success: false`, `error`, and stable `BPL_BINDGEN_*` `errorCode` values for header and output path failures.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| `bpl build --json`                                                                       | Build result report with `schemaVersion`, `check: "build"`, `success`, `file`, `emit`, `target`, `cache`, and output artifact paths. Successful `--eval` and `--stdin` builds without `-o` report generated IR as `output.inlineLlvm` and leave no virtual-source artifacts in the working directory. JSON-mode build failures return `success: false` with `error` on stdout and include `diagnostics` when the failure comes from compiler diagnostics. Build validation failures such as no input files, invalid `-O`, `--emit`, `--wasm-runtime`, `--jobs`, unsupported `--target`, input path, and output path errors are stdout-only JSON reports and do not leave failed LLVM or executable artifacts behind. Codegen diagnostics such as `--debug-ir-path` path-safety failures are promoted to top-level `errorCode` values while preserving the diagnostic object. No-input builds report `errorCode: "BPL_BUILD_NO_INPUTS"`. Unsupported targets report `errorCode: "BPL_BUILD_UNSUPPORTED_TARGET"`.                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| `bpl check --json`                                                                       | Type-check report with `schemaVersion`, `check: "check"`, `success`, `totalFiles`, `errorCount`, `timeMs`, and per-file diagnostics or validation errors. Input validation failures keep per-file JSON failure entries with `error` and a stable `errorCode`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
+| `bpl completion [shell] --json`                                                          | Completion report with `schemaVersion`, `check: "completion"`, `success`, `shell`, and `script`; unsupported shells return `success: false`, `shell`, `error`, and `errorCode: "BPL_COMPLETION_SHELL_UNSUPPORTED"` on stdout.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
+| `bpl docs <file> --json`                                                                 | Documentation-generation report with `schemaVersion`, `check: "docs"`, `success`, `file`, `outputPath`, and `generatedBytes`; validation failures return `success: false`, `error`, and stable `BPL_DOCS_*` `errorCode` values for input and output path failures. The command always writes Markdown to `outputPath`, defaulting to `docs.md`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| `bpl format --check --json`                                                              | Format-check report with `schemaVersion`, `check: "format"`, `success`, `mode: "check"`, `totalFiles`, `formattedFiles`, `unformattedFiles`, `errorCount`, and per-file results. Files that need formatting use `BPL_FORMAT_NOT_FORMATTED`; missing and non-file inputs use stable `BPL_FORMAT_INPUT_*` codes.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| `bpl lint --json`                                                                        | Lint report with `schemaVersion`, `check: "lint"`, `success`, `totalFiles`, `errorCount` (error-severity diagnostics and failed inputs), `warningCount` (warning-severity diagnostics, which fail the run by default; `--no-fail-on-warnings` makes them non-fatal), and per-file diagnostics or validation errors. Input validation failures keep per-file JSON failure entries with `error` and a stable `errorCode`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| `bpl test --json`                                                                        | Test report with `schemaVersion`, `check: "test"`, `success`, `totalFiles`, `totalTests`, `passed`, `failed`, `fileErrors`, `timeMs`, and `files`, each with `file`, `tests` (`name`, `passed`, `exitCode`, `durationMs`, `output`) and an `error` when the file could not be built. No test files report `BPL_TEST_NO_INPUTS`; a discovery failure reports `BPL_TEST_PROCESSING_ERROR`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| `bpl doctor --json` / `bpl doctor sanitizer --json` / `bpl doctor <unknown> --json`      | Toolchain report with `schemaVersion`, `check: "toolchain"`, `success`, `version`, `platform`, `bplHome`, and `checks`. The `wasm linker` check reports `BPL_WASM_LINKER_UNAVAILABLE`, checked candidates, environment values, and recommended commands when linker probing fails. The focused sanitizer scope reports only `sanitizer runtime support`, including `BPL_SANITIZER_RUNTIME_UNAVAILABLE`, environment values, and recommended commands when compiler-rt/libclang_rt probing fails. Unknown doctor scopes in JSON mode return `schemaVersion`, `check: "doctor"`, `success: false`, `error`, and `errorCode: "BPL_DOCTOR_SCOPE_UNKNOWN"`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| `bpl doctor packages --json`                                                             | Package project report with `schemaVersion`, `check: "packages"`, `success`, legacy `ok`, lockfile data, installed packages, dependency tree, cache verification, and structured issues. Current-project export and bin-file failures use `kind: "invalid-project-package"` with package identity, manifest `path`, and a fix-exported-files or Fix package bin files hint; installed package export and bin-file failures use `kind: "invalid-installed-package"` with installed package `path` and reinstall hint. Invalid lockfile issues use `kind: "invalid-lockfile"` plus stable `BPL_LOCKFILE_*` codes for malformed JSON, unsupported versions, bad package maps or entries, non-file paths, and symlinked lockfiles. Duplicate installed package issues preserve the compact joined `path` string and include a `paths` array with every conflicting installed directory, including duplicate lock-verification issues marked with `lockVerificationKind: "duplicate-installed-package"`; when lock verification and installed-package scanning find the same duplicate path set, doctor emits only the lock-verification issue. Package-cache warning issues preserve `packageName`, `version`, the cache archive `path`, and `provenancePath` when a malformed, missing, or unsafe sidecar is involved.                                                                                                                                     |
+| `bpl new <name> --json`                                                                  | Project creation report with `schemaVersion`, `check: "project-new"`, `success`, `name`, `template`, `projectPath`, `manifestPath`, `entrypoint`, and `gitInitialized`; validation failures return `success: false`, `name`, `template`, `projectPath`, `error`, and stable `errorCode` values such as `BPL_NEW_NAME_PATH`, `BPL_NEW_NAME_INVALID`, `BPL_NEW_TEMPLATE_INVALID`, `BPL_NEW_PATH_EXISTS_DIRECTORY`, `BPL_NEW_PATH_EXISTS_SYMLINK`, and `BPL_NEW_PATH_EXISTS_NOT_DIRECTORY`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| `bpl init [name] --json`                                                                 | Init report with `schemaVersion`, `check: "package-init"`, `success`, `package`, `version`, and `manifestPath`; validation failures return `success: false`, `package`, `manifestPath`, `error`, and stable `errorCode` values such as `BPL_PACKAGE_INIT_NAME_INVALID`, `BPL_PACKAGE_INIT_MANIFEST_EXISTS`, and `BPL_PACKAGE_INIT_ENTRY_INVALID`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
+| `bpl install [package] --json`, `bpl lock --json`                                        | Install report with `schemaVersion`, `check: "package-install"`, `success`, `mode`, `target`, `global`, `locked`, `update`, and `repairLock`; `bpl lock --json` is equivalent to `bpl install --update --json` and reports `update: true`. Successful project installs include action details: `action: "noop"`, `"installed"`, or `"restored"` with `packages`; `action: "verified"` with `packagesChecked`; or `action: "repaired"` with `packages`, `updated`, and `removed`. The locked checked count includes locked entries plus untracked `bpl_modules/` roots inspected for drift. Validation failures such as missing manifests, incompatible lock flags, locked verification failures, malformed dependency sources, direct archive path failures, and package arguments with project-only modes return `success: false` and `error` on stdout without logger text on stderr. Lock verification and repair duplicate-installed-package issues include a `paths` array with every conflicting installed directory, and invalid installed package bin or export issues use `invalid-manifest` with package path and version metadata. When a package failure has a stable compiler code, the report also includes `errorCode` such as `BPL_LOCKFILE_UNSUPPORTED_VERSION`, `BPL_PACKAGE_NOT_FOUND`, `BPL_PACKAGE_INSTALL_*_CONFLICT`, `BPL_PACKAGE_ARCHIVE_*`, or the PackageManager manifest-loading failures documented in package management. |
+| `bpl pack [dir] --json`                                                                  | Pack report with `schemaVersion`, `check: "package-pack"`, `success`, `package`, `version`, `packageDir`, `outputDir`, and `archivePath`; validation failures return `success: false`, `packageDir`, `outputDir`, `error`, and stable PackageManager `errorCode` values when available.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| `bpl uninstall <package> --json`                                                         | Uninstall report with `schemaVersion`, `check: "package-uninstall"`, `success`, `package`, `version`, and `global`; validation failures return `success: false`, `package`, `global`, `error`, and stable `errorCode` values such as `BPL_PACKAGE_UNINSTALL_NAME_INVALID`, `BPL_PACKAGE_UNINSTALL_NOT_INSTALLED`, `BPL_PACKAGE_UNINSTALL_ROOT_SYMLINK`, `BPL_PACKAGE_UNINSTALL_ROOT_NOT_DIRECTORY`, and `BPL_PACKAGE_UNINSTALL_MANIFEST_MISSING` without logger text on stderr.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| `bpl package-cache list [package] --json`                                                | Cache entry report with `schemaVersion`, `check: "package-cache-list"`, `success`, and the existing cache entry payload under `entries`; unsafe cache-root validation failures return `success: false`, `entries: []`, and `error`. Invalid package filters also include `errorCode: "BPL_PACKAGE_CACHE_NAME_INVALID"`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| `bpl package-cache verify [package] --json`                                              | Cache verification report with `schemaVersion`, `check: "package-cache-verify"`, `success`, legacy `ok`, `entriesChecked`, and provenance `issues`; malformed sidecars and symlinked provenance paths use `invalid-provenance` with `provenancePath`, invalid extracted `exports` entries and invalid cached `bin` target files use `invalid-archive`, directory `bin` targets are reported by package-cache `bin` validation, symlinked binary archive members are rejected by archive safety during verification, and validation failures return `success: false`, `ok: false`, `entriesChecked: 0`, `issues: []`, and `error`. Invalid package filters include `errorCode: "BPL_PACKAGE_CACHE_NAME_INVALID"`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| `bpl package-cache clean [package] --json` / `bpl package-cache repair [package] --json` | Cache maintenance reports with `schemaVersion`, `check: "package-cache-clean"` or `check: "package-cache-repair"`, `success`, `dryRun`, and the existing removed/repaired/unchanged/issues payloads; `package-cache repair refuses to regenerate provenance` for archives with invalid extracted `exports` or `bin` targets, including directory `bin` targets and symlinked binary archive members, clean and repair validation failures return `success: false`, the requested `dryRun`, empty collection fields such as `removed: []` or `repaired: []`, and `error`. Invalid package filters include `errorCode: "BPL_PACKAGE_CACHE_NAME_INVALID"`, and invalid `--package-version` values, including zero-padded semantic version segments such as `01.0.0`, include `errorCode: "BPL_PACKAGE_CACHE_VERSION_INVALID"`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| `bpl run-script --list --json` / `bpl run-script <name> --json` failures                 | Script list with `schemaVersion`, `check: "run-script-list"`, `success: true`, and `scripts`; manifest or list validation failures, including final `bpl.json` symlinks and symlinked manifest parents, return the same `schemaVersion`/`check` with `success: false`, `error`, and a stable `errorCode` on stdout. Named-script validation failures use `check: "run-script"`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| `bpl clean --dry-run --json`                                                             | Cleanup preview with `schemaVersion`, `check: "clean"`, `success`, `dryRun`, `count`, and `entries`; use `bpl clean --json` to remove and report the same entry shape. Clean validation failures, including symlinked working-directory paths, return `success: false`, `dryRun`, `count: 0`, `entries: []`, and `error` on stdout.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| `bpl list --json` / `bpl list --tree --json`                                             | Package inspection reports with `schemaVersion`, `check: "package-list"` or `check: "package-list-tree"`, `success`, `scope`, and the existing installed package summaries or dependency tree data; package summaries and tree nodes include `problems` arrays for invalid installed exports and bin targets such as missing, directory, or symlinked public subpaths or package binaries. These show up as `invalid exports` or `invalid bin` entries. For unsafe package-root validation failures, reports return `success: false`, `packages: []` or `tree: []`, and `error`. Package list JSON failure codes are exported through `PACKAGE_LIST_JSON_ERROR_CODES` and the public `CLI_JSON_ERROR_CODE_LISTS` `package-list` entry, covering `BPL_PACKAGE_SEARCH_DIR_SYMLINK`, `BPL_PACKAGE_SEARCH_DIR_NOT_DIRECTORY`, `BPL_PACKAGE_SEARCH_DIR_PARENT_NOT_DIRECTORY`, `BPL_PACKAGE_SEARCH_DIR_PARENT_SYMLINK`, and `BPL_PACKAGE_DUPLICATE_INSTALLED`. List and tree duplicate installed package names return `errorCode: "BPL_PACKAGE_DUPLICATE_INSTALLED"`. List and tree duplicate failures also include `issuesFound`, `issueKinds`, and compact `issues` entries with `kind: "duplicate-installed-package"`, the compatibility `path` string, and a `paths` array with every conflicting installed directory.                                                                                                                                    |
 
 Build validation `errorCode` values are stable when `bpl build --json` can
 classify the validation failure. Option parsing uses
@@ -478,8 +633,11 @@ validation uses
 `BPL_BUILD_INPUT_NOT_FILE`. Output artifact validation uses
 `BPL_BUILD_OUTPUT_SYMLINK`, `BPL_BUILD_OUTPUT_DIRECTORY`,
 `BPL_BUILD_OUTPUT_NOT_FILE`, `BPL_BUILD_OUTPUT_PARENT_NOT_FOUND`,
-`BPL_BUILD_OUTPUT_PARENT_SYMLINK`, and
-`BPL_BUILD_OUTPUT_PARENT_NOT_DIRECTORY`. These codes are additive fields on the
+`BPL_BUILD_OUTPUT_PARENT_SYMLINK`,
+`BPL_BUILD_OUTPUT_PARENT_NOT_DIRECTORY`, and `BPL_BUILD_OUTPUT_IS_SOURCE` (the
+IR or executable path is the source file, including through a hard link,
+e.g. an extensionless entry without `-o`). A missing, malformed, or invalid `bpl.json` project entry uses
+`BPL_BUILD_PROJECT_ENTRY_INVALID`. These codes are additive fields on the
 stdout JSON failure report, preserving the human-readable `error` text for
 older consumers and logs.
 
@@ -497,7 +655,7 @@ array containing each failed `path` and `error`, and only successful removals in
 
 Format JSON reports are stable for `bpl format --check --json`. `--json`
 without `--check` uses `BPL_FORMAT_JSON_REQUIRES_CHECK`, missing file lists use
-`BPL_FORMAT_NO_INPUTS`, and conflicting `--write --check` flags use
+`BPL_FORMAT_NO_INPUTS` (also for empty or fully ignored directory inputs), and conflicting `--write --check` flags use
 `BPL_FORMAT_WRITE_CHECK_CONFLICT`. Per-file input validation uses
 `BPL_FORMAT_INPUT_NOT_FOUND` and `BPL_FORMAT_INPUT_NOT_FILE`. Files that parse
 successfully but would be rewritten use `BPL_FORMAT_NOT_FORMATTED`, and parser
@@ -534,8 +692,17 @@ Check and lint input validation `errorCode` values are stable when `bpl check
 --json` or `bpl lint --json` can classify source input before parsing. Missing
 file lists use top-level JSON failures with `BPL_CHECK_NO_INPUTS` or
 `BPL_LINT_NO_INPUTS`, `totalFiles: 0`, `errorCount: 1`, and `files: []`.
-Per-file check validation uses `BPL_CHECK_INPUT_NOT_FOUND`,
-`BPL_CHECK_INPUT_SYMLINK`, and `BPL_CHECK_INPUT_NOT_FILE`. Per-file lint
+Lint directory discovery failures (such as unsupported `.bplignore` patterns)
+use `BPL_LINT_PROCESSING_ERROR`; empty discovery uses `BPL_LINT_NO_INPUTS`.
+`bpl check` accepts directories like `format` and `lint`: each is expanded to
+its `.bpl` and `.x` sources, honoring `.bplignore`. A directory with no sources
+reports `BPL_CHECK_NO_INPUTS`; a discovery failure (an unsupported
+`.bplignore` pattern or an unreadable directory) reports
+`BPL_CHECK_PROCESSING_ERROR`. `bpl check -` reads the source from standard
+input; `--stdin-filepath <path>` names it in diagnostics and resolves its
+relative imports. Per-file check validation uses
+`BPL_CHECK_INPUT_NOT_FOUND`, `BPL_CHECK_INPUT_SYMLINK`, and
+`BPL_CHECK_INPUT_NOT_FILE`. Per-file lint
 validation uses `BPL_LINT_INPUT_NOT_FOUND`, `BPL_LINT_INPUT_SYMLINK`, and
 `BPL_LINT_INPUT_NOT_FILE`. These codes are additive fields on top-level or
 per-file JSON failure entries, preserving the human-readable `error` text while
@@ -597,19 +764,19 @@ classify a package import failure, the diagnostic includes one of these stable
 - `BPL_PACKAGE_MANIFEST_NOT_OBJECT`
 - `BPL_PACKAGE_ENTRYPOINT_UNSAFE`
 - `BPL_PACKAGE_MANIFEST_INVALID`
-Non-package module and standard-library import failures also expose stable
-codes in the same diagnostic objects: `BPL_MODULE_NOT_FOUND`,
-`BPL_MODULE_FILE_NOT_FOUND`, `BPL_MODULE_PATH_NOT_FILE`,
-`BPL_MODULE_PATH_SYMLINK`, `BPL_MODULE_PATH_CASE_MISMATCH`, and
-`BPL_IMPORT_STD_PATH_UNSAFE`. The documentation inventory is guarded against
-the ModuleResolver constants so new resolver codes do not silently miss docs.
-Resolved imports that ask for a symbol the module does not export use
-`BPL_IMPORT_EXPORT_NOT_FOUND`; for example, a same-name package hidden by the
-built-in `math` module can report `Module 'math' does not export 'packageMath'`
-with that code in both `bpl check --json` and `bpl build --json`. When the
-imported module has exported names, the hint includes `Available exports:` with
-those names sorted for deterministic JSON output. Reproduce those contracts
-with:
+  Non-package module and standard-library import failures also expose stable
+  codes in the same diagnostic objects: `BPL_MODULE_NOT_FOUND`,
+  `BPL_MODULE_FILE_NOT_FOUND`, `BPL_MODULE_PATH_NOT_FILE`,
+  `BPL_MODULE_PATH_SYMLINK`, `BPL_MODULE_PATH_CASE_MISMATCH`, and
+  `BPL_IMPORT_STD_PATH_UNSAFE`. The documentation inventory is guarded against
+  the ModuleResolver constants so new resolver codes do not silently miss docs.
+  Resolved imports that ask for a symbol the module does not export use
+  `BPL_IMPORT_EXPORT_NOT_FOUND`; for example, a same-name package hidden by the
+  built-in `math` module can report `Module 'math' does not export 'packageMath'`
+  with that code in both `bpl check --json` and `bpl build --json`. When the
+  imported module has exported names, the hint includes `Available exports:` with
+  those names sorted for deterministic JSON output. Reproduce those contracts
+  with:
 
 ```bash
 bun test tests/ImportHandler.test.ts -t "stable code"
@@ -800,7 +967,8 @@ bun test tests/CLIJsonParseability.test.ts -t "ternary branch type mismatch"
 ```
 
 Switch mismatch failures use `BPL_SWITCH_VALUE_TYPE_MISMATCH` and
-`BPL_SWITCH_CASE_TYPE_MISMATCH`. This covers invalid switch value types and
+`BPL_SWITCH_CASE_TYPE_MISMATCH`; a case value that is not a literal or enum
+variant (such as `case y:`) reports `BPL_SWITCH_CASE_VALUE_NOT_CONSTANT`. This covers invalid switch value types and
 incompatible case pattern types. For example, switching on a `double` reports
 `Switch value must be an integer, string or enum type, got double` with the hint
 `Ensure the switch expression evaluates to an integer, string or enum.`, while
@@ -890,7 +1058,7 @@ bun test tests/TypeCheckerMemberAccessMisuse.test.ts
 bun test tests/CLIJsonParseability.test.ts -t "member access misuse"
 ```
 
-Expression semantic guard failures use `BPL_DIVISION_BY_ZERO`, `BPL_SHIFT_COUNT_INVALID`, `BPL_ADDRESS_OF_CONSTANT`, `BPL_ADDRESS_OF_TARGET_INVALID`, `BPL_ARRAY_LITERAL_TYPE_MISMATCH`, `BPL_CAST_INTEGER_TO_STRING`, `BPL_CAST_INVALID`, and `BPL_SIZEOF_VOID_INVALID`. This covers compile-time division/modulo by zero, invalid constant shifts, address-of misuse, array literal element mismatches, invalid casts, and `sizeof(void)`. Representative messages include `Division by zero`, `Negative shift count`, `Shift count 8 is out of range`, `Cannot take address of constant expression.`, `Cannot take address of (int, int)`, `Array literal has inconsistent element types`, `Cannot cast integer type 'i32' to 'string'`, `Cannot cast i32 to Box`, and `Cannot take size of void`. The corresponding hints include `Shift counts must be zero or greater.`, `Address-of requires an lvalue.`, `All elements in an array literal must have the same type.`, `This cast is not allowed.`, and `Void type has no size.`. Valid division/modulo, in-range shifts, mutable lvalue address-of, homogeneous array literals, allowed casts, and non-void `sizeof` remain accepted. Reproduce the type-checker and JSON contracts with:
+Expression semantic guard failures use `BPL_DIVISION_BY_ZERO`, `BPL_SHIFT_COUNT_INVALID`, `BPL_ADDRESS_OF_CONSTANT`, `BPL_ADDRESS_OF_TARGET_INVALID`, `BPL_ARRAY_LITERAL_TYPE_MISMATCH`, `BPL_CAST_INTEGER_TO_STRING`, `BPL_CAST_INVALID`, and `BPL_SIZEOF_VOID_INVALID`. This covers compile-time division/modulo by zero, invalid constant shifts, address-of misuse, array literal element mismatches, invalid casts, and `sizeof(void)`. Representative messages include `Division by zero`, `Negative shift count`, `Shift count 8 is out of range`, `Cannot take address of constant expression.`, `Cannot take the address of a temporary value`, `Array literal has inconsistent element types`, `Cannot cast integer type 'i32' to 'string'`, `Cannot cast i32 to Box`, and `Cannot take size of void`. The corresponding hints include `Shift counts must be zero or greater.`, `Address-of requires a variable, field, element, or dereferenced pointer; store the value in a local first.`, `All elements in an array literal must have the same type.`, `This cast is not allowed.`, and `Void type has no size.`. Valid division/modulo, in-range shifts, mutable lvalue address-of, homogeneous array literals, allowed casts, and non-void `sizeof` remain accepted. Reproduce the type-checker and JSON contracts with:
 
 ```bash
 bun test tests/TypeCheckerExpressionSemanticGuards.test.ts
@@ -996,14 +1164,19 @@ payload with an incompatible shape.
 
 For quick testing without files:
 
-- `-e, --eval <code>`: Compile code passed directly on the command line
-- `--stdin`: Compile code read from standard input
+- `-e, --eval <code>`: Compile and run code passed directly on the command
+  line, like `bpl run`; the command exits with the program's status. Add
+  `--emit llvm` to print the LLVM IR instead, or another `--emit` type.
+- `--stdin`: Compile and run code read from standard input, the same way
 
 **Examples:**
 
 ```bash
-# Evaluate code directly
+# Run code directly
 bpl -e 'frame main() ret int { return 0; }'
+
+# Print its LLVM IR instead
+bpl -e 'frame main() ret int { return 0; }' --emit llvm
 
 # Read from stdin
 cat hello.bpl | bpl --stdin
@@ -1012,9 +1185,10 @@ cat hello.bpl | bpl --stdin
 bpl -e 'frame main() { }' --emit ast
 ```
 
-Virtual-source LLVM is printed to stdout when `-o` is omitted. The compiler
-still validates the generated IR through the configured backend, but removes
-its temporary LLVM and executable files before returning. Pass `-o <path>` to
+With `--emit llvm` and no `-o`, virtual-source LLVM is printed to stdout. The
+compiler still validates the generated IR through the configured backend, and
+whether it runs or prints, it removes its temporary LLVM and executable files
+before returning. Pass `-o <path>` to
 retain artifacts. With `--json`, inline IR is available at
 `output.inlineLlvm`.
 
@@ -1133,6 +1307,13 @@ Control what the compiler outputs:
 - `ast`: Output Abstract Syntax Tree as JSON
 - `tokens`: Output lexical tokens
 - `formatted`: Format the source code (same as `bpl format`)
+
+Executable builds emit only the functions and methods reachable from `main`
+(and exported or C-exported functions), so importing a whole module such as
+`std` does not compile everything it re-exports. `bpl file.bpl` and `bpl build`
+both do this; the IR file written next to the executable is the reduced IR.
+An explicit `--emit llvm` keeps every function in the IR, as do `--shared`,
+`--cache` and `--debug`/`--dwarf`; `--eval`/`--stdin` follow the same rule.
 
 **Examples:**
 
@@ -1316,6 +1497,12 @@ Control library linking:
 - `-l, --lib <lib>`: Link with a library
 - `-L, --lib-path <path>`: Add library search path
 - `--object <file>`: Link with object file
+- `--clang-flag <flag>`: Pass a flag to clang
+
+Each option takes one value and can be repeated (`-l m -l pthread`), so a
+source file after it is never taken as another value:
+`bpl run --lib m main.bpl` runs `main.bpl`. These options work on the default
+command, `build` and `run`.
 
 **Examples:**
 
@@ -1548,11 +1735,13 @@ return a failure with this diagnostic instead of an unlocated host stack error.
 
 ## Build and run the current project
 
-`bpl build --project` and `bpl run --project` read `bpl.json` only from the current
-directory. They use `main`, then `entry`, then `index.bpl`; entries must be
-package-relative files. No parent-directory search or guessed source selection
-occurs. Do not combine `--project` with an explicit file. Program arguments that
-look like options should follow `--`, for example `bpl run --project -- --help`.
+Inside a project directory, `bpl run` and `bpl build` without a file use the
+project entry; `--project` requests this explicitly. Both read `bpl.json` only
+from the current directory. They use `main`, then `entry`, then `index.bpl`;
+entries must be package-relative files. No parent-directory search or guessed
+source selection occurs. Do not combine `--project` with an explicit file.
+Program arguments that look like options should follow `--`, for example
+`bpl run --project -- --help`.
 
 ## Generate documentation safely
 

@@ -6,9 +6,7 @@
   "difficulty": "intermediate",
   "duration": "8 min",
   "description": "Create strings with embedded expressions. Learn BPL's string interpolation syntax for cleaner, more readable string formatting.",
-  "prerequisites": [
-    "type-aliases"
-  ],
+  "prerequisites": ["type-aliases"],
   "objectives": [
     "Use string interpolation with ${ }",
     "Embed expressions in strings",
@@ -106,12 +104,7 @@
       "questions": [
         {
           "question": "How do you embed variable 'x' in a string?",
-          "options": [
-            "\"%x\"",
-            "${x}",
-            "#{x}",
-            "{x}"
-          ],
+          "options": ["\"%x\"", "${x}", "#{x}", "{x}"],
           "correct": 1,
           "explanation": "BPL uses ${expression} for string interpolation."
         },
@@ -128,12 +121,7 @@
         },
         {
           "question": "How do you write a literal '${' in a string?",
-          "options": [
-            "$${ ",
-            "\\${",
-            "{{",
-            "Cannot be done"
-          ],
+          "options": ["$${ ", "\\${", "{{", "Cannot be done"],
           "correct": 1,
           "explanation": "Use backslash to escape: \\${ produces literal ${."
         }

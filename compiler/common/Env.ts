@@ -123,9 +123,7 @@ export function getOptionalPositiveIntegerEnv(
 export function getTimeoutEnvDiagnostics(
   env: NodeJS.ProcessEnv = process.env,
 ): TimeoutEnvDiagnostic[] {
-  return TIMEOUT_ENV_CONFIGS.map((config) =>
-    describeTimeoutEnv(config, env),
-  );
+  return TIMEOUT_ENV_CONFIGS.map((config) => describeTimeoutEnv(config, env));
 }
 
 function describeTimeoutEnv(

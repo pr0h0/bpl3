@@ -1,6 +1,6 @@
 import { test } from "bun:test";
 import { native } from "./helpers/webPackages";
-test("JSON rejects null and excessive nesting without throwing and ignores brackets inside strings",()=>{
+test("JSON rejects null and excessive nesting without throwing and ignores brackets inside strings", () => {
   native(`import [JSON] from "std/json.bpl";import [StringBuilder] from "std/string_builder.bpl";
     struct Input {title:string,}
     frame main() ret int {
@@ -13,4 +13,4 @@ test("JSON rejects null and excessive nesting without throwing and ignores brack
       text=StringBuilder.new(32);text.append("{\\\"title\\\":\\\"");loop(local i:int=0;i<200;i=i+1){text.append("[");}text.append("\\\"}");
       value=JSON.parse<Input>(text.toString());if(value==nullptr){return 4;}JSON.free<Input>(value);text.destroy();return 0;
     }`);
-},90000);
+}, 90000);

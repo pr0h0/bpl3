@@ -2,10 +2,11 @@ import { test } from "bun:test";
 import { expectCorrectnessSuite } from "./helpers/compilerCorrectness";
 
 test("vector lengths classify infinities and NaNs before scaling", () => {
-  expectCorrectnessSuite([{
-    name: "vector-nonfinite-values",
-    validateLlvm: true,
-    source: `
+  expectCorrectnessSuite([
+    {
+      name: "vector-nonfinite-values",
+      validateLlvm: true,
+      source: `
       import [Vec2] from "std/vec2.bpl";
       import [Vec3] from "std/vec3.bpl";
       import [Math] from "std/math.bpl";
@@ -29,6 +30,7 @@ test("vector lengths classify infinities and NaNs before scaling", () => {
         if (!Math.isNan(normal3.x) || !Math.isNan(normal3.y) || !Math.isNan(normal3.z)) { return 6; }
         return 0;
       }`,
-    expectedStdout: "",
-  }]);
+      expectedStdout: "",
+    },
+  ]);
 }, 60000);

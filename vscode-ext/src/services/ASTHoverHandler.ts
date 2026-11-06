@@ -101,9 +101,7 @@ export class ASTHoverHandler {
         case "PatternEnumStruct":
           return this.handlePatternEnum(
             node as
-              | AST.PatternEnum
-              | AST.PatternEnumTuple
-              | AST.PatternEnumStruct,
+              AST.PatternEnum | AST.PatternEnumTuple | AST.PatternEnumStruct,
             filePath,
             params.position.line,
             params.position.character,
@@ -172,8 +170,12 @@ export class ASTHoverHandler {
       }
     }
 
-    // Check if this is an enum type reference
-    const symbols = this.symbolIndex.findSymbol(name);
+    // Check if this is an enum type reference (or an import alias for one)
+    const symbols = this.symbolIndex.findSymbolInFile(
+      name,
+      filePath,
+      this.astResolver.getCachedAST(filePath),
+    );
     if (symbols.length > 0) {
       const symbol = symbols[0];
       if (!symbol) return null;
@@ -233,6 +235,21 @@ export class ASTHoverHandler {
   ): Hover | null {
     const memberName = node.property;
     debugLog(`[ASTHover] Member access: .${memberName}`);
+
+    // `Ns.member` where `import * as Ns` binds a module.
+    if (node.object.kind === "Identifier") {
+      const member = this.symbolIndex.findNamespaceMember(
+        (node.object as AST.IdentifierExpr).name,
+        memberName,
+        filePath,
+        this.astResolver.getCachedAST(filePath),
+      );
+      if (member) {
+        return member.kind === "function"
+          ? HoverProvider.createHover(member)
+          : this.createTypeHover(member);
+      }
+    }
 
     // Resolve the type of the object (handles nested access)
     const objectType = this.astResolver.resolveType(node.object, filePath);
@@ -1110,8 +1127,12 @@ export class ASTHoverHandler {
       return this.handleTypeAliasDecl(currentFileTypeAlias);
     }
 
-    // Look up in symbol index
-    const symbols = this.symbolIndex.findSymbol(typeName);
+    // Look up in symbol index, following an `import x as y` alias
+    const symbols = this.symbolIndex.findSymbolInFile(
+      typeName,
+      filePath,
+      this.astResolver.getCachedAST(filePath),
+    );
     if (symbols.length > 0) {
       const symbol = symbols[0];
       if (
@@ -1224,9 +1245,7 @@ export class ASTHoverHandler {
     line: number,
     character: number,
   ): Hover | null {
-    debugLog(
-      `[ASTHover] Pattern enum: ${node.enumName}.${node.variantName}`,
-    );
+    debugLog(`[ASTHover] Pattern enum: ${node.enumName}.${node.variantName}`);
 
     if (!node.location) {
       return null;
@@ -1391,14 +1410,10 @@ export class ASTHoverHandler {
         debugLog(`[ASTHover] Checking function: ${topNode.name}`);
         // Check if the reference is inside this function
         if (this.isNodeContainedIn(refNode, topNode)) {
-          debugLog(
-            `[ASTHover] Reference is inside function ${topNode.name}`,
-          );
+          debugLog(`[ASTHover] Reference is inside function ${topNode.name}`);
           const varDecl = this.findVariableInFunction(topNode, name, refNode);
           if (varDecl) {
-            debugLog(
-              `[ASTHover] Found variable in function ${topNode.name}`,
-            );
+            debugLog(`[ASTHover] Found variable in function ${topNode.name}`);
             return varDecl;
           }
         }

@@ -54,7 +54,9 @@ describe("Semantic Token Provider", () => {
     );
 
     expect(result).not.toBeNull();
-    expect(Array.from(result?.data ?? [])).toContain(SemanticTokenType.function);
+    expect(Array.from(result?.data ?? [])).toContain(
+      SemanticTokenType.function,
+    );
   });
 
   it("marks type alias declaration names", () => {
@@ -66,7 +68,10 @@ describe("Semantic Token Provider", () => {
       "../../../tmp/type-alias-semantic-tokens.bpl",
     );
 
-    const result = provider.provideSemanticTokens(filePath, "type Alias = int;");
+    const result = provider.provideSemanticTokens(
+      filePath,
+      "type Alias = int;",
+    );
     const tokens = decodeTokens(result?.data);
 
     expect(
@@ -117,11 +122,7 @@ describe("Semantic Token Provider", () => {
 
     const result = provider.provideSemanticTokens(
       filePath,
-      [
-        "spec Reader {",
-        "    frame read(this: *Self) ret int;",
-        "}",
-      ].join("\n"),
+      ["spec Reader {", "    frame read(this: *Self) ret int;", "}"].join("\n"),
     );
     const tokens = decodeTokens(result?.data);
 

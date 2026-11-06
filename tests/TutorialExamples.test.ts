@@ -19,20 +19,6 @@ const TUTORIAL_COMPILE_RUN_TIMEOUT_MS = 15000;
 
 setDefaultTimeout(TUTORIAL_COMPILE_RUN_TIMEOUT_MS);
 
-interface CodeSection {
-  type: "code";
-  title: string;
-  code: string;
-  runnable?: boolean;
-  expectedOutput?: string;
-}
-
-interface ChallengeSection {
-  type: "challenge";
-  title: string;
-  solution?: string;
-}
-
 interface Section {
   type: string;
   title: string;

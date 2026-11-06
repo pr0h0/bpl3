@@ -728,8 +728,7 @@ frame main() ret int {
 }`,
         // Each argument is a fresh value the callee owns and destroys; main's
         // own local is destroyed after the final newline is printed.
-        expectedStdout:
-          "moved6 d6 | d2 m3 | d4 d3 n7 | d5 c5 | end\nd1 ",
+        expectedStdout: "moved6 d6 | d2 m3 | d4 d3 n7 | d5 c5 | end\nd1 ",
       },
     ]);
   }, 60000);
@@ -876,14 +875,20 @@ frame use(r: Resource) ret int { return r.value; }
       ["initializer", "local b: Resource = a; return b.value;"],
       ["assignment", "local b: Resource = make(2); b = a; return b.value;"],
       ["argument", "return use(a);"],
-      ["struct-field", "local h: Holder = Holder { inner: a }; return h.inner.value;"],
+      [
+        "struct-field",
+        "local h: Holder = Holder { inner: a }; return h.inner.value;",
+      ],
       ["tuple-element", "local t: (Resource, int) = (a, 1); return 0;"],
       ["array-element", "local xs: Resource[2] = [a, make(3)]; return 0;"],
       [
         "destructuring",
         "local t: (Resource, int) = (make(4), 1); local (p: Resource, q: int) = t; return q;",
       ],
-      ["returned-field", "local h: Holder = Holder { inner: make(5) }; return escape(h).value;"],
+      [
+        "returned-field",
+        "local h: Holder = Holder { inner: make(5) }; return escape(h).value;",
+      ],
     ];
 
     expectCheckDiagnostics(

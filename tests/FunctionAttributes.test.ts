@@ -48,7 +48,9 @@ describe("Function Attributes", () => {
       frame f() {}
     `);
 
-    expect(errors.join("\n")).toContain("Duplicate function attribute 'inline'");
+    expect(errors.join("\n")).toContain(
+      "Duplicate function attribute 'inline'",
+    );
   });
 
   it("rejects conflicting function attributes", () => {
@@ -213,7 +215,9 @@ describe("Function Attributes", () => {
       { optimizationLevel: 3 },
     );
 
-    expect(ir).toMatch(/define dso_local i32 @add_one_[^(]+\(i32 %value\)(?: #\d+)? align 64 \{/);
+    expect(ir).toMatch(
+      /define dso_local i32 @add_one_[^(]+\(i32 %value\)(?: #\d+)? align 64 \{/,
+    );
     expect(ir).not.toContain('"frame-pointer"="all"');
   });
 

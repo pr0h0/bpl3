@@ -9,15 +9,16 @@ import {
 const root = path.resolve(import.meta.dir, "..");
 test("formatter schema ships with the compiler and editor and matches API defaults", () => {
   const source = fs.readFileSync(
-    path.join(root, "bpl-format.schema.json"),
+    path.join(root, "schemas/bpl-format.schema.json"),
     "utf8",
   );
+  // The extension copies this file into out/schemas/ when it compiles.
   expect(
     fs.readFileSync(
-      path.join(root, "vscode-ext/bpl-format.schema.json"),
+      path.join(root, "vscode-ext/scripts/copy-assets.js"),
       "utf8",
     ),
-  ).toBe(source);
+  ).toContain('"schemas/bpl-format.schema.json"');
   const schema = JSON.parse(source);
   const defaults = Object.fromEntries(
     Object.entries(schema.properties)
@@ -27,14 +28,14 @@ test("formatter schema ships with the compiler and editor and matches API defaul
   expect(validateFormatterOptions(defaults)).toEqual(DEFAULT_FORMATTER_OPTIONS);
   expect(
     JSON.parse(fs.readFileSync(path.join(root, "package.json"), "utf8")).files,
-  ).toContain("bpl-format.schema.json");
+  ).toContain("schemas");
   const extension = JSON.parse(
     fs.readFileSync(path.join(root, "vscode-ext/package.json"), "utf8"),
   );
   const association = extension.contributes.jsonValidation.find(
     (entry: { fileMatch: string }) => entry.fileMatch === ".bplfmt.json",
   );
-  expect(
-    fs.readFileSync(path.resolve(root, "vscode-ext", association.url), "utf8"),
-  ).toBe(source);
+  // The registered path is the copy that compiling the extension writes to
+  // out/schemas/; it need not exist before the extension is built.
+  expect(association.url).toBe("./out/schemas/bpl-format.schema.json");
 });

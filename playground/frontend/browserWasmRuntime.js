@@ -10,10 +10,7 @@
 
   function getBrowserCompiler(globalObject) {
     const compiler = globalObject.BplBrowserCompiler;
-    if (
-      compiler &&
-      typeof compiler.compileToHostedWasm === "function"
-    ) {
+    if (compiler && typeof compiler.compileToHostedWasm === "function") {
       return compiler;
     }
     return undefined;
@@ -25,10 +22,7 @@
     const webAssembly = globalObject.WebAssembly;
     const hostAdapter = getHostAdapter(globalObject);
 
-    if (
-      !webAssembly ||
-      typeof webAssembly.instantiate !== "function"
-    ) {
+    if (!webAssembly || typeof webAssembly.instantiate !== "function") {
       runtimeMissing.push("WebAssembly.instantiate");
     }
     if (typeof globalObject.TextEncoder !== "function") {

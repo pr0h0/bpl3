@@ -1,6 +1,5 @@
 import [ChunkDecoder], [ChunkedBody] from "./chunked.bpl";
 import [HttpHeaders] from "./headers.bpl";
-import [Array] from "std/array.bpl";
 import [ParsedRequest] from "./types.bpl";
 import [Map], [MapNode] from "std/map.bpl";
 import strlen, malloc, free, memcpy, strcmp from "./libc.bpl";

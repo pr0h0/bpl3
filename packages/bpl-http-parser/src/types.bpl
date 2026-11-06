@@ -1,5 +1,4 @@
 import [HttpHeaders] from "./headers.bpl";
-import [Array] from "std/array.bpl";
 import [Map], [MapNode] from "std/map.bpl";
 extern free(ptr: string);
 export [ParsedRequest];

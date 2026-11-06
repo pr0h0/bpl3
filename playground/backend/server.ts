@@ -114,7 +114,6 @@ const server = Bun.serve({
   async fetch(req, server) {
     const peer = server.requestIP(req)?.address ?? "unknown";
     const url = new URL(req.url);
-    const startTime = Date.now();
 
     // Loopback binding alone does not stop websites from accessing local services.
     if (
@@ -350,12 +349,21 @@ const server = Bun.serve({
       });
     }
 
-    if (url.pathname === "/tutorial.css") {
-      const css = readStaticTextFile(
-        path.join(__dirname, "../frontend/tutorial.css"),
+    if (url.pathname === "/bplSyntax.js") {
+      const js = readStaticTextFile(
+        path.join(__dirname, "../frontend/bplSyntax.js"),
       );
-      return new Response(css, {
-        headers: { ...headers, "Content-Type": "text/css" },
+      return new Response(js, {
+        headers: { ...headers, "Content-Type": "application/javascript" },
+      });
+    }
+
+    if (url.pathname === "/markdown.js") {
+      const js = readStaticTextFile(
+        path.join(__dirname, "../frontend/markdown.js"),
+      );
+      return new Response(js, {
+        headers: { ...headers, "Content-Type": "application/javascript" },
       });
     }
 
@@ -415,6 +423,15 @@ logger.info(`Health check: http://localhost:${server.port}/health`);
 logger.info(`Statistics: http://localhost:${server.port}/stats`);
 logger.info(`Logs: http://localhost:${server.port}/logs`);
 logger.info("=".repeat(60));
+
+// Exit normally on SIGINT/SIGTERM so exit hooks remove temporary build
+// directories (such as the native binary cache).
+for (const signal of ["SIGINT", "SIGTERM"] as const) {
+  process.once(signal, () => {
+    void server.stop(true);
+    process.exit(0);
+  });
+}
 
 // Periodic stats logging
 setInterval(() => {

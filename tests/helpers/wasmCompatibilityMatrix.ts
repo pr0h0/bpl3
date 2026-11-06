@@ -1,22 +1,17 @@
 export type WasmCompatibilityMode =
-  | "wasm-freestanding"
-  | "wasm-hosted"
-  | "blocked-by-host-api"
-  | "native-only";
+  "wasm-freestanding" | "wasm-hosted" | "blocked-by-host-api" | "native-only";
 
 interface WasmCompatibilityBaseEntry {
   file: string;
   reason: string;
 }
 
-export interface WasmFreestandingCompatibilityEntry
-  extends WasmCompatibilityBaseEntry {
+export interface WasmFreestandingCompatibilityEntry extends WasmCompatibilityBaseEntry {
   mode: "wasm-freestanding";
   expectedReturn: number;
 }
 
-export interface WasmHostedCompatibilityEntry
-  extends WasmCompatibilityBaseEntry {
+export interface WasmHostedCompatibilityEntry extends WasmCompatibilityBaseEntry {
   mode: "wasm-hosted";
   expectedReturn: number;
   argv: string[];
@@ -24,8 +19,7 @@ export interface WasmHostedCompatibilityEntry
   expectedStderr: string;
 }
 
-export interface WasmUnsupportedCompatibilityEntry
-  extends WasmCompatibilityBaseEntry {
+export interface WasmUnsupportedCompatibilityEntry extends WasmCompatibilityBaseEntry {
   mode: "blocked-by-host-api" | "native-only";
 }
 
@@ -168,14 +162,16 @@ export const WASM_COMPATIBILITY_MATRIX: WasmCompatibilityEntry[] = [
     argv: ["program", "alpha", "beta"],
     expectedStdout: "host:alpha\n!\n",
     expectedStderr: "host stderr\n",
-    reason: "host imports provide argv, stdout, stderr, and stdlib String support",
+    reason:
+      "host imports provide argv, stdout, stderr, and stdlib String support",
   },
   {
     file: "examples/wasm_hosted_printf/main.bpl",
     mode: "wasm-hosted",
     expectedReturn: 0,
     argv: ["program"],
-    expectedStdout: "wasm=42!\nliteral % A\nhex=beef upper=BEEF zero=0007 wide=   42\n",
+    expectedStdout:
+      "wasm=42!\nliteral % A\nhex=beef upper=BEEF zero=0007 wide=   42\n",
     expectedStderr: "err:-7:ok?\n",
     reason:
       "hosted wasm formats dynamic %s, %d, %x/%X, width, %c, and %% output",
@@ -193,17 +189,20 @@ export const WASM_COMPATIBILITY_MATRIX: WasmCompatibilityEntry[] = [
   {
     file: "examples/stdlib_fs/main.bpl",
     mode: "blocked-by-host-api",
-    reason: "requires filesystem imports that the wasm host adapter does not provide",
+    reason:
+      "requires filesystem imports that the wasm host adapter does not provide",
   },
   {
     file: "examples/http_client_test/main.bpl",
     mode: "blocked-by-host-api",
-    reason: "requires networking imports that the wasm host adapter does not provide",
+    reason:
+      "requires networking imports that the wasm host adapter does not provide",
   },
   {
     file: "examples/stdlib_env/main.bpl",
     mode: "blocked-by-host-api",
-    reason: "requires environment variable imports that the wasm host adapter does not provide",
+    reason:
+      "requires environment variable imports that the wasm host adapter does not provide",
   },
   {
     file: "examples/asm_test/main.bpl",
@@ -237,9 +236,7 @@ export function findMissingDedicatedWasmExamples(
   matrixFiles: ReadonlySet<string>,
 ): string[] {
   return examples
-    .filter((file) =>
-      file.split("/").some((part) => part.startsWith("wasm_")),
-    )
+    .filter((file) => file.split("/").some((part) => part.startsWith("wasm_")))
     .filter((file) => !matrixFiles.has(file))
     .sort();
 }

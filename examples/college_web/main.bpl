@@ -6,7 +6,6 @@ import [Compression], [Negotiation], securityHeaders, requireJson, requestId, ac
 import [JSON] from "std/json.bpl";
 import [String] from "std/string.bpl";
 import [StringBuilder] from "std/string_builder.bpl";
-import [Map] from "std/map.bpl";
 import [Option] from "std/option.bpl";
 import [Env] from "std/env.bpl";
 extern umask(mask: uint) ret uint;

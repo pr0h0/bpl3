@@ -250,6 +250,30 @@ export class Formatter {
     return start.startLine;
   }
 
+  /**
+   * Line of the first `{` at or after a source position, searching no further
+   * than `limitLine`; undefined without source text or a brace.
+   */
+  private braceLineAfter(
+    file: string,
+    line: number,
+    column: number,
+    limitLine: number,
+  ): number | undefined {
+    if (!this.sourceText) return undefined;
+    const tokens = (this.sourceTokens ??= lexWithGrammar(
+      this.sourceText,
+      file,
+    ));
+    for (const token of tokens) {
+      if (token.line < line || (token.line === line && token.column < column))
+        continue;
+      if (token.line > limitLine) return undefined;
+      if (token.type === TokenType.LeftBrace) return token.line;
+    }
+    return undefined;
+  }
+
   private formatStructDecl(decl: AST.StructDecl): string {
     const indent = this.getIndent();
     let output = `${indent}struct ${decl.name}`;
@@ -602,10 +626,12 @@ export class Formatter {
 
   private formatIf(stmt: AST.IfStmt): string {
     const indent = this.getIndent();
-    let output = `${indent}if (${this.formatExpression(this.unwrapGroup(stmt.condition))}) `;
+    // The space separates the condition from `{` only; a brace-less body
+    // starts on the next line without trailing whitespace (BUG-437).
+    let output = `${indent}if (${this.formatExpression(this.unwrapGroup(stmt.condition))})`;
 
     if (stmt.thenBranch.kind === "Block") {
-      output += this.formatBlock(stmt.thenBranch as AST.BlockStmt, false);
+      output += " " + this.formatBlock(stmt.thenBranch as AST.BlockStmt, false);
     } else {
       output += "\n";
       this.indentLevel++;
@@ -615,18 +641,19 @@ export class Formatter {
 
     if (stmt.elseBranch) {
       if (stmt.thenBranch.kind === "Block") {
-        output += " else ";
+        output += " else";
       } else {
-        output += `\n${indent}else `;
+        output += `\n${indent}else`;
       }
 
       if (stmt.elseBranch.kind === "If") {
         // Else if
         // We need to trim the indentation of the nested if
         const elseIf = this.formatIf(stmt.elseBranch as AST.IfStmt).trim();
-        output += elseIf;
+        output += " " + elseIf;
       } else if (stmt.elseBranch.kind === "Block") {
-        output += this.formatBlock(stmt.elseBranch as AST.BlockStmt, false);
+        output +=
+          " " + this.formatBlock(stmt.elseBranch as AST.BlockStmt, false);
       } else {
         // Single statement else
         output += "\n";
@@ -696,10 +723,9 @@ export class Formatter {
     } else if (stmt.condition) {
       output += ` (${this.formatExpression(this.unwrapGroup(stmt.condition))})`;
     }
-    output += " ";
 
     if (stmt.body.kind === "Block") {
-      output += this.formatBlock(stmt.body as AST.BlockStmt, false);
+      output += " " + this.formatBlock(stmt.body as AST.BlockStmt, false);
     } else {
       output += "\n";
       this.indentLevel++;
@@ -779,7 +805,22 @@ export class Formatter {
     let output = `${indent}switch (${this.formatExpression(this.unwrapGroup(stmt.expression))}) {\n`;
     this.indentLevel++;
 
-    this.lastLineProcessed = stmt.location.startLine;
+    // Blank lines before the first case are measured from the header's `{`:
+    // a multi-line subject (e.g. a `match`) or a `)` on its own line is not a
+    // blank line.
+    const subjectEnd = stmt.expression.location ?? stmt.location;
+    const firstLine =
+      stmt.cases[0]?.location.startLine ?? stmt.location.endLine;
+    this.lastLineProcessed = Math.max(
+      stmt.location.startLine,
+      subjectEnd.endLine,
+      this.braceLineAfter(
+        stmt.location.file,
+        subjectEnd.endLine,
+        subjectEnd.endColumn,
+        firstLine,
+      ) ?? 0,
+    );
 
     const formatBody = (body: AST.BlockStmt, headerLine: number): string => {
       if (body.synthesized) {
@@ -1202,7 +1243,10 @@ export class Formatter {
           enumName += `<${p.genericArgs.map((t) => this.formatType(t)).join(", ")}>`;
         }
         const fields = p.fields
-          .map((f) => `${f.fieldName}: ${f.binding}`)
+          .map(
+            (f) =>
+              `${f.fieldName}: ${f.pattern ? this.formatPattern(f.pattern) : f.binding}`,
+          )
           .join(", ");
         if (enumName.length > 0) {
           return `${enumName}.${p.variantName} { ${fields} }`;

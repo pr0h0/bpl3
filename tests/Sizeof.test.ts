@@ -2,7 +2,6 @@ import { describe, expect, it } from "bun:test";
 import { Compiler } from "../compiler/index";
 import { Formatter } from "../compiler/formatter/Formatter";
 import { Parser } from "../compiler/frontend/Parser";
-import { lexWithGrammar } from "../compiler/frontend/GrammarLexer";
 
 function compileToIR(code: string) {
   const compiler = new Compiler({

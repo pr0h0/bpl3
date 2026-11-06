@@ -1,4 +1,4 @@
-import [TypeInfo], [MethodInfo] from "std/reflection.bpl";
+import [TypeInfo] from "std/reflection.bpl";
 import [IO] from "std/io.bpl";
 
 struct User {

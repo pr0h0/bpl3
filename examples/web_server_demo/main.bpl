@@ -1,10 +1,8 @@
-import [App], [Request], [Response], [Router] from "../../packages/bpl-express/src/server.bpl";
+import [App], [Request], [Response] from "../../packages/bpl-express/src/server.bpl";
 import [JSON] from "../../lib/json.bpl";
 import [Home] from "./views/home.bpl";
 import [String] from "std/string.bpl";
-import [Map] from "std/map.bpl";
 import [Option] from "std/option.bpl";
-import [IO] from "std/io.bpl";
 import [Env] from "std/env.bpl";
 
 import [strcmp] from "std/c.bpl";

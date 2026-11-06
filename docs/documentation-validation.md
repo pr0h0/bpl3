@@ -19,7 +19,7 @@ bun run check
 
 ## What is checked
 
-`tests/helpers/stdlibReference.ts` parses every `lib/**/*.bpl` module and generates
+`scripts/generate_stdlib_reference.ts` parses every `lib/**/*.bpl` module and generates
 [stdlib-reference.md](stdlib-reference.md). It lists exported declarations and
 members, preserving overloads and receiver types. It does not infer ownership,
 error behavior, algorithm complexity, or implementation completeness. Those
@@ -27,8 +27,9 @@ contracts belong in the prose guides and require source review and behavioral
 tests. Some declarations are stubs; a declaration is not a functionality promise.
 
 `tests/DocumentationExamples.test.ts` discovers BPL code fences containing
-`frame main(...)` in README, LANGUAGE_SPEC.md, all numbered guides, and the
-primitive-extension and companion type-matching guides. Positive programs compile with the real CLI
+`frame main(...)` in README, LANGUAGE_SPEC.md, all numbered guides (type
+matching is `docs/56-type-matching.md`), and the primitive-extension guide.
+Positive programs compile with the real CLI
 and Clang in temporary directories. Seven representative programs also run at
 O0/O3 with exact stdout and LLVM verification, including JSON hooks and assembly
 floating-point examples. Compilation alone does not verify all printed comments,
@@ -69,7 +70,7 @@ Only choose programs whose effects are appropriate for automated local tests.
 
 ## Specification rule IDs
 
-Normative statements in [LANGUAGE_SPEC.md](../LANGUAGE_SPEC.md) start with a
+Normative statements in [LANGUAGE_SPEC.md](LANGUAGE_SPEC.md) start with a
 bold rule marker such as `**[R-TYPE-1]**`. The prefix names the area (`R-LEX`,
 `R-TYPE`, `R-ARR`, `R-CONV`, `R-ABI`, `R-EXTERN`, `R-SLICE`, `R-DECL`, `R-FN`,
 `R-STRUCT`, `R-SPEC`, `R-ENUM`, `R-CTRL`, `R-DEFER`, `R-EXC`, `R-EXPR`,

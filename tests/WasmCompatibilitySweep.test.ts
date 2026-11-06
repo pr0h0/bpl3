@@ -121,7 +121,11 @@ function classifyWasmBuildResult(result: {
   }
 
   const output = `${result.stdout}\n${result.stderr}`;
-  if (/wasm linker.*unavailable|unable to find.*wasm|ENOENT.*(wasm-ld|ld\.lld)/i.test(output)) {
+  if (
+    /wasm linker.*unavailable|unable to find.*wasm|ENOENT.*(wasm-ld|ld\.lld)/i.test(
+      output,
+    )
+  ) {
     return "linker-unavailable";
   }
   if (
@@ -152,8 +156,7 @@ function classifyWasmBuildResult(result: {
 function buildWasmExample(
   entryOrFile: WasmCompatibilityEntry | string,
 ): WasmBuildResult {
-  const file =
-    typeof entryOrFile === "string" ? entryOrFile : entryOrFile.file;
+  const file = typeof entryOrFile === "string" ? entryOrFile : entryOrFile.file;
   const mode =
     typeof entryOrFile === "string" ? "wasm-freestanding" : entryOrFile.mode;
   const dir = mkdtempSync(join(tmpdir(), "bpl-wasm-sweep-"));
@@ -253,9 +256,9 @@ describe("WebAssembly compatibility sweep", () => {
       expect(modes.has(mode)).toBe(true);
     }
 
-    expect(validateExecutableWasmEntryMetadata(WASM_COMPATIBILITY_MATRIX)).toEqual(
-      [],
-    );
+    expect(
+      validateExecutableWasmEntryMetadata(WASM_COMPATIBILITY_MATRIX),
+    ).toEqual([]);
 
     expect(hostedTransform).toMatchObject({
       mode: "wasm-hosted",
@@ -325,28 +328,34 @@ describe("WebAssembly compatibility sweep", () => {
     ]);
   });
 
-  wasmIt("builds the wasm-compatible example set and classifies representative unsupported examples", () => {
-    for (const entry of [
-      ...WASM_FREESTANDING_EXAMPLES,
-      ...WASM_HOSTED_EXAMPLES,
-    ]) {
-      expect(buildWasmExample(entry).classification).toBe("ok");
-    }
-
-    for (const entry of WASM_COMPATIBILITY_MATRIX) {
-      if (entry.mode === "blocked-by-host-api") {
-        const result = buildWasmExample(entry);
-        expect(["host-api", "ok"]).toContain(result.classification);
-        if (result.classification === "ok") {
-          expect(
-            result.imports.some((importName) => HOST_API_IMPORTS.has(importName)),
-          ).toBe(true);
-        }
-      } else if (entry.mode === "native-only") {
-        expect(buildWasmExample(entry).classification).toBe(
-          "target-specific-source",
-        );
+  wasmIt(
+    "builds the wasm-compatible example set and classifies representative unsupported examples",
+    () => {
+      for (const entry of [
+        ...WASM_FREESTANDING_EXAMPLES,
+        ...WASM_HOSTED_EXAMPLES,
+      ]) {
+        expect(buildWasmExample(entry).classification).toBe("ok");
       }
-    }
-  }, 120_000);
+
+      for (const entry of WASM_COMPATIBILITY_MATRIX) {
+        if (entry.mode === "blocked-by-host-api") {
+          const result = buildWasmExample(entry);
+          expect(["host-api", "ok"]).toContain(result.classification);
+          if (result.classification === "ok") {
+            expect(
+              result.imports.some((importName) =>
+                HOST_API_IMPORTS.has(importName),
+              ),
+            ).toBe(true);
+          }
+        } else if (entry.mode === "native-only") {
+          expect(buildWasmExample(entry).classification).toBe(
+            "target-specific-source",
+          );
+        }
+      }
+    },
+    120_000,
+  );
 });

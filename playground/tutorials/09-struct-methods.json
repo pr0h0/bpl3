@@ -6,9 +6,7 @@
   "difficulty": "beginner",
   "duration": "12 min",
   "description": "Learn how to add behavior to your structs with methods. Understand the difference between instance methods and static methods.",
-  "prerequisites": [
-    "structs"
-  ],
+  "prerequisites": ["structs"],
   "objectives": [
     "Add methods to structs",
     "Use 'this' to access struct fields",

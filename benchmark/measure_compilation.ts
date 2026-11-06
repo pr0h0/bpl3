@@ -13,11 +13,7 @@ import type { Token } from "../compiler/frontend/Token";
 
 export type CompilationBenchmarkMode = "cli" | "phases";
 export type CompilePhaseName =
-  | "lex"
-  | "parse"
-  | "typecheck"
-  | "codegen"
-  | "full";
+  "lex" | "parse" | "typecheck" | "codegen" | "full";
 
 export interface CompilationBenchmarkArgs {
   mode: CompilationBenchmarkMode;
@@ -252,8 +248,7 @@ export function compareCompilePhaseBenchmarkResults(
     baseline.tokenCount === timingBaseline.tokenCount;
   const timingBaselineTokenSignatureMatches =
     baseline.tokenSignature === timingBaseline.tokenSignature;
-  const timingBaselineIrHashMatches =
-    baseline.irHash === timingBaseline.irHash;
+  const timingBaselineIrHashMatches = baseline.irHash === timingBaseline.irHash;
   const noiseControlTokenCountMatches =
     noiseControl === undefined ||
     baseline.tokenCount === noiseControl.tokenCount;
@@ -316,8 +311,7 @@ export function compareCompilePhaseBenchmarkResults(
         baselineMedianMs === 0
           ? 0
           : (noiseControlDeltaMs / baselineMedianMs) * 100;
-      const normalizedDeltaMs =
-        deltaMs - Math.max(0, noiseControlDeltaMs);
+      const normalizedDeltaMs = deltaMs - Math.max(0, noiseControlDeltaMs);
       const normalizedDeltaPercent =
         deltaPercent - Math.max(0, noiseControlDeltaPercent);
       delta.noiseControlMedianMs = noiseControlMedianMs;
@@ -361,8 +355,7 @@ export function compareCompilePhaseBenchmarkResults(
       noiseControl !== undefined &&
       options.maxNoiseControlRegressionPercent !== undefined &&
       delta.noiseControlDeltaPercent !== undefined &&
-      delta.noiseControlDeltaPercent >
-        options.maxNoiseControlRegressionPercent
+      delta.noiseControlDeltaPercent > options.maxNoiseControlRegressionPercent
     ) {
       failures.push(
         `${delta.phase} noise-control median drifted by ${delta.noiseControlDeltaPercent.toFixed(2)}% (limit ${options.maxNoiseControlRegressionPercent.toFixed(2)}%)`,
@@ -397,14 +390,16 @@ export function compareCompilePhaseBenchmarkResults(
   };
 }
 
-export async function measureCompilePhases(options: {
-  functionCount?: number;
-  rounds?: number;
-  warmups?: number;
-  source?: string;
-  fileName?: string;
-  treeShakeTopLevelFunctions?: boolean;
-} = {}): Promise<CompilePhaseBenchmarkResult> {
+export async function measureCompilePhases(
+  options: {
+    functionCount?: number;
+    rounds?: number;
+    warmups?: number;
+    source?: string;
+    fileName?: string;
+    treeShakeTopLevelFunctions?: boolean;
+  } = {},
+): Promise<CompilePhaseBenchmarkResult> {
   const functionCount = options.functionCount ?? 5000;
   const rounds = options.rounds ?? 31;
   const warmups = options.warmups ?? 5;
@@ -510,8 +505,14 @@ export function hashTokensForBenchmark(tokens: Token[]): string {
 
   for (const token of tokens) {
     chunk +=
-      token.type + "\0" + token.lexeme + "\0" + token.line + ":" +
-      token.column + "\n";
+      token.type +
+      "\0" +
+      token.lexeme +
+      "\0" +
+      token.line +
+      ":" +
+      token.column +
+      "\n";
     if (chunk.length >= TOKEN_HASH_CHUNK_CHAR_LIMIT) {
       hash.update(chunk);
       chunk = "";
@@ -603,8 +604,7 @@ async function main(): Promise<void> {
                   : undefined,
               maxNoiseControlRegressionPercent:
                 options.maxNoiseControlRegressionPercent,
-              maxPhaseRegressionPercent:
-                options.maxPhaseRegressionPercent,
+              maxPhaseRegressionPercent: options.maxPhaseRegressionPercent,
               maxFullRegressionPercent: options.maxFullRegressionPercent,
               gatePhases: options.gatePhases,
             },

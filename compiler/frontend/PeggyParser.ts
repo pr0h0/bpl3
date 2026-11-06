@@ -3,6 +3,7 @@ import type * as peggy from "peggy";
 import * as AST from "../common/AST";
 import { CompilerError, type SourceLocation } from "../common/CompilerError";
 import * as generatedParser from "./generated/BplParser.js";
+import { findReservedName } from "./ReservedWords";
 import {
   isParserStackOverflow,
   syntaxDepthError,
@@ -67,6 +68,7 @@ export function parseWithPeggy(
     if (errors.length > 0) {
       program.errors = errors.map(
         (e: { message: string; location: SourceLocation }) =>
+          reservedNameError(source, e.location) ??
           new CompilerError(e.message, "Fix the syntax error.", e.location),
       );
     }
@@ -85,6 +87,104 @@ export function parseWithPeggy(
     }
     throw toCompilerError(filePath, error);
   }
+}
+
+/** Offset in `source` of a 1-based line and UTF-16 column. */
+function offsetOf(source: string, line: number, column: number): number {
+  let offset = 0;
+  for (let current = 1; current < line; current++) {
+    const next = source.slice(offset).search(/\r\n|\r|\n/);
+    if (next < 0) return source.length;
+    offset += next + (source.startsWith("\r\n", offset + next) ? 2 : 1);
+  }
+  return offset + column - 1;
+}
+
+/** The 1-based line and column of `offset` in `source`. */
+function positionOf(
+  source: string,
+  offset: number,
+): { line: number; column: number } {
+  let line = 1;
+  let lineStart = 0;
+  for (let i = 0; i < offset; i++) {
+    const c = source[i];
+    if (c === "\n" || (c === "\r" && source[i + 1] !== "\n")) {
+      line++;
+      lineStart = i + 1;
+    }
+  }
+  return { line, column: offset - lineStart + 1 };
+}
+
+/**
+ * An "Unexpected syntax" recovery error covers a whole declaration. When the
+ * cause is a reserved word used as a parameter or variable name, report that
+ * word where it is instead (BUG-476).
+ */
+function reservedNameError(
+  source: string,
+  location: SourceLocation,
+): CompilerError | undefined {
+  const start = offsetOf(source, location.startLine, location.startColumn);
+  const end = offsetOf(source, location.endLine, location.endColumn);
+  // The recovery span of a declaration can stop inside it, before a later
+  // member such as a second method, so a span that opens a block is
+  // searched to the end of that block. A statement's span opens none, and
+  // is not extended into the following declarations.
+  const span = source.slice(start, end);
+  const found =
+    findReservedName(span) ??
+    (span.includes("{")
+      ? findReservedName(source.slice(start, declarationEnd(source, start)))
+      : undefined);
+  if (!found) return undefined;
+  const from = positionOf(source, start + found.offset);
+  return new CompilerError(
+    `'${found.word}' is a reserved word and cannot be used as a name`,
+    "Rename it; the reserved words are listed in R-LEX-3 of the language specification.",
+    {
+      file: location.file,
+      startLine: from.line,
+      startColumn: from.column,
+      endLine: from.line,
+      endColumn: from.column + found.word.length,
+    },
+  );
+}
+
+/**
+ * The offset just past the `}` that closes the first `{` at or after `start`,
+ * or the end of the source. Braces in strings, character literals and
+ * comments are not counted.
+ */
+function declarationEnd(source: string, start: number): number {
+  let depth = 0;
+  let i = start;
+  while (i < source.length) {
+    const c = source[i]!;
+    if (c === '"' || c === "'") {
+      i++;
+      while (i < source.length && source[i] !== c) {
+        if (source[i] === "\\") i++;
+        i++;
+      }
+    } else if (c === "/" && source[i + 1] === "#") {
+      const close = source.indexOf("#/", i + 2);
+      i = close < 0 ? source.length : close + 1;
+    } else if (c === "#") {
+      while (i < source.length && source[i] !== "\n" && source[i] !== "\r") {
+        i++;
+      }
+    } else if (c === "{") {
+      depth++;
+    } else if (c === "}") {
+      depth--;
+      if (depth === 0) return i + 1;
+    }
+    i++;
+  }
+  return source.length;
 }
 
 function toCompilerError(filePath: string, error: unknown): CompilerError {

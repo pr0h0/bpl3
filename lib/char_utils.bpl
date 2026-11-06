@@ -10,13 +10,13 @@ struct CharUtils {
 
     # Returns true if c is a hexadecimal digit (0-9, a-f, A-F)
     frame isHexDigit(c: char) ret bool {
-        if ((c >= 48) && (c <= 57)) 
+        if ((c >= 48) && (c <= 57))
             return true;
         # 0-9
-        if ((c >= 97) && (c <= 102)) 
+        if ((c >= 97) && (c <= 102))
             return true;
         # a-f
-        if ((c >= 65) && (c <= 70)) 
+        if ((c >= 65) && (c <= 70))
             return true;
         # A-F
         return false;
@@ -24,10 +24,10 @@ struct CharUtils {
 
     # Returns true if c is an alphabetic letter (a-z, A-Z)
     frame isAlpha(c: char) ret bool {
-        if ((c >= 97) && (c <= 122)) 
+        if ((c >= 97) && (c <= 122))
             return true;
         # a-z
-        if ((c >= 65) && (c <= 90)) 
+        if ((c >= 65) && (c <= 90))
             return true;
         # A-Z
         return false;
@@ -40,16 +40,16 @@ struct CharUtils {
 
     # Returns true if c is whitespace (space, tab, newline, CR)
     frame isWhitespace(c: char) ret bool {
-        if (c == 32) 
+        if (c == 32)
             return true;
         # space
-        if (c == 9) 
+        if (c == 9)
             return true;
         # tab
-        if (c == 10) 
+        if (c == 10)
             return true;
         # \n
-        if (c == 13) 
+        if (c == 13)
             return true;
         # \r
         return false;
@@ -57,7 +57,7 @@ struct CharUtils {
 
     # Returns true if c can be start of an identifier (a-z, A-Z, _)
     frame isIdentifierStart(c: char) ret bool {
-        if (c == 95) 
+        if (c == 95)
             return true;
         # _
         return CharUtils.isAlpha(c);
@@ -65,7 +65,7 @@ struct CharUtils {
 
     # Returns true if c can be part of an identifier (a-z, A-Z, 0-9, _)
     frame isIdentifierPart(c: char) ret bool {
-        if (c == 95) 
+        if (c == 95)
             return true;
         # _
         return CharUtils.isAlphaNumeric(c);

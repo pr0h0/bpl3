@@ -267,17 +267,23 @@ struct Map<K, V>: Iterable<Pair<K, V>>, Destructible, Equatable<Map<K, V>> {
         }
         local required: long = ((cast<long>(entry_count) * 4) + 2) / 3;
         local capacity: long = cast<long>(this.buckets.len());
-        if (capacity < 16) { capacity = 16; }
+        if (capacity < 16) {
+            capacity = 16;
+        }
         loop (capacity < required) {
             capacity = capacity * 2;
             if (capacity > 2147483647) {
                 throw Error.new("Map capacity exceeds the supported range");
             }
         }
-        if (capacity <= cast<long>(this.buckets.len())) { return; }
+        if (capacity <= cast<long>(this.buckets.len())) {
+            return;
+        }
         local replacement: Array<*MapNode<K, V>> = Array<*MapNode<K, V>>.new(cast<int>(capacity));
         local replacementPtr: *Array<*MapNode<K, V>> = &replacement;
-        defer { replacementPtr.destroy(); }
+        defer {
+            replacementPtr.destroy();
+        }
         if (replacement.data == nullptr) {
             throw Error.new("Unable to allocate Map buckets");
         }
@@ -287,7 +293,9 @@ struct Map<K, V>: Iterable<Pair<K, V>>, Destructible, Equatable<Map<K, V>> {
         # Hash every node before changing any links: user hashers can throw.
         local destinations: Array<int> = Array<int>.new(this.count);
         local destinationsPtr: *Array<int> = &destinations;
-        defer { destinationsPtr.destroy(); }
+        defer {
+            destinationsPtr.destroy();
+        }
         local hash: Func<u64>(*K) = this.hasher;
         loop (local i: int = 0; i < this.buckets.len(); i = i + 1) {
             local node: *MapNode<K, V> = this.buckets.get(i);
@@ -361,6 +369,49 @@ struct Map<K, V>: Iterable<Pair<K, V>>, Destructible, Equatable<Map<K, V>> {
             current = current.next;
         }
         return Option<V>.None;
+    }
+
+    # The value for `key`, or `fallback` when the key is absent.
+    frame getOr(this: *Map<K, V>, key: K, fallback: V) ret V {
+        local idx: int = this._getBucketIndex(key);
+        local current: *MapNode<K, V> = this.buckets.get(idx);
+        local eqFunc: Func<bool>(*K, *K) = this.equaler;
+
+        loop (current != nullptr) {
+            if (eqFunc(&current.key, &key)) {
+                return current.value;
+            }
+            current = current.next;
+        }
+        return fallback;
+    }
+
+    # A new array of the keys, in the map's iteration order; the caller
+    # destroys it. The keys are copied shallowly, as stored.
+    frame keys(this: *Map<K, V>) ret Array<K> {
+        local result: Array<K> = Array<K>.new(this.count);
+        loop (local i: int = 0; i < this.buckets.len(); i = i + 1) {
+            local current: *MapNode<K, V> = this.buckets.get(i);
+            loop (current != nullptr) {
+                result.push(current.key);
+                current = current.next;
+            }
+        }
+        return result;
+    }
+
+    # A new array of the values, in the map's iteration order; the caller
+    # destroys it. The values are copied shallowly, as stored.
+    frame values(this: *Map<K, V>) ret Array<V> {
+        local result: Array<V> = Array<V>.new(this.count);
+        loop (local i: int = 0; i < this.buckets.len(); i = i + 1) {
+            local current: *MapNode<K, V> = this.buckets.get(i);
+            loop (current != nullptr) {
+                result.push(current.value);
+                current = current.next;
+            }
+        }
+        return result;
     }
 
     frame has(this: *Map<K, V>, key: K) ret bool {
@@ -451,7 +502,9 @@ struct Map<K, V>: Iterable<Pair<K, V>>, Destructible, Equatable<Map<K, V>> {
             if (v2.isNone()) {
                 return false;
             }
-            if (p.value != v2.unwrap()) {
+            # Values compare like keys: strings by content, not by pointer.
+            local otherValue: V = v2.unwrap();
+            if (!_mapDefaultEq<V>(&p.value, &otherValue)) {
                 return false;
             }
         }

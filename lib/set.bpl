@@ -4,6 +4,7 @@ export [Set];
 export [SetIterator];
 
 import [Map], [MapIterator], [Pair] from "std/map.bpl";
+import [Array] from "std/array.bpl";
 import [Option] from "std/option.bpl";
 import [Iterable], [Iterator] from "std/iter_specs.bpl";
 import [Destructible] from "std/core_specs.bpl";
@@ -72,13 +73,56 @@ struct Set<T>: Iterable<T>, Destructible {
         this.inner.clear();
     }
 
+    # Whether the set has no elements.
+    frame isEmpty(this: *Set<T>) ret bool {
+        return this.inner.size() == 0;
+    }
+
+    # Whether every element of this set is also in `other`. The empty set is
+    # a subset of every set.
+    frame isSubsetOf(this: *Set<T>, other: *Set<T>) ret bool {
+        if (this.size() > other.size()) {
+            return false;
+        }
+        local it: SetIterator<T> = this.iterator();
+        loop {
+            local opt: Option<T> = it.next();
+            if (opt.isNone()) {
+                break;
+            }
+            if (!other.has(opt.unwrap())) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    # A new array of the elements, in the set's iteration order; the caller
+    # destroys it. Elements are copied shallowly, as stored.
+    frame toArray(this: *Set<T>) ret Array<T> {
+        local result: Array<T> = Array<T>.new(this.size());
+        local it: SetIterator<T> = this.iterator();
+        loop {
+            local opt: Option<T> = it.next();
+            if (opt.isNone()) {
+                break;
+            }
+            result.push(opt.unwrap());
+        }
+        return result;
+    }
+
     # Returns a new set containing elements from both sets (union)
     frame union(this: *Set<T>, other: *Set<T>) ret Set<T> {
         local result: Set<T> = Set<T>.new(this.size() + other.size(), this.inner.hasher, this.inner.equaler);
         local resultPtr: *Set<T> = &result;
         local completed: bool = false;
         local completedPtr: *bool = &completed;
-        defer { if (!*completedPtr) { resultPtr.destroy(); } }
+        defer {
+            if (!*completedPtr) {
+                resultPtr.destroy();
+            }
+        }
 
         # Add all elements from this set
         local it: SetIterator<T> = this.iterator();
@@ -110,7 +154,11 @@ struct Set<T>: Iterable<T>, Destructible {
         local resultPtr: *Set<T> = &result;
         local completed: bool = false;
         local completedPtr: *bool = &completed;
-        defer { if (!*completedPtr) { resultPtr.destroy(); } }
+        defer {
+            if (!*completedPtr) {
+                resultPtr.destroy();
+            }
+        }
 
         local it: SetIterator<T> = this.iterator();
         loop {
@@ -134,7 +182,11 @@ struct Set<T>: Iterable<T>, Destructible {
         local resultPtr: *Set<T> = &result;
         local completed: bool = false;
         local completedPtr: *bool = &completed;
-        defer { if (!*completedPtr) { resultPtr.destroy(); } }
+        defer {
+            if (!*completedPtr) {
+                resultPtr.destroy();
+            }
+        }
 
         local it: SetIterator<T> = this.iterator();
         loop {

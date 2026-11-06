@@ -16,7 +16,11 @@ export {
   runExecutable,
   compileBinaryAndRun,
 } from "./BinaryRunner";
-export { processFile, processFileAsync, processCode } from "./CompilationRunner";
+export {
+  processFile,
+  processFileAsync,
+  processCode,
+} from "./CompilationRunner";
 export { watchMode } from "./Watcher";
 export {
   CLI_JSON_ERROR_CODE_LISTS,

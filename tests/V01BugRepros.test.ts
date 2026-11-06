@@ -23,7 +23,14 @@ function optimizedMainBody(source: string): string {
 
     const emit = spawnSync(
       "bun",
-      [path.join(process.cwd(), "index.ts"), "--emit", "llvm", "-o", irPath, sourcePath],
+      [
+        path.join(process.cwd(), "index.ts"),
+        "--emit",
+        "llvm",
+        "-o",
+        irPath,
+        sourcePath,
+      ],
       { encoding: "utf-8", timeout: 20000 },
     );
     expect(emit.status).toBe(0);

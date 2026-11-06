@@ -12,8 +12,12 @@ export {
 
 export function registerDoctorCommand(program: Command, version: string): void {
   program
-    .command("doctor [scope]")
+    .command("doctor")
     .description("Check local BPL toolchain and runtime setup")
+    .argument(
+      "[scope]",
+      "check only one area: packages or sanitizer (default: toolchain)",
+    )
     .option("--json", "output machine-readable diagnostics")
     .action(
       async (

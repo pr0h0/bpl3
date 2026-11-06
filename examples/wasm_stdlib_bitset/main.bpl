@@ -19,7 +19,6 @@ frame main() ret int {
         bits.destroy();
         return 3;
     }
-
     local copy: BitSet = bits.clone();
     bits.clearAll();
     if (!copy.test(95)) {
@@ -32,7 +31,6 @@ frame main() ret int {
         copy.destroy();
         return 5;
     }
-
     bits.destroy();
     copy.destroy();
     return 0;

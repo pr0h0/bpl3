@@ -67,13 +67,14 @@ export function emitSpecMethodCall(
   const methodVoidPtr = host.newRegister();
   host.emit(`  ${methodVoidPtr} = load i8*, i8** ${methodPtrPtr}`);
 
-  const { retType, paramTypes, funcPtr } = resolveSpecMethodSignature(
-    host,
-    specDecl,
-    memberExpr,
-    allMethods[methodIndex]!,
-    methodVoidPtr,
-  );
+  const { retType, paramTypes, paramTypeNodes, funcPtr } =
+    resolveSpecMethodSignature(
+      host,
+      specDecl,
+      memberExpr,
+      allMethods[methodIndex]!,
+      methodVoidPtr,
+    );
 
   const argRegs: string[] = [];
   for (let i = 0; i < callExpr.args.length; i++) {
@@ -85,16 +86,14 @@ export function emitSpecMethodCall(
       const destType = paramTypes[i]!; // paramTypes excludes this (implied objPtr)
 
       if (srcType !== destType) {
+        // Convert to the declared (generic-substituted) parameter type.
         const castVal = host.emitCast(
           val,
           srcType,
           destType,
           arg.resolvedType!,
-          {
-            kind: "BasicType",
-            name: "dummy",
-          } as any,
-        ); // we need type node
+          paramTypeNodes[i]!,
+        );
         argRegs.push(castVal);
       } else {
         argRegs.push(val);
@@ -114,7 +113,9 @@ export function emitSpecMethodCall(
     host.emit(`  call void ${funcPtr}(${callArgs.join(", ")})`);
     return "0";
   }
-  host.emit(`  ${resultReg} = call ${retType} ${funcPtr}(${callArgs.join(", ")})`);
+  host.emit(
+    `  ${resultReg} = call ${retType} ${funcPtr}(${callArgs.join(", ")})`,
+  );
   return resultReg;
 }
 
@@ -124,7 +125,12 @@ function resolveSpecMethodSignature(
   memberExpr: AST.MemberExpr,
   methodDecl: AST.SpecMethod,
   methodVoidPtr: string,
-): { retType: string; paramTypes: string[]; funcPtr: string } {
+): {
+  retType: string;
+  paramTypes: string[];
+  paramTypeNodes: AST.TypeNode[];
+  funcPtr: string;
+} {
   const typeMap = new Map<string, AST.TypeNode>();
   if (specDecl.genericParams) {
     const objType = memberExpr.object.resolvedType as AST.BasicTypeNode;
@@ -136,6 +142,7 @@ function resolveSpecMethodSignature(
   }
 
   const paramTypes: string[] = [];
+  const paramTypeNodes: AST.TypeNode[] = [];
   for (const p of methodDecl.params) {
     if (p.name === "this") continue;
     let pType = p.type;
@@ -146,6 +153,7 @@ function resolveSpecMethodSignature(
     if (typeMap.size > 0) {
       pType = host.substituteType(pType, typeMap);
     }
+    paramTypeNodes.push(pType);
     paramTypes.push(host.resolveType(pType));
   }
 
@@ -170,5 +178,5 @@ function resolveSpecMethodSignature(
   const funcPtr = host.newRegister();
   host.emit(`  ${funcPtr} = bitcast i8* ${methodVoidPtr} to ${funcSig}*`);
 
-  return { retType, paramTypes, funcPtr };
+  return { retType, paramTypes, paramTypeNodes, funcPtr };
 }

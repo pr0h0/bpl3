@@ -113,6 +113,8 @@ export interface CompilationResult {
   output?: string;
   /** Compilation errors if any */
   errors?: CompilerError[];
+  /** Checker warnings (never fail the compilation) */
+  warnings?: CompilerError[];
   /** Parsed AST if available */
   ast?: AST.Program;
   /** Optional structured performance and tooling metadata */
@@ -315,6 +317,7 @@ export class Compiler {
         success: true,
         output: llvmIR,
         ast,
+        warnings: typeChecker.getWarnings(),
       };
     } catch (error) {
       if (error instanceof CompilerError) {
@@ -393,7 +396,8 @@ export class Compiler {
     const codegenContent = withCompilerCacheKey(content, {
       compilerFingerprint: getCompilerFingerprint(),
       dwarf: this.options.dwarf ?? false,
-      treeShakeTopLevelFunctions: this.options.treeShakeTopLevelFunctions ?? false,
+      treeShakeTopLevelFunctions:
+        this.options.treeShakeTopLevelFunctions ?? false,
     });
     return this.moduleSymbolRenameKey
       ? `${codegenContent}\n#renames\n${this.moduleSymbolRenameKey}`
@@ -408,7 +412,10 @@ export class Compiler {
 
       // 1. Resolve all modules
       const resolver = new ModuleResolver();
-      const modules = resolver.resolveModules(this.options.filePath, sourceCode);
+      const modules = resolver.resolveModules(
+        this.options.filePath,
+        sourceCode,
+      );
 
       if (this.options.verbose) {
         compilerLog.info(`Found ${modules.length} modules`);
@@ -552,6 +559,7 @@ export class Compiler {
         success: true,
         output: llvmIR,
         ast: combinedAST,
+        warnings: typeChecker.getWarnings(),
       };
     } catch (error) {
       if (error instanceof CompilerError) {
@@ -578,7 +586,10 @@ export class Compiler {
 
       // 1. Resolve all modules
       const resolver = new ModuleResolver();
-      const modules = resolver.resolveModules(this.options.filePath, sourceCode);
+      const modules = resolver.resolveModules(
+        this.options.filePath,
+        sourceCode,
+      );
 
       if (this.options.verbose) {
         compilerLog.info(`Found ${modules.length} modules`);
@@ -723,7 +734,10 @@ export class Compiler {
       }
 
       const resolver = new ModuleResolver();
-      const modules = resolver.resolveModules(this.options.filePath, sourceCode);
+      const modules = resolver.resolveModules(
+        this.options.filePath,
+        sourceCode,
+      );
 
       if (this.options.verbose) {
         compilerLog.info(`Found ${modules.length} modules`);

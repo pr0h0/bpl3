@@ -1,7 +1,7 @@
 # comprehensive_import_demo.bpl - Demonstrates all valid import patterns
 # Pattern 1: Single function import
 import demoFunc1 from "./comprehensive_syntax_demo.bpl";
-# Pattern 2: Single type import (must use brackets)  
+# Pattern 2: Single type import (must use brackets)
 import [DemoStruct] from "./comprehensive_syntax_demo.bpl";
 # Pattern 3: Multiple function imports (comma-separated, no brackets)
 import demoFunc2, demoFunc3 from "./comprehensive_syntax_demo.bpl";

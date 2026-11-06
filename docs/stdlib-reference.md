@@ -2,7 +2,7 @@
 
 Generated from parsed library declarations with `bun run docs:stdlib`. Do not edit by hand.
 
-This index covers all 65 BPL modules under `lib/`, including memory and low-level modules.
+This index covers all 77 BPL modules under `lib/`, including memory and low-level modules.
 It lists explicit exports and declarations defined in each source file. Re-exported symbols
 are listed under exports; their definitions are in the originating modules. Inherited members
 are not repeated. An exported type's declared members include implementation helpers and fields;
@@ -21,7 +21,9 @@ platform has been validated. C/POSIX extern declarations retain their native ABI
 - [std/args.bpl](../lib/args.bpl)
 - [std/array.bpl](../lib/array.bpl)
 - [std/assert.bpl](../lib/assert.bpl)
+- [std/base32.bpl](../lib/base32.bpl)
 - [std/base64.bpl](../lib/base64.bpl)
+- [std/bigint.bpl](../lib/bigint.bpl)
 - [std/binary.bpl](../lib/binary.bpl)
 - [std/bitset.bpl](../lib/bitset.bpl)
 - [std/c.bpl](../lib/c.bpl)
@@ -33,12 +35,14 @@ platform has been validated. C/POSIX extern declarations retain their native ABI
 - [std/debug.bpl](../lib/debug.bpl)
 - [std/deque.bpl](../lib/deque.bpl)
 - [std/diagnostics.bpl](../lib/diagnostics.bpl)
+- [std/entropy.bpl](../lib/entropy.bpl)
 - [std/env.bpl](../lib/env.bpl)
 - [std/errors.bpl](../lib/errors.bpl)
 - [std/fmt.bpl](../lib/fmt.bpl)
 - [std/fs.bpl](../lib/fs.bpl)
 - [std/hash.bpl](../lib/hash.bpl)
 - [std/hex.bpl](../lib/hex.bpl)
+- [std/hmac.bpl](../lib/hmac.bpl)
 - [std/intrinsics.bpl](../lib/intrinsics.bpl)
 - [std/io.bpl](../lib/io.bpl)
 - [std/iter.bpl](../lib/iter.bpl)
@@ -55,6 +59,8 @@ platform has been validated. C/POSIX extern declarations retain their native ABI
 - [std/memory/stack_allocator.bpl](../lib/memory/stack_allocator.bpl)
 - [std/memory/syscalls.bpl](../lib/memory/syscalls.bpl)
 - [std/option.bpl](../lib/option.bpl)
+- [std/otp.bpl](../lib/otp.bpl)
+- [std/parse.bpl](../lib/parse.bpl)
 - [std/path.bpl](../lib/path.bpl)
 - [std/primitives.bpl](../lib/primitives.bpl)
 - [std/priority_queue.bpl](../lib/priority_queue.bpl)
@@ -64,9 +70,14 @@ platform has been validated. C/POSIX extern declarations retain their native ABI
 - [std/range.bpl](../lib/range.bpl)
 - [std/rational.bpl](../lib/rational.bpl)
 - [std/reflection.bpl](../lib/reflection.bpl)
+- [std/regex.bpl](../lib/regex.bpl)
 - [std/result.bpl](../lib/result.bpl)
 - [std/scope_stack.bpl](../lib/scope_stack.bpl)
 - [std/set.bpl](../lib/set.bpl)
+- [std/sha1.bpl](../lib/sha1.bpl)
+- [std/sha256.bpl](../lib/sha256.bpl)
+- [std/sha384.bpl](../lib/sha384.bpl)
+- [std/sha512.bpl](../lib/sha512.bpl)
 - [std/stack.bpl](../lib/stack.bpl)
 - [std/stats.bpl](../lib/stats.bpl)
 - [std/std.bpl](../lib/std.bpl)
@@ -77,6 +88,7 @@ platform has been validated. C/POSIX extern declarations retain their native ABI
 - [std/thread.bpl](../lib/thread.bpl)
 - [std/time.bpl](../lib/time.bpl)
 - [std/type.bpl](../lib/type.bpl)
+- [std/url.bpl](../lib/url.bpl)
 - [std/utf8.bpl](../lib/utf8.bpl)
 - [std/uuid.bpl](../lib/uuid.bpl)
 - [std/vec2.bpl](../lib/vec2.bpl)
@@ -199,6 +211,9 @@ exitCode: int
 frame new() ret *ParsedArgs
 frame setFlag(this: *ParsedArgs, key: String, value: String)
 frame getFlag(this: *ParsedArgs, name: string) ret Option<*String>
+frame flagInt(this: *ParsedArgs, name: string, output: *int) ret bool
+frame flagLong(this: *ParsedArgs, name: string, output: *long) ret bool
+frame flagFloat(this: *ParsedArgs, name: string, output: *float) ret bool
 frame hasFlag(this: *ParsedArgs, name: string) ret bool
 frame getArg(this: *ParsedArgs, index: int) ret Option<*String>
 frame destroy(this: *ParsedArgs)
@@ -277,9 +292,13 @@ frame getRef(this: *Array<T>, index: int) ret *T
 frame set(this: *Array<T>, index: int, value: T)
 frame push(this: *Array<T>, value: T)
 frame pop(this: *Array<T>) ret T
+frame insert(this: *Array<T>, index: int, value: T)
+frame clear(this: *Array<T>)
+frame isEmpty(this: *Array<T>) ret bool
 frame removeAt(this: *Array<T>, index: int)
 frame map<U>(this: *Array<T>, transform: Lambda<U>(T, int)) ret Array<U>
 frame filter(this: *Array<T>, predicate: Lambda<bool>(T, int)) ret Array<T>
+frame sortBy(this: *Array<T>, compare: Lambda<int>(T, T))
 frame reduce<U>(this: *Array<T>, initial: U, reducer: Lambda<U>(U, T, int)) ret U
 frame forEach(this: *Array<T>, action: Lambda<void>(T, int))
 frame find(this: *Array<T>, predicate: Lambda<bool>(T)) ret Option<T>
@@ -288,8 +307,8 @@ frame some(this: *Array<T>, predicate: Lambda<bool>(T)) ret bool
 frame indexOf(this: *Array<T>, value: T) ret int
 frame contains(this: *Array<T>, value: T) ret bool
 frame findIndex(this: *Array<T>, predicate: Lambda<bool>(T)) ret Option<int>
-frame __lshift__(this: *Array<T>, value: T) ret Array<T>
-frame __rshift__(this: *Array<T>, dest: *T) ret Array<T>
+frame __lshift__(this: *Array<T>, value: T) ret *Array<T>
+frame __rshift__(this: *Array<T>, dest: *T) ret *Array<T>
 ```
 
 ## std/assert.bpl
@@ -307,6 +326,37 @@ export [Assert];
 ```bpl
 struct Assert
 frame that(condition: bool, message: string)
+frame isTrue(condition: bool, message: string)
+frame isFalse(condition: bool, message: string)
+frame fail(message: string)
+frame equalLong(actual: long, expected: long, message: string)
+frame equalInt(actual: int, expected: int, message: string)
+frame equalString(actual: string, expected: string, message: string)
+frame near(actual: double, expected: double, tolerance: double, message: string)
+```
+
+## std/base32.bpl
+
+[Source](../lib/base32.bpl)
+
+Exports:
+
+```bpl
+export [Base32];
+```
+
+### Base32
+
+```bpl
+struct Base32
+frame encode(data: *u8, length: long) ret string
+frame encodeString(text: string) ret string
+frame value(c: u8) ret int
+frame scan(input: string, output: *u8, write: bool) ret long
+frame decode(input: string, output: *u8) ret long
+frame decodeToString(input: string) ret string
+frame decodedLength(input: string) ret long
+frame isValid(input: string) ret bool
 ```
 
 ## std/base64.bpl
@@ -331,8 +381,58 @@ frame scan(input: string, output: *u8, write: bool) ret int
 frame decode(input: string, output: *u8) ret int
 frame decodeToString(input: string) ret string
 frame decodedLength(input: string) ret int
+frame encodeUrl(data: *u8, length: int) ret string
+frame encodeStringUrl(str: string) ret string
+frame padded(input: string) ret string
+frame decodeUrl(input: string, output: *u8) ret int
+frame decodeUrlToString(input: string) ret string
 frame encodedLength(inputLen: int) ret int
 frame isValid(input: string) ret bool
+```
+
+## std/bigint.bpl
+
+[Source](../lib/bigint.bpl)
+
+Exports:
+
+```bpl
+export [BigInt];
+```
+
+### BigInt
+
+```bpl
+struct BigInt
+sign: int
+length: int
+limbs: *uint
+frame withCapacity(capacity: int) ret BigInt
+frame fromLong(number: long) ret BigInt
+frame parse(text: string) ret BigInt
+frame normalize(this: *BigInt)
+frame destroy(this: *BigInt)
+frame clone(this: *BigInt) ret BigInt
+frame isZero(this: *BigInt) ret bool
+frame isNegative(this: *BigInt) ret bool
+frame compareMagnitude(a: *BigInt, b: *BigInt) ret int
+frame compare(this: *BigInt, other: *BigInt) ret int
+frame equals(this: *BigInt, other: *BigInt) ret bool
+frame addMagnitudes(a: *BigInt, b: *BigInt, sign: int) ret BigInt
+frame subtractMagnitudes(a: *BigInt, b: *BigInt, sign: int) ret BigInt
+frame addSigned(a: *BigInt, b: *BigInt, negateOther: bool) ret BigInt
+frame add(this: *BigInt, other: *BigInt) ret BigInt
+frame subtract(this: *BigInt, other: *BigInt) ret BigInt
+frame negate(this: *BigInt) ret BigInt
+frame multiply(this: *BigInt, other: *BigInt) ret BigInt
+frame divideSmall(this: *BigInt, divisor: int, remainder: *int) ret BigInt
+frame multiplyMagnitudeSmall(value: *BigInt, factor: ulong) ret BigInt
+frame divide(this: *BigInt, divisor: *BigInt, remainder: *BigInt) ret BigInt
+frame abs(this: *BigInt) ret BigInt
+frame pow(this: *BigInt, exponent: int) ret BigInt
+frame gcd(this: *BigInt, other: *BigInt) ret BigInt
+frame toLong(this: *BigInt, out: *long) ret bool
+frame toString(this: *BigInt) ret string
 ```
 
 ## std/binary.bpl
@@ -726,6 +826,7 @@ frame addYears(this: *Date, years: int) ret Date
 frame diffDays(this: *Date, other: *Date) ret int
 frame diffDaysLong(this: *Date, other: *Date) ret long
 frame isValid(this: *Date) ret bool
+frame tryParse(text: string, output: *Date) ret bool
 frame format(this: *Date) ret string
 frame formatSep(this: *Date, sep: u8) ret string
 frame compare(this: *Date, other: *Date) ret int
@@ -764,6 +865,7 @@ frame addMonths(this: *DateTime, months: int) ret DateTime
 frame addYears(this: *DateTime, years: int) ret DateTime
 frame diffSeconds(this: *DateTime, other: *DateTime) ret long
 frame format(this: *DateTime) ret string
+frame tryParse(text: string, output: *DateTime) ret bool
 frame formatISO(this: *DateTime) ret string
 frame formatTime(this: *DateTime) ret string
 frame compare(this: *DateTime, other: *DateTime) ret int
@@ -903,6 +1005,27 @@ frame _printSnippet(this: *DiagnosticReporter, line: int, col: int, start: int, 
 frame destroy(this: *DiagnosticReporter)
 ```
 
+## std/entropy.bpl
+
+[Source](../lib/entropy.bpl)
+
+Exports:
+
+```bpl
+export [Entropy];
+```
+
+### Entropy
+
+```bpl
+struct Entropy
+frame fill(buffer: *u8, length: long) ret bool
+frame bytes(buffer: *u8, length: long)
+frame hexToken(byteCount: int) ret string
+frame nextULong() ret ulong
+frame below(bound: ulong) ret ulong
+```
+
 ## std/env.bpl
 
 [Source](../lib/env.bpl)
@@ -920,6 +1043,7 @@ struct Env
 frame get(name: string) ret string
 frame getOr(name: string, defaultValue: string) ret string
 frame set(name: string, value: string) ret bool
+frame loadFile(path: string, overrideExisting: bool) ret int
 frame setIfAbsent(name: string, value: string) ret bool
 frame unset(name: string) ret bool
 frame has(name: string) ret bool
@@ -1104,6 +1228,10 @@ frame writeBytes(path: string, data: *u8, length: int) ret bool
 frame readBytes(path: string) ret Array<u8>
 frame readFile(path: string) ret String
 frame mkdir(path: string) ret bool
+frame remove(path: string) ret bool
+frame rename(fromPath: string, toPath: string) ret bool
+frame appendFile(path: string, data: string) ret bool
+frame copyFile(fromPath: string, toPath: string) ret bool
 frame mkdirp(path: string) ret bool
 frame listDir(path: string) ret Array<String>
 frame listDirChecked(path: string) ret Array<String>
@@ -1126,6 +1254,11 @@ struct Hash
 frame fnv1a32(input: string) ret uint
 frame checksum32(input: string) ret uint
 frame combine32(left: uint, right: uint) ret uint
+frame fnv1a64(input: string) ret ulong
+frame crc32(data: *u8, length: long) ret uint
+frame crc32Update(crc: uint, data: *u8, length: long) ret uint
+frame crc32String(input: string) ret uint
+frame adler32(data: *u8, length: long) ret uint
 ```
 
 ## std/hex.bpl
@@ -1155,6 +1288,57 @@ frame u32ToHex(val: u32) ret string
 frame u64ToHex(val: u64) ret string
 frame isValid(input: string) ret bool
 frame decodedLength(input: string) ret int
+```
+
+## std/hmac.bpl
+
+[Source](../lib/hmac.bpl)
+
+Exports:
+
+```bpl
+export [Hmac];
+export [HmacSha512];
+export [HmacSha1];
+```
+
+### Hmac
+
+```bpl
+struct Hmac
+inner: Sha256
+outerKey: u8[64]
+frame sha256(key: *u8, keyLength: long) ret Hmac
+frame update(this: *Hmac, data: *u8, length: long)
+frame finish(this: *Hmac, mac: *u8)
+frame digest(key: *u8, keyLength: long, data: *u8, length: long, mac: *u8)
+frame hex(key: string, message: string) ret string
+frame equal(a: *u8, b: *u8, length: long) ret bool
+```
+
+### HmacSha512
+
+```bpl
+struct HmacSha512
+inner: Sha512
+outerKey: u8[128]
+frame new(key: *u8, keyLength: long) ret HmacSha512
+frame update(this: *HmacSha512, data: *u8, length: long)
+frame finish(this: *HmacSha512, mac: *u8)
+frame digest(key: *u8, keyLength: long, data: *u8, length: long, mac: *u8)
+frame hex(key: string, message: string) ret string
+```
+
+### HmacSha1
+
+```bpl
+struct HmacSha1
+inner: Sha1
+outerKey: u8[64]
+frame new(key: *u8, keyLength: long) ret HmacSha1
+frame update(this: *HmacSha1, data: *u8, length: long)
+frame finish(this: *HmacSha1, mac: *u8)
+frame digest(key: *u8, keyLength: long, data: *u8, length: long, mac: *u8)
 ```
 
 ## std/intrinsics.bpl
@@ -1456,6 +1640,12 @@ frame fromJson(json: string, dest: *Self) ret JsonParseResult
 
 ```bpl
 struct JSON
+frame pretty(text: string, indent: int) ret string
+frame minify(text: string) ret string
+frame reformat(text: string, indent: int) ret string
+frame layout(text: string, indent: int, output: string) ret long
+frame put(output: string, used: long, c: char) ret long
+frame newline(output: string, used: long, indent: int, depth: long) ret long
 frame stringify<T>(obj: *T) ret String
 frame serializeAny(sb: *StringBuilder, ptr: ulong, info: *TypeInfo)
 frame serializeEnum(sb: *StringBuilder, ptr: ulong, info: *TypeInfo)
@@ -1537,6 +1727,18 @@ Exports:
 
 ```bpl
 export [Log];
+export [LogLevel];
+```
+
+### LogLevel
+
+```bpl
+enum LogLevel
+Debug
+Info
+Warn
+Error
+Off
 ```
 
 ### Log
@@ -1547,6 +1749,13 @@ frame debug(msg: string)
 frame info(msg: string)
 frame warn(msg: string)
 frame error(msg: string)
+frame write(level: LogLevel, msg: string)
+frame setLevel(level: LogLevel)
+frame enabled(level: LogLevel) ret bool
+frame setPrefix(enabled: bool)
+frame setTimestamps(enabled: bool)
+frame useStderr(enabled: bool)
+frame levelFromEnv() ret bool
 ```
 
 ## std/map.bpl
@@ -1605,6 +1814,9 @@ frame reserve(this: *Map<K, V>, entry_count: int)
 frame bucketCount(this: *Map<K, V>) ret int
 frame set(this: *Map<K, V>, key: K, value: V)
 frame get(this: *Map<K, V>, key: K) ret Option<V>
+frame getOr(this: *Map<K, V>, key: K, fallback: V) ret V
+frame keys(this: *Map<K, V>) ret Array<K>
+frame values(this: *Map<K, V>) ret Array<V>
 frame has(this: *Map<K, V>, key: K) ret bool
 frame remove(this: *Map<K, V>, key: K) ret bool
 frame iterator(this: *Map<K, V>) ret MapIterator<K, V>
@@ -1881,10 +2093,57 @@ frame isSome(this: Option<T>) ret bool
 frame isNone(this: Option<T>) ret bool
 frame panic() ret T
 frame unwrap(this: Option<T>) ret T
+frame expect(this: Option<T>, message: string) ret T
+frame expectFailed(message: string) ret T
+frame unwrapOrElse(this: Option<T>, fallback: Lambda<T>()) ret T
+frame map<U>(this: Option<T>, transform: Lambda<U>(T)) ret Option<U>
+frame andThen<U>(this: Option<T>, next: Lambda<Option<U>>(T)) ret Option<U>
 frame unwrapOr(this: Option<T>, defaultValue: T) ret T
 frame __eq__(this: *Option<T>, other: *Option<T>) ret bool
 frame __ne__(this: *Option<T>, other: *Option<T>) ret bool
 frame clone(this: *Option<T>) ret Option<T>
+```
+
+## std/otp.bpl
+
+[Source](../lib/otp.bpl)
+
+Exports:
+
+```bpl
+export [Otp];
+```
+
+### Otp
+
+```bpl
+struct Otp
+frame hotp(key: *u8, keyLength: long, counter: long, digits: int) ret int
+frame totpAt(key: *u8, keyLength: long, unixSeconds: long, stepSeconds: int, digits: int) ret int
+frame totp(key: *u8, keyLength: long) ret int
+```
+
+## std/parse.bpl
+
+[Source](../lib/parse.bpl)
+
+Exports:
+
+```bpl
+export [Parse];
+```
+
+### Parse
+
+```bpl
+struct Parse
+frame int(text: string, output: *int) ret bool
+frame long(text: string, output: *long) ret bool
+frame radix(text: string, base: int, output: *long) ret bool
+frame float(text: string, output: *float) ret bool
+frame bool(text: string, output: *bool) ret bool
+frame startsFloat(c: char) ret bool
+frame digitValue(c: char) ret int
 ```
 
 ## std/path.bpl
@@ -1906,6 +2165,8 @@ frame dirname(path: string) ret String
 frame basename(path: string) ret String
 frame isAbsolute(path: string) ret bool
 frame extname(path: string) ret String
+frame stem(path: string) ret String
+frame withExtension(path: string, extension: string) ret String
 frame normalize(path: string) ret String
 frame resolve(base: string, target: string) ret String
 frame relative(src: string, dest: string) ret String
@@ -2115,6 +2376,9 @@ export [ProcessResult];
 export execShell;
 export execSilent;
 export sleep;
+export run;
+export runWith;
+export [RunResult];
 ```
 
 ### ProcessResult
@@ -2123,6 +2387,16 @@ export sleep;
 struct ProcessResult
 exitCode: int
 output: String
+```
+
+### RunResult
+
+```bpl
+struct RunResult
+exitCode: int
+timedOut: bool
+stdout: String
+stderr: String
 ```
 
 ```bpl
@@ -2147,6 +2421,14 @@ frame execStatus(args: ...string, count: int) ret int
 
 ```bpl
 frame execOutput(args: ...string, count: int) ret ProcessResult
+```
+
+```bpl
+frame run(args: ...string, count: int) ret RunResult
+```
+
+```bpl
+frame runWith(input: string, timeoutMs: int, args: ...string, count: int) ret RunResult
 ```
 
 ## std/queue.bpl
@@ -2217,6 +2499,8 @@ frame range(this: *Rand, min: float, max: float) ret float
 frame nextGaussian(this: *Rand) ret float
 frame shuffleInt(this: *Rand, arr: *Array<int>)
 frame choiceInt(this: *Rand, arr: *Array<int>) ret int
+frame shuffle<T>(this: *Rand, arr: *Array<T>)
+frame choice<T>(this: *Rand, arr: *Array<T>, output: *T) ret bool
 frame fillBytes(this: *Rand, buf: *u8, len: int)
 frame weightedChoice(this: *Rand, weights: *Array<int>) ret int
 ```
@@ -2393,6 +2677,65 @@ fields: *FieldInfo
 num_methods: int
 methods: *MethodInfo
 element_type: *TypeInfo
+vtable: *void
+```
+
+## std/regex.bpl
+
+[Source](../lib/regex.bpl)
+
+Exports:
+
+```bpl
+export [Regex];
+```
+
+### Regex
+
+```bpl
+struct Regex
+kinds: *int
+args: *int
+outs: *int
+alternates: *int
+count: int
+capacity: int
+classes: *u8
+classCount: int
+classCapacity: int
+start: int
+pattern: string
+position: int
+frame compile(pattern: string) ret Regex
+frame destroy(this: *Regex)
+frame addState(this: *Regex, kind: int, argument: int) ret int
+frame parseAlternation(this: *Regex, end: *int) ret int
+frame parseConcatenation(this: *Regex, end: *int) ret int
+frame parseRepetition(this: *Regex, end: *int) ret int
+frame parseCount(this: *Regex) ret int
+frame parseCounted(this: *Regex, atomStart: int, end: *int) ret int
+frame parseAtom(this: *Regex, end: *int) ret int
+frame parseEscapedByte(this: *Regex) ret int
+frame parseShorthand(this: *Regex, c: char) ret int
+frame addShorthand(this: *Regex, index: int, kind: char)
+frame parseClass(this: *Regex) ret int
+frame newClass(this: *Regex) ret int
+frame fillClass(this: *Regex, index: int, low: int, high: int)
+frame clearByte(this: *Regex, index: int, b: int)
+frame invertClass(this: *Regex, index: int)
+frame classHas(this: *Regex, index: int, b: int) ret bool
+frame addToSet(this: *Regex, set: *int, size: *int, marks: *int, generation: int, state: int, at: long, length: long)
+frame longestMatchFrom(this: *Regex, text: string, length: long, begin: long) ret long
+frame matches(this: *Regex, text: string) ret bool
+frame find(this: *Regex, text: string, begin: long, matchStart: *long, matchEnd: *long) ret bool
+frame contains(this: *Regex, text: string) ret bool
+frame nextSearch(start: long, end: long) ret long
+frame countMatches(this: *Regex, text: string) ret long
+frame replaceAll(this: *Regex, text: string, replacement: string) ret string
+frame replaceFirst(this: *Regex, text: string, replacement: string) ret string
+frame split(this: *Regex, text: string) ret Array<string>
+frame copyRange(text: string, start: long, end: long) ret string
+frame replace(this: *Regex, text: string, replacement: string, limit: long) ret string
 ```
 
 ## std/result.bpl
@@ -2414,6 +2757,11 @@ Err(E)
 frame isOk(this: Result<T, E>) ret bool
 frame isErr(this: Result<T, E>) ret bool
 frame unwrap(this: Result<T, E>) ret T
+frame expect(this: Result<T, E>, message: string) ret T
+frame expectFailed(message: string) ret T
+frame map<U>(this: Result<T, E>, transform: Lambda<U>(T)) ret Result<U, E>
+frame mapErr<F>(this: Result<T, E>, transform: Lambda<F>(E)) ret Result<T, F>
+frame ok(this: Result<T, E>) ret Option<T>
 frame unwrapOr(this: Result<T, E>, defaultValue: T) ret T
 frame unwrapErr(this: Result<T, E>) ret E
 frame __eq__(this: *Result<T, E>, other: *Result<T, E>) ret bool
@@ -2479,6 +2827,9 @@ frame has(this: *Set<T>, value: T) ret bool
 frame remove(this: *Set<T>, value: T) ret bool
 frame size(this: *Set<T>) ret int
 frame clear(this: *Set<T>)
+frame isEmpty(this: *Set<T>) ret bool
+frame isSubsetOf(this: *Set<T>, other: *Set<T>) ret bool
+frame toArray(this: *Set<T>) ret Array<T>
 frame union(this: *Set<T>, other: *Set<T>) ret Set<T>
 frame difference(this: *Set<T>, other: *Set<T>) ret Set<T>
 frame intersection(this: *Set<T>, other: *Set<T>) ret Set<T>
@@ -2487,6 +2838,118 @@ frame __sub__(this: *Set<T>, other: Set<T>) ret Set<T>
 frame __and__(this: *Set<T>, other: Set<T>) ret Set<T>
 frame __eq__(this: *Set<T>, other: Set<T>) ret bool
 frame __ne__(this: *Set<T>, other: Set<T>) ret bool
+```
+
+## std/sha1.bpl
+
+[Source](../lib/sha1.bpl)
+
+Exports:
+
+```bpl
+export [Sha1];
+```
+
+### Sha1
+
+```bpl
+struct Sha1
+state: u32[5]
+block: u8[64]
+blockLength: int
+totalLength: ulong
+frame new() ret Sha1
+frame init(this: *Sha1)
+frame update(this: *Sha1, data: *u8, length: long)
+frame finish(this: *Sha1, digest: *u8)
+frame compress(this: *Sha1)
+frame rotl(value: u32, bits: int) ret u32
+frame digest(data: *u8, length: long, digest: *u8)
+frame hexBytes(data: *u8, length: long) ret string
+frame hex(text: string) ret string
+```
+
+## std/sha256.bpl
+
+[Source](../lib/sha256.bpl)
+
+Exports:
+
+```bpl
+export [Sha256];
+```
+
+### Sha256
+
+```bpl
+struct Sha256
+state: u32[8]
+block: u8[64]
+blockLength: int
+totalLength: ulong
+frame new() ret Sha256
+frame init(this: *Sha256)
+frame update(this: *Sha256, data: *u8, length: long)
+frame finish(this: *Sha256, digest: *u8)
+frame compress(this: *Sha256)
+frame rotr(value: u32, bits: int) ret u32
+frame digest(data: *u8, length: long, digest: *u8)
+frame hexBytes(data: *u8, length: long) ret string
+frame hex(text: string) ret string
+```
+
+## std/sha384.bpl
+
+[Source](../lib/sha384.bpl)
+
+Exports:
+
+```bpl
+export [Sha384];
+```
+
+### Sha384
+
+```bpl
+struct Sha384
+inner: Sha512
+frame new() ret Sha384
+frame init(this: *Sha384)
+frame update(this: *Sha384, data: *u8, length: long)
+frame finish(this: *Sha384, digest: *u8)
+frame digest(data: *u8, length: long, digest: *u8)
+frame hexBytes(data: *u8, length: long) ret string
+frame hex(text: string) ret string
+```
+
+## std/sha512.bpl
+
+[Source](../lib/sha512.bpl)
+
+Exports:
+
+```bpl
+export [Sha512];
+```
+
+### Sha512
+
+```bpl
+struct Sha512
+state: u64[8]
+block: u8[128]
+blockLength: int
+totalLength: ulong
+frame new() ret Sha512
+frame init(this: *Sha512)
+frame update(this: *Sha512, data: *u8, length: long)
+frame finish(this: *Sha512, digest: *u8)
+frame compress(this: *Sha512)
+frame rotr(value: u64, bits: int) ret u64
+frame storeWord(output: *u8, value: u64)
+frame digest(data: *u8, length: long, digest: *u8)
+frame hexBytes(data: *u8, length: long) ret string
+frame hex(text: string) ret string
 ```
 
 ## std/stack.bpl
@@ -2512,7 +2975,7 @@ frame size(this: *Stack<T>) ret int
 frame isEmpty(this: *Stack<T>) ret bool
 frame peek(this: *Stack<T>) ret Option<T>
 frame clear(this: *Stack<T>)
-frame __lshift__(this: *Stack<T>, value: T) ret Stack<T>
+frame __lshift__(this: *Stack<T>, value: T) ret *Stack<T>
 ```
 
 ## std/stats.bpl
@@ -2670,6 +3133,7 @@ export [JsonToResult];
 export [JsonParseResult];
 export [Jsonable];
 export [Log];
+export [LogLevel];
 export exec;
 export execStatus;
 export execOutput;
@@ -2679,10 +3143,24 @@ export sleep;
 export [ProcessResult];
 export [BitSet];
 export [Base64];
+export [Url];
+export [Base32];
+export [Parse];
 export [Hex];
 export [ByteReader];
 export [ByteWriter];
 export [Hash];
+export [Sha1];
+export [Sha256];
+export [Sha512];
+export [Sha384];
+export [Regex];
+export [BigInt];
+export [Hmac];
+export [HmacSha512];
+export [HmacSha1];
+export [Otp];
+export [Entropy];
 export [UUID];
 export [Stats];
 export [Complex];
@@ -2732,8 +3210,8 @@ frame __lt__(this: *String, other: String) ret bool
 frame __le__(this: *String, other: String) ret bool
 frame __gt__(this: *String, other: String) ret bool
 frame __ge__(this: *String, other: String) ret bool
-frame __lshift__(this: *String, other: String) ret String
-frame __lshift__(this: *String, other: string) ret String
+frame __lshift__(this: *String, other: String) ret *String
+frame __lshift__(this: *String, other: string) ret *String
 frame fromInt(val: long) ret String
 frame fromAddress(addr: long) ret String
 frame get(this: *String, index: int) ret char
@@ -2788,8 +3266,12 @@ frame appendChar(this: *StringBuilder, ch: char)
 frame appendInt(this: *StringBuilder, value: int)
 frame clear(this: *StringBuilder)
 frame len(this: *StringBuilder) ret int
+frame appendLong(this: *StringBuilder, value: long)
+frame appendFloat(this: *StringBuilder, value: float)
+frame appendFixed(this: *StringBuilder, value: float, decimals: int)
+frame appendBool(this: *StringBuilder, value: bool)
 frame toString(this: *StringBuilder) ret string
-frame __lshift__(this: *StringBuilder, str: string) ret StringBuilder
+frame __lshift__(this: *StringBuilder, str: string) ret *StringBuilder
 ```
 
 ## std/string_utils.bpl
@@ -2809,6 +3291,7 @@ struct StringUtils
 frame startsWith(s: string, prefix: string) ret bool
 frame endsWith(s: string, suffix: string) ret bool
 frame find(s: string, ch: char) ret int
+frame join(parts: *Array<string>, separator: string) ret string
 frame trim(s: string) ret String
 frame replaceChar(s: string, target: char, repl: char) ret String
 frame findString(haystack: string, needle: string, start: int) ret int
@@ -2854,6 +3337,7 @@ frame fromMs(ms: long) ret Duration
 frame fromSeconds(sec: long) ret Duration
 frame fromMinutes(min: long) ret Duration
 frame fromHours(hours: long) ret Duration
+frame format(this: *Duration) ret string
 frame toMs(this: *Duration) ret long
 frame toSeconds(this: *Duration) ret long
 frame toMinutes(this: *Duration) ret long
@@ -2928,6 +3412,30 @@ type_info: *TypeInfo
 data: u64
 ```
 
+## std/url.bpl
+
+[Source](../lib/url.bpl)
+
+Exports:
+
+```bpl
+export [Url];
+```
+
+### Url
+
+```bpl
+struct Url
+frame encodeComponent(text: string) ret string
+frame encodeForm(text: string) ret string
+frame decode(text: string) ret string
+frame decodeForm(text: string) ret string
+frame isUnreserved(c: int) ret bool
+frame hexValue(c: int) ret int
+frame encode(text: string, spaceAsPlus: bool) ret string
+frame decodeWith(text: string, plusAsSpace: bool) ret string
+```
+
 ## std/utf8.bpl
 
 [Source](../lib/utf8.bpl)
@@ -2973,6 +3481,9 @@ struct UUID
 bytes: u8[16]
 frame v4() ret UUID
 frame tryV4(output: *UUID) ret bool
+frame v7() ret UUID
+frame tryV7(output: *UUID) ret bool
+frame timestampMs(this: *UUID) ret long
 frame fromBytes(data: *u8) ret UUID
 frame nil() ret UUID
 frame toString(this: *UUID) ret string

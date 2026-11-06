@@ -9,6 +9,7 @@ import {
 
 const WORKFLOW_DIR = join(import.meta.dir, "../.github/workflows");
 const MAINTAINED_ACTION_MAJOR_VERSIONS: Record<string, number> = {
+  "actions/cache": 5,
   "actions/checkout": 6,
   "actions/upload-artifact": 4,
   "actions/download-artifact": 4,
@@ -25,6 +26,23 @@ function listWorkflowNames(): string[] {
     .sort();
 }
 
+interface WorkflowStep {
+  name?: string;
+  uses?: string;
+  run?: string;
+  with?: Record<string, string>;
+}
+
+function readWorkflowJobs(
+  name: string,
+): Record<string, { steps: WorkflowStep[] }> {
+  return (
+    Bun.YAML.parse(readWorkflow(name)) as {
+      jobs: Record<string, { steps: WorkflowStep[] }>;
+    }
+  ).jobs;
+}
+
 function extractActionUses(workflow: string): Array<{
   action: string;
   version: string;
@@ -38,6 +56,59 @@ function extractActionUses(workflow: string): Array<{
 }
 
 describe("GitHub Actions workflows", () => {
+  // BUG-449: one Bun version for CI and the container images.
+  test("every Bun setup and image uses the version in .bun-version", () => {
+    const root = join(import.meta.dir, "..");
+    const version = readFileSync(join(root, ".bun-version"), "utf8").trim();
+    expect(version).toMatch(/^\d+\.\d+\.\d+$/);
+
+    for (const name of listWorkflowNames()) {
+      const lines = readWorkflow(name).split("\n");
+      lines.forEach((line, index) => {
+        if (!/^\s*(-\s+)?uses:\s*oven-sh\/setup-bun@/.test(line)) return;
+        // The step ends at the next list item at or above its indentation.
+        const stepIndent = line.search(/\S/);
+        const step: string[] = [];
+        for (let next = index + 1; next < lines.length; next++) {
+          const text = lines[next]!;
+          const indent = text.search(/\S/);
+          if (indent >= 0 && indent <= stepIndent && /^\s*-/.test(text)) break;
+          if (indent >= 0 && indent < stepIndent) break;
+          step.push(text);
+        }
+        const stepText = step.join("\n");
+        expect({ name, line: index + 1, stepText }).toEqual({
+          name,
+          line: index + 1,
+          stepText: expect.stringMatching(
+            /^\s*bun-version-file: \.bun-version$/m,
+          ),
+        });
+        expect(stepText).not.toMatch(/^\s*bun-version:/m);
+      });
+    }
+
+    for (const dockerfile of ["docker/Dockerfile", "playground/Dockerfile"]) {
+      const images = [
+        ...readFileSync(join(root, dockerfile), "utf8").matchAll(
+          /^FROM oven\/bun:(\S+)/gm,
+        ),
+      ].map((match) => match[1]);
+      expect(images.length).toBeGreaterThan(0);
+      for (const image of images) {
+        expect({ dockerfile, image }).toEqual({ dockerfile, image: version });
+      }
+    }
+
+    const packageJson = JSON.parse(
+      readFileSync(join(root, "package.json"), "utf8"),
+    );
+    // An exact version, not a range such as `1.3.x` or `^1.3.3`.
+    expect(packageJson.devDependencies["@types/bun"]).toMatch(
+      /^\d+\.\d+\.\d+$/,
+    );
+  });
+
   test("container publication accepts release tags and explicit manual requests on patch-only versions", () => {
     const workflow = readWorkflow("container-images.yml");
     expect(workflow).toContain("default: false");
@@ -410,5 +481,112 @@ describe("GitHub Actions workflows", () => {
     expect(sanitizerTest).toContain("sanitizerTest(");
     expect(sanitizerTest).toContain("SANITIZER_RUNTIME_TEST_TIMEOUT_MS,\n  );");
     expect(timeoutEnv).toContain("SANITIZER_RUNTIME_TEST_TIMEOUT_MS: 30000");
+  });
+
+  // BUG-449: type check and lint are platform independent, so they run once.
+  test("compiler correctness workflow type-checks and lints in one job", () => {
+    const jobs = readWorkflowJobs("compiler-correctness.yml");
+    const runs = (job: string) =>
+      jobs[job]!.steps.map((step) => step.run ?? "").join("\n");
+
+    expect(runs("static-checks")).toContain("bun run check");
+    expect(runs("static-checks")).toContain("bun run lint");
+    // BUG-448: formatting drift fails CI.
+    expect(runs("static-checks")).toContain("bun run format:check");
+    expect(runs("static-checks")).toContain("bun run format:bpl:check");
+    for (const job of Object.keys(jobs).filter((j) => j !== "static-checks")) {
+      expect({ job, runs: runs(job) }).toEqual({
+        job,
+        runs: expect.not.stringMatching(/bun run (check|lint)\b/),
+      });
+    }
+  });
+
+  // BUG-449: dependency downloads are cached, keyed on the lockfiles.
+  test("every dependency install restores a lockfile-keyed cache first", () => {
+    for (const name of listWorkflowNames()) {
+      for (const [job, { steps }] of Object.entries(readWorkflowJobs(name))) {
+        const install = steps.findIndex((step) =>
+          /\b(bun install|npm ci)\b/.test(step.run ?? ""),
+        );
+        if (install < 0) continue;
+        const cache = steps.findIndex((step) =>
+          step.uses?.startsWith("actions/cache@"),
+        );
+        expect({
+          name,
+          job,
+          cacheBeforeInstall: cache >= 0 && cache < install,
+        }).toEqual({ name, job, cacheBeforeInstall: true });
+        const key = steps[cache]!.with!.key!;
+        expect(key).toContain("'.bun-version'");
+        expect(key).toContain("'bun.lock'");
+        if (/\bnpm ci\b/.test(steps[install]!.run!)) {
+          expect(key).toContain("'vscode-ext/package-lock.json'");
+        }
+      }
+    }
+  });
+
+  test("Dependabot opens update PRs against staging and leaves Bun to .bun-version", () => {
+    const config = Bun.YAML.parse(
+      readFileSync(join(import.meta.dir, "../.github/dependabot.yml"), "utf8"),
+    ) as {
+      updates: Array<{
+        "package-ecosystem": string;
+        "target-branch"?: string;
+        ignore?: Array<{ "dependency-name": string }>;
+      }>;
+    };
+    const ecosystems = config.updates.map((u) => u["package-ecosystem"]);
+
+    expect(ecosystems).toEqual(["github-actions", "bun", "npm"]);
+    for (const update of config.updates) {
+      expect(update["target-branch"]).toBe("staging");
+    }
+    expect(
+      config.updates
+        .find((u) => u["package-ecosystem"] === "bun")!
+        .ignore!.map((rule) => rule["dependency-name"]),
+    ).toContain("@types/bun");
+  });
+
+  test("release binaries are built per platform, smoke-tested and only attached to draft v0.1.x releases", () => {
+    const workflow = Bun.YAML.parse(readWorkflow("release-binaries.yml")) as {
+      on: { push: { tags: string[] } };
+      permissions: { contents: string };
+      jobs: Record<
+        string,
+        {
+          if?: string;
+          permissions?: { contents: string };
+          strategy?: {
+            matrix: { include: Array<{ asset: string; target: string }> };
+          };
+          steps: WorkflowStep[];
+        }
+      >;
+    };
+    expect(workflow.permissions.contents).toBe("read");
+    expect(
+      workflow.jobs.build!.strategy!.matrix.include.map((entry) => entry.asset),
+    ).toEqual(["linux-x64", "linux-arm64", "darwin-arm64", "darwin-x64"]);
+    const buildRuns = workflow.jobs
+      .build!.steps.map((step) => step.run ?? "")
+      .join("\n");
+    expect(buildRuns).toContain("bun run generate:embedded");
+    expect(buildRuns).toContain("--target=${{ matrix.target }}");
+    // The smoke test runs outside the checkout without BPL_HOME, so only the
+    // embedded standard library is available.
+    expect(buildRuns).toContain('cd "$RUNNER_TEMP"');
+    expect(buildRuns).toContain("env -u BPL_HOME");
+
+    const publish = workflow.jobs.publish!;
+    expect(publish.permissions?.contents).toBe("write");
+    expect(publish.if).toContain("startsWith(github.ref, 'refs/tags/v')");
+    const publishRuns = publish.steps.map((step) => step.run ?? "").join("\n");
+    expect(publishRuns).toContain("^v0\\.1\\.(0|[1-9][0-9]*)$");
+    expect(publishRuns).toContain("--draft");
+    expect(publishRuns).toContain("SHA256SUMS");
   });
 });

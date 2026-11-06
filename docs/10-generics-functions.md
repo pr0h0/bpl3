@@ -183,6 +183,22 @@ frame printAll<T: Printable>(items: *T, count: int) ret void {
 }
 ```
 
+Generic specs work the same way. Inside the function, `Self` in the spec's
+methods is the constrained parameter, so a method returning `Self` returns a
+`T`:
+
+```bpl
+spec Getter<V> {
+    frame get(this: *Self) ret V;
+    frame twice(this: *Self) ret Self;
+}
+
+frame total<T: Getter<long>>(x: *T) ret long {
+    local doubled: T = x.twice();
+    return x.get() + doubled.get();
+}
+```
+
 ## Common Patterns
 
 ### Generic Swap

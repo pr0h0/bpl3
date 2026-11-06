@@ -1,6 +1,6 @@
 export [Debug];
 
-import frameaddress, returnaddress, dladdr, [Dl_info] from "std/intrinsics.bpl";
+import frameaddress, dladdr, [Dl_info] from "std/intrinsics.bpl";
 extern printf(fmt: string, ...) ret int;
 extern malloc(size: long) ret *void;
 extern free(ptr: *void) ret void;

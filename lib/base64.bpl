@@ -23,8 +23,9 @@ struct Base64 {
         # Calculate output length: 4 chars for every 3 bytes, rounded up
         local outLen: int = Base64.encodedLength(length);
         local output: *u8 = cast<*u8>(malloc(cast<long>(outLen) + cast<long>(1)));
-        if (output == nullptr) { return cast<string>(nullptr); }
-
+        if (output == nullptr) {
+            return cast<string>(nullptr);
+        }
         local alphabet: string = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
         local alphaPtr: *u8 = cast<*u8>(alphabet);
 
@@ -149,9 +150,9 @@ struct Base64 {
         local len: int = cast<int>(inputLength);
 
         local vals: int[4];
-        local held: int = 0;      # characters gathered for the current group
-        local padding: int = 0;   # '=' seen in the current group
-        local closed: bool = false;  # a padded group has ended the input
+        local held: int = 0; # characters gathered for the current group
+        local padding: int = 0; # '=' seen in the current group
+        local closed: bool = false; # a padded group has ended the input
         local produced: int = 0;
 
         local i: int = 0;
@@ -241,7 +242,6 @@ struct Base64 {
         if (output == nullptr) {
             return cast<string>(nullptr);
         }
-
         Base64.scan(input, output, true);
         *(output + needed) = cast<u8>(0);
 
@@ -254,9 +254,97 @@ struct Base64 {
         return Base64.scan(input, nullptr, false);
     }
 
+    # URL-safe Base64 (RFC 4648 section 5): `-` and `_` instead of `+` and
+    # `/`, without `=` padding, as used in JWTs and URLs. Returns a newly
+    # allocated string (caller must free), or nullptr if allocation fails.
+    frame encodeUrl(data: *u8, length: int) ret string {
+        local encoded: string = Base64.encode(data, length);
+        if (encoded == nullptr) {
+            return encoded;
+        }
+        local text: *u8 = cast<*u8>(encoded);
+        local i: long = 0;
+        loop (*(text + i) != cast<u8>(0)) {
+            local c: u8 = *(text + i);
+            if (c == cast<u8>(43)) {
+                *(text + i) = cast<u8>(45); # '+' -> '-'
+            } else if (c == cast<u8>(47)) {
+                *(text + i) = cast<u8>(95); # '/' -> '_'
+            } else if (c == cast<u8>(61)) {
+                *(text + i) = cast<u8>(0); # padding ends the text
+                break;
+            }
+            i = i + 1;
+        }
+        return encoded;
+    }
+
+    frame encodeStringUrl(str: string) ret string {
+        if (str == nullptr) {
+            return Base64.encodeUrl(nullptr, 0);
+        }
+        local len: long = strlen(str);
+        if (len > cast<long>(1610612733)) {
+            throw "Base64 encoded length exceeds int";
+        }
+        return Base64.encodeUrl(cast<*u8>(str), cast<int>(len));
+    }
+
+    # `input` with the `=` padding unpadded URL-safe Base64 leaves out, as a
+    # new string (caller must free), or nullptr if no padding can make it
+    # valid (a length of 1 mod 4).
+    frame padded(input: string) ret string {
+        local length: long = 0;
+        if (input != nullptr) {
+            length = strlen(input);
+        }
+        local missing: long = (cast<long>(4) - (length % cast<long>(4))) % cast<long>(4);
+        if (missing == cast<long>(3)) {
+            return cast<string>(nullptr);
+        }
+        local copy: *u8 = cast<*u8>(malloc(length + missing + cast<long>(1)));
+        if (copy == nullptr) {
+            return cast<string>(nullptr);
+        }
+        loop (local i: long = 0; i < length; i = i + 1) {
+            *(copy + i) = *(cast<*u8>(input) + i);
+        }
+        loop (local k: long = 0; k < missing; k = k + 1) {
+            *(copy + (length + k)) = cast<u8>(61);
+        }
+        *(copy + (length + missing)) = cast<u8>(0);
+        return cast<string>(copy);
+    }
+
+    # Decode URL-safe Base64, with or without padding, into `output`; the
+    # number of bytes, or -1 if the input is not valid.
+    frame decodeUrl(input: string, output: *u8) ret int {
+        local full: string = Base64.padded(input);
+        if (full == nullptr) {
+            return -1;
+        }
+        local result: int = Base64.decode(full, output);
+        free(cast<*void>(full));
+        return result;
+    }
+
+    # Decode URL-safe Base64, with or without padding, to a new string
+    # (caller must free), or nullptr if the input is not valid.
+    frame decodeUrlToString(input: string) ret string {
+        local full: string = Base64.padded(input);
+        if (full == nullptr) {
+            return full;
+        }
+        local result: string = Base64.decodeToString(full);
+        free(cast<*void>(full));
+        return result;
+    }
+
     # Calculate the encoded length for given input length
     frame encodedLength(inputLen: int) ret int {
-        if (inputLen <= 0) { return 0; }
+        if (inputLen <= 0) {
+            return 0;
+        }
         local size: long = ((cast<long>(inputLen) + cast<long>(2)) / cast<long>(3)) * cast<long>(4);
         if (size > cast<long>(2147483647)) {
             throw "Base64 encoded length exceeds int";

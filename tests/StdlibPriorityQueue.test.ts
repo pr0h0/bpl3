@@ -2,10 +2,11 @@ import { test } from "bun:test";
 import { expectCorrectnessSuite } from "./helpers/compilerCorrectness";
 
 test("heap leaves stop before child-index arithmetic can overflow", () => {
-  expectCorrectnessSuite([{
-    name: "heap-large-leaf",
-    validateLlvm: true,
-    source: `
+  expectCorrectnessSuite([
+    {
+      name: "heap-large-leaf",
+      validateLlvm: true,
+      source: `
       import [PriorityQueue] from "std/priority_queue.bpl";
       import [Array] from "std/array.bpl";
       frame main() ret int {
@@ -20,28 +21,35 @@ test("heap leaves stop before child-index arithmetic can overflow", () => {
         heap.destroy();
         return 0;
       }`,
-    expectedStdout: "",
-  }]);
+      expectedStdout: "",
+    },
+  ]);
 }, 60000);
 
-const values = [-2147483648, 2147483647, ...Array.from({length: 80}, (_, i) => (i * 31) % 29 - 14)];
+const values = [
+  -2147483648,
+  2147483647,
+  ...Array.from({ length: 80 }, (_, i) => ((i * 31) % 29) - 14),
+];
 test("priority queues preserve sorted order through growth and repeated removal", () => {
-  expectCorrectnessSuite([{
-    name: "heap-order-model",
-    validateLlvm: true,
-    source: `
+  expectCorrectnessSuite([
+    {
+      name: "heap-order-model",
+      validateLlvm: true,
+      source: `
       import [PriorityQueue] from "std/priority_queue.bpl";
       extern printf(fmt: string, ...);
       import [Array] from "std/array.bpl";
       frame main() ret int {
         local heap: PriorityQueue<int> = PriorityQueue<int>.new(0);
-        local values: int[${values.length}] = [${values.map(v => `cast<int>(${v})`).join(", ")}];
+        local values: int[${values.length}] = [${values.map((v) => `cast<int>(${v})`).join(", ")}];
         loop (local i: int = 0; i < ${values.length}; i = i + 1) { heap.push(values[i]); }
         loop (!heap.isEmpty()) { printf("%d\\n", heap.pop().unwrap()); }
         if (!heap.pop().isNone()) { return 1; }
         heap.destroy();
         return 0;
       }`,
-    expectedStdout: [...values].sort((a, b) => a - b).join("\n") + "\n",
-  }]);
+      expectedStdout: [...values].sort((a, b) => a - b).join("\n") + "\n",
+    },
+  ]);
 }, 60000);

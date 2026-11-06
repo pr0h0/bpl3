@@ -2,11 +2,12 @@ import { it } from "bun:test";
 import { expectCorrectnessSuite } from "./helpers/compilerCorrectness";
 
 it("restores exception handlers when break and continue exit a try scope", () => {
-  expectCorrectnessSuite([{
-    name: "try handler lifetime on loop exits",
-    validateLlvm: true,
-    expectedStdout: "break defer\nouter 7\ncontinue defer\nouter 8\n",
-    source: `
+  expectCorrectnessSuite([
+    {
+      name: "try handler lifetime on loop exits",
+      validateLlvm: true,
+      expectedStdout: "break defer\nouter 7\ncontinue defer\nouter 8\n",
+      source: `
       extern printf(fmt: string, ...);
       frame main() ret int {
         try {
@@ -26,15 +27,17 @@ it("restores exception handlers when break and continue exit a try scope", () =>
         return 0;
       }
     `,
-  }]);
+    },
+  ]);
 }, 60000);
 
 it("restores try handlers on function returns and match yields", () => {
-  expectCorrectnessSuite([{
-    name: "try handler lifetime on value exits",
-    validateLlvm: true,
-    expectedStdout: "3 4 9\nouter 11\n",
-    source: `
+  expectCorrectnessSuite([
+    {
+      name: "try handler lifetime on value exits",
+      validateLlvm: true,
+      expectedStdout: "3 4 9\nouter 11\n",
+      source: `
       extern printf(fmt: string, ...);
       frame leave(flag: bool) ret int {
         try { if (flag) { return 3; } return 4; }
@@ -59,15 +62,17 @@ it("restores try handlers on function returns and match yields", () => {
         return 0;
       }
     `,
-  }]);
+    },
+  ]);
 }, 60000);
 
 it("retains handlers for inner loop exits and exceptions during deferred cleanup", () => {
-  expectCorrectnessSuite([{
-    name: "try cleanup boundaries",
-    validateLlvm: true,
-    expectedStdout: "inner 5\ndeferred 6\nouter 7\n",
-    source: `
+  expectCorrectnessSuite([
+    {
+      name: "try cleanup boundaries",
+      validateLlvm: true,
+      expectedStdout: "inner 5\ndeferred 6\nouter 7\n",
+      source: `
       extern printf(fmt: string, ...);
       frame main() ret int {
         try {
@@ -80,5 +85,6 @@ it("retains handlers for inner loop exits and exceptions during deferred cleanup
         return 0;
       }
     `,
-  }]);
+    },
+  ]);
 }, 60000);

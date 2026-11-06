@@ -1,0 +1,19 @@
+{
+  "args": [
+    "--",
+    "--jobs",
+    "8",
+    "--limit=5000000000",
+    "-r",
+    "0.25",
+    "--name",
+    "build"
+  ],
+  "expectedOutput": [
+    "jobs 1 8",
+    "limit 1 5000000000",
+    "ratio 1 0.25",
+    "name as int 0 -1",
+    "missing 0 -1"
+  ]
+}

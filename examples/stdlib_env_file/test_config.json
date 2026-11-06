@@ -1,0 +1,17 @@
+{
+  "expectedOutput": [
+    "loaded 6",
+    "APP_NAME=[demo app]",
+    "APP_PORT=[8080]",
+    "APP_GREETING=[hello\tworld \"quoted\"]",
+    "APP_RAW=[no $escape \\n here]",
+    "APP_HASH=[a#b]",
+    "APP_EMPTY=[]",
+    "APP_KEEP=[from-process]",
+    "override loaded 7",
+    "APP_KEEP=[from-file]",
+    "bad -1",
+    "GOOD unset",
+    "missing -1"
+  ]
+}

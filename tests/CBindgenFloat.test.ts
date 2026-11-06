@@ -215,3 +215,30 @@ test("generated float constants match Clang on both sides of binary32 rounding b
     rmSync(dir, { recursive: true, force: true });
   }
 }, 90000);
+
+// BUG-441: double constants kept their C exponent form, which BPL rejects.
+test("double constants with exponents become plain decimal BPL literals", () => {
+  const dir = mkdtempSync(join(tmpdir(), "bpl-bindgen-exponent-"));
+  try {
+    const header = join(dir, "api.h");
+    writeFileSync(
+      header,
+      "#define SCI 1e-3\n#define BIG 2.5E+4\n#define NEG -3e2\n",
+    );
+    const bindings = generateBplBindings({ headerPath: header });
+    expect(bindings).toContain("global const SCI: double = 0.001;");
+    expect(bindings).toContain("global const BIG: double = 25000.0;");
+    expect(bindings).toContain("global const NEG: double = -300.0;");
+    const file = join(dir, "api.bpl");
+    writeFileSync(file, bindings);
+    const check = spawnSync(
+      process.execPath,
+      [resolve("index.ts"), "check", "--no-prelude", file],
+      { encoding: "utf8" },
+    );
+    expect(check.stderr).toBe("");
+    expect(check.status).toBe(0);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});

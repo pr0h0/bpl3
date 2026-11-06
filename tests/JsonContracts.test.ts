@@ -16,6 +16,7 @@ describe("JSON contract constants", () => {
       { command: "bpl docs <file> --json", check: "docs" },
       { command: "bpl format --check --json", check: "format" },
       { command: "bpl lint --json", check: "lint" },
+      { command: "bpl test --json", check: "test" },
       { command: "bpl doctor --json", check: "toolchain" },
       { command: "bpl doctor sanitizer --json", check: "toolchain" },
       { command: "bpl doctor <unknown> --json", check: "doctor" },
@@ -99,10 +100,7 @@ describe("JSON contract constants", () => {
       packages: "packages",
     });
 
-    const source = readFileSync(
-      "compiler/middleend/PackageManager.ts",
-      "utf8",
-    );
+    const source = readFileSync("compiler/middleend/PackageManager.ts", "utf8");
     for (const check of [
       "package-cache-clean",
       "package-install",

@@ -2,10 +2,11 @@ import { test } from "bun:test";
 import { expectCorrectnessSuite } from "./helpers/compilerCorrectness";
 
 test("StringUtils search rejects invalid offsets and handles empty searches", () => {
-  expectCorrectnessSuite([{
-    name: "string-utils-search-bounds",
-    validateLlvm: true,
-    source: `
+  expectCorrectnessSuite([
+    {
+      name: "string-utils-search-bounds",
+      validateLlvm: true,
+      source: `
       import [StringUtils] from "std/string_utils.bpl";
       frame main() ret int {
         # The prefix is in the same literal allocation, so the old negative
@@ -22,6 +23,7 @@ test("StringUtils search rejects invalid offsets and handles empty searches", ()
         if (StringUtils.findString("abc", nullptr, 0) != -1) { return 9; }
         return 0;
       }`,
-    expectedStdout: "",
-  }]);
+      expectedStdout: "",
+    },
+  ]);
 }, 60000);

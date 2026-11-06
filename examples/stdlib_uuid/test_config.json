@@ -27,6 +27,11 @@
     "Original equals clone: 1",
     "--- Bytes Conversion ---",
     "Reconstructed equals original: 1",
+    "--- UUID v7 ---",
+    "v7 version: 7, variant: 1",
+    "v7 timestamp is now: 1",
+    "10000 v7 UUIDs increase: 1",
+    "v4 timestamp: -1",
     "=== UUID Test Complete ==="
   ],
   "args": [],

@@ -4,7 +4,6 @@ import * as os from "os";
 import * as path from "path";
 
 import {
-  DEFAULT_WASM_LINKER_CANDIDATES,
   findWasmLinker,
   formatOptionalWasmRuntimeSkipMessage,
   formatRequiredWasmLinkerError,
@@ -41,9 +40,7 @@ describe("Wasm toolchain helpers", () => {
   test("uses WASM_LD as an explicit wasm linker override", () => {
     process.env.WASM_LD = "/opt/llvm/bin/wasm-ld-custom";
 
-    expect(getWasmLinkerCandidates()).toEqual([
-      "/opt/llvm/bin/wasm-ld-custom",
-    ]);
+    expect(getWasmLinkerCandidates()).toEqual(["/opt/llvm/bin/wasm-ld-custom"]);
   });
 
   test("keeps explicit WASM_LD as the only candidate when it matches a default", () => {
@@ -125,10 +122,7 @@ describe("Wasm toolchain helpers", () => {
       );
 
       expect(
-        findWasmLinker([
-          path.join(tempDir, "missing-wasm-ld"),
-          workingLinker,
-        ]),
+        findWasmLinker([path.join(tempDir, "missing-wasm-ld"), workingLinker]),
       ).toBe(workingLinker);
     } finally {
       fs.rmSync(tempDir, { recursive: true, force: true });

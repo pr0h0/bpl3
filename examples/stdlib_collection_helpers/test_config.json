@@ -1,0 +1,10 @@
+{
+  "expectedOutput": [
+    "inserted: 1 2 3 4 (empty 0)",
+    "insert out of range throws",
+    "cleared: (empty 1)",
+    "reused: 7 (empty 0)",
+    "getOr ada 3, eve -1",
+    "3 keys, values sum 16, first key matches first value 1"
+  ]
+}

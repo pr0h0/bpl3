@@ -2,6 +2,7 @@ import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { spawn, type ChildProcess } from "child_process";
 import { DockerPlaygroundRunner } from "../playground/backend/runner";
 import { runProcessFile } from "../playground/backend/processRunner";
+import { listeningPort } from "./helpers/listeningPort";
 
 const dockerTests =
   process.env.BPL_TEST_DOCKER === "1" ? describe : describe.skip;
@@ -262,17 +263,19 @@ dockerTests("real Docker playground workers", () => {
 
 dockerTests("Docker playground HTTP routing", () => {
   let server: ChildProcess;
-  const port = 40000 + (process.pid % 10000);
-  const base = `http://127.0.0.1:${port}`;
+  let port = 0;
+  let base = "";
   beforeAll(async () => {
     server = spawn("bun", ["playground/backend/server.ts"], {
       env: {
         ...process.env,
-        PORT: String(port),
+        PORT: "0",
         BPL_PLAYGROUND_RUNNER: "docker",
       },
-      stdio: "ignore",
+      stdio: ["ignore", "ignore", "pipe"],
     });
+    port = await listeningPort(server);
+    base = `http://127.0.0.1:${port}`;
     const deadline = Date.now() + 20000;
     while (Date.now() < deadline) {
       try {
@@ -363,10 +366,21 @@ dockerTests("Docker playground HTTP routing", () => {
       if (remaining) await new Promise((resolve) => setTimeout(resolve, 50));
     }
     expect(remaining).toBe("");
-    const next = await fetch(`${base}/compile`, {
-      method: "POST",
-      body: JSON.stringify({ code: hello }),
-    });
-    expect(await next.json()).toMatchObject({ success: true });
+    // The server releases the client's slot after the container is gone, so
+    // the follow-up request may briefly still see the cancelled job.
+    let next: { success?: boolean; error?: string } = {};
+    const released = Date.now() + 5000;
+    do {
+      next = (await (
+        await fetch(`${base}/compile`, {
+          method: "POST",
+          body: JSON.stringify({ code: hello }),
+        })
+      ).json()) as typeof next;
+      if (next.success || !next.error?.includes("already have a running job"))
+        break;
+      await new Promise((resolve) => setTimeout(resolve, 100));
+    } while (Date.now() < released);
+    expect(next).toMatchObject({ success: true });
   }, 30000);
 });

@@ -3,6 +3,7 @@
 import [UUID], [Rand] from "std/std.bpl";
 
 import [printf] from "std/c.bpl";
+import [Time] from "std/time.bpl";
 import [free] from "std/c.bpl";
 
 frame main() ret int {
@@ -82,6 +83,27 @@ frame main() ret int {
 
     local fromBytes: UUID = UUID.fromBytes(&bytesOut[0]);
     printf("Reconstructed equals original: %d\n", cast<int>(uuid1.equals(&fromBytes)));
+
+    # Time-ordered v7 UUIDs
+    printf("\n--- UUID v7 ---\n");
+    local before: long = Time.nowMs();
+    local first: UUID = UUID.v7();
+    printf("v7 version: %d, variant: %d\n", first.version(), first.variant());
+    local stamp: long = first.timestampMs();
+    printf("v7 timestamp is now: %d\n", cast<int>((stamp >= before) && (stamp <= Time.nowMs())));
+    local previous: UUID = first;
+    local ordered: bool = true;
+    local count: int = 0;
+    loop (count < 10000) {
+        local next: UUID = UUID.v7();
+        if (next.compare(&previous) <= 0) {
+            ordered = false;
+        }
+        previous = next;
+        count = count + 1;
+    }
+    printf("10000 v7 UUIDs increase: %d\n", cast<int>(ordered));
+    printf("v4 timestamp: %ld\n", uuid1.timestampMs());
 
     printf("\n=== UUID Test Complete ===\n");
     return 0;

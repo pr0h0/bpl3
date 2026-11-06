@@ -6,6 +6,629 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+## [0.1.2] - 2026-11-06
+
+See [release notes](docs/releases/v0.1.2.md) for the release scope and validation.
+
+### Changed
+
+- The playground frontend is rewritten. Both pages share one stylesheet that
+  follows the system light or dark scheme, drop Font Awesome and decorative
+  icons, and work on narrow screens. The playground page has a toolbar
+  (Run, Run as Wasm, Format, example list) beside the editor and output tabs.
+  The tutorial page has a course outline, a reading column, runnable examples
+  that can be edited in place, exercises with hint and solution, and quizzes.
+  Lesson text goes through a new Markdown renderer
+  (`playground/frontend/markdown.js`) with tables, nested lists and escaping,
+  so tables such as lesson 2's integer types no longer show as raw `|` text.
+  `bplSyntax.js` holds the shared Monaco language definition (R-LEX-3 keywords,
+  nested block comments, interpolated strings) and the static highlighter.
+- A missing member on a primitive value is reported with the value's type
+  (`'i32'`, `'double'`) instead of the internal wrapper (`'Int'`,
+  `'Double'`) (BUG-479).
+- `IndexOutOfBoundsError` messages name the index and length
+  (`Index 5 out of bounds for length 1`), so an uncaught error shows them.
+
+- `bpl lint --fix` removes unused imports (L002) in place.
+- `Option` adds `expect`, `unwrapOrElse`, `map` and `andThen`; `Result` adds
+  `expect`, `map`, `mapErr` and `ok`.
+- `Path.stem(path)` and `Path.withExtension(path, extension)` return a file
+  name without its extension and a path with the extension replaced.
+- `Rand.shuffle<T>` and `Rand.choice<T>` shuffle and pick from arrays of any
+  element type.
+- `StringBuilder` adds `appendLong`, `appendFloat`, `appendFixed` and
+  `appendBool`, and `StringUtils.join` joins an array of strings.
+- A reserved word used as a struct field, lambda parameter or enum variant
+  name is reported at the name (BUG-478).
+- A reserved word used as a struct field or lambda parameter name is reported
+  at the name (BUG-478); a reserved enum variant name is not yet.
+- `ParsedArgs.flagInt`, `flagLong` and `flagFloat` read a flag's value as a
+  checked number.
+- `Regex.split(text)` returns the pieces of `text` between matches, keeping
+  empty pieces as Python's `re.split` does.
+- `Array.sortBy(compare)` sorts any element type in place with a comparator;
+  the sort is stable.
+- `bpl format --diff` checks formatting and prints a unified diff of the
+  changes for each unformatted file.
+
+- `std/otp.bpl` adds HOTP (RFC 4226) and TOTP (RFC 6238) one-time passwords
+  (`Otp`), and `std/hmac.bpl` adds `HmacSha1`; `std` re-exports both.
+- Lint rule `L009` reports a value overwritten by the next statement before
+  it is read.
+- `Env.loadFile(path, overrideExisting)` loads a dotenv (`.env`) file into
+  the process environment.
+- `Duration.format()` writes a duration as text such as `450ms`, `1.5s` or
+  `1h2m3.456s`.
+
+- `std/sha1.bpl` adds SHA-1 digests (`Sha1`, also exported by `std`) with the
+  same interface as `Sha256`, for protocols that require SHA-1 such as the
+  WebSocket handshake.
+- `Set` adds `isEmpty()`, `isSubsetOf(&other)` and `toArray()`.
+- `bpl lint` reads `disable` from the nearest `.bpllint.json` (schema
+  `schemas/bpl-lint.schema.json`) and combines it with `--disable`.
+- `FS` adds `appendFile`, `copyFile` (which refuses to copy a file onto
+  itself), `rename` and `remove`.
+- `JSON.pretty(text, indent)` re-indents JSON text and `JSON.minify(text)`
+  removes whitespace outside strings.
+- A reserved word used as a parameter name in a struct's later method is
+  reported at the name instead of as unexpected syntax at the struct
+  (BUG-477).
+
+- `Array` adds `insert(index, value)`, `clear()` and `isEmpty()`; `Map` adds
+  `getOr(key, fallback)`, `keys()` and `values()`.
+- `Log.setTimestamps(true)` starts each log line with the current UTC time in
+  ISO 8601 with milliseconds (`2026-11-01T12:34:56.789Z `).
+- `std/parse.bpl` adds checked parsing (`Parse.int`, `long`, `radix`, `float`
+  and `bool`), which reports bad input and overflow instead of returning 0;
+  `std` re-exports `Parse`.
+- `Date.tryParse` and `DateTime.tryParse` parse ISO 8601 dates and date-times
+  (fractional seconds, `Z` and numeric offsets, which convert to UTC).
+- `std/base32.bpl` adds RFC 4648 Base32 (`Base32`, also exported by `std`):
+  padded encoding, and decoding in either case with optional padding.
+- `bpl lint --disable <codes>` skips the listed rules (comma-separated,
+  case-insensitive, repeatable); an unknown code fails with
+  `BPL_LINT_UNKNOWN_RULE`.
+
+- `std/url.bpl` adds URL percent-encoding (`Url.encodeComponent`,
+  `Url.decode`) and HTML form encoding (`Url.encodeForm`, `Url.decodeForm`);
+  `std` re-exports `Url`.
+- `std/sha384.bpl` adds SHA-384 digests (`Sha384`, also exported by `std`),
+  built on `Sha512`.
+- `std/hmac.bpl` adds `HmacSha512` (also exported by `std`), HMAC over
+  SHA-512 with the same streaming and one-call interface as `Hmac`.
+- `Regex` adds `countMatches`, `replaceAll` and `replaceFirst`, which count or
+  replace non-overlapping matches with the same empty-match rules as Perl and
+  Python.
+- Lint rule `L008` reports an `if` or `else` with an empty block; a block
+  holding only a comment is not reported. Dead empty branches in `bpl-db`
+  and `bpl-templ` are removed.
+- `UUID.v7()` and `UUID.tryV7()` generate time-ordered v7 UUIDs (RFC 9562),
+  increasing within a process even in one millisecond, and
+  `uuid.timestampMs()` reads their time.
+
+- Lint rule `L006` reports a variable compared with itself (`n == n`,
+  `i < i`), whose result is fixed. It checks names declared with a primitive,
+  `string` or pointer type, and allows `x != x` on floating-point values, the
+  NaN test.
+- `Hash` (`std/hash.bpl`) adds `crc32`, `crc32Update` and `crc32String`
+  (IEEE 802.3, as in zlib, gzip, ZIP and PNG), `adler32` (RFC 1950) and
+  `fnv1a64`.
+- `Entropy.hexToken(byteCount)` returns that many secure random bytes as hex,
+  for session ids, CSRF tokens and nonces.
+- `std/sha512.bpl` adds SHA-512 digests (`Sha512`, also exported by `std`)
+  with the same streaming and one-call interface as `Sha256`.
+- Lint rule `L007` reports an `else if` whose condition repeats an earlier
+  condition of the same chain, so its branch never runs.
+
+- `std/regex.bpl` supports counted repetition: `{m}`, `{m,}`, `{m,n}` and
+  `{,n}`.
+- An enum reached through a namespace import works everywhere a local one
+  does: `ns.Shape.Circle { radius: 1 }` constructs a struct variant (it was a
+  parse error), a nested pattern may name `ns.Shade.Dark(n)` (it reported an
+  unknown type), and `switch` accepts a namespaced enum value and
+  `case ns.Shade.Light:` labels (both were rejected).
+- `std/log.bpl` is a leveled logger: `LogLevel`, `Log.setLevel`,
+  `Log.enabled`, `Log.write`, `Log.levelFromEnv` (`BPL_LOG_LEVEL`),
+  `Log.setPrefix` for `[LEVEL] ` prefixes and `Log.useStderr`. By default
+  every level is still written to standard output without a prefix.
+- docs/67-testing.md is a guide to writing and running tests with `bpl test`
+  and `std/assert.bpl`.
+- `std/assert.bpl` adds `isTrue`, `isFalse`, `fail`, `equalInt`, `equalLong`,
+  `equalString` and `near`; the comparison helpers print the expected and
+  actual values when they fail.
+- The language server resolves the types of names bound inside nested
+  struct-variant field patterns (for hover and related features).
+- `bpl test --list` prints the tests it would run without building them, and
+  `bpl test --fail-fast` stops after the first failing test or file.
+- `bpl lint` reports self-assignments (`L005`), such as `x = x`. bpl-db's two
+  `len = len`/`type_int = type_int` "unused variable" workarounds are removed
+  (the archive is repacked; its version is unchanged).
+- `UUID.v4` draws its random bytes through `std/entropy.bpl` instead of its own
+  `getentropy` declaration; behaviour is unchanged.
+- `std/base64.bpl` encodes and decodes URL-safe Base64 without padding
+  (`encodeUrl`, `encodeStringUrl`, `decodeUrl`, `decodeUrlToString`).
+- `BigInt` gains `abs`, `pow` (by repeated squaring), `gcd` (Euclid) and
+  `toLong`, which reports whether the value fits in a `long`.
+- Struct-variant fields in patterns take nested patterns, like tuple-variant
+  payloads: `Scene.Single { shape: Shape.Circle { radius: r, shade: Shade.Dark(d) }, label: l }`.
+  They are type checked, count toward exhaustiveness and reachability, and
+  bind their names. A pattern of the wrong enum is reported as
+  `Enum 'Shade' has no variant 'Rect'`.
+- Standard library: `std/regex.bpl` adds regular expressions (classes,
+  shorthands, groups, alternation, `* + ?`, anchors) compiled to an NFA that
+  matches without backtracking, exported from `std`.
+- A reserved word used as a parameter or variable name is reported at the word
+  (`'from' is a reserved word and cannot be used as a name`) instead of as
+  "Unexpected syntax" over the whole declaration (BUG-476).
+- `bpl lint` reports constant conditions (`L004`): an `if` or ternary on `true`
+  or `false`, and a `loop (false)` whose body never runs.
+- `BigInt.divide(divisor, remainder)` divides by another `BigInt`
+  (truncating toward zero, with an optional remainder).
+- Standard library: `std/hmac.bpl` (HMAC-SHA256, streaming and one-shot, with
+  a constant-time `Hmac.equal`) and `std/entropy.bpl` (operating-system random
+  bytes, `nextULong` and unbiased `below`), both exported from `std`.
+- Prebuilt executables: the `Release binaries` workflow builds the standalone
+  `bpl` for Linux x64/arm64 and macOS arm64/x64, smoke-tests the native ones
+  with only the embedded standard library, and on a `v0.1.x` tag attaches them
+  and `SHA256SUMS` to a draft release. `scripts/install.sh` installs the right
+  one after checking its SHA-256.
+- Standard library: `std/bigint.bpl` adds arbitrary-precision signed integers
+  (`BigInt`) with parsing, decimal output, addition, subtraction,
+  multiplication, division by an `int`, and comparison, exported from `std`.
+- `bpl lint` reports unused private functions (`L003`): top-level frames
+  named `_something` that are not exported and that nothing else in the module
+  names.
+- TODO.md lists the work merged recently as implemented (`bpl test`, lint
+  rules and checker warnings, generated shell completions, CI format checks)
+  and drops the finished items from the remaining work.
+- `bpl new` projects come with tests that `bpl test` runs: the app template
+  adds `lib/math.bpl` with `lib/math_test.bpl`, and the library template adds
+  `src/index_test.bpl`. The READMEs list `bpl test`.
+- The type checker warns about `cast<bool>(n)` and `n as bool` on an integer:
+  the conversion keeps only the lowest bit (`cast<bool>(2)` is `false`), which
+  is rarely what a nonzero test means. The literals `0` and `1` are exempt.
+- CI checks formatting (BUG-448): the type-check and lint job runs
+  `bun run format:check` (Prettier) and the new `bun run format:bpl:check`
+  (`bpl format --check lib packages examples`). `CHANGELOG.md` and
+  `docs/project/BUGS.md` are formatted, so both checks pass.
+- Unused imports are removed from `lib/` (13), `packages/` (27, seven archives
+  repacked without version changes) and `examples/` (59), as reported by the
+  lint rule for unused imports. The intentional-error examples in
+  `examples/errors/` keep theirs, since their expected output names lines, and
+  so does `examples/todo_app`, which the editor's completion tests read.
+  `examples/errors/` keep theirs, since their expected output names lines.
+- CI (BUG-449): type check and lint run once in a dedicated job instead of
+  in all five toolchain jobs, dependency installs restore a cache keyed on the
+  lockfiles and `.bun-version`, and Dependabot opens weekly grouped update PRs
+  against `staging` for GitHub Actions and the root and extension dependencies.
+- `bpl lint` reports unused imports (`L002`), and the naming rule (`L001`)
+  accepts a leading underscore on private helpers such as `_siftDown`.
+- `bpl dev` without a file watches and runs the `main`/`entry` of `./bpl.json`,
+  like `bpl run`; `--project` asks for it explicitly.
+- `bpl test [paths...]` runs the test frames (`testName`/`test_name`, no
+  parameters) of every `*_test.bpl` file, each in its own process, with
+  `--filter`, `--verbose` and a `--json` report (`check: "test"`). A test fails
+  when it throws, returns a nonzero `int`, crashes or exceeds 60 seconds.
+- `bpl -e '<code>'` and `bpl --stdin` compile and run the program like
+  `bpl run` and exit with its status, instead of printing its LLVM IR;
+  `--emit llvm` prints the IR as before, and `-o`, `--json` and the other
+  `--emit` types are unchanged.
+- bpl-express (BUG-461): a plain HTTP client that sends part of a request and
+  stalls no longer holds a worker until the request deadline. The accept loop
+  assembles each pending connection's request and serves it once complete,
+  answering 408 when the deadline passes first; TLS connections are unchanged.
+- Package scripts (BUG-452): `format-examples` and `file-sizes` are renamed to
+  `format:examples` and `report:file-sizes`; the stdlib reference generator
+  moves from `tests/helpers/` to `scripts/generate_stdlib_reference.ts`; and
+  `test:baseline` runs `tools/test_baseline.ts`, which no longer needs Bash and,
+  without arguments, runs the test files in batches of
+  `BPL_BASELINE_BATCH_SIZE` (default 40) so a full baseline fits in less
+  memory. BUG-446 is marked fixed; its last items landed in #126 and #129.
+- AGENTS.md: PRs merge on passing CI with every review thread resolved;
+  CodeRabbit, whose app was removed, is no longer a required reviewer.
+- `bpl check` with no arguments inside a project (a directory with `bpl.json`)
+  checks the whole project, like `bpl check .`, instead of failing with
+  "No files specified."; outside a project the error is unchanged.
+- Tests (BUG-452): the capture analyzer, linter traversal and playground engine
+  tests check behavior instead of matching `case` labels and calls in the
+  compiler and playground sources, using new fixtures under `tests/fixtures/`
+  and an in-process `tests/PlaygroundEngine.test.ts`.
+- VS Code extension toolchain (BUG-449): TypeScript 5.9 and `@types/node` 20,
+  `@vscode/vsce` as a declared dev dependency behind `npm run package`, a
+  `.vscodeignore`, one lockfile (`package-lock.json`), and the JSON schemas and
+  grammar copied into `out/` when compiling instead of committed duplicates.
+- The repository is formatted (BUG-448): Prettier over the TypeScript,
+  Markdown and JSON files and `bpl format` over `lib/`, `packages/` (archives
+  repacked) and `examples/`, landed in several PRs of at most 100 files.
+  Generated package metadata and the stdlib reference are excluded from
+  Prettier, source-snippet tests ignore whitespace and trailing commas, and
+  `examples/.bplignore` lists the intentionally unparsable bug reproductions.
+- Virtual method calls on a struct value take its address instead of first
+  loading the whole struct and discarding it (BUG-474), and a receiver that
+  cannot be addressed in place is evaluated exactly once (BUG-475: a receiver
+  such as `((a, b) = nextPair()).0` called `nextPair()` twice). The 10,400-line
+  `mini_database_engine` example has 381 fewer aggregate loads and Clang
+  compiles it about 9% faster at `-O0`.
+- The playground's documented and backend start commands go through
+  `playground/start.sh` (BUG-452), so the runner check (Docker by default, or
+  trusted host mode with Clang) always applies: `QUICKSTART.md` and `test.sh`
+  point at `bun run playground`, and `playground/backend`'s `dev`/`start`
+  scripts run `start.sh` instead of the server directly.
+- Removed the unused `TypeComparison` class (BUG-452) from
+  `compiler/middleend/TypeUtils.ts`. Only two tests constructed it, to compare
+  its cast rule with the type checker's, which they already check directly.
+- Signature help in the language server (BUG-446): `value.method(` shows only
+  the receiver type's method, without `this` (it listed every same-named method
+  and highlighted `this`); commas and parentheses inside strings and spaced
+  `<` comparisons no longer shift the active argument; and functions declared in
+  the open buffer show their unsaved signature instead of the saved one.
+- `bpl file.bpl` tree-shakes like `bpl build`: the root command's `--emit`
+  defaults to `llvm`, and an `emit` of `llvm` disabled pruning unreachable
+  functions, so a plain build that imported `std` compiled all 1,134 library
+  functions (2.3 s) instead of the 55 it uses (1.1 s). Only an explicit
+  `--emit llvm` keeps every function now.
+- Repository upkeep (BUG-452): `bun run file-sizes` lists tracked files with
+  `git ls-files` (its `**` glob needed globstar and missed files), the stale
+  generated playground reports `COMPLETION_REPORT.md` and `UPGRADE_SUMMARY.md`
+  are removed, and the playground server tests let the server bind port 0 and read
+  the port it chose, instead of deriving one from the process ID.
+- Find references works for struct fields and methods in the language server
+  (BUG-446): from a declaration, `value.member` or a struct-literal key it lists
+  the declaration, every access through that struct or a struct inheriting it,
+  and literal keys, excluding same-named members of unrelated structs.
+- Language server fixes (BUG-446, partial): typing `.` opens member completion;
+  resolving a completion no longer replaces a struct's details with "BPL
+  built-in type"; the std quick import offers `Array` (std exports no `List`);
+  the never-matching "Cast to" and "Add semicolon" quick fixes are gone; the Run
+  command uses `<bplHome>/bpl` (with `BPL_HOME` set) only when the
+  `bplLanguageServer.bplHome` setting names an installation containing `bpl`,
+  and otherwise falls back to `bpl` on PATH; and
+  the server's `maxNumberOfProblems` default matches the extension's (100).
+- `bpl-express` no longer lets idle connections block the server (BUG-461):
+  accepted connections wait in a pending set and are served when their first
+  bytes arrive, and silent ones are closed after `request_timeout_seconds`.
+  `bpl-rate-limit` applies `max_keys` per scope, so a flood in one scope no
+  longer refuses new identities in another. Both archives are repacked.
+- The language server follows import aliases (BUG-445): for `import add as plus` and `import * as U`, hover, go to definition, signature help, inlay
+  hints and completion resolve `plus(...)` and `U.add(...)` to `add` in the
+  imported module. Completion offers `plus` instead of `add`, lists `U.`'s
+  members, and no longer suggests a namespace import's names unqualified.
+- CI uses one Bun version (BUG-449): `.bun-version` (1.4.2) feeds every
+  `setup-bun` step through `bun-version-file`, matching the `oven/bun` image tag
+  in both Dockerfiles; the compiler workflows previously used `latest`.
+  `@types/bun` is pinned to 1.3.3 instead of `latest`.
+  `tests/GitHubActions.test.ts` checks that they stay in sync.
+- The npm package ships example sources only (BUG-450): `files` lists them by
+  type and excludes `.bpl-cache/` and `lib/*.a`, so local build outputs no
+  longer leak into the tarball (examples: 18.8 MB to 1.3 MB). The release smoke
+  test fails when a packed `examples/` file is not tracked by git.
+- Faster compilation: the code generator's search for references to deferred
+  methods scans only IR lines added since its previous pass, with one compiled
+  regular expression, instead of rescanning all output; `walkAST` no longer
+  copies the ancestor path for visitors that do not take one; and the
+  primitive-wrapper scan collects primitive-returning functions once per
+  module. Compiling to IR is 23–40% faster on the large examples
+  (mini_database_engine 903 to 545 ms). Output is byte-identical on all 480
+  examples that produce IR. Clang's share of native builds is tracked as BUG-474.
+- The compiled `bpl` executable is standalone. The lexer's token grammar is
+  bundled into it, so the CLI no longer reads `grammar/` at runtime, and the
+  whole standard library is bundled through the generated
+  `cli/EmbeddedResources.generated.ts` (`bun run generate:embedded`).
+  A `bpl` with no `lib/errors.bpl` beside its real location unpacks the bundled
+  library once to `$XDG_CACHE_HOME/bpl/home/<content hash>` (or under
+  `BPL_CACHE_DIR`) and compiles `runtime_support.o` there with Clang the first
+  time a native build needs runtime checks. The installation lookup now keys on
+  `lib/errors.bpl` instead of a `grammar/` directory; a compiled binary no
+  longer falls back to the checkout it was built from or the working
+  directory (still searched when running from source, for the editor
+  extension), and `/usr/local/lib/bpl`, `/usr/lib/bpl` and `/opt/bpl` are no
+  longer searched. The grammar is bundled by the Bun CLI entry
+  (`cli/EmbeddedResources.ts`); other hosts still read `grammar/grammar.bpl`
+  from the installation. `bpl doctor` reports `embedded` as the source in that case,
+  and does not fail the not-yet-built runtime object there;
+  `CompilerConfig.paths.grammarDir` was removed. `BPL_CACHE_DIR` is now used
+  whenever it is set, even before the directory exists, and
+  `bun run build` regenerates the bundled library list before compiling.
+- Repository root cleanup: the language specification moved to
+  `docs/LANGUAGE_SPEC.md` (the `docs/44-language-spec.md` stub is gone), the
+  stale `PACKAGE_MANAGER.md` was folded into `docs/25-package-management.md`,
+  `BUGS.md`, `TODO.md` and `PLAN.md` moved to `docs/project/`, `AGENTS.MD` is
+  now `AGENTS.md`, and the JSON schemas moved to `schemas/`. The canonical
+  manifest `$schema` URI is now
+  `https://raw.githubusercontent.com/pr0h0/bpl3/master/schemas/bpl-package.schema.json`;
+  the npm package ships `schemas/` and the compiler image installs it under
+  `/opt/bpl/schemas/`. The committed VS Code `.vsix` build is no longer
+  tracked, and the `bpl_db` examples delete their dump files instead of
+  leaving them in the working directory.
+
+- Documentation refresh: `AGENTS.md` now states the enum-match exhaustiveness,
+  constant switch-case, data-variant construction and unused-variable rules,
+  the full reserved-keyword and integer type lists, the current vtable layout
+  rule, the ahead-of-time parser generation step and the fuzzer scripts. The
+  README describes single inheritance plus specs (not multiple inheritance),
+  the current repository layout and work tracking, `bun run playground`, and
+  PRs against `staging`. The docs index lists every guide; R-CTRL-8 covers
+  unbraced switch bodies; the quick start shows the C-style `loop`; the Docker
+  and packages READMEs reflect the published 0.1.1 images and chunked request
+  bodies.
+
+- `noUnusedLocals` is enabled. Removed unused code from the compiler, fuzz,
+  tools, playground, tests and language server; debug `llvm.dbg.declare`
+  calls for locals carry their computed location explicitly. Tests that built
+  a source and never checked it now assert real behavior (division by zero,
+  stack overflow, trailing commas in calls).
+
+- Cancel superseded pull-request compiler, playground, and container CI runs
+  while retaining non-PR execution and container publication safeguards.
+
+- `bun run setup` replaces `init.sh` and `bpl-wrapper.sh`: it installs, builds,
+  links `bpl` into `~/.local/bin` (or `--bin-dir`/`BPL_BIN_DIR`) without `sudo` or
+  shell-configuration edits, and smoke-tests the link. The compiled binary now
+  locates its installation through its real executable path, so `BPL_HOME` is
+  optional.
+
+- `bpl run` builds into a temporary directory removed on exit instead of
+  leaving the executable and `.ll` beside the source; `run -o <file>` keeps them.
+  Without a file inside a project directory, `run` and `build` use the
+  `bpl.json` entry.
+
+- CLI errors print `error:`/`warning:` prefixes; timestamps and source tags are
+  reserved for verbose mode. Mistyped commands get a "did you mean" suggestion.
+
+### Removed
+
+- Repository clutter: `cmp.sh` (use `bpl run`), `tests.sh`, unused example
+  shell demos and helpers, `tests/test_template.sh`, a stray test output file,
+  the committed `test-baseline.txt` log, personal `.vscode` settings, unreferenced
+  historical design notes, and `docs/superpowers/` agent plans. The FFI example
+  shell check is now `tests/FfiExamples.test.ts`, which CI runs.
+
+- `init.sh` and `bpl-wrapper.sh` (see `bun run setup`), the stale committed
+  `vscode-ext/bpl3-vscode-0.0.1.vsix` (`*.vsix` is now ignored), and the outdated
+  `.github/instructions/copilot.instructions.md` copy of AGENTS.MD.
+
+### Added
+
+- `run` and `runWith` in `std/process.bpl` start a program without a shell
+  (`posix_spawnp` in the native runtime): arguments reach it unchanged, stdout
+  and stderr are captured separately as exact bytes, `runWith` writes stdin and
+  kills the whole process group when its timeout expires, and a missing program
+  reports exit code -1 with the reason in `stderr`. `examples/process_run`.
+
+- `std/sha256.bpl`: SHA-256 digests in pure BPL, with a streaming context
+  (`Sha256.new`, `update`, `finish`, `init`) and one-shot `digest`, `hexBytes`
+  and `hex` helpers. `examples/stdlib_sha256` checks the FIPS 180-4 vectors,
+  the 55/56/63/64/65-byte padding boundaries, streaming and one million `a`s.
+
+- The fuzzer generates random well-typed programs (structs with methods,
+  inheritance and virtual dispatch, tuples, pointers, enums with `match`,
+  generics, lambdas, recursion, loops with `defer`, `switch`, mixed-width
+  integer and floating-point arithmetic). Each is checked, IR-verified and
+  formatter-round-tripped in process, and in `--differential` mode run at
+  `-O0` and `-O3` against output computed by the generator's own evaluator.
+  Structured template inputs are now IR-verified too.
+
+### Fixed
+
+- `cast<Func<...>>` and `as Func<...>` of a `Lambda` are rejected by the type checker
+  (`BPL_CAST_INVALID`, at the cast) instead of passing `bpl check` and failing in
+  code generation at the lambda's declaration (BUG-473).
+
+- `bpl docs` attaches comments to globals and type aliases, and `--json`
+  reports a compiler error's own code (such as `BPL_SOURCE_COMPLEXITY_LIMIT`)
+  as `diagnosticCode`; `errorCode` stays `BPL_DOCS_FAILED`.
+
+- Enum match exhaustiveness checks nested sub-patterns: a refutable arm
+  (`E.V(1, y)`) no longer counts as covering its variant, arms such as
+  `E.V(true)`/`E.V(false)` cover it together, unreachable arms are rejected,
+  and an identifier arm that could never be selected is rejected (BUG-471).
+- `bpl check` rejects non-constant `switch` case values
+  (`BPL_SWITCH_CASE_VALUE_NOT_CONSTANT`) and data-carrying enum variants used
+  without their data; both previously failed only at build time (BUG-472).
+
+- Tests and the playground no longer leak temporary files (BUG-447): the
+  playground removes its cached binaries on exit and handles SIGINT/SIGTERM;
+  web tests use the gitignored `tests/.tmp/`; duplicated `compileAndRun`
+  copies use the shared helper.
+
+- Package installation hardening (BUG-462): `bpl install foo` no longer
+  installs a file named `foo` from the current directory (use `./foo`, now
+  recorded as `file:./foo`); legacy lock hashes fail `--locked` until
+  `bpl install --update`; archives that decompress past 256 MiB are rejected;
+  extraction ignores archive owners and modes. Diagnostics skip source snippets
+  for binary files.
+
+- Package content hashes include a package's nested `bpl_modules` and
+  `node_modules`, so editing a nested dependency after install fails
+  `bpl install --locked` and lock verification (BUG-456).
+
+- Review follow-ups for the third audit batch:
+  - `(x = 1) = 2` is rejected; an assignment is not an lvalue (R-EXPR-5).
+  - `/# ... #/ x: int,` no longer documents the next declaration.
+  - `bpl check` reports `.bplignore`/directory discovery failures as
+    `BPL_CHECK_PROCESSING_ERROR`. A missing input such as `missing/../a.bpl`
+    is no longer deduplicated into an existing `a.bpl`, for check, format and lint.
+  - bpl-db `save` closes and removes its temporary file when serialization throws.
+  - bpl-express adds no parameters to `req.params` from a route that failed to
+    match; the committed bpl-db and bpl-express archives are refreshed.
+
+- bpl-db `save` is atomic (temporary file plus rename), checks write errors,
+  and rejects rows that `load` could not read back (BUG-459).
+
+- bpl-express route parameters are percent-decoded (`/users/John%20Doe` →
+  `John Doe`); invalid escapes and `%00` do not match (BUG-463).
+
+- Documentation fixes (BUG-453): the pointers guide uses BPL syntax instead
+  of C (`*int`, `.` through pointers, `Func<R>(...)`); the keyword index lists
+  every reserved word; broken calls in the intrinsics and try/catch guides are
+  corrected; the duplicate type-matching guide is merged into
+  `docs/56-type-matching.md`.
+
+- `bpl docs` uses `#` line comments directly above a declaration as its
+  documentation (so `bpl docs lib/string.bpl` has descriptions), reports
+  errors with their location, and nests method headings under `#### Methods`
+  (BUG-440).
+
+- `bpl check` accepts directories (`bpl check src/`), expanding them like
+  `format` and `lint`, and `-` for standard input (`--stdin-filepath` names
+  it); the `-e` help says it compiles and prints IR (BUG-443).
+
+- Parenthesized assignment targets are accepted (`(*p) = 1`, `(v) += 2`),
+  consistent with `(*p)++` (BUG-467). A spec declaring the same method twice
+  is rejected; overloaded spec methods could not be implemented (BUG-470).
+
+- `-l/--lib`, `-L/--lib-path`, `--object` and `--clang-flag` take one value
+  each and are repeatable (`-l m -l c`); as variadic options they swallowed a
+  following source file (`bpl run --lib m main.bpl`). This replaces the
+  `--lib a b` form. Spec methods can no longer be used as bound values
+  (`x.get` on a spec or constrained receiver), which code generation could not
+  bind. `bpl init` rejects an `index.bpl` that is a directory or symlink
+  (`BPL_PACKAGE_INIT_ENTRY_INVALID`).
+
+- `bpl init` creates the `index.bpl` entry it declares (so `run` and `pack`
+  work) and ends `bpl.json` with a newline; `bpl install <archive>` adds the
+  package to `bpl.json` so `bpl lock` no longer drops it; new projects ignore
+  pack archives (BUG-444).
+
+- `bpl bindgen` writes exponent `double` constants (`#define SCI 1e-3`) in
+  plain decimal (`0.001`), which BPL can parse (BUG-441).
+
+- Shell completions are generated from the CLI's command definitions: every
+  command (including `check`, `dev`, `bindgen`, `package-cache` subcommands)
+  completes exactly the options it accepts (BUG-438).
+
+- `JSON.parse` allocates each string at its own size instead of reserving the
+  rest of the input, and reports an out-of-memory failure instead of writing
+  through a null buffer (BUG-458).
+
+- `Map` equality and `Array.indexOf`/`contains` compare `string` values by
+  content instead of by pointer (BUG-460).
+
+- `switch` on a null `string` takes the `default` case instead of crashing,
+  and a duplicate enum case is reported by name (`E.A`, not `0`) (BUG-436).
+
+- Methods with a native variadic parameter (`xs: ...int`), which compiled to a
+  wrong signature and crashed when bound to a lambda, are rejected with
+  `BPL_VARIADIC_METHOD_UNSUPPORTED`; diagnostics now mark variadic function
+  types with `...` (BUG-430).
+
+- Methods of a generic spec (`spec Getter<V> { frame get(this: *Self) ret V; }`)
+  can be called on a parameter constrained by it (`T: Getter<long>`), and
+  `Self`-returning methods return `T` (BUG-435).
+
+- CLI paper cuts (BUG-443): a missing `main` points at `file:1:1` instead of
+  `file:0:0`; `format` shows parse errors with their location and calls stdin
+  `<stdin>`; `doctor` says where it found the installation; `run --help` lists
+  the linker options; `init`, `install` and `doctor` describe their argument.
+
+- Piping CLI output into a command that exits early (`bpl format ... | head`)
+  stops quietly instead of printing an `EPIPE` stack trace (BUG-442).
+
+- `bpl lint --json` reports warnings in a new `warningCount` instead of
+  `errorCount`, and naming findings suggest the corrected name instead of the
+  generic "Lint check failed" hint (BUG-439).
+
+- `bpl format` no longer leaves a trailing space after `if (...)`, `else` and
+  `loop (...)` when the body has no braces (BUG-437).
+
+- `--debug` builds no longer crash clang for generic locals (`Array<String>`)
+  or `Any` variadics, and lambdas at the same line and column of two modules no
+  longer produce a duplicate LLVM type (BUG-429).
+
+- `cast<int>(false)` and other casts of `bool` constants are accepted in
+  global initializers (BUG-465). Formatting a `switch` whose subject spans
+  several lines is idempotent (BUG-466). A `double` global initialized to
+  `-0.0` keeps its sign (BUG-468).
+
+- Struct subtyping no longer passes through `**T` or array types: `**Dog` to
+  `**Animal` and `Dog[2]` to `Animal[]` are rejected by the checker instead of
+  corrupting memory or failing in codegen (BUG-424).
+
+- Global initializers accept constant expressions (`-5`, `!true`, `~0`,
+  `1 << 4`, numeric casts, array literals) and anything else is reported by the
+  checker as `BPL_GLOBAL_INITIALIZER_NOT_CONSTANT`; taking the address of a
+  temporary is rejected with `BPL_ADDRESS_OF_TARGET_INVALID` (BUG-432, BUG-433).
+  Folding wraps each operation to its type and applies every cast, matching
+  run-time results.
+
+- `JSON.parse` results support method calls (their vtable is installed from
+  the new `TypeInfo.vtable` field), and `JSON.parse<Array<string>>` no longer
+  depends on which other types or methods the program uses (BUG-454, BUG-457).
+
+- Chained `<<`/`>>` on `StringBuilder`, `String`, `Stack` and `Array` no longer
+  double-free: the operators return a pointer to the receiver (BUG-455, BUG-464).
+
+- Compiler audit fixes (BUG-423, 425-428, 431, 434): scalar return types of
+  overrides and spec implementations must match exactly; ternary branches are
+  converted to their common type; `p += n`/`p -= n` step pointers by elements;
+  self-containing types are detected through arrays, tuples, aliases, generic
+  arguments, parents and enums; spec calls widen arguments; inherited statics
+  call the parent; unreachable code is a warning. `bpl check` and the language
+  server now show checker warnings, and `check --json` reports `warningCount`.
+  `bpl build` and `bpl run` print the entry file's warnings; imported modules'
+  warnings are not repeated per importer, and unreachable code warns once per
+  block.
+
+- `bpl check` and the language server accept the implicit prelude error types
+  (`NullAccessError` and others) that `bpl build` accepts.
+
+- Diagnostics are uncolored when stderr is not a terminal, and package-command
+  errors honor `NO_COLOR`/`--no-color`.
+
+- Web package tests no longer leave a 0.5 MB `.ll` file in the system temporary
+  directory per test.
+
+- Fold complete multiline imports, including a single multiline import and
+  the final multiline statement in an import group.
+
+- Remove duplicate and empty editor folding ranges while preserving nested
+  regions and grouped imports.
+
+- Retain distinct same-line overloads in workspace symbol search while
+  deduplicating indexed and cached copies of each declaration.
+
+- Count short-circuit and ternary decisions throughout function expressions in
+  editor complexity lenses, excluding nested callable bodies.
+
+- Respect standalone CR and mixed newline styles in `.bplignore` files during
+  recursive formatting and lint discovery.
+
+- Preserve cursor/result correspondence in multi-cursor smart-selection
+  requests containing comments, blank space, or end-of-file positions.
+
+- Discard stale outlines, folds, code lenses, selections, and inlay hints when
+  the current editor document fails parsing.
+
+- Select the correct editor import-link range for same-line imports, comments,
+  and escaped source paths.
+
+- Keep generic failures visible on stderr when JSON builds emit raw AST,
+  token, or formatted-source artifacts.
+
+- Distinguish lint discovery failures from empty inputs in JSON reports with
+  `BPL_LINT_PROCESSING_ERROR`.
+
+- Keep input errors visible in `check --quiet` while suppressing successful
+  check output and retaining clean JSON reports.
+
+- Report `BPL_FORMAT_NO_INPUTS` when formatter directory discovery finds no
+  sources, preserving distinct processing and explicit-file error codes.
+
+- Use parsed nearby `.bpl`/`.x` exports for editor auto-import suggestions,
+  ignoring comment/string lookalikes and skipping malformed sibling modules.
+- Suppress the unsafe editor null-check action that replaced expressions with
+  statement blocks and emitted invalid BPL comment syntax.
+- Use parsed parent lists for Go to Implementation, including multiple parents,
+  generics, specs and enums, while excluding comment/string lookalikes.
+- Limit `format-examples` to recursive `.bpl`/`.x` discovery under `examples`,
+  respecting source-discovery exclusions and `.bplignore`.
+- Recognize actual unused-variable editor diagnostics and prefix only the
+  declaration name, preserving type annotations, initializers, and comments.
+- Preserve generic error messages in quiet frontend and full compiler builds,
+  including formatter-configuration failures, while retaining JSON precedence.
+- Use compiler scope-aware hints for typo quick fixes instead of suggesting
+  comment/string words and names from unrelated local scopes.
+
 ## [0.1.1] - 2026-10-25
 
 ### Fixed
@@ -36,6 +659,11 @@ See [release notes](docs/releases/v0.1.1.md) for the release scope and validatio
 ## [0.1.0] - Historical development notes
 
 ### Added
+
+- Pinned local Prettier tooling and a read-only `format:check` command with
+  dependency/generated-output exclusions.
+- Consolidated implementation status and remaining work in `TODO.md`, with
+  priorities in `PLAN.md` and explicit limits for partially supported features.
 
 - **Starter-Gated Basic-Type Optional Parsers** -
   generated simple basic-type parsing now checks for `*`, `<`, and `[` before
@@ -1519,8 +2147,7 @@ See [release notes](docs/releases/v0.1.1.md) for the release scope and validatio
   stays a direct BPL `SourceLocation` pass-through. On the 5k synthetic
   fixture, parse-only samples moved from ~1.66-1.90s to ~1.04-1.29s, and
   normal `--time --emit llvm` parsing sampled at ~1.22-1.38s versus the
-  earlier ~1.65s baseline. Reproduce with `bun test tests/Parser.test.ts -t
-  "generated parser"` and `bpl --time --emit llvm` on the 5k synthetic
+  earlier ~1.65s baseline. Reproduce with `bun test tests/Parser.test.ts -t "generated parser"` and `bpl --time --emit llvm` on the 5k synthetic
   benchmark.
 - **Generated Parser Trivia Scanner** - The generated `_` rule now uses a
   manual whitespace/comment scanner instead of building arrays through Peggy's
@@ -1759,8 +2386,7 @@ See [release notes](docs/releases/v0.1.1.md) for the release scope and validatio
   focused ReleaseSmoke, release metadata, and package-cache bin regression
   commands instead of only the broad release-smoke helper list.
 - **Package Lock Bin Validation** - lockfile verification validates installed
-  package `bin` entries before trusting a lock entry, and `bpl install
-  --repair-lock` now refuses to record an invalid installed package bin target.
+  package `bin` entries before trusting a lock entry, and `bpl install --repair-lock` now refuses to record an invalid installed package bin target.
   `bpl install --locked --json` and `bpl install --repair-lock --json` surface
   the invalid installed package bin as an `invalid-manifest` issue with stable
   lock verification metadata. Directory and symlinked installed package bin
@@ -2527,8 +3153,7 @@ See [release notes](docs/releases/v0.1.1.md) for the release scope and validatio
   with stable `BPL_SANITIZER_RUNTIME_UNAVAILABLE` guidance for missing
   compiler-rt/libclang_rt support.
 - **Sanitizer Timeout Diagnostics** - `SANITIZER_RUNTIME_TEST_TIMEOUT_MS` now
-  uses the shared positive-integer timeout diagnostics and appears in `bpl
-  doctor --json` timeout reports.
+  uses the shared positive-integer timeout diagnostics and appears in `bpl doctor --json` timeout reports.
 - **Release Smoke Fuzz Repro Coverage** - Release smoke now checks the packed
   npm CLI's `fuzz:repro` usage-error path before artifact discovery.
 - **Release Smoke Fuzz Helper Coverage** - Release smoke now checks the packed
@@ -2769,8 +3394,7 @@ See [release notes](docs/releases/v0.1.1.md) for the release scope and validatio
   `bpl clean --dry-run --json` now include stable `schemaVersion: 1`,
   `check: "clean"`, and `success` fields alongside existing `dryRun`, `count`,
   and `entries` fields.
-- **Package Cache Maintenance JSON Stability** - `bpl package-cache clean
-  --json` and `bpl package-cache repair --json` now include stable
+- **Package Cache Maintenance JSON Stability** - `bpl package-cache clean --json` and `bpl package-cache repair --json` now include stable
   `schemaVersion: 1`, `check`, and `success` fields alongside existing
   removed/repaired/unchanged/issues payloads.
 - **Package Cache List JSON Stability** - `bpl package-cache list --json` now
@@ -2959,6 +3583,10 @@ See [release notes](docs/releases/v0.1.1.md) for the release scope and validatio
   - Added examples for runtime type checking and safe downcasting patterns
 
 ### Fixed
+
+- Removed the editor's invalid missing-return quick fix; return values remain
+  user-selected, and other quick fixes remain available.
+- Baseline test logs preserve test failures through `tee` and forward arguments.
 
 - **Virtual-Source Artifact Cleanup** - `bpl --eval` and `bpl --stdin` no
   longer create literal `<eval>`, `<eval>.ll`, `<stdin>`, or `<stdin>.ll`
@@ -3335,7 +3963,7 @@ See [release notes](docs/releases/v0.1.1.md) for the release scope and validatio
 
 ### Known Limitations
 
-- See [BUGS.md](BUGS.md) for the current bug ledger. BUG-104 nested tuple pattern matching has since been fixed.
+- See [BUGS.md](docs/project/BUGS.md) for the current bug ledger. BUG-104 nested tuple pattern matching has since been fixed.
 
 ## [Previous Release]
 

@@ -34,8 +34,15 @@ const excludedDirectories = new Set([
  */
 export function expandSourceInputs(inputs: string[]): string[] {
   const found = new Map<string, string>();
-  const add = (file: string) =>
-    found.set(file === "-" ? "-" : path.resolve(file), file);
+  // Existing files are deduplicated by device and inode: both `path.resolve`
+  // and Bun's realpath collapse `..` textually, but `link/../a.bpl` may name
+  // another file than `a.bpl`. A missing input keeps its own spelling, so
+  // `missing/../a.bpl` still reports its error.
+  const add = (file: string) => {
+    const stats =
+      file === "-" ? undefined : fs.statSync(file, { throwIfNoEntry: false });
+    found.set(stats ? `${stats.dev}:${stats.ino}` : `\0${file}`, file);
+  };
   for (const input of inputs) {
     if (
       input === "-" ||
@@ -49,7 +56,7 @@ export function expandSourceInputs(inputs: string[]): string[] {
     const patterns = fs.existsSync(ignoreFile)
       ? fs
           .readFileSync(ignoreFile, "utf8")
-          .split(/\r?\n/)
+          .split(/\r\n|\r|\n/)
           .map((x) => x.trim())
           .filter((x) => x && !x.startsWith("#"))
       : [];

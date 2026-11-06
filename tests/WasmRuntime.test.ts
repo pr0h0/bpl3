@@ -1,6 +1,12 @@
 import { describe, expect, it } from "bun:test";
 import { spawnSync } from "child_process";
-import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "fs";
+import {
+  existsSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "fs";
 import { tmpdir } from "os";
 import { join, resolve } from "path";
 import {
@@ -388,8 +394,10 @@ frame main() ret int {
     expect(getMain(exports)(0, 0)).toBe(3);
   });
 
-  wasmIt("runs freestanding allocation helpers through runtime_wasm", async () => {
-    const exports = await compileWasmSource(`
+  wasmIt(
+    "runs freestanding allocation helpers through runtime_wasm",
+    async () => {
+      const exports = await compileWasmSource(`
 extern malloc(size: long) ret *void;
 extern free(ptr: *void) ret void;
 
@@ -403,11 +411,14 @@ frame main() ret int {
 }
 `);
 
-    expect(getMain(exports)(0, 0)).toBe(42);
-  });
+      expect(getMain(exports)(0, 0)).toBe(42);
+    },
+  );
 
-  wasmIt("runs freestanding memory intrinsics through wasm lowering", async () => {
-    const exports = await compileWasmSource(`
+  wasmIt(
+    "runs freestanding memory intrinsics through wasm lowering",
+    async () => {
+      const exports = await compileWasmSource(`
 extern malloc(size: long) ret *void;
 extern free(ptr: *void) ret void;
 extern memset(dest: *void, value: int, size: int) ret *void;
@@ -442,13 +453,16 @@ frame main() ret int {
 }
 `);
 
-    expect(getMain(exports)(0, 0)).toBe(0);
-  });
+      expect(getMain(exports)(0, 0)).toBe(0);
+    },
+  );
 
-  wasmIt("routes hosted wasm stdout and exit through host imports", async () => {
-    const host = createHostImports();
-    const exports = await compileWasmSource(
-      `
+  wasmIt(
+    "routes hosted wasm stdout and exit through host imports",
+    async () => {
+      const host = createHostImports();
+      const exports = await compileWasmSource(
+        `
 extern printf(fmt: string, ...) ret int;
 extern puts(value: string) ret int;
 extern putchar(value: int) ret int;
@@ -462,25 +476,28 @@ frame main() ret int {
     return 99;
 }
 `,
-      { wasmRuntime: "host", imports: host.imports },
-    );
-    host.attach(exports);
+        { wasmRuntime: "host", imports: host.imports },
+      );
+      host.attach(exports);
 
-    let exitCode: number | undefined;
-    try {
-      getMain(exports)(0, 0);
-    } catch (error) {
-      expect(error).toBeInstanceOf(WasmExit);
-      exitCode = (error as WasmExit).code;
-    }
-    expect(exitCode).toBe(7);
-    expect(host.stdout()).toBe("hello wasm\n!");
-  });
+      let exitCode: number | undefined;
+      try {
+        getMain(exports)(0, 0);
+      } catch (error) {
+        expect(error).toBeInstanceOf(WasmExit);
+        exitCode = (error as WasmExit).code;
+      }
+      expect(exitCode).toBe(7);
+      expect(host.stdout()).toBe("hello wasm\n!");
+    },
+  );
 
-  wasmIt("routes hosted wasm stdout and stderr through fd-based imports", async () => {
-    const host = createHostImports();
-    const exports = await compileWasmSource(
-      `
+  wasmIt(
+    "routes hosted wasm stdout and stderr through fd-based imports",
+    async () => {
+      const host = createHostImports();
+      const exports = await compileWasmSource(
+        `
 extern dprintf(fd: int, fmt: string, ...) ret int;
 extern write(fd: int, buf: *char, count: int) ret int;
 
@@ -498,14 +515,15 @@ frame main() ret int {
     return 0;
 }
 `,
-      { wasmRuntime: "host", imports: host.imports },
-    );
-    host.attach(exports);
+        { wasmRuntime: "host", imports: host.imports },
+      );
+      host.attach(exports);
 
-    expect(getMain(exports)(0, 0)).toBe(0);
-    expect(host.stdout()).toBe("stdout line\n!");
-    expect(host.stderr()).toBe("stderr line\n");
-  });
+      expect(getMain(exports)(0, 0)).toBe(0);
+      expect(host.stdout()).toBe("stdout line\n!");
+      expect(host.stderr()).toBe("stderr line\n");
+    },
+  );
 
   wasmIt(
     "handles uncaught string throws in freestanding and hosted wasm",
@@ -532,9 +550,12 @@ frame main() ret int {
     },
   );
 
-  wasmIt("uses portable write counts and rejects invalid hosted descriptors and ranges", async () => {
-    const host = createHostImports();
-    const exports = await compileWasmSource(`
+  wasmIt(
+    "uses portable write counts and rejects invalid hosted descriptors and ranges",
+    async () => {
+      const host = createHostImports();
+      const exports = await compileWasmSource(
+        `
 import write from "std/c.bpl";
 frame main() ret int {
     local text:string="write";
@@ -546,16 +567,22 @@ frame main() ret int {
     if(write(1,invalid,0)!=0 || write(1,invalid,1)!=-1) {return 5;}
     return 0;
 }
-`, {wasmRuntime:"host",imports:host.imports});
-    host.attach(exports);
-    expect(getMain(exports)(0, 0)).toBe(0);
-    expect(host.stdout()).toBe("write");
-    expect(host.stderr()).toBe("write");
-  });
+`,
+        { wasmRuntime: "host", imports: host.imports },
+      );
+      host.attach(exports);
+      expect(getMain(exports)(0, 0)).toBe(0);
+      expect(host.stdout()).toBe("write");
+      expect(host.stderr()).toBe("write");
+    },
+  );
 
-  wasmIt("promotes generic narrow arguments in hosted wasm printf", async () => {
-    const host = createHostImports();
-    const exports = await compileWasmSource(`
+  wasmIt(
+    "promotes generic narrow arguments in hosted wasm printf",
+    async () => {
+      const host = createHostImports();
+      const exports = await compileWasmSource(
+        `
 extern printf(format:string,...) ret int;
 frame emit<T>(value:T) {printf("%d\\n",value);}
 frame relay<U>(value:U) {emit<U>(value);}
@@ -565,16 +592,21 @@ frame main() ret int {
     relay<i8>(-128 as i8); floating<f32>(1.25 as f32);
     return 0;
 }
-`, {wasmRuntime:"host",imports:host.imports});
-    host.attach(exports);
-    expect(getMain(exports)(0, 0)).toBe(0);
-    expect(host.stdout()).toBe("255\n65535\n-128\n1.25\n");
-  });
+`,
+        { wasmRuntime: "host", imports: host.imports },
+      );
+      host.attach(exports);
+      expect(getMain(exports)(0, 0)).toBe(0);
+      expect(host.stdout()).toBe("255\n65535\n-128\n1.25\n");
+    },
+  );
 
-  wasmIt("formats hosted wasm printf and dprintf dynamic arguments", async () => {
-    const host = createHostImports();
-    const exports = await compileWasmSource(
-      `
+  wasmIt(
+    "formats hosted wasm printf and dprintf dynamic arguments",
+    async () => {
+      const host = createHostImports();
+      const exports = await compileWasmSource(
+        `
 extern printf(fmt: string, ...) ret int;
 extern dprintf(fd: int, fmt: string, ...) ret int;
 
@@ -597,14 +629,15 @@ frame main() ret int {
     return 0;
 }
 `,
-      { wasmRuntime: "host", imports: host.imports },
-    );
-    host.attach(exports);
+        { wasmRuntime: "host", imports: host.imports },
+      );
+      host.attach(exports);
 
-    expect(getMain(exports)(0, 0)).toBe(0);
-    expect(host.stdout()).toBe("wasm=42!\nliteral % A\n");
-    expect(host.stderr()).toBe("err:-7:ok?\n");
-  });
+      expect(getMain(exports)(0, 0)).toBe(0);
+      expect(host.stdout()).toBe("wasm=42!\nliteral % A\n");
+      expect(host.stderr()).toBe("err:-7:ok?\n");
+    },
+  );
 
   wasmIt("formats hosted wasm printf fixed-point float arguments", async () => {
     const host = createHostImports();
@@ -628,10 +661,12 @@ frame main() ret int {
     expect(host.stderr()).toBe("");
   });
 
-  wasmIt("formats hosted wasm printf hex and integer width arguments", async () => {
-    const host = createHostImports();
-    const exports = await compileWasmSource(
-      `
+  wasmIt(
+    "formats hosted wasm printf hex and integer width arguments",
+    async () => {
+      const host = createHostImports();
+      const exports = await compileWasmSource(
+        `
 extern printf(fmt: string, ...) ret int;
 
 frame main() ret int {
@@ -642,14 +677,15 @@ frame main() ret int {
     return 0;
 }
 `,
-      { wasmRuntime: "host", imports: host.imports },
-    );
-    host.attach(exports);
+        { wasmRuntime: "host", imports: host.imports },
+      );
+      host.attach(exports);
 
-    expect(getMain(exports)(0, 0)).toBe(0);
-    expect(host.stdout()).toBe("hex=beef upper=BEEF zero=0007 wide=   42\n");
-    expect(host.stderr()).toBe("");
-  });
+      expect(getMain(exports)(0, 0)).toBe(0);
+      expect(host.stdout()).toBe("hex=beef upper=BEEF zero=0007 wide=   42\n");
+      expect(host.stderr()).toBe("");
+    },
+  );
 
   wasmIt("keeps hosted wasm printf edge cases predictable", async () => {
     const host = createHostImports();
@@ -759,23 +795,26 @@ frame main() ret int {
     expect(() => getMain(exports)(0, 0)).toThrow(WebAssembly.RuntimeError);
   });
 
-  wasmIt("reports checked runtime failures through hosted wasm error hooks", async () => {
-    const host = createHostImports();
-    const exports = await compileWasmSource(
-      `
+  wasmIt(
+    "reports checked runtime failures through hosted wasm error hooks",
+    async () => {
+      const host = createHostImports();
+      const exports = await compileWasmSource(
+        `
 frame main() ret int {
     local zero: int = 0;
     return 10 / zero;
 }
 `,
-      { wasmRuntime: "host", imports: host.imports },
-    );
-    host.attach(exports);
+        { wasmRuntime: "host", imports: host.imports },
+      );
+      host.attach(exports);
 
-    expect(() => getMain(exports)(0, 0)).toThrow(WebAssembly.RuntimeError);
-    expect(host.errors[0]?.code).toBe(3);
-    expect(host.errors[0]?.func).toBe("main");
-  });
+      expect(() => getMain(exports)(0, 0)).toThrow(WebAssembly.RuntimeError);
+      expect(host.errors[0]?.code).toBe(3);
+      expect(host.errors[0]?.func).toBe("main");
+    },
+  );
 
   for (const testCase of [
     {
@@ -820,29 +859,32 @@ frame main() ret int {
   }
 
   for (const testCase of HOSTED_WASM_EXAMPLE_CORPUS) {
-    wasmIt(`executes hosted wasm-compatible example: ${testCase.file}`, async () => {
-      const host = createHostImports(testCase.argv);
-      const exports = await compileWasmFile(resolve(process.cwd(), testCase.file), {
-        wasmRuntime: "host",
-        imports: host.imports,
-      });
-      host.attach(exports);
+    wasmIt(
+      `executes hosted wasm-compatible example: ${testCase.file}`,
+      async () => {
+        const host = createHostImports(testCase.argv);
+        const exports = await compileWasmFile(
+          resolve(process.cwd(), testCase.file),
+          {
+            wasmRuntime: "host",
+            imports: host.imports,
+          },
+        );
+        host.attach(exports);
 
-      expect(getMain(exports)(0, 0)).toBe(testCase.expectedReturn);
-      expect(host.stdout()).toBe(testCase.expectedStdout);
-      expect(host.stderr()).toBe(testCase.expectedStderr);
-    });
+        expect(getMain(exports)(0, 0)).toBe(testCase.expectedReturn);
+        expect(host.stdout()).toBe(testCase.expectedStdout);
+        expect(host.stderr()).toBe(testCase.expectedStderr);
+      },
+    );
   }
 
   for (const testCase of WASM_EXAMPLE_CORPUS) {
-    wasmIt(
-      `executes wasm-compatible example: ${testCase.file}`,
-      async () => {
-        const exports = await compileWasmFile(
-          resolve(process.cwd(), testCase.file),
-        );
-        expect(getMain(exports)(0, 0)).toBe(testCase.expectedReturn);
-      },
-    );
+    wasmIt(`executes wasm-compatible example: ${testCase.file}`, async () => {
+      const exports = await compileWasmFile(
+        resolve(process.cwd(), testCase.file),
+      );
+      expect(getMain(exports)(0, 0)).toBe(testCase.expectedReturn);
+    });
   }
 });

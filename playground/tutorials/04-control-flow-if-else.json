@@ -6,9 +6,7 @@
   "difficulty": "beginner",
   "duration": "10 min",
   "description": "Learn how to make decisions in your programs using conditional statements. Control which code runs based on conditions.",
-  "prerequisites": [
-    "operators-and-expressions"
-  ],
+  "prerequisites": ["operators-and-expressions"],
   "objectives": [
     "Write if statements for simple conditions",
     "Use else and else if for alternative paths",
@@ -123,34 +121,19 @@
       "questions": [
         {
           "question": "What prints when x = 5? if (x > 10) { print A } else { print B }",
-          "options": [
-            "A",
-            "B",
-            "Both A and B",
-            "Nothing"
-          ],
+          "options": ["A", "B", "Both A and B", "Nothing"],
           "correct": 1,
           "explanation": "5 is not greater than 10, so the else branch executes, printing B."
         },
         {
           "question": "What is true && false || true?",
-          "options": [
-            "true",
-            "false",
-            "Error",
-            "undefined"
-          ],
+          "options": ["true", "false", "Error", "undefined"],
           "correct": 0,
           "explanation": "&& has higher precedence. (true && false) = false. false || true = true."
         },
         {
           "question": "What does 'x > 5 ? 10 : 20' return when x = 3?",
-          "options": [
-            "10",
-            "20",
-            "3",
-            "Error"
-          ],
+          "options": ["10", "20", "3", "Error"],
           "correct": 1,
           "explanation": "3 is not greater than 5, so the 'else' part (20) is returned."
         }

@@ -9,9 +9,9 @@ function mandelbrot(width, height, maxIter) {
       let zi = 0.0;
       let iter = 0;
 
-      while ((zr * zr) + (zi * zi) <= 4.0 && iter < maxIter) {
-        const nextZr = ((zr * zr) - (zi * zi)) + cr;
-        zi = ((2.0 * zr) * zi) + ci;
+      while (zr * zr + zi * zi <= 4.0 && iter < maxIter) {
+        const nextZr = zr * zr - zi * zi + cr;
+        zi = 2.0 * zr * zi + ci;
         zr = nextZr;
         iter++;
       }

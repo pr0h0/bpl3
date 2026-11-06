@@ -1,7 +1,4 @@
-import {
-  runCompilerPipeline,
-  type PipelineOutcome,
-} from "./compilerFuzz";
+import { runCompilerPipeline, type PipelineOutcome } from "./compilerFuzz";
 
 /**
  * Fuzz target function.

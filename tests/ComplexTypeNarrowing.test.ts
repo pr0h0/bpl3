@@ -2,10 +2,7 @@ import { describe, expect, it } from "bun:test";
 import { lexWithGrammar } from "../compiler/frontend/GrammarLexer";
 import { Parser } from "../compiler/frontend/Parser";
 import { TypeChecker } from "../compiler/middleend/TypeChecker";
-import { CodeGenerator } from "../compiler/backend/CodeGenerator";
 import { Formatter } from "../compiler/formatter/Formatter";
-import { CompilerError } from "../compiler/common/CompilerError";
-import * as AST from "../compiler/common/AST";
 
 function parse(source: string) {
   const tokens = lexWithGrammar(source, "test.bpl");

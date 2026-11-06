@@ -113,16 +113,20 @@ struct Range {
         # to fit int, and also prevents a public long step from overflowing.
         if (this.step > cast<long>(0)) {
             local limit: long = cast<long>(2147483647) + 1;
-            if (end > limit) { end = limit; }
+            if (end > limit) {
+                end = limit;
+            }
             if (start < end) {
                 lastIndex = (end - start - 1) / this.step;
             }
         } else if (this.step < cast<long>(0)) {
             local limit: long = cast<long>(-2147483648) - 1;
-            if (end < limit) { end = limit; }
+            if (end < limit) {
+                end = limit;
+            }
             if (start > end) {
                 # Both operands are nonpositive: avoid negating a minimum step.
-                lastIndex = (end - start + 1) / this.step;
+                lastIndex = ((end - start) + 1) / this.step;
             }
         }
         if ((index < 0) || (cast<long>(index) > lastIndex)) {
@@ -140,8 +144,7 @@ struct Range {
         if (len == 0) {
             return *this;
         }
-        local last: long = cast<long>(this.start)
-            + (cast<long>(len - 1) * this.step);
+        local last: long = cast<long>(this.start) + (cast<long>(len - 1) * this.step);
         local reversed: Range;
         reversed.start = cast<int>(last);
         reversed.end = cast<long>(this.start) - this.step;

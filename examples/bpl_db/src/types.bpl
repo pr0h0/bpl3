@@ -3,8 +3,6 @@ export [Value];
 export serialize_value;
 export deserialize_value;
 
-import [String] from "std/string.bpl";
-
 import [malloc], [sprintf] from "std/c.bpl";
 
 enum DataType {
@@ -84,9 +82,9 @@ frame value_to_string(v: *Value) ret string {
             res = s;
         },
         Value.Bool(b) => {
-            if (b) 
+            if (b)
                 res = "true";
-            else 
+            else
                 res = "false";
         },
         Value.Null => {

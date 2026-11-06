@@ -5,6 +5,10 @@ node_modules
 out
 dist
 *.tgz
+# The bundled packages' archives are committed on purpose: the Docker image,
+# the release smoke and the package tests install them by path. Rebuild one
+# with `bpl pack` in its package directory after changing its sources.
+!packages/*/*.tgz
 
 # code coverage
 coverage
@@ -35,16 +39,15 @@ report.[0-9]_.[0-9]_.[0-9]_.[0-9]_.json
 
 # example build artifacts
 examples/**
-!examples/*.sh
 !examples/**/
 !examples/**/*.bpl
 !examples/**/*.bte
-!examples/**/test*.sh
 !examples/**/test_config.json
 !examples/**/bpl.json
 !examples/*.json
 !examples/college_web/README.md
 !examples/college_web/.gitignore
+!examples/.bplignore
 !examples/college_web/public/**
 
 temp/**
@@ -77,8 +80,20 @@ lib/*.a
 lib/*.so
 lib/*.bc
 
-# Agent Files
+# Agent and editor files
 .claude
+.vscode/
+
+# Local test output and temporary test workspaces
+test-baseline.txt
+.web-*-*/
+tests/temp_*
+
+# Packaged editor extensions (attach to releases instead)
+*.vsix
 
 # Local audit reports
 /docs/audits/
+
+# Scratch directories for tests that must resolve workspace packages
+tests/.tmp/

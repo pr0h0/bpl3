@@ -23,6 +23,7 @@ import {
   ADDRESS_OF_CONSTANT_CODE,
   ASSIGNMENT_TARGET_CONSTANT_CODE,
   ASSIGNMENT_TARGET_INVALID_CODE,
+  ARITHMETIC_OPERAND_TYPE_MISMATCH_CODE,
   ASSIGNMENT_TYPE_MISMATCH_CODE,
   BITWISE_OPERAND_TYPE_MISMATCH_CODE,
   CALL_ARGUMENT_TYPE_MISMATCH_CODE,
@@ -32,12 +33,15 @@ import {
   MATCH_EXHAUSTIVENESS_MISMATCH_CODE,
   MATCH_TUPLE_PATTERN_ARITY_MISMATCH_CODE,
   MATCH_TUPLE_PATTERN_TYPE_MISMATCH_CODE,
+  POINTER_ARITHMETIC_VOID_CODE,
   RESERVED_BUILTIN_TYPE_NAMES,
   SYMBOL_ALREADY_DEFINED_CODE,
   TUPLE_DESTRUCTURE_TARGET_INVALID_CODE,
   TYPE_RECURSION_CYCLE_CODE,
   TypeCheckerBase,
+  resolveQualifiedTypeSymbol,
   VOID_TYPE_INVALID_CODE,
+  VARIADIC_METHOD_UNSUPPORTED_CODE,
 } from "./TypeCheckerBase";
 import { KNOWN_TYPES, TypeUtils } from "./TypeUtils";
 import {
@@ -198,9 +202,10 @@ function collectReboundParameters(decl: AST.FunctionDecl): Set<string> {
           patternNames(binding),
         );
       case "PatternEnumStruct":
-        return (pattern as AST.PatternEnumStruct).fields.flatMap((field) =>
-          field.binding ? [field.binding] : [],
-        );
+        return (pattern as AST.PatternEnumStruct).fields.flatMap((field) => {
+          if (field.pattern) return patternNames(field.pattern);
+          return field.binding ? [field.binding] : [];
+        });
       case "PatternTuple":
         return (pattern as AST.PatternTuple).patterns.flatMap((subPattern) =>
           patternNames(subPattern),
@@ -501,10 +506,17 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
     const mainSymbol = this.currentScope.resolve("main");
     if (!mainSymbol) {
       // Find a good location for the error (use program start or first statement)
-      let location = program.statements[0]?.location ?? program.location;
+      // Skip synthesized statements such as the implicit prelude import,
+      // which sit at line 0 and would report `file:0:0`.
+      let location = program.statements.find(
+        (statement) => (statement.location?.startLine ?? 0) > 0,
+      )?.location;
       if (!location) {
         location = {
-          file: "unknown",
+          file:
+            program.location?.file ??
+            program.statements[0]?.location?.file ??
+            "unknown",
           startLine: 1,
           startColumn: 1,
           endLine: 1,
@@ -1140,6 +1152,17 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
         );
       }
 
+      if (param.isVariadic && parentStruct) {
+        // Methods are called and bound without argument packing, so a
+        // `...T` parameter would receive raw arguments (BUG-430).
+        throw new CompilerError(
+          `Method '${decl.name}' cannot have a native variadic parameter`,
+          "Native variadics (`...T`) are supported on free functions only. Take a slice (`xs: T[]`) or a pointer and count instead.",
+          param.location,
+          VARIADIC_METHOD_UNSUPPORTED_CODE,
+        );
+      }
+
       if (param.isVariadic) {
         // Enforce variadic structure: (..., variadic, count)
         // The variadic parameter must be the second to last parameter
@@ -1189,11 +1212,7 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
       // an explicit count parameter for native variadics.
     }
 
-    this.rejectEscapingSpecPointer(
-      returnType,
-      "a return type",
-      decl.location,
-    );
+    this.rejectEscapingSpecPointer(returnType, "a return type", decl.location);
 
     this.currentFunctionReturnType = returnType;
     const prevReboundParameters = this.reboundParameters;
@@ -1248,6 +1267,28 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
 
   // ========== Struct Body Checking ==========
 
+  /**
+   * Whether an implementation or override type can stand in for the declared
+   * one. Dispatch through a spec or parent uses the declared signature, so a
+   * scalar (number, bool, char) must match exactly: `ret bool` behind
+   * `ret long` leaves garbage in the upper bits (BUG-423). Other types keep
+   * the existing compatibility rule (e.g. a concrete iterator for a spec).
+   */
+  private isSignatureTypeSubstitutable(
+    declared: AST.TypeNode,
+    actual: AST.TypeNode,
+  ): boolean {
+    if (this.areTypesExactMatch(declared, actual)) return true;
+    const isScalar = (type: AST.TypeNode) => {
+      const resolved = this.resolveType(type, false);
+      return (
+        TypeUtils.isNumericType(resolved) || TypeUtils.isBoolType(resolved)
+      );
+    };
+    if (isScalar(declared) || isScalar(actual)) return false;
+    return this.areTypesCompatible(declared, actual);
+  }
+
   private checkSpecImplementation(
     structDecl: AST.StructDecl,
     specDecl: AST.SpecDecl,
@@ -1301,7 +1342,10 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
       );
 
       if (
-        !this.areTypesCompatible(expectedReturnType, resolvedActualReturnType)
+        !this.isSignatureTypeSubstitutable(
+          expectedReturnType,
+          resolvedActualReturnType,
+        )
       ) {
         throw new CompilerError(
           `Method '${method.name}' in struct '${structDecl.name}' has incorrect return type`,
@@ -1325,7 +1369,17 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
         );
         const actualParamType = this.resolveType(structMethod.params[i]!.type);
 
-        if (!this.areTypesCompatible(expectedParamType, actualParamType)) {
+        // The receiver may be declared as the spec or Self; it only has to
+        // accept the implementing struct.
+        const isReceiver = i === 0 && method.params[i]!.name === "this";
+        if (
+          isReceiver
+            ? !this.areTypesCompatible(expectedParamType, actualParamType)
+            : !this.isSignatureTypeSubstitutable(
+                expectedParamType,
+                actualParamType,
+              )
+        ) {
           throw new CompilerError(
             `Parameter '${method.params[i]!.name}' of method '${method.name}' has incorrect type`,
             `Expected '${this.formatDiagnosticType(expectedParamType)}', got '${this.formatDiagnosticType(actualParamType)}'`,
@@ -1384,106 +1438,134 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
   }
 
   /**
-   * Detect cycles in struct field types that would cause infinite size
+   * Detect a struct or enum that contains itself by value, which would need
+   * infinite storage. Containment follows struct fields (and the parent
+   * struct), enum payloads, fixed-size arrays, tuples, type aliases and generic
+   * arguments a declaration stores by value; pointers, slices and callables
+   * break a cycle (BUG-427).
    */
-  private detectStructCycle(
-    startName: string,
-    decl: AST.StructDecl,
-    visited: Set<string> = new Set(),
-    path: string[] = [],
-  ): void {
-    if (visited.has(decl.name)) {
-      // Found a cycle
-      const cyclePath = [...path, decl.name].join(" -> ");
-      throw new CompilerError(
-        `Struct '${startName}' has infinite size due to recursive field types`,
-        `Recursive cycle detected: ${cyclePath}. Use pointers (*${decl.name}) to break the cycle.`,
-        decl.location,
-        TYPE_RECURSION_CYCLE_CODE,
-      );
-    }
+  private detectValueCycle(start: AST.StructDecl | AST.EnumDecl): void {
+    const label = start.kind === "StructDecl" ? "Struct" : "Enum";
+    // Keyed by declaration and generic arguments: `Box<int>` and `Box<S>` are
+    // different expansions of `Box`.
+    const visiting = new Set<string>();
+    const nodeIds = new Map<AST.ASTNode, number>();
+    const visitKey = (
+      node: AST.ASTNode,
+      substitutions: Map<string, AST.TypeNode>,
+    ): string => {
+      let id = nodeIds.get(node);
+      if (id === undefined) {
+        id = nodeIds.size;
+        nodeIds.set(node, id);
+      }
+      const args = [...substitutions]
+        .map(([name, type]) => `${name}=${this.typeToString(type)}`)
+        .join(",");
+      return `${id}<${args}>`;
+    };
+    const path: string[] = [];
+    // Each nesting adds a level, so a generic that grows its own arguments
+    // (`G<T> { x: G<Box<T>> }`) cannot expand forever.
+    const MAX_DEPTH = 64;
 
-    visited.add(decl.name);
-    path.push(decl.name);
+    const visitDecl = (
+      decl: AST.StructDecl | AST.EnumDecl,
+      substitutions: Map<string, AST.TypeNode>,
+    ): void => {
+      if (decl === start && path.length > 0) {
+        const cyclePath = [...path, decl.name].join(" -> ");
+        throw new CompilerError(
+          `${label} '${start.name}' has infinite size due to recursive ${
+            label === "Struct" ? "field" : "variant"
+          } types`,
+          `Recursive cycle detected: ${cyclePath}. Use pointers (*${start.name}) to break the cycle.`,
+          start.location,
+          TYPE_RECURSION_CYCLE_CODE,
+        );
+      }
+      // Each declaration is expanded once per walk; other cycles are reported
+      // when their own declaration is checked.
+      const key = visitKey(decl, substitutions);
+      if (visiting.has(key) || path.length >= MAX_DEPTH) return;
+      visiting.add(key);
+      path.push(decl.name);
 
-    for (const member of decl.members) {
-      if (member.kind === "StructField") {
-        const fieldType = member.type;
-
-        // Only check non-pointer, non-array types
-        if (
-          fieldType.kind === "BasicType" &&
-          fieldType.pointerDepth === 0 &&
-          fieldType.arrayDimensions.length === 0
-        ) {
-          // Try to resolve the field's struct
-          const symbol = this.currentScope.resolve(fieldType.name);
-          if (symbol && symbol.kind === "Struct") {
-            const fieldStructDecl = symbol.declaration as AST.StructDecl;
-            this.detectStructCycle(
-              startName,
-              fieldStructDecl,
-              new Set(visited),
-              [...path],
-            );
-          }
+      const contained: AST.TypeNode[] = [];
+      if (decl.kind === "StructDecl") {
+        const parent = decl.inheritanceList[0];
+        if (parent) contained.push(parent);
+        for (const member of decl.members) {
+          if (member.kind === "StructField") contained.push(member.type);
+        }
+      } else {
+        for (const variant of decl.variants) {
+          const data = variant.dataType;
+          if (data?.kind === "EnumVariantTuple") contained.push(...data.types);
+          else if (data?.kind === "EnumVariantStruct")
+            contained.push(...data.fields.map((field) => field.type));
         }
       }
-    }
-  }
+      for (const type of contained) visitType(type, substitutions);
+      path.pop();
+    };
 
-  /**
-   * Detect cycles in enum variant types that would cause infinite size
-   */
-  private detectEnumCycle(
-    startName: string,
-    decl: AST.EnumDecl,
-    visited: Set<string> = new Set(),
-    path: string[] = [],
-  ): void {
-    if (visited.has(decl.name)) {
-      // Found a cycle
-      const cyclePath = [...path, decl.name].join(" -> ");
-      throw new CompilerError(
-        `Enum '${startName}' has infinite size due to recursive variant types`,
-        `Recursive cycle detected: ${cyclePath}. Use pointers (*${decl.name}) to break the cycle.`,
-        decl.location,
-        TYPE_RECURSION_CYCLE_CODE,
-      );
-    }
-
-    visited.add(decl.name);
-    path.push(decl.name);
-
-    for (const variant of decl.variants) {
-      if (variant.dataType) {
-        let typesToCheck: AST.TypeNode[] = [];
-
-        if (variant.dataType.kind === "EnumVariantTuple") {
-          typesToCheck = variant.dataType.types;
-        } else if (variant.dataType.kind === "EnumVariantStruct") {
-          typesToCheck = variant.dataType.fields.map((f) => f.type);
-        }
-
-        for (const type of typesToCheck) {
-          // Only check non-pointer, non-array types
-          if (
-            type.kind === "BasicType" &&
-            type.pointerDepth === 0 &&
-            type.arrayDimensions.length === 0
-          ) {
-            // Try to resolve the variant's enum
-            const symbol = this.currentScope.resolve(type.name);
-            if (symbol && symbol.kind === "Enum") {
-              const fieldEnumDecl = symbol.declaration as AST.EnumDecl;
-              this.detectEnumCycle(startName, fieldEnumDecl, new Set(visited), [
-                ...path,
-              ]);
-            }
-          }
-        }
+    const visitType = (
+      type: AST.TypeNode,
+      substitutions: Map<string, AST.TypeNode>,
+    ): void => {
+      const dimensions =
+        "arrayDimensions" in type ? (type.arrayDimensions ?? []) : [];
+      // A slice is a pointer and length; fixed arrays store elements inline.
+      if (dimensions.some((dimension) => dimension === null)) return;
+      if (type.kind === "TupleType") {
+        for (const element of type.types) visitType(element, substitutions);
+        return;
       }
-    }
+      if (type.kind !== "BasicType" || type.pointerDepth > 0) return;
+
+      const substituted = substitutions.get(type.name);
+      if (substituted && type.genericArgs.length === 0) {
+        visitType(substituted, new Map());
+        return;
+      }
+      const symbol = this.currentScope.resolve(type.name);
+      if (!symbol) return;
+      const declaration = symbol.declaration;
+      const argumentsFor = (params: AST.GenericParam[] | undefined) => {
+        const map = new Map<string, AST.TypeNode>();
+        (params ?? []).forEach((param, index) => {
+          const arg = type.genericArgs[index];
+          if (arg) map.set(param.name, substituteArgs(arg, substitutions));
+        });
+        return map;
+      };
+      if (symbol.kind === "TypeAlias" && declaration.kind === "TypeAlias") {
+        const alias = declaration as AST.TypeAliasDecl;
+        const aliasArguments = argumentsFor(alias.genericParams);
+        const key = visitKey(alias, aliasArguments);
+        if (visiting.has(key)) return;
+        visiting.add(key);
+        visitType(alias.type, aliasArguments);
+        visiting.delete(key);
+      } else if (
+        (symbol.kind === "Struct" && declaration.kind === "StructDecl") ||
+        (symbol.kind === "Enum" && declaration.kind === "EnumDecl")
+      ) {
+        const decl = declaration as AST.StructDecl | AST.EnumDecl;
+        visitDecl(decl, argumentsFor(decl.genericParams));
+      }
+    };
+
+    // Generic arguments are resolved in the scope that wrote them, including
+    // nested ones such as the `T` in `Box<Pair<T>>`.
+    const substituteArgs = (
+      type: AST.TypeNode,
+      substitutions: Map<string, AST.TypeNode>,
+    ): AST.TypeNode =>
+      substitutions.size > 0 ? this.substituteType(type, substitutions) : type;
+
+    visitDecl(start, new Map());
   }
 
   /** Collect inherited headers with class arguments applied, preserving templates. */
@@ -1609,7 +1691,10 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
       }
 
       if (
-        !this.areTypesCompatible(parentMethod.returnType, method.returnType) ||
+        !this.isSignatureTypeSubstitutable(
+          parentMethod.returnType,
+          method.returnType,
+        ) ||
         !this.areTypesCompatible(method.returnType, parentMethod.returnType)
       ) {
         this.addError(
@@ -1711,7 +1796,7 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
     }
 
     // Check for infinite size cycles in struct fields
-    this.detectStructCycle(decl.name, decl);
+    this.detectValueCycle(decl);
 
     // Check for duplicate generic parameter names
     const genericParamNames = new Set<string>();
@@ -1982,7 +2067,7 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
 
     // Check for infinite size cycles in enum variants
     if (hasVariantPayload) {
-      this.detectEnumCycle(decl.name, decl);
+      this.detectValueCycle(decl);
       this.checkEnumPayloadOwnership(decl, new Map(), decl.location);
     }
 
@@ -2063,6 +2148,31 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
   // ========== Spec Body Checking ==========
 
   private checkSpecBody(decl: AST.SpecDecl): void {
+    // Spec dispatch (vtable slots, thunks, conformance) is keyed by method
+    // name, so overloads would silently share or collide (BUG-470).
+    const seenMethods = new Set<string>();
+    for (const method of decl.methods) {
+      if (seenMethods.has(method.name)) {
+        throw new CompilerError(
+          `Duplicate method '${method.name}' in spec '${decl.name}'`,
+          "Spec methods cannot be overloaded; give each method a distinct name.",
+          method.location,
+          SYMBOL_ALREADY_DEFINED_CODE,
+        );
+      }
+      seenMethods.add(method.name);
+    }
+    for (const method of decl.methods) {
+      const variadic = method.params.find((param) => param.isVariadic);
+      if (variadic) {
+        throw new CompilerError(
+          `Method '${method.name}' cannot have a native variadic parameter`,
+          "Native variadics (`...T`) are supported on free functions only. Take a slice (`xs: T[]`) or a pointer and count instead.",
+          variadic.location,
+          VARIADIC_METHOD_UNSUPPORTED_CODE,
+        );
+      }
+    }
     // Validate inheritance list
     if (decl.extends) {
       for (const parentType of decl.extends) {
@@ -2345,7 +2455,9 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
       if (
         objType &&
         isSliceTypeNode(objType) &&
-        isTemporaryArrayElement(index.object, (type) => this.resolveType(type)) &&
+        isTemporaryArrayElement(index.object, (type) =>
+          this.resolveType(type),
+        ) &&
         !isConstantArrayStorage(index.object, (type) => this.resolveType(type))
       ) {
         // Modifying borrowed elements reads the temporary slice descriptor;
@@ -2365,15 +2477,52 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
     }
   }
 
+  /** `p += n` and `p -= n` step a pointer by an integer number of elements. */
+  private checkPointerCompoundAssignment(
+    expr: AST.AssignmentExpr,
+    targetType: AST.BasicTypeNode,
+    valueType: AST.TypeNode,
+  ): void {
+    const op = expr.operator.type;
+    if (op !== TokenType.PlusEqual && op !== TokenType.MinusEqual) {
+      throw new CompilerError(
+        `Operator '${expr.operator.lexeme}' is not supported on pointers`,
+        "Only '+=' and '-=' with an integer offset apply to pointers.",
+        expr.location,
+        ARITHMETIC_OPERAND_TYPE_MISMATCH_CODE,
+      );
+    }
+    if (targetType.name === "void" && targetType.pointerDepth === 1) {
+      throw new CompilerError(
+        "Cannot perform pointer arithmetic on void pointer",
+        "Void pointers have no size, so pointer arithmetic is undefined. Cast to a sized pointer type first (e.g., *u8).",
+        expr.location,
+        POINTER_ARITHMETIC_VOID_CODE,
+      );
+    }
+    if (!TypeUtils.isIntegerType(valueType)) {
+      throw new CompilerError(
+        `Pointer offset must be an integer, got ${this.formatDiagnosticType(valueType)}`,
+        "Use an integer number of elements to step the pointer.",
+        expr.value.location,
+        ARITHMETIC_OPERAND_TYPE_MISMATCH_CODE,
+      );
+    }
+  }
+
   /** Validate assignment targets and select the setter invoked by an index store. */
   private checkAssignment(expr: AST.AssignmentExpr): AST.TypeNode | undefined {
+    // A parenthesized target is the same lvalue (`(*p) = 1`, `(v) += 2`), as
+    // for `(*p)++`. Unwrap it here so code generation sees the plain target.
+    while (expr.assignee.kind === "Group") {
+      expr.assignee = (expr.assignee as AST.GroupExpr).expression;
+    }
     // Check if assignee is an l-value
     if (
       expr.assignee.kind !== "Identifier" &&
       expr.assignee.kind !== "Member" &&
       expr.assignee.kind !== "Index" &&
       expr.assignee.kind !== "TupleLiteral" &&
-      expr.assignee.kind !== "Assignment" && // Allow assignment chaining
       (expr.assignee.kind !== "Unary" ||
         (expr.assignee as AST.UnaryExpr).operator.type !== TokenType.Star)
     ) {
@@ -2452,23 +2601,32 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
           BITWISE_OPERAND_TYPE_MISMATCH_CODE,
         );
       }
-      let compatible = this.areTypesCompatible(targetType, valueType);
-      if (!compatible) {
-        const val = this.getIntegerConstantValue(expr.value);
-        if (val !== undefined) {
-          compatible = this.isIntegerTypeCompatible(val, targetType);
+      if (
+        expr.operator.type !== TokenType.Equal &&
+        targetType.kind === "BasicType" &&
+        targetType.pointerDepth > 0 &&
+        targetType.arrayDimensions.length === 0
+      ) {
+        this.checkPointerCompoundAssignment(expr, targetType, valueType);
+      } else {
+        let compatible = this.areTypesCompatible(targetType, valueType);
+        if (!compatible) {
+          const val = this.getIntegerConstantValue(expr.value);
+          if (val !== undefined) {
+            compatible = this.isIntegerTypeCompatible(val, targetType);
+          }
         }
-      }
 
-      if (!compatible) {
-        throw new CompilerError(
-          `Type mismatch in assignment: cannot assign ${this.formatDiagnosticType(
-            valueType,
-          )} to ${this.formatDiagnosticType(targetType)}`,
-          "The assigned value is not compatible with the target variable's type.",
-          expr.location,
-          ASSIGNMENT_TYPE_MISMATCH_CODE,
-        );
+        if (!compatible) {
+          throw new CompilerError(
+            `Type mismatch in assignment: cannot assign ${this.formatDiagnosticType(
+              valueType,
+            )} to ${this.formatDiagnosticType(targetType)}`,
+            "The assigned value is not compatible with the target variable's type.",
+            expr.location,
+            ASSIGNMENT_TYPE_MISMATCH_CODE,
+          );
+        }
       }
     }
     if (
@@ -2570,7 +2728,11 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
   private checkEnumStructVariant(
     expr: AST.EnumStructVariantExpr,
   ): AST.TypeNode | undefined {
-    const symbol = this.currentScope.resolve(expr.enumName);
+    // A module-qualified name such as shapes.Shape resolves through the
+    // module's scope.
+    const symbol = expr.enumName.includes(".")
+      ? resolveQualifiedTypeSymbol(this.currentScope, expr.enumName)
+      : this.currentScope.resolve(expr.enumName);
 
     // Handle namespace.Struct { ... } pattern (e.g., Lib.Point { x: 10, y: 20 })
     if (symbol && symbol.kind === "Module" && symbol.moduleScope) {
@@ -2990,33 +3152,83 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
       return;
     }
 
+    // Sub-patterns that always match: `Move(x, _)` covers Move, but
+    // `Move(1, y)` alone does not.
+    const irrefutable = (pattern: AST.Pattern): boolean =>
+      pattern.kind === "PatternWildcard" ||
+      pattern.kind === "PatternIdentifier" ||
+      (pattern.kind === "PatternTuple" && pattern.patterns.every(irrefutable));
+
     const coveredVariants = new Set<string>();
     let hasWildcard = false;
 
-    for (const arm of expr.arms) {
-      if (arm.pattern.kind === "PatternWildcard") {
-        // Wildcard covers everything, but only if it's unguarded
-        if (!arm.guard) {
-          hasWildcard = true;
-          break;
+    for (let armIndex = 0; armIndex < expr.arms.length; armIndex++) {
+      const arm = expr.arms[armIndex]!;
+      const pattern = arm.pattern;
+      const variant =
+        pattern.kind === "PatternEnum" ||
+        pattern.kind === "PatternEnumTuple" ||
+        pattern.kind === "PatternEnumStruct"
+          ? pattern.variantName
+          : undefined;
+      // An arm after an unguarded `_`, or after an arm that already matches
+      // every value of its variant, can never be selected.
+      if (hasWildcard || (variant && coveredVariants.has(variant))) {
+        throw new CompilerError(
+          variant && !hasWildcard
+            ? `Unreachable match arm: variant '${variant}' is already matched by earlier arms`
+            : "Unreachable match arm: an earlier '_' arm matches every value",
+          "Remove the arm, or move it before the arm that already matches its values.",
+          pattern.location ?? arm.location,
+          MATCH_EXHAUSTIVENESS_MISMATCH_CODE,
+        );
+      }
+      // Guarded arms cover nothing.
+      if (arm.guard) continue;
+      if (pattern.kind === "PatternWildcard") {
+        hasWildcard = true;
+      } else if (variant) {
+        // Covered by this arm alone, or together with earlier unguarded
+        // arms (`On(true)` then `On(false)`): later arms for it are dead.
+        const enumVariant = enumDecl.variants.find((v) => v.name === variant);
+        let payload: AST.Pattern[] = [];
+        if (pattern.kind === "PatternEnumTuple") payload = pattern.bindings;
+        else if (pattern.kind === "PatternEnumStruct") {
+          payload = pattern.fields.flatMap((field) =>
+            field.pattern ? [field.pattern] : [],
+          );
         }
-      } else if (
-        arm.pattern.kind === "PatternEnum" ||
-        arm.pattern.kind === "PatternEnumTuple" ||
-        arm.pattern.kind === "PatternEnumStruct"
-      ) {
-        // A variant is only covered if the arm is unguarded
-        if (!arm.guard) {
-          coveredVariants.add(arm.pattern.variantName);
+        if (
+          payload.every(irrefutable) ||
+          (enumVariant !== undefined &&
+            this.patternRowsExhaustive(
+              this.specializeEnumRows(
+                expr.arms
+                  .slice(0, armIndex + 1)
+                  .filter((candidate) => !candidate.guard)
+                  .map((candidate) => [candidate.pattern]),
+                enumVariant,
+              ),
+            ))
+        ) {
+          coveredVariants.add(variant);
         }
       }
     }
 
     if (!hasWildcard) {
-      const allVariants = new Set(enumDecl.variants.map((v) => v.name));
-      const missingVariants = [...allVariants].filter(
-        (v) => !coveredVariants.has(v),
-      );
+      // Arms may cover a variant together: `Some(Ok(x))` and `Some(Err(e))`
+      // cover `Some`, while `Move(1, y)` alone does not cover `Move`.
+      const rows = expr.arms
+        .filter((arm) => !arm.guard)
+        .map((arm) => [arm.pattern]);
+      const missingVariants = enumDecl.variants
+        .filter(
+          (v) =>
+            !coveredVariants.has(v.name) &&
+            !this.patternRowsExhaustive(this.specializeEnumRows(rows, v)),
+        )
+        .map((v) => v.name);
 
       if (missingVariants.length > 0) {
         throw new CompilerError(
@@ -3027,6 +3239,144 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
         );
       }
     }
+  }
+
+  /** Rows whose first pattern can match variant `v`, with its payload expanded. */
+  private specializeEnumRows(
+    rows: AST.Pattern[][],
+    variant: AST.EnumVariant,
+  ): AST.Pattern[][] {
+    // Struct variants get one column per field, in declaration order.
+    let arity = 0;
+    if (variant.dataType?.kind === "EnumVariantTuple") {
+      arity = variant.dataType.types.length;
+    } else if (variant.dataType?.kind === "EnumVariantStruct") {
+      arity = variant.dataType.fields.length;
+    }
+    const wildcard: AST.Pattern = {
+      kind: "PatternWildcard",
+      location: variant.location,
+    };
+    const specialized: AST.Pattern[][] = [];
+    for (const row of rows) {
+      const head = row[0]!;
+      const rest = row.slice(1);
+      if (
+        head.kind === "PatternWildcard" ||
+        head.kind === "PatternIdentifier"
+      ) {
+        specialized.push([
+          ...Array<AST.Pattern>(arity).fill(wildcard),
+          ...rest,
+        ]);
+      } else if (
+        (head.kind === "PatternEnum" ||
+          head.kind === "PatternEnumTuple" ||
+          head.kind === "PatternEnumStruct") &&
+        head.variantName === variant.name
+      ) {
+        // A struct variant field matches its nested pattern, if it has one,
+        // and otherwise every value.
+        let payload: AST.Pattern[] = Array<AST.Pattern>(arity).fill(wildcard);
+        if (head.kind === "PatternEnumTuple") {
+          payload = head.bindings;
+        } else if (
+          head.kind === "PatternEnumStruct" &&
+          variant.dataType?.kind === "EnumVariantStruct"
+        ) {
+          payload = variant.dataType.fields.map(
+            (variantField) =>
+              head.fields.find((field) => field.fieldName === variantField.name)
+                ?.pattern ?? wildcard,
+          );
+        }
+        specialized.push([...payload, ...rest]);
+      }
+    }
+    return specialized;
+  }
+
+  /**
+   * Whether the rows of patterns match every value (standard pattern-matrix
+   * exhaustiveness). Enum and tuple columns are split by constructor and bool
+   * literals by value; other literal columns need a binding or `_`.
+   */
+  private patternRowsExhaustive(rows: AST.Pattern[][]): boolean {
+    if (rows.length === 0) return false;
+    if (rows[0]!.length === 0) return true;
+    const isWildcard = (pattern: AST.Pattern) =>
+      pattern.kind === "PatternWildcard" ||
+      pattern.kind === "PatternIdentifier";
+    const irrefutable = (pattern: AST.Pattern): boolean =>
+      isWildcard(pattern) ||
+      (pattern.kind === "PatternTuple" && pattern.patterns.every(irrefutable));
+    // A row that matches everything settles it; without this, splitting on
+    // other rows' literals is exponential in the number of columns.
+    if (rows.some((row) => row.every(irrefutable))) return true;
+    const column = rows.map((row) => row[0]!);
+    const rest = (row: AST.Pattern[]) => row.slice(1);
+
+    const enumPattern = column.find(
+      (pattern) =>
+        (pattern.kind === "PatternEnum" ||
+          pattern.kind === "PatternEnumTuple" ||
+          pattern.kind === "PatternEnumStruct") &&
+        pattern.resolvedEnum,
+    ) as AST.PatternEnum | undefined;
+    if (enumPattern?.resolvedEnum) {
+      return enumPattern.resolvedEnum.variants.every((variant) =>
+        this.patternRowsExhaustive(this.specializeEnumRows(rows, variant)),
+      );
+    }
+
+    const tuplePattern = column.find(
+      (pattern) => pattern.kind === "PatternTuple",
+    ) as AST.PatternTuple | undefined;
+    if (tuplePattern) {
+      const arity = tuplePattern.patterns.length;
+      const wildcard: AST.Pattern = {
+        kind: "PatternWildcard",
+        location: tuplePattern.location,
+      };
+      return this.patternRowsExhaustive(
+        rows.flatMap((row) => {
+          const head = row[0]!;
+          if (head.kind === "PatternTuple")
+            return [[...head.patterns, ...rest(row)]];
+          if (isWildcard(head))
+            return [
+              [...Array<AST.Pattern>(arity).fill(wildcard), ...rest(row)],
+            ];
+          return [];
+        }),
+      );
+    }
+
+    const boolValues = new Set(
+      column.flatMap((pattern) =>
+        pattern.kind === "PatternLiteral" &&
+        typeof pattern.value.value === "boolean"
+          ? [pattern.value.value]
+          : [],
+      ),
+    );
+    if (boolValues.size > 0) {
+      return [true, false].every((value) =>
+        this.patternRowsExhaustive(
+          rows.flatMap((row) => {
+            const head = row[0]!;
+            return isWildcard(head) ||
+              (head.kind === "PatternLiteral" && head.value.value === value)
+              ? [rest(row)]
+              : [];
+          }),
+        ),
+      );
+    }
+
+    return this.patternRowsExhaustive(
+      rows.filter((row) => isWildcard(row[0]!)).map(rest),
+    );
   }
 
   private isNonEnumMatchExhaustive(
@@ -3102,6 +3452,24 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
     }
 
     return false;
+  }
+
+  /**
+   * The enum declaration a nested pattern is checked against. A payload or
+   * field type may name an enum declared in another module, so the type's
+   * resolved declaration is preferred over a lookup in the current scope.
+   */
+  private patternEnumDecl(type: AST.TypeNode): AST.EnumDecl | undefined {
+    if (type.kind !== "BasicType") return undefined;
+    if (type.resolvedDeclaration?.kind === "EnumDecl") {
+      return type.resolvedDeclaration;
+    }
+    const symbol = type.name.includes(".")
+      ? resolveQualifiedTypeSymbol(this.currentScope, type.name)
+      : this.currentScope.resolve(type.name);
+    return symbol?.kind === "Enum"
+      ? (symbol.declaration as AST.EnumDecl)
+      : undefined;
   }
 
   /**
@@ -3288,6 +3656,26 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
       );
     }
 
+    // Enum matches dispatch on the variant tag; a top-level identifier arm
+    // was never selected (the value silently fell through to later arms).
+    if (enumDecl && pattern.kind === "PatternIdentifier") {
+      throw new CompilerError(
+        `An enum match cannot bind the whole value to '${pattern.name}'`,
+        "Use '_' for the remaining variants and refer to the matched value directly.",
+        pattern.location,
+        MATCH_EXHAUSTIVENESS_MISMATCH_CODE,
+      );
+    }
+
+    if (
+      enumDecl &&
+      (pattern.kind === "PatternEnum" ||
+        pattern.kind === "PatternEnumTuple" ||
+        pattern.kind === "PatternEnumStruct")
+    ) {
+      pattern.resolvedEnum = enumDecl;
+    }
+
     // Handle enum patterns (enumDecl is defined)
     if (pattern.kind === "PatternEnum") {
       const variant = enumDecl!.variants.find(
@@ -3361,13 +3749,7 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
         if (binding.kind !== "PatternIdentifier") {
           // Nested pattern - recursively check it
           // Find the enum declaration for the binding type
-          let nestedEnumDecl: AST.EnumDecl | undefined;
-          if (bindingType.kind === "BasicType") {
-            const typeSymbol = this.currentScope.resolve(bindingType.name);
-            if (typeSymbol && typeSymbol.kind === "Enum") {
-              nestedEnumDecl = typeSymbol.declaration as AST.EnumDecl;
-            }
-          }
+          const nestedEnumDecl = this.patternEnumDecl(bindingType);
           this.checkPattern(binding, bindingType, nestedEnumDecl);
         } else {
           // Simple identifier binding
@@ -3394,7 +3776,15 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
       const variant = enumDecl!.variants.find(
         (v) => v.name === pattern.variantName,
       );
-      if (!variant || variant.dataType?.kind !== "EnumVariantStruct") {
+      if (!variant) {
+        // Usually a nested pattern for another enum than the field's type.
+        throw new CompilerError(
+          `Enum '${enumDecl!.name}' has no variant '${pattern.variantName}'`,
+          `The value matched here is a ${enumDecl!.name}; use one of its variants.`,
+          pattern.location,
+        );
+      }
+      if (variant.dataType?.kind !== "EnumVariantStruct") {
         throw new CompilerError(
           `Variant '${pattern.variantName}' is not a struct variant`,
           "Use the correct pattern syntax.",
@@ -3427,13 +3817,21 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
           );
         }
 
-        const bindingName = field.binding;
-        if (bindingName === "_") continue;
-
         let bindingType = expectedFields.get(field.fieldName)!;
         if (typeMap.size > 0) {
           bindingType = this.substituteType(bindingType, typeMap);
         }
+
+        // A nested pattern is checked against the field's type, like the
+        // payload patterns of a tuple variant.
+        if (field.pattern) {
+          const nestedEnumDecl = this.patternEnumDecl(bindingType);
+          this.checkPattern(field.pattern, bindingType, nestedEnumDecl);
+          continue;
+        }
+
+        const bindingName = field.binding;
+        if (bindingName === "_") continue;
 
         // Create a synthetic VariableDecl for the binding so it can be captured correctly
         const bindingDecl: AST.VariableDecl = {

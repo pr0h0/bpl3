@@ -248,8 +248,10 @@ export class DocumentationGenerator {
 
   private documentFunction(func: AST.FunctionDecl, parentName?: string) {
     const fullName = parentName ? `${parentName}.${func.name}` : func.name;
+    // Methods sit under their type's `#### Methods` heading.
+    const level = parentName ? "#####" : "###";
 
-    this.output.push(`### \`${fullName}\``);
+    this.output.push(`${level} \`${fullName}\``);
 
     // Signature
     const params = this.formatParameters(func.params);
@@ -277,7 +279,7 @@ export class DocumentationGenerator {
 
       // Sections
       for (const section of parsed.sections) {
-        this.output.push(`#### ${section.title}`);
+        this.output.push(`${level}# ${section.title}`);
         this.output.push(section.content + "\n");
       }
     }

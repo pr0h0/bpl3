@@ -8,10 +8,17 @@
  */
 export interface CompileOptions {
   project?: boolean;
+  /** For `check -`: the path stdin is checked as. */
+  stdinFilepath?: string;
   output?: string;
   shared?: boolean;
   header?: string;
   emit?: "llvm" | "ast" | "tokens" | "formatted";
+  /**
+   * True when `emit` is the root command's default `llvm` rather than an
+   * explicit `--emit llvm`. Such builds tree-shake like `bpl build`.
+   */
+  emitDefaulted?: boolean;
   target?: string;
   sysroot?: string;
   cpu?: string;
@@ -56,6 +63,8 @@ export interface FormatOptions {
   lineEnding?: string;
   write?: boolean;
   check?: boolean;
+  /** Check mode that also prints a unified diff for each unformatted file. */
+  diff?: boolean;
   verbose?: boolean;
   json?: boolean;
 }
@@ -65,6 +74,10 @@ export interface FormatOptions {
  */
 export interface LintOptions {
   stdinFilepath?: string;
+  /** Lint codes to skip; each entry may hold several, comma-separated. */
+  disable?: string[];
+  /** Remove unused imports (L002) in place before linting. */
+  fix?: boolean;
   failOnWarnings?: boolean;
   verbose?: boolean;
   json?: boolean;

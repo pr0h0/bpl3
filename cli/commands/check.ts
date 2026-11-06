@@ -22,11 +22,18 @@ export {
 export function registerCheckCommand(program: Command): void {
   program
     .command("check")
-    .argument("[files...]", "BPL files to type check")
+    .argument(
+      "[files...]",
+      "BPL files or directories to type check (default: the project, when bpl.json exists)",
+    )
     .description("Type check BPL files without generating code (fast)")
     .option("-v, --verbose", "enable verbose output")
     .option("-q, --quiet", "suppress non-error output")
     .option("--json", "output results in JSON format")
+    .option(
+      "--stdin-filepath <path>",
+      "path to use for stdin (-) in diagnostics and relative imports",
+    )
     .option("--time", "show type checking time statistics")
     .option("--no-prelude", "do not load implicit primitives")
     .option("--color", "force colored output")

@@ -1,4 +1,4 @@
-import [Entity], [EntityType] from "./entities.bpl";
+import [EntityType] from "./entities.bpl";
 import [Vec3] from "./math.bpl";
 
 export [GameEngine];
@@ -30,7 +30,7 @@ struct GameEngine {
     /#
     # Start Game Loop
     Begins the main execution loop.
-    
+
     This method will block until `stop()` is called.
     #/
     frame start(this: GameEngine) {

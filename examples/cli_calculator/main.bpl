@@ -1,13 +1,10 @@
 import [String] from "std/string.bpl";
-import [Array] from "std/array.bpl";
 import [ArgParser], [Command], [ParsedArgs] from "std/arg_parser.bpl";
-import [Option] from "std/option.bpl";
 import [Args] from "std/args.bpl";
 
 import [printf] from "std/c.bpl";
 import [atoi] from "std/c.bpl";
 import [strcmp] from "std/c.bpl";
-import [malloc] from "std/c.bpl";
 import [free] from "std/c.bpl";
 
 frame main(argc: int, argv: **char) ret int {

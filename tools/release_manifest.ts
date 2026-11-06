@@ -79,6 +79,7 @@ export const PACKAGE_HELPER_DEPENDENCIES = [
   {
     importedBy: [
       "tools/release_manifest.ts",
+      "tools/test_baseline.ts",
       "tools/test_ci.ts",
     ],
     path: "compiler/common/Env.ts",
@@ -86,19 +87,13 @@ export const PACKAGE_HELPER_DEPENDENCIES = [
       "Packed helper scripts share environment parsing without shipping broad compiler sources.",
   },
   {
-    importedBy: [
-      "tools/fuzz_artifact_repro.ts",
-      "tools/release_manifest.ts",
-    ],
+    importedBy: ["tools/fuzz_artifact_repro.ts", "tools/release_manifest.ts"],
     path: "compiler/common/PathSafety.ts",
     reason:
       "Packed helper scripts share symlink-safe path validation without shipping broad compiler sources.",
   },
   {
-    importedBy: [
-      "tools/release_manifest.ts",
-      "tools/test_ci.ts",
-    ],
+    importedBy: ["tools/release_manifest.ts", "tools/test_ci.ts"],
     path: "compiler/common/ProcessErrors.ts",
     reason:
       "Packed helper scripts share spawn error formatting without shipping broad compiler sources.",
@@ -120,11 +115,7 @@ export function createReleaseManifest(
   const binaryName = process.platform === "win32" ? "bpl.exe" : "bpl";
   const artifacts: ReleaseManifestArtifact[] = [
     artifactFor(repoRoot, join(repoRoot, binaryName), "binary"),
-    artifactFor(
-      repoRoot,
-      join(repoRoot, "lib", "runtime_wasm.ll"),
-      "runtime",
-    ),
+    artifactFor(repoRoot, join(repoRoot, "lib", "runtime_wasm.ll"), "runtime"),
     artifactFor(
       repoRoot,
       join(repoRoot, "lib", "runtime_wasm_host.ll"),
@@ -194,7 +185,9 @@ export function discoverPackageScriptHelperReferences(
   ) as PackageJson;
   const references: PackageScriptHelperReference[] = [];
 
-  for (const [scriptName, script] of Object.entries(packageJson.scripts ?? {})) {
+  for (const [scriptName, script] of Object.entries(
+    packageJson.scripts ?? {},
+  )) {
     for (const helperPath of findBunToolScriptPaths(script)) {
       const stats = tryLstat(join(repoRoot, helperPath));
       if (!stats?.isFile()) {
@@ -219,8 +212,7 @@ export function discoverPackageHelperDependencyFiles(
   packageHelperFiles: readonly string[] = discoverPackageScriptHelperFiles(
     repoRoot,
   ),
-  packageHelperDependencies: readonly PackageHelperDependency[] =
-    PACKAGE_HELPER_DEPENDENCIES,
+  packageHelperDependencies: readonly PackageHelperDependency[] = PACKAGE_HELPER_DEPENDENCIES,
 ): string[] {
   const packageHelperFileSet = new Set(packageHelperFiles);
   const dependencyFiles = new Set<string>();
@@ -329,7 +321,9 @@ function artifactFor(
     throw new Error(`Release artifact is not a non-empty file: ${filePath}`);
   }
 
-  const relPath = relative(repoRoot, filePath).split(/[\\/]+/).join("/");
+  const relPath = relative(repoRoot, filePath)
+    .split(/[\\/]+/)
+    .join("/");
   return {
     kind,
     path: relPath.startsWith("..") ? basename(filePath) : relPath,
@@ -389,8 +383,8 @@ function assertPackageHelperImportsDependency(
   const source = readFileSync(importerPath, "utf-8");
   const importSpecifiers = packageImportSpecifiers(importer, dependencyPath);
   const sourceImportSpecifiers = importedModuleSpecifiers(source);
-  const importsDependency = importSpecifiers.some(
-    (specifier) => sourceImportSpecifiers.has(specifier),
+  const importsDependency = importSpecifiers.some((specifier) =>
+    sourceImportSpecifiers.has(specifier),
   );
   if (!importsDependency) {
     throw new Error(
@@ -409,11 +403,7 @@ function packageImportSpecifiers(
   dependencyPath: string,
 ): string[] {
   const specifier = packageImportSpecifier(importer, dependencyPath);
-  const specifiers = new Set([
-    specifier,
-    `${specifier}.ts`,
-    `${specifier}.js`,
-  ]);
+  const specifiers = new Set([specifier, `${specifier}.ts`, `${specifier}.js`]);
 
   if (basename(dependencyPath) === "index.ts") {
     const directorySpecifier = packageImportSpecifier(
@@ -429,7 +419,10 @@ function packageImportSpecifiers(
   return [...specifiers];
 }
 
-function packageImportSpecifier(importer: string, dependencyPath: string): string {
+function packageImportSpecifier(
+  importer: string,
+  dependencyPath: string,
+): string {
   const specifier = relative(dirname(importer), dependencyPath)
     .split(/[\\/]+/)
     .join("/");
@@ -611,16 +604,12 @@ if (import.meta.main) {
         "--pack-destination",
         dirname(outPath),
       ];
-      const pack = spawnSync(
-        "npm",
-        npmPackArgs,
-        {
-          cwd: repoRoot,
-          encoding: "utf-8",
-          stdio: "pipe",
-          timeout: getReleaseManifestNpmPackTimeoutMs(),
-        },
-      );
+      const pack = spawnSync("npm", npmPackArgs, {
+        cwd: repoRoot,
+        encoding: "utf-8",
+        stdio: "pipe",
+        timeout: getReleaseManifestNpmPackTimeoutMs(),
+      });
       if (pack.error) {
         throw new Error(
           [

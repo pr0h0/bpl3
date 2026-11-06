@@ -2,10 +2,11 @@ import { test } from "bun:test";
 import { expectCorrectnessSuite } from "./helpers/compilerCorrectness";
 
 test("String assignment copies aliased text before releasing its buffer", () => {
-  expectCorrectnessSuite([{
-    name: "string-aliased-assignment",
-    validateLlvm: true,
-    source: `
+  expectCorrectnessSuite([
+    {
+      name: "string-aliased-assignment",
+      validateLlvm: true,
+      source: `
       import [String] from "std/string.bpl";
       extern strcmp(a: string, b: string) ret int;
       frame main() ret int {
@@ -29,6 +30,7 @@ test("String assignment copies aliased text before releasing its buffer", () => 
         value.destroy();
         return 0;
       }`,
-    expectedStdout: "",
-  }]);
+      expectedStdout: "",
+    },
+  ]);
 }, 60000);

@@ -31,10 +31,23 @@ caller closes both descriptors. Accepted connections have five-second read/write
 to 16 KiB headers and 1 MiB bodies. Fragmented fixed-length and chunked requests are assembled; unsupported
 request transfer codings return 501. Every response closes the connection.
 
+`listen`, `listenOn` and each worker keep up to 64 accepted connections in a
+pending set, so idle sockets such as browser preconnects and clients that
+stall partway through a request do not hold the server. A plain HTTP request
+is assembled from whatever bytes each connection has sent and served only
+once it is complete; one still incomplete at `request_timeout_seconds` gets
+408, and a connection that sends nothing in that time is closed without a
+response. TLS connections are served from their first bytes, because the
+handshake reads in blocking steps, so a TLS client that stalls mid-request
+still occupies its worker until the request deadline.
+
 Routes support `get`, `post`, `put`, `delete`, `patch`, `options`, `head`, and
 `on(method, path, handler)`. Parameters use `/users/:id`; nonterminal `*`
 characters are literal and do not stop later parameter extraction. A final `*` matches
 remaining path characters. `req.getParam("id")` returns `Option<string>`.
+Parameter values are percent-decoded (`/users/John%20Doe` gives `John Doe`; `+`
+stays literal in paths), and a path with an invalid escape or `%00` in a
+parameter does not match the route.
 `req.state` holds application-owned strings separately from client data.
 `req.setState(key, value)` copies strings for middleware identity/context; the
 request destroys them after handling. Client headers/query parameters cannot

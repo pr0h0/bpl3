@@ -128,7 +128,9 @@ export abstract class StructEnumGenerator extends BaseCodeGenerator {
     const paramTypes = type.paramTypes.slice(1);
     const mangledParams = paramTypes.map((t) => this.mangleType(t)).join("_");
     const receiver = type.paramTypes[0];
-    const valueReceiver = decl.params[0]?.name === "this" && receiver &&
+    const valueReceiver =
+      decl.params[0]?.name === "this" &&
+      receiver &&
       !this.resolveType(receiver).endsWith("*");
     // Receiver names vary across overrides; value and pointer receiver
     // overloads still need distinct slots.
@@ -361,12 +363,6 @@ export abstract class StructEnumGenerator extends BaseCodeGenerator {
           (m) => m.kind === "FunctionDecl" && m.name === methodName,
         ) as AST.FunctionDecl;
         if (fallback) {
-          // Found it!
-          const funcName = fallback.name;
-          const baseName = `${owner.name}_${funcName}`;
-          const funcType = fallback.resolvedType as AST.FunctionTypeNode;
-          const _mangled = this.getMangledName(baseName, funcType);
-
           // If the function is generic, we can't put it in vtable directly unless it's instantiated?
           // But vtable methods shouldn't be generic.
           // If fallback is generic, we skip it.

@@ -390,19 +390,21 @@ describe("v0.1 Stability Edge Cases", () => {
       );
     });
 
-    it("rejects unreachable code after return", () => {
+    it("warns once about unreachable code after return", () => {
       const result = compileAndRunFull(`
+        import printf from "std/c.bpl";
         frame main() ret int {
+          printf("ran\\n");
           return 1;
           local value: int = 2;
           return value;
         }
       `);
 
-      expect(result.exitCode).not.toBe(0);
-      expect((result.stderr + result.stdout).toLowerCase()).toContain(
-        "unreachable code",
-      );
+      // A warning, not an error: the program builds, runs and returns 1.
+      expect(result.stdout).toBe("ran\n");
+      expect(result.exitCode).toBe(1);
+      expect(result.stderr.match(/Unreachable code detected/g)).toHaveLength(1);
     });
   });
 });

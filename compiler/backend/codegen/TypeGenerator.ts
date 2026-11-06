@@ -250,6 +250,12 @@ export abstract class TypeGenerator extends StructEnumGenerator {
       return 0; // void
     }
 
+    // Inside a monomorphized body, `T` must describe the concrete type; an
+    // unsubstituted parameter has no DWARF type and crashes clang (BUG-429).
+    if (depth === 0 && this.currentTypeMap.size > 0) {
+      type = this.substituteType(type, this.currentTypeMap);
+    }
+
     const resolvedName = this.resolveType(type);
     const pointerBits = this.getLayoutCalculator().get("i8*").size * 8;
 
@@ -836,7 +842,21 @@ export abstract class TypeGenerator extends StructEnumGenerator {
       }
     }
 
-    return 0; // Unknown
+    // Anything else (e.g. built-in structs such as `Any`) gets an opaque
+    // type of the right size: a variable typed `null` crashes clang.
+    let sizeInBits = 0;
+    try {
+      sizeInBits = this.getTypeSizeInBits(type);
+    } catch {
+      sizeInBits = 0;
+    }
+    return this.debugInfoGenerator.createStructType(
+      resolvedName.replace(/^%struct\./, "").replace(/[^a-zA-Z0-9_]/g, "_"),
+      sizeInBits,
+      this.debugInfoGenerator.getFileNodeId(this.currentFilePath),
+      0,
+      [],
+    );
   }
 
   protected getTypeIdFromNode(type: AST.TypeNode): number {
@@ -1897,7 +1917,9 @@ export abstract class TypeGenerator extends StructEnumGenerator {
     if (this.thunks.has(thunkName)) return thunkName;
     this.thunks.add(thunkName);
     const retType = this.resolveType(functionType.returnType);
-    const returnExtension = this.getCAbiReturnExtension(functionType.returnType);
+    const returnExtension = this.getCAbiReturnExtension(
+      functionType.returnType,
+    );
     const receiverType = this.resolveType(functionType.paramTypes[0]!);
     const params = functionType.paramTypes
       .slice(1)
@@ -2129,20 +2151,7 @@ export abstract class TypeGenerator extends StructEnumGenerator {
       for (const method of methods) {
         // If method is not generic, generate it now (monomorphized)
         if (method.genericParams.length === 0) {
-          // Pre-calculate mangled name and mark as defined to prevent redundant declarations
-          const funcType = method.resolvedType as AST.FunctionTypeNode;
-          const substitutedFuncType = this.substituteType(
-            funcType,
-            typeMap,
-          ) as AST.FunctionTypeNode;
           const methodName = `${mangledName}_${method.name}`;
-          const _fullMangledName = this.getMangledName(
-            methodName,
-            substitutedFuncType,
-            false,
-            [],
-          );
-          // this.definedFunctions.add(fullMangledName); // Removed to allow generation
 
           const generate = () => {
             const prevMap = this.currentTypeMap;

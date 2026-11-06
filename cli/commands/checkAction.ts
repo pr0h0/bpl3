@@ -4,12 +4,15 @@
  */
 
 import * as fs from "fs";
+import * as path from "path";
 import type { Command } from "commander";
 import { diagnosticFormatter } from "../DiagnosticFormatter";
 import type { CompileOptions } from "../types";
 import { getInputFilePathError } from "../utils";
+import { expandSourceInputs } from "../SourceInputs";
 import { Logger, LogLevel, setLogLevel } from "../../compiler/common/Logger";
 import { updateConfig } from "../../compiler/common/Config";
+import { SourceManager } from "../../compiler/common/SourceManager";
 import {
   CLI_JSON_CHECKS,
   createJsonReport,
@@ -19,6 +22,7 @@ import {
   CHECK_INPUT_NOT_FOUND_CODE,
   CHECK_INPUT_SYMLINK_CODE,
   CHECK_NO_INPUTS_CODE,
+  CHECK_PROCESSING_ERROR_CODE,
 } from "./CheckContracts";
 
 const log = new Logger("Check");
@@ -51,7 +55,7 @@ export async function runCheckCommand(
 
   // Handle quiet mode
   if (options.quiet) {
-    setLogLevel(LogLevel.SILENT);
+    setLogLevel(LogLevel.ERROR);
   }
   if (options.color !== undefined) {
     updateConfig({
@@ -60,7 +64,10 @@ export async function runCheckCommand(
     diagnosticFormatter.setConfig({ colorize: options.color });
   }
 
-  if (!files || files.length === 0) {
+  const exitNoInputs = (
+    message: string,
+    errorCode = CHECK_NO_INPUTS_CODE,
+  ): never => {
     if (options.json) {
       console.log(
         JSON.stringify(
@@ -69,29 +76,60 @@ export async function runCheckCommand(
             errorCount: 1,
             timeMs: 0,
             files: [],
-            error: "No files specified.",
-            errorCode: CHECK_NO_INPUTS_CODE,
+            error: message,
+            errorCode,
           }),
           null,
           2,
         ),
       );
     } else {
-      log.error("No files specified.");
+      log.error(message);
     }
     process.exit(1);
+  };
+
+  // With no inputs inside a project, check the whole project directory.
+  if ((!files || files.length === 0) && fs.existsSync("bpl.json")) {
+    files = ["."];
+  }
+  if (!files || files.length === 0) exitNoInputs("No files specified.");
+  // Directories expand to their sources, as for `format` and `lint`
+  // (honoring .bplignore).
+  try {
+    files = expandSourceInputs(files!);
+  } catch (error) {
+    // Discovery failures (.bplignore, unreadable directories) are not
+    // empty inputs.
+    exitNoInputs(
+      error instanceof Error ? error.message : String(error),
+      CHECK_PROCESSING_ERROR_CODE,
+    );
+  }
+  if (files.length === 0) {
+    exitNoInputs("No BPL sources found in the supplied directories.");
   }
 
   const { checkSource, CompilerError } = await import("./checkEngine");
   const startTime = Date.now();
   let totalFiles = 0;
   let errorCount = 0;
+  let warningCount = 0;
   const results: CheckFileResult[] = [];
 
+  // `-` checks standard input, as for format and lint.
+  const stdin = files.includes("-") ? fs.readFileSync(0, "utf8") : undefined;
   for (const filePath of files) {
     totalFiles++;
+    const fromStdin = filePath === "-";
+    const sourcePath = fromStdin
+      ? path.resolve(options.stdinFilepath || "stdin.bpl")
+      : filePath;
+    // Diagnostics read standard input from here, not from the file that
+    // --stdin-filepath names; only for this input.
+    if (fromStdin) SourceManager.setSource(sourcePath, stdin!);
     try {
-      const inputError = getInputFilePathError(filePath);
+      const inputError = fromStdin ? null : getInputFilePathError(filePath);
       if (inputError) {
         if (options.json) {
           results.push({
@@ -109,69 +147,56 @@ export async function runCheckCommand(
 
       const fileStartTime = Date.now();
 
-      const content = fs.readFileSync(filePath, "utf-8");
+      const content = fromStdin ? stdin! : fs.readFileSync(filePath, "utf-8");
+      const displayName = fromStdin
+        ? options.stdinFilepath || "<stdin>"
+        : filePath;
 
-      // Type check (with modules if not --no-prelude)
-      if (options.prelude !== false) {
-        const typeErrors = checkSource(content, filePath, false);
+      // --no-prelude checks the file alone, without resolving imports.
+      const { errors: typeErrors, warnings } = checkSource(
+        content,
+        sourcePath,
+        options.prelude === false,
+      );
+      warningCount += warnings.length;
 
-        if (typeErrors.length > 0) {
-          if (options.json) {
-            results.push({
-              file: filePath,
-              success: false,
-              diagnostics:
-                diagnosticFormatter.formatDiagnosticObjects(typeErrors),
-            });
-          } else {
-            console.error(diagnosticFormatter.formatErrors(typeErrors));
-          }
-          errorCount++;
+      if (typeErrors.length > 0) {
+        const diagnostics = [...typeErrors, ...warnings];
+        if (options.json) {
+          results.push({
+            file: filePath,
+            success: false,
+            diagnostics:
+              diagnosticFormatter.formatDiagnosticObjects(diagnostics),
+          });
         } else {
-          const elapsed = Date.now() - fileStartTime;
-          if (options.json) {
-            results.push({
-              file: filePath,
-              success: true,
-              timeMs: elapsed,
-            });
-          } else if (!options.quiet) {
-            if (options.time) {
-              console.log(`✓ ${filePath} (${elapsed}ms)`);
-            } else {
-              console.log(`✓ ${filePath}`);
-            }
-          }
+          console.error(diagnosticFormatter.formatErrors(diagnostics));
         }
+        errorCount++;
       } else {
-        // Basic type check without modules
-        const typeErrors = checkSource(content, filePath, true);
-
-        if (typeErrors.length > 0) {
-          if (options.json) {
-            results.push({
-              file: filePath,
-              success: false,
-              diagnostics:
-                diagnosticFormatter.formatDiagnosticObjects(typeErrors),
-            });
-          } else {
-            console.error(diagnosticFormatter.formatErrors(typeErrors));
-          }
-          errorCount++;
+        const elapsed = Date.now() - fileStartTime;
+        if (options.json) {
+          results.push({
+            file: filePath,
+            success: true,
+            timeMs: elapsed,
+            ...(warnings.length > 0
+              ? {
+                  diagnostics:
+                    diagnosticFormatter.formatDiagnosticObjects(warnings),
+                }
+              : {}),
+          });
         } else {
-          const elapsed = Date.now() - fileStartTime;
-          if (options.json) {
-            results.push({
-              file: filePath,
-              success: true,
-              timeMs: elapsed,
-            });
-          } else if (!options.quiet) {
+          // Warnings do not fail the check, but are always shown.
+          if (warnings.length > 0) {
+            console.error(diagnosticFormatter.formatErrors(warnings));
+          }
+          if (!options.quiet) {
             if (options.time) {
-              console.log(`✓ ${filePath} (${elapsed}ms)`);
+              console.log(`✓ ${displayName} (${elapsed}ms)`);
             } else {
-              console.log(`✓ ${filePath}`);
+              console.log(`✓ ${displayName}`);
             }
           }
         }
@@ -199,6 +224,8 @@ export async function runCheckCommand(
         );
       }
       errorCount++;
+    } finally {
+      if (fromStdin) SourceManager.deleteSource(sourcePath);
     }
   }
 
@@ -210,6 +237,7 @@ export async function runCheckCommand(
         createJsonReport(CLI_JSON_CHECKS.check, errorCount === 0, {
           totalFiles,
           errorCount,
+          warningCount,
           timeMs: totalTime,
           files: results,
         }),
@@ -227,7 +255,7 @@ export async function runCheckCommand(
         console.log(`\n✓ All ${totalFiles} files type checked successfully`);
       }
     } else {
-      log.error(
+      console.error(
         `\n✗ ${errorCount} of ${totalFiles} files failed type checking`,
       );
     }

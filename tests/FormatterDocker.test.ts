@@ -64,7 +64,7 @@ test.skipIf(!enabled)(
           "/bin/sh",
           image,
           "-c",
-          "test -f /opt/bpl/bpl-format.schema.json",
+          "test -f /opt/bpl/schemas/bpl-format.schema.json",
         ],
         { encoding: "utf8", timeout: 30000 },
       );

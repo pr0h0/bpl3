@@ -257,7 +257,10 @@ function parseArgs(args: string[]): RunnerOptions {
   return options;
 }
 
-function parseNonNegativeNumber(value: string | undefined, flag: string): number {
+function parseNonNegativeNumber(
+  value: string | undefined,
+  flag: string,
+): number {
   const parsed = Number(value);
   if (!Number.isFinite(parsed) || parsed < 0) {
     throw new Error(`${flag} expects a non-negative number`);
@@ -304,7 +307,10 @@ function runCommand(command: CommandSpec, cwd: string) {
   });
 }
 
-function timeCommand(command: CommandSpec, cwd: string): {
+function timeCommand(
+  command: CommandSpec,
+  cwd: string,
+): {
   status: number | null;
   stdout: string;
   stderr: string;
@@ -354,7 +360,8 @@ function compileBenchmarkLanguage(
       { cmd: "bun", args: [BPL_COMPILER, sources.bpl, "-O", "3"] },
       dir,
     );
-    if (result.status !== 0) return failed("BPL", result.stderr || result.stdout);
+    if (result.status !== 0)
+      return failed("BPL", result.stderr || result.stdout);
 
     return {
       key: "bpl",
@@ -397,7 +404,8 @@ function compileBenchmarkLanguage(
       { cmd: "go", args: ["build", "-o", binary, sources.go] },
       dir,
     );
-    if (result.status !== 0) return failed("Go", result.stderr || result.stdout);
+    if (result.status !== 0)
+      return failed("Go", result.stderr || result.stdout);
 
     return {
       key: "go",
@@ -419,7 +427,8 @@ function compileBenchmarkLanguage(
   }
 
   if (!sources.python) return skipped("Python", "missing .py source");
-  if (!commandExists("python3")) return skipped("Python", "python3 not installed");
+  if (!commandExists("python3"))
+    return skipped("Python", "python3 not installed");
   return {
     key: "python",
     label: "Python",
@@ -486,7 +495,10 @@ function runBenchmark(
         status: "failed",
         message: validation.stderr || validation.stdout,
       });
-      cleanupFiles(dir, prepared.flatMap((language) => language.cleanup));
+      cleanupFiles(
+        dir,
+        prepared.flatMap((language) => language.cleanup),
+      );
       return results;
     }
     expectedOutput = validation.stdout ?? "";
@@ -579,7 +591,10 @@ function runBenchmark(
     });
   }
 
-  cleanupFiles(dir, prepared.flatMap((language) => language.cleanup));
+  cleanupFiles(
+    dir,
+    prepared.flatMap((language) => language.cleanup),
+  );
   return results;
 }
 

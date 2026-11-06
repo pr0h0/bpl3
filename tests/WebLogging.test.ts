@@ -1,13 +1,14 @@
 import { expect, test } from "bun:test";
 import { spawnSync } from "node:child_process";
-import { mkdtempSync, writeFileSync, rmSync } from "node:fs";
+import { writeFileSync, rmSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { createServer } from "node:net";
+import { makeRepoTempDir } from "./helpers/repoTempDir";
 
 test.skipIf(process.platform !== "linux")(
   "completion middleware logs generated IDs and routes without request secrets",
   async () => {
-    const dir = mkdtempSync(resolve(".web-log-test-"));
+    const dir = makeRepoTempDir("web-log-test-");
     let child: ReturnType<typeof Bun.spawn> | undefined;
     try {
       const probe = createServer();

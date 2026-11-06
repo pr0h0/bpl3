@@ -536,17 +536,8 @@ describe("Todo App - Go to Definition", () => {
 
 describe("Todo App - Edge Cases", () => {
   let completionHandler: ASTCompletionHandler;
-  let _document: TextDocument;
 
   beforeAll(() => {
-    const content = fs.readFileSync(TODO_APP_PATH, "utf-8");
-    _document = TextDocument.create(
-      `file://${TODO_APP_PATH}`,
-      "bpl",
-      1,
-      content,
-    );
-
     const symbolIndex = new SymbolIndex();
     const astResolver = new ASTResolver(symbolIndex);
     completionHandler = new ASTCompletionHandler(astResolver, symbolIndex);

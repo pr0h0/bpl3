@@ -556,7 +556,8 @@ export class ImportHandler {
   }
 
   private createMissingExportHint(ast: AST.Program | undefined): string {
-    const baseHint = "Ensure the symbol is exported (or defined) in the module.";
+    const baseHint =
+      "Ensure the symbol is exported (or defined) in the module.";
     const exportedNames = this.collectExportedNames(ast);
     if (exportedNames.length === 0) return baseHint;
 

@@ -2,10 +2,11 @@ import { test } from "bun:test";
 import { expectCorrectnessSuite } from "./helpers/compilerCorrectness";
 
 test("Map iterators stay exhausted without advancing or overflowing their bucket index", () => {
-  expectCorrectnessSuite([{
-    name: "map-iterator-exhaustion",
-    validateLlvm: true,
-    source: `
+  expectCorrectnessSuite([
+    {
+      name: "map-iterator-exhaustion",
+      validateLlvm: true,
+      source: `
       import [Map], [MapIterator], [Pair] from "std/map.bpl";
       import [Option] from "std/option.bpl";
       frame main() ret int {
@@ -34,6 +35,7 @@ test("Map iterators stay exhausted without advancing or overflowing their bucket
         map.destroy();
         return 0;
       }`,
-    expectedStdout: "",
-  }]);
+      expectedStdout: "",
+    },
+  ]);
 }, 60000);

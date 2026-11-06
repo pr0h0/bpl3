@@ -135,10 +135,7 @@ export function runCleanCommand(
             const ext = path.extname(entry.name);
             const base = path.basename(entry.name, ext);
 
-            if (
-              !isBuildArtifact(ext) ||
-              trackedPathSet.has(gitRelativePath)
-            ) {
+            if (!isBuildArtifact(ext) || trackedPathSet.has(gitRelativePath)) {
               continue;
             }
             const sourcePath = path.join(dir, `${base}.bpl`);

@@ -6,6 +6,7 @@
 export { registerCompileCommand } from "./compile";
 export { registerFormatCommand } from "./format";
 export { registerLintCommand } from "./lint";
+export { registerTestCommand } from "./test";
 export { registerPackageCommands } from "./package";
 export { registerCompletionCommand } from "./completion";
 export { registerDocsCommand } from "./docs";

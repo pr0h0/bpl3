@@ -11,6 +11,7 @@ import {
 } from "./commands/DoctorContracts";
 import { FORMAT_JSON_ERROR_CODES } from "./commands/format";
 import { LINT_JSON_ERROR_CODES } from "./commands/lint";
+import { TEST_JSON_ERROR_CODES } from "./commands/test";
 import { NEW_PROJECT_JSON_ERROR_CODES } from "./commands/NewContracts";
 import { RUN_SCRIPT_JSON_ERROR_CODES } from "./commands/runScript";
 import { SANITIZER_RUNTIME_UNAVAILABLE_CODE } from "../compiler/common/SanitizerSupport";
@@ -44,6 +45,7 @@ export const CLI_JSON_ERROR_CODE_LISTS = [
   { name: "doctor", codes: [DOCTOR_SCOPE_UNKNOWN_CODE] },
   { name: "format", codes: FORMAT_JSON_ERROR_CODES },
   { name: "lint", codes: LINT_JSON_ERROR_CODES },
+  { name: "test", codes: TEST_JSON_ERROR_CODES },
   { name: "project-new", codes: NEW_PROJECT_JSON_ERROR_CODES },
   { name: "package-init", codes: PACKAGE_INIT_JSON_ERROR_CODES },
   { name: "package-uninstall", codes: PACKAGE_UNINSTALL_JSON_ERROR_CODES },

@@ -328,10 +328,7 @@ function assertCrashMetadataPath(metadataPath: string): void {
 
   const nonDirectoryComponent =
     findNonDirectoryPathComponent(absoluteMetadataPath);
-  if (
-    nonDirectoryComponent &&
-    nonDirectoryComponent !== absoluteMetadataPath
-  ) {
+  if (nonDirectoryComponent && nonDirectoryComponent !== absoluteMetadataPath) {
     throw new Error(
       `Fuzz crash metadata parent is not a directory: ${nonDirectoryComponent}`,
     );

@@ -15,7 +15,9 @@ extern log1p(value: float) ret float;
 # Four equal factors keep every intermediate finite when the result fits.
 # The negative tail also avoids rounding a subnormal exponential before use.
 frame complexExpProduct(exponent: float, factor: float, weight: float) ret float {
-    if (factor == 0.0) { return factor; }
+    if (factor == 0.0) {
+        return factor;
+    }
     local quarter: float = Math.exp(exponent * 0.25);
     return (((factor * (quarter * weight)) * quarter) * quarter) * quarter;
 }
@@ -23,7 +25,9 @@ frame complexExpProduct(exponent: float, factor: float, weight: float) ret float
 # Signed sinh and positive cosh, using only the existing exponential provider.
 # The small-input series avoids subtracting nearly equal exponentials.
 frame complexHyperbolicParts(value: float) ret (float, float) {
-    if (value == 0.0) { return (value, 1.0); }
+    if (value == 0.0) {
+        return (value, 1.0);
+    }
     local magnitude: float = Math.abs(value);
     if (magnitude < 0.5) {
         local square: float = magnitude * magnitude;
@@ -32,8 +36,8 @@ frame complexHyperbolicParts(value: float) ret (float, float) {
         local odd: float = magnitude;
         local even: float = 1.0;
         loop (local n: int = 1; n <= 7; n = n + 1) {
-            oddTerm = oddTerm * square / cast<float>((2 * n) * (2 * n + 1));
-            evenTerm = evenTerm * square / cast<float>((2 * n - 1) * (2 * n));
+            oddTerm = (oddTerm * square) / cast<float>((2 * n) * ((2 * n) + 1));
+            evenTerm = (evenTerm * square) / cast<float>(((2 * n) - 1) * (2 * n));
             odd = odd + oddTerm;
             even = even + evenTerm;
         }
@@ -109,8 +113,7 @@ struct Complex {
     # Keep each product's exponent separately until the final division. A
     # shared scale can erase a tiny component that still contributes to a
     # representable quotient after multiplication by a large component.
-    frame _divideProducts(a: float, b: float, c: float, d: float,
-                          denominator: float, divisorExponent: int) ret float {
+    frame _divideProducts(a: float, b: float, c: float, d: float, denominator: float, divisorExponent: int) ret float {
         local ae: int = 0;
         local be: int = 0;
         local ce: int = 0;
@@ -124,12 +127,17 @@ struct Complex {
         local firstExponent: int = ae + be;
         local secondExponent: int = ce + de;
         # Zero must not force a nonzero product into a smaller exponent range.
-        if (first == 0.0) { firstExponent = secondExponent; }
-        if (second == 0.0) { secondExponent = firstExponent; }
+        if (first == 0.0) {
+            firstExponent = secondExponent;
+        }
+        if (second == 0.0) {
+            secondExponent = firstExponent;
+        }
         local exponent: int = firstExponent;
-        if (secondExponent > exponent) { exponent = secondExponent; }
-        local sum: float = ldexp(first, firstExponent - exponent)
-                         + ldexp(second, secondExponent - exponent);
+        if (secondExponent > exponent) {
+            exponent = secondExponent;
+        }
+        local sum: float = ldexp(first, firstExponent - exponent) + ldexp(second, secondExponent - exponent);
         return ldexp(sum / denominator, exponent - (2 * divisorExponent));
     }
 
@@ -152,13 +160,11 @@ struct Complex {
         if (valueMax == 0.0) {
             valueMax = 1.0;
         }
-
         local divisorMax: float = Math.abs(other.real);
         local divisorImagSize: float = Math.abs(other.imag);
         if (divisorMax < divisorImagSize) {
             divisorMax = divisorImagSize;
         }
-
         local valueExponent: int = 0;
         local divisorExponent: int = 0;
         frexp(valueMax, &valueExponent);
@@ -168,23 +174,12 @@ struct Complex {
         # the smaller divisor component can disappear under a shared scale.
         # Keep the ordinary path's signed-zero conventions for ordinary data.
         local small: float = ldexp(1.0, -500);
-        if (((this.real != 0.0) || (this.imag != 0.0))
-            && ((Math.abs(cast<float>(valueExponent)) > 500.0)
-            || (Math.abs(cast<float>(divisorExponent)) > 500.0)
-            || ((this.real != 0.0) && (Math.abs(this.real) < small))
-            || ((this.imag != 0.0) && (Math.abs(this.imag) < small))
-            || ((other.real != 0.0) && (Math.abs(other.real) < small))
-            || ((other.imag != 0.0) && (Math.abs(other.imag) < small)))) {
+        if (((this.real != 0.0) || (this.imag != 0.0)) && ((Math.abs(cast<float>(valueExponent)) > 500.0) || (Math.abs(cast<float>(divisorExponent)) > 500.0) || ((this.real != 0.0) && (Math.abs(this.real) < small)) || ((this.imag != 0.0) && (Math.abs(this.imag) < small)) || ((other.real != 0.0) && (Math.abs(other.real) < small)) || ((other.imag != 0.0) && (Math.abs(other.imag) < small)))) {
             local dr: float = ldexp(other.real, -divisorExponent);
             local di: float = ldexp(other.imag, -divisorExponent);
             local denominator: float = (dr * dr) + (di * di);
-            return Complex.new(
-                Complex._divideProducts(this.real, other.real, this.imag, other.imag,
-                                        denominator, divisorExponent),
-                Complex._divideProducts(this.imag, other.real, -this.real, other.imag,
-                                        denominator, divisorExponent));
+            return Complex.new(Complex._divideProducts(this.real, other.real, this.imag, other.imag, denominator, divisorExponent), Complex._divideProducts(this.imag, other.real, -this.real, other.imag, denominator, divisorExponent));
         }
-
         local ar: float = this.real;
         local ai: float = this.imag;
         local cr: float = ldexp(other.real, -divisorExponent);
@@ -237,7 +232,6 @@ struct Complex {
         if (Math.isNan(this.real) || Math.isNan(this.imag)) {
             return this.real + this.imag;
         }
-
         local larger: float = Math.abs(this.real);
         local smaller: float = Math.abs(this.imag);
         if (larger < smaller) {
@@ -287,8 +281,7 @@ struct Complex {
         if (this.imag == 0.0) {
             return Complex.new(Math.exp(this.real), this.imag);
         }
-        if (Math.isInfinite(this.real)
-            && (Math.isNan(this.imag) || Math.isInfinite(this.imag))) {
+        if (Math.isInfinite(this.real) && (Math.isNan(this.imag) || Math.isInfinite(this.imag))) {
             if (this.real < 0.0) {
                 return Complex.new(0.0, Math.copysign(0.0, this.imag));
             }
@@ -298,17 +291,14 @@ struct Complex {
         if (!Math.isInfinite(radial) && (this.real >= -700.0)) {
             return Complex.new(radial * Math.cos(this.imag), radial * Math.sin(this.imag));
         }
-        return Complex.new(
-            complexExpProduct(this.real, Math.cos(this.imag), 1.0),
-            complexExpProduct(this.real, Math.sin(this.imag), 1.0));
+        return Complex.new(complexExpProduct(this.real, Math.cos(this.imag), 1.0), complexExpProduct(this.real, Math.sin(this.imag), 1.0));
     }
 
     # Calculate the natural logarithm ln(z) = ln|z| + i*arg(z)
     frame log(this: *Complex) ret Complex {
         # Compute log(magnitude) without first rounding or overflowing the
         # magnitude itself. log1p preserves tiny corrections near unit size.
-        if (Math.isInfinite(this.real) || Math.isInfinite(this.imag)
-            || Math.isNan(this.real) || Math.isNan(this.imag)) {
+        if (Math.isInfinite(this.real) || Math.isInfinite(this.imag) || Math.isNan(this.real) || Math.isNan(this.imag)) {
             return Complex.new(Math.log(this.abs()), this.phase());
         }
         local larger: float = Math.abs(this.real);
@@ -365,7 +355,9 @@ struct Complex {
         }
         if (Math.isInfinite(this.real)) {
             if (this.real > 0.0) {
-                if (Math.isNan(this.imag)) { return Complex.new(this.real, this.imag); }
+                if (Math.isNan(this.imag)) {
+                    return Complex.new(this.real, this.imag);
+                }
                 return Complex.new(this.real, Math.copysign(0.0, this.imag));
             }
             if (Math.isNan(this.imag)) {
@@ -386,10 +378,12 @@ struct Complex {
         local largest: float = Math.max(Math.abs(this.real), Math.abs(this.imag));
         local exponent: int = 0;
         frexp(largest, &exponent);
-        if ((exponent % 2) != 0) { exponent = exponent - 1; }
+        if ((exponent % 2) != 0) {
+            exponent = exponent - 1;
+        }
         local real: float = ldexp(this.real, -exponent);
         local imag: float = ldexp(this.imag, -exponent);
-        local magnitude: float = Math.sqrt(real * real + imag * imag);
+        local magnitude: float = Math.sqrt((real * real) + (imag * imag));
         if (this.real >= 0.0) {
             local root: float = ldexp(Math.sqrt((magnitude + real) * 0.5), exponent / 2);
             # Use the original component here: normalization may erase a
@@ -403,11 +397,15 @@ struct Complex {
     # Calculate sine using sin(x)cosh(y) + i*cos(x)sinh(y).
     frame sin(this: *Complex) ret Complex {
         local (odd: float, even: float) = complexHyperbolicParts(this.imag);
-        if (this.real == 0.0) { return Complex.new(this.real, odd); }
+        if (this.real == 0.0) {
+            return Complex.new(this.real, odd);
+        }
         local sine: float = Math.sin(this.real);
         local cosine: float = Math.cos(this.real);
         if (this.imag == 0.0) {
-            if (Math.isNan(sine)) { return Complex.new(sine, this.imag); }
+            if (Math.isNan(sine)) {
+                return Complex.new(sine, this.imag);
+            }
             return Complex.new(sine, cosine * this.imag);
         }
         if (Math.isInfinite(this.imag) && (Math.isNan(sine) || Math.isNan(cosine))) {
@@ -415,9 +413,7 @@ struct Complex {
         }
         if (Math.isInfinite(even)) {
             local sign: float = Math.copysign(1.0, this.imag);
-            return Complex.new(
-                complexExpProduct(Math.abs(this.imag), sine, 0.5),
-                complexExpProduct(Math.abs(this.imag), cosine, 0.5) * sign);
+            return Complex.new(complexExpProduct(Math.abs(this.imag), sine, 0.5), complexExpProduct(Math.abs(this.imag), cosine, 0.5) * sign);
         }
         return Complex.new(sine * even, cosine * odd);
     }
@@ -426,13 +422,17 @@ struct Complex {
     frame cos(this: *Complex) ret Complex {
         local (odd: float, even: float) = complexHyperbolicParts(this.imag);
         if (this.real == 0.0) {
-            if (Math.isNan(this.imag)) { return Complex.new(even, 0.0); }
+            if (Math.isNan(this.imag)) {
+                return Complex.new(even, 0.0);
+            }
             return Complex.new(even, -this.real * Math.copysign(1.0, this.imag));
         }
         local sine: float = Math.sin(this.real);
         local cosine: float = Math.cos(this.real);
         if (this.imag == 0.0) {
-            if (Math.isNan(cosine)) { return Complex.new(cosine, 0.0); }
+            if (Math.isNan(cosine)) {
+                return Complex.new(cosine, 0.0);
+            }
             return Complex.new(cosine, -sine * this.imag);
         }
         if (Math.isInfinite(this.imag) && (Math.isNan(sine) || Math.isNan(cosine))) {
@@ -440,9 +440,7 @@ struct Complex {
         }
         if (Math.isInfinite(even)) {
             local sign: float = Math.copysign(1.0, this.imag);
-            return Complex.new(
-                complexExpProduct(Math.abs(this.imag), cosine, 0.5),
-                -complexExpProduct(Math.abs(this.imag), sine, 0.5) * sign);
+            return Complex.new(complexExpProduct(Math.abs(this.imag), cosine, 0.5), -complexExpProduct(Math.abs(this.imag), sine, 0.5) * sign);
         }
         return Complex.new(cosine * even, -sine * odd);
     }

@@ -5,7 +5,7 @@ import {
   generateStdlibReference,
   renderModuleReference,
   STDLIB_REFERENCE_PATH,
-} from "./helpers/stdlibReference";
+} from "../scripts/generate_stdlib_reference";
 
 test("standard library declaration reference stays synchronized with every module", () => {
   expect(

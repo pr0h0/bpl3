@@ -122,7 +122,9 @@ describe("Golden LLVM Shape Checks", () => {
     `);
 
     expect(ir).toContain("{ i32 (i8*, i32)*, i8* }");
-    expect(countMatches(ir, /insertvalue \{ i32 \(i8\*, i32\)\*, i8\* \}/g)).toBeGreaterThan(0);
+    expect(
+      countMatches(ir, /insertvalue \{ i32 \(i8\*, i32\)\*, i8\* \}/g),
+    ).toBeGreaterThan(0);
   });
 
   it("keeps arrays of Func values as arrays of thin function pointers", () => {

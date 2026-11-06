@@ -43,6 +43,5 @@ frame main() ret int {
     if (apply(Op.Keep, result) != 48) {
         return 3;
     }
-
     return 0;
 }

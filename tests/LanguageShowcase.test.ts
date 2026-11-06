@@ -2,11 +2,11 @@ import { describe, expect, it } from "bun:test";
 import { spawnSync } from "child_process";
 import * as path from "path";
 
-const CMP_SCRIPT = path.join(process.cwd(), "cmp.sh");
+const CLI_ENTRY = path.join(process.cwd(), "index.ts");
 
 function runExample(example: string): string {
   const mainFile = path.join("examples", example, "main.bpl");
-  const result = spawnSync(CMP_SCRIPT, [mainFile], {
+  const result = spawnSync(process.execPath, [CLI_ENTRY, "run", mainFile], {
     env: {
       ...process.env,
       BPL_HOME: process.cwd(),

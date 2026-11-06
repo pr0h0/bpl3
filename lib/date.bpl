@@ -7,6 +7,29 @@ extern time(ptr: *long) ret long;
 extern gettimeofday(tv: *void, tz: *void) ret int;
 extern malloc(size: long) ret *void;
 extern snprintf(str: string, capacity: ulong, format: string, ...) ret int;
+extern strlen(str: string) ret long;
+
+# Reads exactly `count` ASCII digits of `text` starting at `at` into `value`.
+frame dateReadDigits(text: string, length: long, at: long, count: int, value: *int) ret bool {
+    if ((at + cast<long>(count)) > length) {
+        return false;
+    }
+    local result: int = 0;
+    loop (local i: int = 0; i < count; i = i + 1) {
+        local c: int = cast<int>(cast<u8>(text[at + cast<long>(i)]));
+        if ((c < 48) || (c > 57)) {
+            return false;
+        }
+        result = (result * 10) + (c - 48);
+    }
+    *value = result;
+    return true;
+}
+
+# Parses `YYYY-MM-DD` at the start of `text` into the three fields.
+frame dateReadYmd(text: string, length: long, year: *int, month: *int, day: *int) ret bool {
+    return dateReadDigits(text, length, 0, 4, year) && (length > 4) && (text[4] == '-') && dateReadDigits(text, length, 5, 2, month) && (length > 7) && (text[7] == '-') && dateReadDigits(text, length, 8, 2, day);
+}
 
 struct Timeval {
     tv_sec: long,
@@ -38,26 +61,26 @@ struct Date {
     # Floor division is required because BPL signed division truncates toward zero.
     frame fromTimestamp(timestamp: long) ret Date {
         local days: long = timestamp / cast<long>(86400);
-        if (timestamp % cast<long>(86400) < 0) {
+        if ((timestamp % cast<long>(86400)) < 0) {
             days = days - 1;
         }
         local shifted: long = days + 719468;
         local era: long = shifted / 146097;
-        if (shifted % 146097 < 0) {
+        if ((shifted % 146097) < 0) {
             era = era - 1;
         }
-        local dayOfEra: long = shifted - era * 146097;
-        local yearOfEra: long = (dayOfEra - dayOfEra / 1460 + dayOfEra / 36524 - dayOfEra / 146096) / 365;
-        local year: long = yearOfEra + era * 400;
-        local dayOfYear: long = dayOfEra - (yearOfEra * 365 + yearOfEra / 4 - yearOfEra / 100);
-        local marchMonth: long = (cast<long>(5) * dayOfYear + 2) / 153;
-        local day: int = cast<int>(dayOfYear - (cast<long>(153) * marchMonth + 2) / 5 + 1);
+        local dayOfEra: long = shifted - (era * 146097);
+        local yearOfEra: long = (((dayOfEra - (dayOfEra / 1460)) + (dayOfEra / 36524)) - (dayOfEra / 146096)) / 365;
+        local year: long = yearOfEra + (era * 400);
+        local dayOfYear: long = dayOfEra - (((yearOfEra * 365) + (yearOfEra / 4)) - (yearOfEra / 100));
+        local marchMonth: long = ((cast<long>(5) * dayOfYear) + 2) / 153;
+        local day: int = cast<int>((dayOfYear - (((cast<long>(153) * marchMonth) + 2) / 5)) + 1);
         local month: int = cast<int>(marchMonth) + 3;
         if (marchMonth >= 10) {
             month = month - 12;
             year = year + 1;
         }
-        if (year < -2147483648 || year > 2147483647) {
+        if ((year < -2147483648) || (year > 2147483647)) {
             throw "Date.fromTimestamp: year is outside the int range";
         }
         return Date.new(cast<int>(year), month, day);
@@ -76,13 +99,13 @@ struct Date {
             marchMonth = marchMonth + 12;
         }
         local era: long = year / 400;
-        if (year % 400 < 0) {
+        if ((year % 400) < 0) {
             era = era - 1;
         }
-        local yearOfEra: long = year - era * 400;
-        local dayOfYear: long = (cast<long>(153) * marchMonth + 2) / 5 + cast<long>(this.day) - 1;
-        local dayOfEra: long = yearOfEra * 365 + yearOfEra / 4 - yearOfEra / 100 + dayOfYear;
-        return (era * 146097 + dayOfEra - 719468) * cast<long>(86400);
+        local yearOfEra: long = year - (era * 400);
+        local dayOfYear: long = ((((cast<long>(153) * marchMonth) + 2) / 5) + cast<long>(this.day)) - 1;
+        local dayOfEra: long = (((yearOfEra * 365) + (yearOfEra / 4)) - (yearOfEra / 100)) + dayOfYear;
+        return (((era * 146097) + dayOfEra) - 719468) * cast<long>(86400);
     }
 
     # Static helper for leap year check
@@ -116,7 +139,9 @@ struct Date {
 
     # Get day of year (1-366)
     frame dayOfYear(this: *Date) ret int {
-        if (!this.isValid()) { throw "Date.dayOfYear: invalid date"; }
+        if (!this.isValid()) {
+            throw "Date.dayOfYear: invalid date";
+        }
         local total: int = 0;
         local m: int = 1;
         loop (m < this.month) {
@@ -130,7 +155,9 @@ struct Date {
     frame dayOfWeek(this: *Date) ret int {
         local days: long = this.toTimestamp() / cast<long>(86400);
         local dow: int = cast<int>((days + 4) % 7);
-        if (dow < 0) { dow = dow + 7; }
+        if (dow < 0) {
+            dow = dow + 7;
+        }
         return dow;
     }
 
@@ -139,19 +166,21 @@ struct Date {
     frame weekOfYear(this: *Date) ret int {
         local doy: int = this.dayOfYear();
         local dow: int = this.dayOfWeek();
-        local januaryFirst: int = (dow - (doy - 1) % 7 + 7) % 7;
-        if (dow == 0) { dow = 7; }
-        local week: int = (doy - dow + 10) / 7;
+        local januaryFirst: int = ((dow - ((doy - 1) % 7)) + 7) % 7;
+        if (dow == 0) {
+            dow = 7;
+        }
+        local week: int = ((doy - dow) + 10) / 7;
         if (week < 1) {
             # Widen before subtraction so the minimum int year is supported.
             local previousYear: long = cast<long>(this.year) - 1;
-            local previousLeap: bool = previousYear % 4 == 0 && (previousYear % 100 != 0 || previousYear % 400 == 0);
-            if (januaryFirst == 5 || (januaryFirst == 6 && previousLeap)) {
+            local previousLeap: bool = ((previousYear % 4) == 0) && (((previousYear % 100) != 0) || ((previousYear % 400) == 0));
+            if ((januaryFirst == 5) || ((januaryFirst == 6) && previousLeap)) {
                 return 53;
             }
             return 52;
         }
-        if (week == 53 && januaryFirst != 4 && !(januaryFirst == 3 && this.isLeapYear())) {
+        if ((week == 53) && (januaryFirst != 4) && !((januaryFirst == 3) && this.isLeapYear())) {
             return 1;
         }
         return week;
@@ -165,18 +194,23 @@ struct Date {
 
     # Subtract days from the date
     frame subDays(this: *Date, days: int) ret Date {
-        local ts: long = this.toTimestamp() - cast<long>(days) * cast<long>(86400);
+        local ts: long = this.toTimestamp() - (cast<long>(days) * cast<long>(86400));
         return Date.fromTimestamp(ts);
     }
 
     # Add months (adjusts day if needed)
     frame addMonths(this: *Date, months: int) ret Date {
-        if (!this.isValid()) { throw "Date.addMonths: invalid date"; }
-        local totalMonths: long = cast<long>(this.year) * 12 + cast<long>(this.month) - 1 + cast<long>(months);
+        if (!this.isValid()) {
+            throw "Date.addMonths: invalid date";
+        }
+        local totalMonths: long = (((cast<long>(this.year) * 12) + cast<long>(this.month)) - 1) + cast<long>(months);
         local year: long = totalMonths / 12;
         local month: long = totalMonths % 12;
-        if (month < 0) { month = month + 12; year = year - 1; }
-        if (year < -2147483648 || year > 2147483647) {
+        if (month < 0) {
+            month = month + 12;
+            year = year - 1;
+        }
+        if ((year < -2147483648) || (year > 2147483647)) {
             throw "Date.addMonths: year is outside the int range";
         }
         local newYear: int = cast<int>(year);
@@ -192,9 +226,11 @@ struct Date {
 
     # Add years
     frame addYears(this: *Date, years: int) ret Date {
-        if (!this.isValid()) { throw "Date.addYears: invalid date"; }
+        if (!this.isValid()) {
+            throw "Date.addYears: invalid date";
+        }
         local year: long = cast<long>(this.year) + cast<long>(years);
-        if (year < -2147483648 || year > 2147483647) {
+        if ((year < -2147483648) || (year > 2147483647)) {
             throw "Date.addYears: year is outside the int range";
         }
         local newYear: int = cast<int>(year);
@@ -209,7 +245,7 @@ struct Date {
     # Calculate difference in days between two dates
     frame diffDays(this: *Date, other: *Date) ret int {
         local days: long = this.diffDaysLong(other);
-        if (days < -2147483648 || days > 2147483647) {
+        if ((days < -2147483648) || (days > 2147483647)) {
             throw "Date.diffDays: difference is outside the int range";
         }
         return cast<int>(days);
@@ -235,10 +271,34 @@ struct Date {
     }
 
     # Format date as string (YYYY-MM-DD)
+    # Parses an ISO 8601 calendar date, exactly `YYYY-MM-DD`. Returns false,
+    # leaving `output` unchanged, for any other text or an impossible date
+    # such as `2026-02-30`.
+    frame tryParse(text: string, output: *Date) ret bool {
+        if ((text == nullptr) || (output == nullptr)) {
+            return false;
+        }
+        local length: long = strlen(text);
+        local year: int = 0;
+        local month: int = 0;
+        local day: int = 0;
+        if ((length != 10) || !dateReadYmd(text, length, &year, &month, &day)) {
+            return false;
+        }
+        local date: Date = Date.new(year, month, day);
+        if (!date.isValid()) {
+            return false;
+        }
+        *output = date;
+        return true;
+    }
+
     frame format(this: *Date) ret string {
         # Three signed int fields (at most 11 bytes each), separators, and NUL.
         local buf: string = cast<string>(malloc(cast<long>(36)));
-        if (buf == nullptr) { throw "Date formatting: allocation failed"; }
+        if (buf == nullptr) {
+            throw "Date formatting: allocation failed";
+        }
         snprintf(buf, cast<ulong>(36), "%04d-%02d-%02d", this.year, this.month, this.day);
         return buf;
     }
@@ -247,7 +307,9 @@ struct Date {
     frame formatSep(this: *Date, sep: u8) ret string {
         # Three signed int fields (at most 11 bytes each), separators, and NUL.
         local buf: string = cast<string>(malloc(cast<long>(36)));
-        if (buf == nullptr) { throw "Date formatting: allocation failed"; }
+        if (buf == nullptr) {
+            throw "Date formatting: allocation failed";
+        }
         local sepBytes: u8[2];
         local sepStr: string = cast<string>(&sepBytes[0]);
         local sepPtr: *u8 = cast<*u8>(sepStr);
@@ -351,7 +413,6 @@ struct DateTime {
         if (remaining < 0) {
             remaining = remaining + 86400;
         }
-
         local hour: int = cast<int>(remaining / cast<long>(3600));
         remaining = remaining % cast<long>(3600);
         local minute: int = cast<int>(remaining / cast<long>(60));
@@ -418,7 +479,9 @@ struct DateTime {
 
     # Add calendar months, clamping the day and preserving the clock fields.
     frame addMonths(this: *DateTime, months: int) ret DateTime {
-        if (!this.isValid()) { throw "DateTime.addMonths: invalid date or time"; }
+        if (!this.isValid()) {
+            throw "DateTime.addMonths: invalid date or time";
+        }
         local date: Date = this.toDate();
         local result: Date = date.addMonths(months);
         return DateTime.new(result.year, result.month, result.day, this.hour, this.minute, this.second);
@@ -426,7 +489,9 @@ struct DateTime {
 
     # Add calendar years, clamping February 29 when necessary.
     frame addYears(this: *DateTime, years: int) ret DateTime {
-        if (!this.isValid()) { throw "DateTime.addYears: invalid date or time"; }
+        if (!this.isValid()) {
+            throw "DateTime.addYears: invalid date or time";
+        }
         local date: Date = this.toDate();
         local result: Date = date.addYears(years);
         return DateTime.new(result.year, result.month, result.day, this.hour, this.minute, this.second);
@@ -441,16 +506,101 @@ struct DateTime {
     frame format(this: *DateTime) ret string {
         # Six signed int fields, five separators, and NUL fit in 72 bytes.
         local buf: string = cast<string>(malloc(cast<long>(72)));
-        if (buf == nullptr) { throw "DateTime formatting: allocation failed"; }
+        if (buf == nullptr) {
+            throw "DateTime formatting: allocation failed";
+        }
         snprintf(buf, cast<ulong>(72), "%04d-%02d-%02d %02d:%02d:%02d", this.year, this.month, this.day, this.hour, this.minute, this.second);
         return buf;
+    }
+
+    /#
+    Parses an ISO 8601 date and time: `YYYY-MM-DD`, then `T`, `t` or a
+    space, then `HH:MM:SS`, optional fractional seconds (ignored), and an
+    optional `Z` or `+HH:MM`/`-HH:MM`/`+HHMM` offset. With an offset the
+    result is converted to UTC; without one the fields are kept as written.
+    Returns false, leaving `output` unchanged, for other text or an
+    impossible date or time.
+    #/
+    frame tryParse(text: string, output: *DateTime) ret bool {
+        if ((text == nullptr) || (output == nullptr)) {
+            return false;
+        }
+        local length: long = strlen(text);
+        local year: int = 0;
+        local month: int = 0;
+        local day: int = 0;
+        local hour: int = 0;
+        local minute: int = 0;
+        local second: int = 0;
+        if (!dateReadYmd(text, length, &year, &month, &day) || (length < 19)) {
+            return false;
+        }
+        local separator: char = text[10];
+        if ((separator != 'T') && (separator != 't') && (separator != ' ')) {
+            return false;
+        }
+        if (!dateReadDigits(text, length, 11, 2, &hour) || (text[13] != ':') || !dateReadDigits(text, length, 14, 2, &minute) || (text[16] != ':') || !dateReadDigits(text, length, 17, 2, &second)) {
+            return false;
+        }
+        local at: long = 19;
+        if ((at < length) && (text[at] == '.')) {
+            at = at + 1;
+            local fractionStart: long = at;
+            loop ((at < length) && (cast<int>(cast<u8>(text[at])) >= 48) && (cast<int>(cast<u8>(text[at])) <= 57)) {
+                at = at + 1;
+            }
+            if (at == fractionStart) {
+                return false;
+            }
+        }
+        local offsetSeconds: long = 0;
+        if (at < length) {
+            local zone: char = text[at];
+            if ((zone == 'Z') || (zone == 'z')) {
+                at = at + 1;
+            } else if ((zone == '+') || (zone == '-')) {
+                local offsetHours: int = 0;
+                local offsetMinutes: int = 0;
+                if (!dateReadDigits(text, length, at + 1, 2, &offsetHours)) {
+                    return false;
+                }
+                local minutesAt: long = at + 3;
+                if ((minutesAt < length) && (text[minutesAt] == ':')) {
+                    minutesAt = minutesAt + 1;
+                }
+                if (!dateReadDigits(text, length, minutesAt, 2, &offsetMinutes) || (offsetHours > 23) || (offsetMinutes > 59)) {
+                    return false;
+                }
+                offsetSeconds = cast<long>((offsetHours * 3600) + (offsetMinutes * 60));
+                if (zone == '-') {
+                    offsetSeconds = -offsetSeconds;
+                }
+                at = minutesAt + 2;
+            } else {
+                return false;
+            }
+        }
+        if (at != length) {
+            return false;
+        }
+        local parsed: DateTime = DateTime.new(year, month, day, hour, minute, second);
+        if (!parsed.isValid()) {
+            return false;
+        }
+        if (offsetSeconds != 0) {
+            parsed = DateTime.fromTimestamp(parsed.toTimestamp() - offsetSeconds);
+        }
+        *output = parsed;
+        return true;
     }
 
     # Format as ISO 8601 with T separator
     frame formatISO(this: *DateTime) ret string {
         # Six signed int fields, five separators, and NUL fit in 72 bytes.
         local buf: string = cast<string>(malloc(cast<long>(72)));
-        if (buf == nullptr) { throw "DateTime formatting: allocation failed"; }
+        if (buf == nullptr) {
+            throw "DateTime formatting: allocation failed";
+        }
         snprintf(buf, cast<ulong>(72), "%04d-%02d-%02dT%02d:%02d:%02d", this.year, this.month, this.day, this.hour, this.minute, this.second);
         return buf;
     }
@@ -459,7 +609,9 @@ struct DateTime {
     frame formatTime(this: *DateTime) ret string {
         # Three signed int fields (at most 11 bytes each), separators, and NUL.
         local buf: string = cast<string>(malloc(cast<long>(36)));
-        if (buf == nullptr) { throw "Date formatting: allocation failed"; }
+        if (buf == nullptr) {
+            throw "Date formatting: allocation failed";
+        }
         snprintf(buf, cast<ulong>(36), "%02d:%02d:%02d", this.hour, this.minute, this.second);
         return buf;
     }
@@ -519,9 +671,9 @@ frame addDateTimeUnits(value: *DateTime, amount: long, secondsPerUnit: long) ret
     # up and the nonnegative upper bound down, so these are inclusive limits.
     local minimum: long = (first.toTimestamp() - timestamp) / secondsPerUnit;
     local maximum: long = (last.toTimestamp() - timestamp) / secondsPerUnit;
-    if (amount < minimum || amount > maximum) {
+    if ((amount < minimum) || (amount > maximum)) {
         throw "DateTime arithmetic: result is outside the int year range";
     }
     # The checked offset and resulting timestamp are now both safe in long.
-    return DateTime.fromTimestamp(timestamp + amount * secondsPerUnit);
+    return DateTime.fromTimestamp(timestamp + (amount * secondsPerUnit));
 }

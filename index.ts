@@ -7,20 +7,39 @@
  * See cli/ directory for individual command implementations.
  */
 
+import "./cli/EmbeddedResources";
 import { Command } from "commander";
 import type { CompileOptions } from "./cli/types";
+import { existsSync } from "fs";
 import {
+  emitBuildValidationErrorAndExit,
   emitNoInputBuildErrorAndExit,
   validateCompileInputSources,
 } from "./cli/BuildInputValidation";
+import { BUILD_INPUT_NOT_FOUND_CODE } from "./cli/BuildErrorCodes";
 import {
   CLI_JSON_CHECKS,
   createJsonReport,
 } from "./compiler/common/JsonContracts";
 import { Logger } from "./compiler/common/Logger";
-import { registerRequestedCliSubcommands } from "./cli/CommandRegistration";
+import { configureRootOptions } from "./cli/RootProgram";
+import {
+  registerRequestedCliSubcommands,
+  suggestCliCommand,
+} from "./cli/CommandRegistration";
 
 const log = new Logger("CLI");
+
+// `bpl format a.bpl b.bpl | head` closes stdout early; stop quietly instead
+// of printing an EPIPE stack trace (BUG-442). A closed stderr is ignored so
+// the command still exits with its own status (a failure stays a failure).
+process.stdout.on("error", (error: NodeJS.ErrnoException) => {
+  if (error.code === "EPIPE") process.exit(0);
+  throw error;
+});
+process.stderr.on("error", (error: NodeJS.ErrnoException) => {
+  if (error.code !== "EPIPE") throw error;
+});
 
 const program = new Command();
 const packageJson = require("./package.json");
@@ -63,49 +82,13 @@ program
 // Main Compile Command (default action)
 // ============================================================================
 
-program
-  .argument("[files...]", "source file(s) to compile")
-  .option("-e, --eval <code>", "evaluate BPL code passed as string")
-  .option("--stdin", "read BPL code from stdin")
-  .option("-o, --output <file>", "output file path")
-  .option("--emit <type>", "emit type: llvm, ast, tokens, formatted", "llvm")
-  .option("-d, --dwarf", "generate DWARF debug information")
-  .option(
-    "--target <triple>",
-    "target triple for clang (e.g. x86_64-pc-windows-gnu)",
-  )
-  .option("--sysroot <path>", "sysroot path for cross-compilation")
-  .option("--cpu <cpu>", "target CPU for clang (e.g. znver4)")
-  .option("--march <arch>", "target architecture for clang (e.g. arm64)")
-  .option(
-    "--clang-flag <flag...>",
-    "additional flags forwarded directly to clang",
-  )
-  .option(
-    "--wasm-runtime <mode>",
-    "wasm runtime mode: freestanding or host",
-  )
-  .option("--debug-ir-path <file>", "write diagnostic LLVM IR to a file")
-  .option("-l, --lib <lib...>", "libraries to link with")
-  .option("-L, --lib-path <path...>", "library search paths")
-  .option("--object <file...>", "object files to link (.o, .ll, etc.)")
-  .option("-v, --verbose", "enable verbose output")
-  .option("-q, --quiet", "suppress non-error output")
-  .option("--cache", "enable incremental compilation with module caching")
-  .option("--cache-stats", "show incremental cache hit/miss statistics")
-  .option(
-    "-j, --jobs <count>",
-    "parallel module compilation jobs for cached builds",
-  )
-  .option("--no-prelude", "do not load implicit primitives")
-  .option("-O <level>", "optimization level: 0, 1, 2, or 3", "0")
-  .option("--debug", "generate debug information (DWARF, alias for --dwarf)")
-  .option("--time", "show compilation time statistics")
-  .option("--json", "output in JSON format")
-  .option("--color", "force colored output")
-  .option("--no-color", "disable colored output")
-  .action(async (files: string[] | undefined, options: CompileOptions) => {
+configureRootOptions(program).action(
+  async (files: string[] | undefined, options: CompileOptions) => {
     validateCompileInputSources(files, options);
+    // A plain `bpl file.bpl` writes IR beside the executable and `bpl -e`
+    // runs the snippet by default; only an explicit `--emit llvm` asks for
+    // the IR of every function (and, for -e/--stdin, prints it).
+    options.emitDefaulted = program.getOptionValueSource("emit") === "default";
 
     // Handle --eval flag
     if (options.eval !== undefined) {
@@ -132,6 +115,7 @@ program
 
     // TypeScript needs this assertion after the exit check
     const fileList = files as [string, ...string[]];
+    rejectUnknownCommand(fileList[0], options);
 
     // Handle debug flag as alias for dwarf
     if (options.debug) {
@@ -163,7 +147,25 @@ program
     }
 
     await processFileAsync(fileList[0], options);
-  });
+  },
+);
+
+/**
+ * A bare word that is not an existing file and has no source extension is far
+ * more likely a mistyped command than a program, so say that instead of
+ * reporting a missing file.
+ */
+function rejectUnknownCommand(operand: string, options: CompileOptions): void {
+  if (/[\\/.]/.test(operand) || existsSync(operand)) return;
+  const suggestion = suggestCliCommand(operand);
+  emitBuildValidationErrorAndExit(
+    `Unknown command '${operand}'.` +
+      (suggestion ? ` Did you mean '${suggestion}'?` : "") +
+      " Run 'bpl --help' for the command list.",
+    BUILD_INPUT_NOT_FOUND_CODE,
+    options,
+  );
+}
 
 // ============================================================================
 // Subcommands

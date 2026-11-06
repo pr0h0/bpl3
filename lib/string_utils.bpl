@@ -3,6 +3,7 @@
 export [StringUtils];
 
 import [String] from "std/string.bpl";
+import [Array] from "std/array.bpl";
 extern strlen(s: string) ret long;
 extern malloc(size: long) ret string;
 extern printf(fmt: string, ...) ret int;
@@ -51,9 +52,54 @@ struct StringUtils {
         return -1;
     }
 
+    # The strings in `parts` joined with `separator` between them, as a new
+    # string the caller frees. A null part or separator counts as empty; an
+    # empty array gives an empty string. Throws if allocation fails.
+    frame join(parts: *Array<string>, separator: string) ret string {
+        local separatorLength: long = 0;
+        if (separator != nullptr) {
+            separatorLength = strlen(separator);
+        }
+        local total: long = 0;
+        loop (local i: int = 0; i < parts.len(); i = i + 1) {
+            local part: string = parts.get(i);
+            if (part != nullptr) {
+                total = total + strlen(part);
+            }
+            if (i > 0) {
+                total = total + separatorLength;
+            }
+        }
+        local output: string = malloc(total + 1);
+        if (output == nullptr) {
+            throw "StringUtils.join allocation failed";
+        }
+        local used: long = 0;
+        loop (local i: int = 0; i < parts.len(); i = i + 1) {
+            if (i > 0) {
+                loop (local k: long = 0; k < separatorLength; k = k + 1) {
+                    output[used] = separator[k];
+                    used = used + 1;
+                }
+            }
+            local part: string = parts.get(i);
+            if (part != nullptr) {
+                local partLength: long = strlen(part);
+                loop (local k: long = 0; k < partLength; k = k + 1) {
+                    output[used] = part[k];
+                    used = used + 1;
+                }
+            }
+        }
+        output[used] = cast<char>(0);
+        return output;
+    }
+
     frame trim(s: string) ret String {
         local length: long = strlen(s);
-        if (length > cast<long>(2147483646)) { throw "StringUtils.trim input too large"; }
+        if (length > cast<long>(2147483646)) {
+            throw "StringUtils.trim input too large";
+        }
         local len: int = cast<int>(length);
         local start: int = 0;
         local end: int = len - 1;
@@ -76,7 +122,9 @@ struct StringUtils {
             return String.new("");
         }
         local buf: string = cast<string>(malloc(cast<long>(newlen + 1)));
-        if (buf == nullptr) { throw "StringUtils.trim allocation failed"; }
+        if (buf == nullptr) {
+            throw "StringUtils.trim allocation failed";
+        }
         local i: int = 0;
         loop (i < newlen) {
             buf[i] = s[start + i];
@@ -91,10 +139,14 @@ struct StringUtils {
 
     frame replaceChar(s: string, target: char, repl: char) ret String {
         local length: long = strlen(s);
-        if (length > cast<long>(2147483646)) { throw "StringUtils.replaceChar input too large"; }
+        if (length > cast<long>(2147483646)) {
+            throw "StringUtils.replaceChar input too large";
+        }
         local len: int = cast<int>(length);
         local buf: string = cast<string>(malloc(cast<long>(len + 1)));
-        if (buf == nullptr) { throw "StringUtils.replaceChar allocation failed"; }
+        if (buf == nullptr) {
+            throw "StringUtils.replaceChar allocation failed";
+        }
         local i: int = 0;
         loop (i < len) {
             local c: char = s[i];
@@ -102,7 +154,9 @@ struct StringUtils {
                 c = repl;
             }
             # Preserve C-string semantics when replacement introduces NUL.
-            if (c == 0) { break; }
+            if (c == 0) {
+                break;
+            }
             buf[i] = c;
             i = i + 1;
         }
@@ -119,10 +173,12 @@ struct StringUtils {
         }
         local lh: long = strlen(haystack);
         local ln: long = strlen(needle);
-        if (cast<long>(start) > lh) { return -1; }
-        if (ln == 0) 
+        if (cast<long>(start) > lh) {
+            return -1;
+        }
+        if (ln == 0)
             return start;
-        if (ln > lh) 
+        if (ln > lh)
             return -1;
         # Keep both offsets wide until returning a representable int index.
         local i: long = cast<long>(start);
@@ -136,7 +192,7 @@ struct StringUtils {
                 }
                 j = j + 1;
             }
-            if (isMatch) 
+            if (isMatch)
                 return cast<int>(i);
             i = i + 1;
         }
@@ -146,7 +202,9 @@ struct StringUtils {
     # Share the String implementation's non-overlapping replacement rules.
     frame replace(s: string, oldStr: string, newStr: string) ret String {
         local original: String = String.new(s);
-        defer { original.destroy(); }
+        defer {
+            original.destroy();
+        }
         return original.replaceAll(oldStr, newStr);
     }
 }

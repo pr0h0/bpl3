@@ -23,7 +23,7 @@ This extension provides comprehensive language support for the BPL3 programming 
 
 - **Navigation**:
   - **Go to Definition**: Jump to the definition of symbols (functions, structs, enums, variables) within the current file or across imported files.
-  - **Import Resolution**: Click on import paths to open the referenced file.
+  - **Import Resolution**: Click on import paths to open the referenced file. Links select the source path precisely, including escaped paths and multiple imports on one line.
 
 - **Code Completion**:
   - **Keyword & Type Suggestions**: Autocomplete for keywords (`if`, `loop`, `struct`, `enum`, `match`, etc.) and built-in types (`int`, `bool`, `string`, etc.).
@@ -68,7 +68,7 @@ If you prefer to build and install manually:
 
    ```bash
    cd vscode-ext
-   npm install
+   npm ci
    ```
 
 2. **Compile**:
@@ -77,11 +77,17 @@ If you prefer to build and install manually:
    npm run compile
    ```
 
+   Compiling also copies the grammar and the JSON schemas from the repository's
+   `grammar/` and `schemas/` directories into `out/`
+   (`scripts/copy-assets.js`); those directories hold the only checked-in
+   copies.
+
 3. **Package**:
-   Generate the `.vsix` file:
+   Generate the `.vsix` file with the declared `@vscode/vsce` dependency
+   (`.vscodeignore` leaves sources, tests and source maps out):
 
    ```bash
-   npx @vscode/vsce package
+   npm run package
    ```
 
 4. **Install**:
@@ -96,7 +102,7 @@ If you prefer to build and install manually:
 To contribute or debug the extension:
 
 1. Open the `vscode-ext` folder in VS Code.
-2. Run `npm install`.
+2. Run `npm ci` and `npm run compile`.
 3. Press `F5` to launch a new **Extension Development Host** window with the extension loaded.
 4. Open a `.bpl` file in the new window to test features.
 
@@ -149,3 +155,24 @@ Run `npm test` in `vscode-ext/` for the current pass count.
 - `syntaxes/bpl.tmLanguage.json`: TextMate grammar for syntax highlighting.
 - `src/extension.ts`: LSP Client entry point.
 - `src/server.ts`: LSP Server implementation (handles hover, definition, completion).
+
+Document features use the current editor text. If an edit cannot be parsed,
+outlines, folding, code lenses, smart selections, and inlay hints omit stale
+results and resume when the text can be parsed again.
+
+Smart selection preserves one result per requested cursor, including cursors
+in comments or blank space, so multi-cursor selection stays aligned.
+
+Complexity code lenses count control-flow, short-circuit, and ternary decisions
+throughout each function body, including conditions and initializer/call
+expressions. Nested callable bodies do not increase the enclosing metric.
+
+Workspace symbol search retains overloads declared on the same source line
+while deduplicating indexed and cached copies of each declaration.
+
+Code folding returns each multiline region once and omits single-line body
+regions, while preserving nested folds and import groups.
+
+Import folds include the full final import statement and support a single
+multiline import, stopping before the next non-import declaration.
+An import fold is omitted if the next declaration shares its closing line.

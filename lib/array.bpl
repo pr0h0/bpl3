@@ -10,6 +10,24 @@ import [Cloneable], [Destructible] from "std/core_specs.bpl";
 
 extern malloc(size: long) ret *void;
 extern free(ptr: *void) ret void;
+extern strcmp(a: string, b: string) ret int;
+
+# Element equality for search: `string` elements compare by content (two
+# separately allocated "x" are equal), everything else with `==`.
+frame _arrayElementsEqual<T>(a: T, b: T) ret bool {
+    if (typeof<T>() == typeof<string>()) {
+        local left: string = *cast<*string>(&a);
+        local right: string = *cast<*string>(&b);
+        if (left == right) {
+            return true;
+        }
+        if ((left == nullptr) || (right == nullptr)) {
+            return false;
+        }
+        return strcmp(left, right) == 0;
+    }
+    return a == b;
+}
 extern memcpy(dest: *void, src: *void, n: long) ret *void;
 
 struct ArrayIterator<T>: Iterator<T> {
@@ -173,6 +191,33 @@ struct Array<T>: Iterable<T>, Cloneable<Array<T>>, Destructible {
         return this.data[this.length];
     }
 
+    # Inserts `value` at `index` (0 to len(), inclusive), shifting later
+    # elements right.
+    frame insert(this: *Array<T>, index: int, value: T) {
+        if ((index < 0) || (index > this.length)) {
+            throw IndexOutOfBoundsError.new(index, this.length);
+        }
+        # push grows the storage; the shift then moves the gap to `index`.
+        this.push(value);
+        local i: int = this.length - 1;
+        loop (i > index) {
+            this.data[i] = this.data[i - 1];
+            i = i - 1;
+        }
+        this.data[index] = value;
+    }
+
+    # Removes every element, keeping the allocated capacity. Elements are not
+    # destroyed; release owned elements first.
+    frame clear(this: *Array<T>) {
+        this.length = 0;
+    }
+
+    # Whether the array has no elements.
+    frame isEmpty(this: *Array<T>) ret bool {
+        return this.length == 0;
+    }
+
     # Removes the element at index by shifting items left.
     frame removeAt(this: *Array<T>, index: int) {
         if ((index < 0) || (index >= this.length)) {
@@ -196,7 +241,11 @@ struct Array<T>: Iterable<T>, Cloneable<Array<T>>, Destructible {
         local resultPtr: *Array<U> = &result;
         local completed: bool = false;
         local completedPtr: *bool = &completed;
-        defer { if (!*completedPtr) { resultPtr.destroy(); } }
+        defer {
+            if (!*completedPtr) {
+                resultPtr.destroy();
+            }
+        }
         local i: int = 0;
         loop (i < this.length) {
             result.push(transform(this.data[i], i));
@@ -212,7 +261,11 @@ struct Array<T>: Iterable<T>, Cloneable<Array<T>>, Destructible {
         local resultPtr: *Array<T> = &result;
         local completed: bool = false;
         local completedPtr: *bool = &completed;
-        defer { if (!*completedPtr) { resultPtr.destroy(); } }
+        defer {
+            if (!*completedPtr) {
+                resultPtr.destroy();
+            }
+        }
         local i: int = 0;
         loop (i < this.length) {
             if (predicate(this.data[i], i)) {
@@ -222,6 +275,69 @@ struct Array<T>: Iterable<T>, Cloneable<Array<T>>, Destructible {
         }
         completed = true;
         return result;
+    }
+
+    # Sorts the elements in place with `compare`, which returns a negative
+    # number, zero or a positive number when its first argument belongs
+    # before, with, or after its second. The sort is stable (equal elements
+    # keep their order) and takes O(n log n) comparisons with one temporary
+    # buffer. If `compare` throws, the buffer is released and the elements
+    # are left in an unspecified order.
+    frame sortBy(this: *Array<T>, compare: Lambda<int>(T, T)) {
+        local n: int = this.length;
+        if (n < 2) {
+            return;
+        }
+        local bytes: long = cast<long>(n) * sizeof<T>();
+        local scratch: *T = cast<*T>(malloc(bytes));
+        if (scratch == nullptr) {
+            throw "Array sort allocation failed";
+        }
+        defer free(cast<*void>(scratch));
+        # Bottom-up merge sort: merge runs of `width` into `scratch`, then
+        # copy them back.
+        local width: int = 1;
+        loop (width < n) {
+            local low: int = 0;
+            loop (low < n) {
+                local middle: int = low + width;
+                if (middle > n) {
+                    middle = n;
+                }
+                local high: int = middle + width;
+                if (high > n) {
+                    high = n;
+                }
+                local left: int = low;
+                local right: int = middle;
+                local out: int = low;
+                loop ((left < middle) && (right < high)) {
+                    # Take the right element only when it is strictly smaller,
+                    # which keeps equal elements in order.
+                    if (compare(this.data[right], this.data[left]) < 0) {
+                        scratch[out] = this.data[right];
+                        right = right + 1;
+                    } else {
+                        scratch[out] = this.data[left];
+                        left = left + 1;
+                    }
+                    out = out + 1;
+                }
+                loop (left < middle) {
+                    scratch[out] = this.data[left];
+                    left = left + 1;
+                    out = out + 1;
+                }
+                loop (right < high) {
+                    scratch[out] = this.data[right];
+                    right = right + 1;
+                    out = out + 1;
+                }
+                low = high;
+            }
+            memcpy(cast<*void>(this.data), cast<*void>(scratch), bytes);
+            width = width * 2;
+        }
     }
 
     # Reduces the array to a single value using a reducer function
@@ -284,7 +400,7 @@ struct Array<T>: Iterable<T>, Cloneable<Array<T>>, Destructible {
     frame indexOf(this: *Array<T>, value: T) ret int {
         local i: int = 0;
         loop (i < this.length) {
-            if (this.data[i] == value) {
+            if (_arrayElementsEqual<T>(this.data[i], value)) {
                 return i;
             }
             i = i + 1;
@@ -311,16 +427,16 @@ struct Array<T>: Iterable<T>, Cloneable<Array<T>>, Destructible {
 
     # Operator overloading: Push element with << (left shift)
     # Usage: arr << value
-    frame __lshift__(this: *Array<T>, value: T) ret Array<T> {
+    frame __lshift__(this: *Array<T>, value: T) ret *Array<T> {
         this.push(value);
-        return *this;
+        return this;
     }
 
     # Operator overloading: Pop element with >> (right shift)
     # Usage: arr >> destination_ptr
     # This pops an element and stores it at the pointer location
-    frame __rshift__(this: *Array<T>, dest: *T) ret Array<T> {
+    frame __rshift__(this: *Array<T>, dest: *T) ret *Array<T> {
         *dest = this.pop();
-        return *this;
+        return this;
     }
 }

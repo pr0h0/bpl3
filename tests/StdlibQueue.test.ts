@@ -47,10 +47,11 @@ it("resets destroyed queues and preserves FIFO order through wraparound and reus
 }, 60000);
 
 it("refuses impossible queue growth before changing its storage", () => {
-  expectCorrectnessSuite([{
-    name: "queue-growth-limit",
-    validateLlvm: true,
-    source: `
+  expectCorrectnessSuite([
+    {
+      name: "queue-growth-limit",
+      validateLlvm: true,
+      source: `
       import [Queue] from "std/queue.bpl";
       extern strcmp(a: string, b: string) ret int;
       import [Array] from "std/array.bpl";
@@ -70,15 +71,17 @@ it("refuses impossible queue growth before changing its storage", () => {
         q.destroy();
         return 0;
       }`,
-    expectedStdout: "",
-  }]);
+      expectedStdout: "",
+    },
+  ]);
 }, 60000);
 
 it("queue iteration computes wrapped indices without signed overflow", () => {
-  expectCorrectnessSuite([{
-    name: "queue-large-wrap-index",
-    validateLlvm: true,
-    source: `
+  expectCorrectnessSuite([
+    {
+      name: "queue-large-wrap-index",
+      validateLlvm: true,
+      source: `
       import [Queue], [QueueIterator] from "std/queue.bpl";
       import [Array] from "std/array.bpl";
       frame main() ret int {
@@ -95,6 +98,7 @@ it("queue iteration computes wrapped indices without signed overflow", () => {
         q.destroy();
         return 0;
       }`,
-    expectedStdout: "",
-  }]);
+      expectedStdout: "",
+    },
+  ]);
 }, 60000);

@@ -737,10 +737,21 @@ function peg$parse(input, options) {
       } else if (post.type === "enumStructVariant") {
         // For enum struct variant like Shape.Circle { radius: 5.0 }
         // expr should be an Identifier (enum name)
-        if (expr.kind === "Identifier") {
-          expr = enumStructVariant(expr.name, post.property, post.fields, mergeLocToEndPos(expr.location, post.endPos));
+        // or a module-qualified one like shapes.Shape.Circle { ... }
+        let enumName = null;
+        let base = expr;
+        const qualifiers = [];
+        while (base.kind === "Member" && typeof base.property === "string") {
+          qualifiers.unshift(base.property);
+          base = base.object;
+        }
+        if (base.kind === "Identifier") {
+          enumName = [base.name, ...qualifiers].join(".");
+        }
+        if (enumName !== null) {
+          expr = enumStructVariant(enumName, post.property, post.fields, mergeLocToEndPos(expr.location, post.endPos));
         } else {
-          error("Enum struct variant construction requires an identifier before '.'");
+          error("Enum struct variant construction requires a name before '.'");
         }
       } else if (post.type === "generic") {
         expr = genericInstantiation(expr, post.genericArgs, mergeLocToEndPos(expr.location, post.endPos));
@@ -926,8 +937,11 @@ function peg$parse(input, options) {
   function peg$f154(head, tail) {
     return [head, ...tail.map(t => t[3])];
   }
-  function peg$f155(fieldName, binding) {
-    return { fieldName, binding };
+  function peg$f155(fieldName, pattern) {
+    // A name binds the field; `_` ignores it; any other pattern must match it.
+    if (pattern.kind === "PatternIdentifier") return { fieldName, binding: pattern.name };
+    if (pattern.kind === "PatternWildcard") return { fieldName, binding: "_" };
+    return { fieldName, binding: "_", pattern };
   }
   function peg$f156(elems) {
     return arrayLiteral(elems || [], location());
@@ -9393,7 +9407,7 @@ function peg$parse(input, options) {
       }
       if (s3 !== peg$FAILED) {
         s4 = peg$parse_();
-        s5 = peg$parseIdentifier();
+        s5 = peg$parsePattern();
         if (s5 !== peg$FAILED) {
           peg$savedPos = s0;
           s0 = peg$f155(s1, s5);

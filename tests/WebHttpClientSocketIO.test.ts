@@ -1,13 +1,14 @@
 import { expect, test } from "bun:test";
 import { createServer, type Socket } from "node:net";
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { rmSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { spawnSync } from "node:child_process";
+import { makeRepoTempDir } from "./helpers/repoTempDir";
 
 test.skipIf(process.platform !== "linux")(
   "HTTP client retries interrupted writes and reads within its existing deadline",
   async () => {
-    const dir = mkdtempSync(resolve(".web-client-io-"));
+    const dir = makeRepoTempDir("web-client-io-");
     const sockets = new Set<Socket>();
     const server = createServer((socket) => {
       sockets.add(socket);

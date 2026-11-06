@@ -24,9 +24,7 @@ describe("Compiler driver target selection", () => {
 
     expect(isWasmTarget("notwasm32-unknown-unknown")).toBe(false);
     expect(isWasmTarget("x86_64-unknown-wasmish")).toBe(false);
-    expect(getCompilerDriver("notwasm32-unknown-unknown")).toBe(
-      "native-clang",
-    );
+    expect(getCompilerDriver("notwasm32-unknown-unknown")).toBe("native-clang");
   });
 });
 

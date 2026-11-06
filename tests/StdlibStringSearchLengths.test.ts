@@ -9,7 +9,9 @@ test("String searches reject oversized needles before narrowing their lengths", 
   try {
     const source = readFileSync(resolve("lib/string.bpl"), "utf8")
       .replace(/\bstrlen\b/g, "searchTestLength")
-      .replace("extern searchTestLength(s: string) ret long;", `
+      .replace(
+        "extern searchTestLength(s: string) ret long;",
+        `
         extern strlen(s: string) ret long;
         frame searchTestLength(s: string) ret long {
           local length: long = strlen(s);
@@ -17,13 +19,15 @@ test("String searches reject oversized needles before narrowing their lengths", 
           if (length == 1) { return cast<long>(4294967297); }
           if (length == 2) { return cast<long>(2147483648); }
           return length;
-        }`);
+        }`,
+      );
     const module = join(dir, "string.bpl");
     writeFileSync(module, source);
-    expectCorrectnessSuite([{
-      name: "string-search-length-bounds",
-      validateLlvm: true,
-      source: `
+    expectCorrectnessSuite([
+      {
+        name: "string-search-length-bounds",
+        validateLlvm: true,
+        source: `
         import [String] from "${module}";
         frame main() ret int {
           local text: String = String.new("aaaa");
@@ -41,8 +45,9 @@ test("String searches reject oversized needles before narrowing their lengths", 
           if (text.indexOf("aaa") != 0 || text.lastIndexOf("aaa") != 1 || text.count("aaa") != 1) { return 8; }
           return 0;
         }`,
-      expectedStdout: "",
-    }]);
+        expectedStdout: "",
+      },
+    ]);
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }

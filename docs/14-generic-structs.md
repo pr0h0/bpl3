@@ -34,7 +34,6 @@ p.key = "age";
 p.value = 30;
 ```
 
-
 Generic struct and enum arguments are invariant. For example, `Box<int[2]>`
 cannot be assigned, passed or returned as `Box<int[]>`, and `Box<u8>` does not
 implicitly become `Box<int>`. Convert the payload explicitly and construct the

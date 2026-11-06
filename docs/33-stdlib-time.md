@@ -33,14 +33,14 @@ falls outside the signed `int` range.
 | Method                                             | Description                      |
 | -------------------------------------------------- | -------------------------------- |
 | `Time.now() ret int`                               | Current Unix timestamp (seconds) |
-| `Time.nowSeconds() ret long` | Unix timestamp in seconds |
-| `Time.monotonicMs() ret long` | Monotonic milliseconds |
-| `Time.monotonicUs() ret long` | Monotonic microseconds |
+| `Time.nowSeconds() ret long`                       | Unix timestamp in seconds        |
+| `Time.monotonicMs() ret long`                      | Monotonic milliseconds           |
+| `Time.monotonicUs() ret long`                      | Monotonic microseconds           |
 | `Time.nowMs() ret long`                            | Current time in milliseconds     |
 | `Time.nowUs() ret long`                            | Current time in microseconds     |
-| `Time.sleep(ms: long)`                              | Sleep for milliseconds           |
-| `Time.sleepUs(usec: long)`                          | Sleep for microseconds           |
-| `Time.sleepSeconds(sec: long)`                      | Sleep for seconds                |
+| `Time.sleep(ms: long)`                             | Sleep for milliseconds           |
+| `Time.sleepUs(usec: long)`                         | Sleep for microseconds           |
+| `Time.sleepSeconds(sec: long)`                     | Sleep for seconds                |
 | `Time.formatTimestamp(timestamp: long) ret string` | Format as "YYYY-MM-DD HH:MM:SS"  |
 | `Time.measure(action: Lambda<void>()) ret long`    | Measure execution time in ms     |
 
@@ -65,6 +65,13 @@ local sec: long = d1.toSeconds(); # Get seconds
 local min: long = d1.toMinutes(); # Get minutes
 local hrs: long = d1.toHours();   # Get hours
 ```
+
+`d.format()` returns the duration as text in the style of Go's
+`time.Duration`: `0s`; milliseconds under a second (`450ms`); otherwise
+seconds with any fraction, trailing zeros removed (`1.5s`), preceded by
+minutes and hours once they are non-zero (`2m3s`, `1h0m0s`, `25h1m1.25s`);
+and a leading `-` when negative. The string is caller-owned
+(`free(cast<*void>(text))`), or `nullptr` if allocation fails.
 
 **Arithmetic:**
 

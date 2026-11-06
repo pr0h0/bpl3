@@ -48,7 +48,9 @@ interface Executable {
   path: string;
 }
 
-export function parseBinaryComparisonArgs(args: string[]): BinaryComparisonArgs {
+export function parseBinaryComparisonArgs(
+  args: string[],
+): BinaryComparisonArgs {
   let runs = 101;
   let warmups = 5;
   let validate = true;
@@ -152,7 +154,9 @@ export function runBinaryComparison(
 export function formatBinaryComparisonResult(
   result: BinaryComparisonResult,
 ): string {
-  const validation = result.validated ? "output validated" : "validation skipped";
+  const validation = result.validated
+    ? "output validated"
+    : "validation skipped";
   return [
     `Binary A/B comparison (${result.runs} runs, ${result.warmups} warmups, ${validation})`,
     `Baseline:  ${result.baselinePath}`,

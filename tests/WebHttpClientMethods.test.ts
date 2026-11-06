@@ -1,13 +1,14 @@
 import { expect, test } from "bun:test";
 import { createServer, type Socket } from "node:net";
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { rmSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { spawnSync } from "node:child_process";
+import { makeRepoTempDir } from "./helpers/repoTempDir";
 
 test.skipIf(process.platform !== "linux")(
   "HTTP client applies HEAD response semantics to the actual method token",
   async () => {
-    const dir = mkdtempSync(resolve(".web-client-methods-"));
+    const dir = makeRepoTempDir("web-client-methods-");
     const sockets = new Set<Socket>();
     const methods: string[] = [];
     const server = createServer((socket) => {
@@ -18,8 +19,10 @@ test.skipIf(process.platform !== "linux")(
       socket.on("data", (chunk) => {
         request += chunk.toString();
         if (!request.includes("\r\n\r\n")) return;
-        const method = request.split(" ")[0]!;
-        methods.push(method);
+        const [method, target] = request.split(" ");
+        // Count only this program's requests; other local processes may
+        // probe the ephemeral port (seen as a stray `GET /`).
+        if (target?.startsWith("/case")) methods.push(`${method} ${target}`);
         socket.end(
           "HTTP/1.1 200 OK\r\nContent-Length: 9\r\nConnection: close\r\n\r\n" +
             (method === "HEAD" ? "" : "body data"),
@@ -44,7 +47,7 @@ ${[
 ]
   .map(
     ([configure, length], i) => `{
-local request:RequestBuilder=RequestBuilder.new("http://127.0.0.1:${address.port}/");
+local request:RequestBuilder=RequestBuilder.new("http://127.0.0.1:${address.port}/case${i}");
 ${configure}
 local response:*HttpResponse=request.send();
 if(response.status!=200||response.body_length!=${length}){printf("case ${i}: %d %ld %s\\n",response.status,response.body_length,response.error);response.destroy();request.destroy();return ${i + 1};}
@@ -75,7 +78,12 @@ return 0;
           new Response(processHandle.stderr).text(),
         ]);
         expect(status, stdout + stderr).toBe(0);
-        expect(methods).toEqual(["HEAD", "HEAD", "head", "GET"]);
+        expect(methods).toEqual([
+          "HEAD /case0",
+          "HEAD /case1",
+          "head /case2",
+          "GET /case3",
+        ]);
       } finally {
         clearTimeout(timeout);
       }

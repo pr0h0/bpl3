@@ -5,7 +5,6 @@ import [AuthCrypto] from "./crypto.bpl";
 import [SQLite], [Statement] from "bpl-sqlite";
 import [Request], [Response], [HttpMethod] from "bpl-express";
 import [Option] from "std/option.bpl";
-import [Map] from "std/map.bpl";
 import [String] from "std/string.bpl";
 import [StringBuilder] from "std/string_builder.bpl";
 import [JSON] from "std/json.bpl";

@@ -118,7 +118,7 @@ frame main() ret int {
         },
         "undefined_export.bpl": {
           source:
-            'export undefinedExport;\nframe main() ret int { return 0; }\n',
+            "export undefinedExport;\nframe main() ret int { return 0; }\n",
           expected: "BPL_EXPORT_SYMBOL_NOT_FOUND",
         },
         "inline_export.bpl": {

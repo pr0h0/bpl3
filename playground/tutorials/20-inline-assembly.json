@@ -6,9 +6,7 @@
   "difficulty": "advanced",
   "duration": "15 min",
   "description": "Write low-level assembly code directly in BPL. Learn Intel, AT&T, and LLVM IR syntax for maximum control.",
-  "prerequisites": [
-    "bitwise-operations"
-  ],
+  "prerequisites": ["bitwise-operations"],
   "objectives": [
     "Understand when to use inline assembly",
     "Write Intel and AT&T syntax assembly",

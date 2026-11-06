@@ -20,10 +20,13 @@ import {
   LINT_INPUT_NOT_FOUND_CODE,
   LINT_INPUT_SYMLINK_CODE,
   LINT_NO_INPUTS_CODE,
+  LINT_PROCESSING_ERROR_CODE,
+  LINT_UNKNOWN_RULE_CODE,
 } from "./lint";
 
 const log = new Logger("Lint");
 
+/** Expand source inputs, lint each file, and report failures as JSON or text. */
 export async function runLintCommand(
   files: string[],
   rawOptions: LintOptions,
@@ -41,52 +44,41 @@ export async function runLintCommand(
   };
 
   if (!files || files.length === 0) {
-    if (options.json) {
-      console.log(
-        JSON.stringify(
-          createJsonReport(CLI_JSON_CHECKS.lint, false, {
-            totalFiles: 0,
-            errorCount: 1,
-            files: [],
-            error: "No files specified.",
-            errorCode: LINT_NO_INPUTS_CODE,
-          }),
-          null,
-          2,
-        ),
-      );
-    } else {
-      log.error("No files specified.");
-    }
-    process.exit(1);
+    exitLintInputFailure(
+      options.json,
+      "No files specified.",
+      LINT_NO_INPUTS_CODE,
+    );
   }
 
   try {
     files = expandSourceInputs(files);
-    if (!files.length)
-      throw new Error("No BPL sources found in the supplied directories.");
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    if (options.json)
-      console.log(
-        JSON.stringify(
-          createJsonReport(CLI_JSON_CHECKS.lint, false, {
-            totalFiles: 0,
-            errorCount: 1,
-            files: [],
-            error: message,
-            errorCode: LINT_NO_INPUTS_CODE,
-          }),
-          null,
-          2,
-        ),
-      );
-    else log.error(message);
-    process.exit(1);
+    exitLintInputFailure(options.json, message, LINT_PROCESSING_ERROR_CODE);
+  }
+  if (!files.length) {
+    exitLintInputFailure(
+      options.json,
+      "No BPL sources found in the supplied directories.",
+      LINT_NO_INPUTS_CODE,
+    );
+  }
+  const { CompilerError, createLintEngine, fixSource, LINT_RULE_CODES } =
+    await import("./lintEngine");
+  const { loadLinterConfig } =
+    await import("../../compiler/linter/LinterConfig");
+  const disabled = parseDisabledRules(options.disable ?? []);
+  const unknown = disabled.filter((code) => !LINT_RULE_CODES.includes(code));
+  if (unknown.length > 0) {
+    exitLintInputFailure(
+      options.json,
+      `Unknown lint rule ${unknown.join(", ")}; known rules are ${LINT_RULE_CODES.join(", ")}.`,
+      LINT_UNKNOWN_RULE_CODE,
+    );
   }
   const stdin = files.includes("-") ? fs.readFileSync(0, "utf8") : undefined;
-  const { CompilerError, createLintEngine } = await import("./lintEngine");
-  const lintSource = createLintEngine();
+  const lintSource = createLintEngine(disabled);
   let hasErrors = false;
   const results: Array<{
     file: string;
@@ -115,10 +107,42 @@ export async function runLintCommand(
       }
 
       const content = file === "-" ? stdin! : fs.readFileSync(file, "utf-8");
-      const errors = lintSource(
-        content,
-        file === "-" ? options.stdinFilepath || "stdin.bpl" : file,
-      );
+      const sourcePath =
+        file === "-" ? options.stdinFilepath || "stdin.bpl" : file;
+      let projectDisabled: string[];
+      try {
+        projectDisabled = loadLinterConfig(sourcePath).config.disable;
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        if (options.json) {
+          results.push({
+            file,
+            success: false,
+            error: message,
+            errorCode: LINT_PROCESSING_ERROR_CODE,
+          });
+        } else {
+          log.error(message);
+        }
+        hasErrors = true;
+        continue;
+      }
+      let linted = content;
+      // --fix rewrites files; standard input has nowhere to write back to.
+      if (
+        options.fix &&
+        file !== "-" &&
+        !disabled.includes("L002") &&
+        !projectDisabled.includes("L002")
+      ) {
+        const fixed = fixSource(content, sourcePath);
+        if (fixed !== undefined) {
+          fs.writeFileSync(file, fixed);
+          linted = fixed;
+          if (!options.json) log.info(`Removed unused imports: ${file}`);
+        }
+      }
+      const errors = lintSource(linted, sourcePath, projectDisabled);
       if (errors.length > 0) {
         const fails =
           options.failOnWarnings !== false ||
@@ -165,16 +189,26 @@ export async function runLintCommand(
   }
 
   if (options.json) {
-    const errorCount = results.reduce(
-      (count, result) =>
-        count + (result.success ? 0 : (result.diagnostics?.length ?? 1)),
-      0,
-    );
+    // Count by severity: a naming warning is not an error unless
+    // --fail-on-warnings (the default) makes the run fail.
+    let errorCount = 0;
+    let warningCount = 0;
+    for (const result of results) {
+      if (!result.diagnostics) {
+        if (!result.success) errorCount++;
+        continue;
+      }
+      for (const diagnostic of result.diagnostics as { severity?: string }[]) {
+        if (diagnostic.severity === "warning") warningCount++;
+        else errorCount++;
+      }
+    }
     console.log(
       JSON.stringify(
         createJsonReport(CLI_JSON_CHECKS.lint, !hasErrors, {
           totalFiles: files.length,
           errorCount,
+          warningCount,
           files: results,
         }),
         null,
@@ -188,6 +222,7 @@ export async function runLintCommand(
   }
 }
 
+/** Map input-path validation failures to the stable lint JSON error codes. */
 function getLintInputErrorCode(inputError: string): string {
   switch (inputError) {
     case "File not found":
@@ -199,4 +234,38 @@ function getLintInputErrorCode(inputError: string): string {
     default:
       return "BPL_LINT_INPUT_INVALID";
   }
+}
+
+/** Report a pre-analysis input failure without mixing JSON and stderr output. */
+function exitLintInputFailure(
+  json: boolean | undefined,
+  message: string,
+  errorCode: string,
+): never {
+  if (json) {
+    console.log(
+      JSON.stringify(
+        createJsonReport(CLI_JSON_CHECKS.lint, false, {
+          totalFiles: 0,
+          errorCount: 1,
+          files: [],
+          error: message,
+          errorCode,
+        }),
+        null,
+        2,
+      ),
+    );
+  } else {
+    log.error(message);
+  }
+  process.exit(1);
+}
+
+/** `--disable` values, split on commas, trimmed and upper-cased. */
+function parseDisabledRules(values: readonly string[]): string[] {
+  return values
+    .flatMap((value) => value.split(","))
+    .map((code) => code.trim().toUpperCase())
+    .filter((code) => code.length > 0);
 }

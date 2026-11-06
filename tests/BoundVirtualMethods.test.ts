@@ -150,7 +150,7 @@ test("bound virtual methods retain arguments in their checked signature", () => 
   ]);
 }, 60000);
 
-test("variadic value receiver bindings retain their existing diagnostic", () => {
+test("variadic value receiver methods are rejected at declaration", () => {
   expectCleanFailureSuite([
     {
       name: "bound-virtual-variadic-value",
@@ -165,7 +165,7 @@ test("variadic value receiver bindings retain their existing diagnostic", () => 
       local call: Lambda<int>(int, int) = value.sum;
       return call(1, 0);
     }`,
-      expectedMessage: "Cannot bind a variadic value-receiver method",
+      expectedMessage: "cannot have a native variadic parameter",
     },
   ]);
 }, 30000);

@@ -1,11 +1,10 @@
 import [TlsConnection] from "bpl-tls";
-import [Map], [MapNode] from "std/map.bpl";
-import [Array] from "std/array.bpl";
+import [Map] from "std/map.bpl";
 import [Option] from "std/option.bpl";
 import [StringBuilder] from "std/string_builder.bpl";
 import [HttpParser], [HttpHeaders], [HeaderField] from "bpl-http-parser";
 import releaseStrings from "bpl-http-parser";
-import send, strlen, sprintf, strcmp, free, __errno_location from "./libc.bpl";
+import send, strlen, sprintf, free, __errno_location from "./libc.bpl";
 export [Request];
 export [Response];
 export [HttpMethod];

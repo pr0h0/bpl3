@@ -8,7 +8,7 @@
     "",
     "--- Using << Operator ---",
     "Result: 'The quick brown fox'",
-    "Length: 4",
+    "Length: 19",
     "",
     "--- Appending Integers ---",
     "Result: 'Numbers: 42, -100, 0'",

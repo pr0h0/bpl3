@@ -37,6 +37,11 @@ export class SourceManager {
     return this.sources.get(path);
   }
 
+  /** Forget the content stored for one path. */
+  static deleteSource(path: string): void {
+    this.sources.delete(path);
+  }
+
   /**
    * Clear all stored source content
    * Useful for resetting state between compilations or tests

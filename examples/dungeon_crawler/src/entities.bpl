@@ -4,8 +4,6 @@ export [Player];
 export [Monster];
 export [MonsterType];
 
-import [TileType] from "./world.bpl";
-
 struct Entity {
     x: int,
     y: int,

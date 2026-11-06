@@ -4,6 +4,7 @@
  */
 
 import * as AST from "../common/AST";
+import { ENUM_VARIANT_LABELS } from "./CallChecker";
 import { CompilerError, DiagnosticSeverity } from "../common/CompilerError";
 import { INTEGER_TYPES, TypeUtils } from "./TypeUtils";
 import {
@@ -13,6 +14,7 @@ import {
 import type { CheckerContext } from "./CheckerContext";
 import type { Symbol, SymbolTable } from "./SymbolTable";
 import { CaptureAnalyzer } from "./CaptureAnalyzer";
+import { evaluateConstantInitializer } from "../common/ConstantInitializer";
 import {
   CAPTURED_VALUE_ASSIGNED_CODE,
   BREAK_OUTSIDE_CONTEXT_CODE,
@@ -20,9 +22,11 @@ import {
   CONTINUE_OUTSIDE_LOOP_CODE,
   DEFER_RETURN_VALUE_INVALID_CODE,
   FALLTHROUGH_OUTSIDE_SWITCH_CODE,
+  GLOBAL_INITIALIZER_NOT_CONSTANT_CODE,
   RETURN_TYPE_MISMATCH_CODE,
   RETURN_ARRAY_VIEW_ESCAPES_CODE,
   SWITCH_CASE_TYPE_MISMATCH_CODE,
+  SWITCH_CASE_VALUE_NOT_CONSTANT_CODE,
   SWITCH_VALUE_TYPE_MISMATCH_CODE,
   TUPLE_DESTRUCTURE_TARGET_INVALID_CODE,
   VARIABLE_REDECLARATION_CODE,
@@ -620,18 +624,17 @@ export function checkBlock(
     }
 
     let terminated = false;
+    let reportedUnreachable = false;
     for (const s of stmt.statements) {
-      if (terminated) {
+      // One warning per block, at the first statement that cannot run.
+      if (terminated && !reportedUnreachable) {
+        reportedUnreachable = true;
         const error = new CompilerError(
           "Unreachable code detected.",
           "This statement follows a return, break, continue, or throw statement and will never be executed.",
           s.location,
         ).setSeverity(DiagnosticSeverity.Warning);
-        if (this.collectAllErrors) {
-          this.errors.push(error);
-        } else {
-          throw error;
-        }
+        this.addWarning(error);
       }
 
       try {
@@ -845,7 +848,8 @@ export function checkReturn(this: CheckerContext, stmt: AST.ReturnStmt): void {
     const resolvedExpected = this.resolveType(this.currentFunctionReturnType);
     if (stmt.value) {
       returnType =
-        this.contextualizeArrayLiteral(stmt.value, resolvedExpected) ?? returnType;
+        this.contextualizeArrayLiteral(stmt.value, resolvedExpected) ??
+        returnType;
     }
     const resolvedActual = returnType
       ? this.resolveType(returnType)
@@ -882,7 +886,10 @@ export function checkReturn(this: CheckerContext, stmt: AST.ReturnStmt): void {
 
     // Return lowering spills a fixed-array value before creating its view.
     // That spill belongs to this frame even if the value came from a global.
-    const conversion = lowerImplicitConversion(resolvedExpected, resolvedActual);
+    const conversion = lowerImplicitConversion(
+      resolvedExpected,
+      resolvedActual,
+    );
     const returnedCast = findReturnedArrayViewCast(
       this,
       stmt.value,
@@ -1032,8 +1039,13 @@ export function checkSwitch(this: CheckerContext, stmt: AST.SwitchStmt): void {
         if (INTEGER_TYPES.includes(resolvedType.name)) {
           isValid = true;
         } else {
+          // An enum imported through a namespace is not in scope by its
+          // own name, so its resolved declaration identifies it.
           const symbol = this.currentScope.resolve(resolvedType.name);
-          if (symbol && symbol.kind === "Enum") {
+          if (
+            resolvedType.resolvedDeclaration?.kind === "EnumDecl" ||
+            symbol?.kind === "Enum"
+          ) {
             isValid = true;
           }
         }
@@ -1059,6 +1071,13 @@ export function checkSwitch(this: CheckerContext, stmt: AST.SwitchStmt): void {
     const seenValues = new Set<string>();
 
     for (const caseItem of stmt.cases) {
+      // As written, for messages: `E.A` rather than its index `0`.
+      const written = caseItem.value;
+      const writtenLabel =
+        written.kind === "Member" && written.object.kind === "Identifier"
+          ? `${written.object.name}.${written.property}`
+          : undefined;
+      ENUM_VARIANT_LABELS.add(caseItem.value);
       const patternType = this.checkExpression(caseItem.value);
       if (
         patternType &&
@@ -1108,10 +1127,25 @@ export function checkSwitch(this: CheckerContext, stmt: AST.SwitchStmt): void {
         valStr = constVal.toString();
       }
 
+      // Other literals (such as characters) are constants too.
+      if (valStr === undefined && caseItem.value.kind === "Literal") {
+        const literal = caseItem.value as AST.LiteralExpr;
+        valStr = `${literal.type}:${literal.raw ?? String(literal.value)}`;
+      }
+      // Code generation needs a constant per case; `case y:` with a
+      // variable passed checking and failed only when building.
+      if (valStr === undefined) {
+        throw new CompilerError(
+          "Switch case values must be constants",
+          "Use a literal (optionally negated) or an enum variant. Compare other values with if/else.",
+          caseItem.value.location,
+          SWITCH_CASE_VALUE_NOT_CONSTANT_CODE,
+        );
+      }
       if (valStr !== undefined) {
         if (seenValues.has(valStr)) {
           throw new CompilerError(
-            `Duplicate case value '${valStr}'`,
+            `Duplicate case value '${writtenLabel ?? valStr.replace(/^char:/, "")}'`,
             "Switch cases must have unique values.",
             caseItem.value.location,
           );
@@ -1308,7 +1342,9 @@ export function checkVariableDecl(
 
           if (Array.isArray(target)) {
             if (inferredType) {
-              destinationTypes.push(validateAndAssignTypes(target, inferredType));
+              destinationTypes.push(
+                validateAndAssignTypes(target, inferredType),
+              );
             }
             continue;
           }
@@ -1397,7 +1433,8 @@ export function checkVariableDecl(
       initType = this.checkExpression(decl.initializer);
       if (declaredType) {
         initType =
-          this.contextualizeArrayLiteral(decl.initializer, declaredType) ?? initType;
+          this.contextualizeArrayLiteral(decl.initializer, declaredType) ??
+          initType;
       }
       this.rejectOwningCopy(
         decl.initializer,
@@ -1409,6 +1446,27 @@ export function checkVariableDecl(
       if (declaredType && this.matchContext) {
         this.matchContext.pop();
       }
+    }
+
+    // Globals are emitted as constants; reject runtime initializers here
+    // rather than failing in code generation (BUG-433). This runs after the
+    // initializer is checked, so folding sees each operand's type.
+    if (
+      decl.isGlobal &&
+      !evaluateConstantInitializer(decl.initializer, (type) =>
+        this.resolveType(type),
+      )
+    ) {
+      // Reported without throwing so the global is still declared and its
+      // uses do not cascade into undefined-symbol errors.
+      this.addError(
+        new CompilerError(
+          "Global initializer must be a compile-time constant",
+          "Use literals, unary -, !, ~, integer arithmetic, casts of numeric constants, or array literals of these; assign other values in a function.",
+          decl.initializer.location,
+          GLOBAL_INITIALIZER_NOT_CONSTANT_CODE,
+        ),
+      );
     }
 
     if (initType) {

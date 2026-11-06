@@ -8,7 +8,10 @@ import * as os from "os";
 import * as path from "path";
 import { spawnSync } from "child_process";
 import { getLlvmVerifierCandidates } from "../../compiler/common/LlvmVerifier";
-import { getBplHome } from "../../compiler/common/PathResolver";
+import {
+  getBplHomeWithSource,
+  type BplHomeSource,
+} from "../../compiler/common/PathResolver";
 import { findSymlinkedParentPath } from "../../compiler/common/PathSafety";
 import { Logger } from "../../compiler/common/Logger";
 import { getCompilerDriver } from "../../compiler/common/CompilerDriver";
@@ -74,6 +77,8 @@ interface DoctorReport {
     bun?: string;
   };
   bplHome: string;
+  /** How bplHome was found: BPL_HOME, the executable location, etc. */
+  bplHomeSource: string;
   checks: DoctorCheck[];
   timeouts: TimeoutEnvDiagnostic[];
 }
@@ -170,7 +175,7 @@ function createDoctorReport(
   version: string,
   packageArchiveTool: string,
 ): DoctorReport {
-  const bplHome = getBplHome();
+  const { path: bplHome, source: bplHomeSource } = getBplHomeWithSource();
   const checks: DoctorCheck[] = [
     checkDirectory(
       "BPL home",
@@ -182,11 +187,7 @@ function createDoctorReport(
       os.tmpdir(),
       "Set TMPDIR, TEMP, or TMP to a writable directory with enough free space.",
     ),
-    checkFile(
-      "Runtime support object",
-      path.join(bplHome, "lib", "runtime_support.o"),
-      NATIVE_RUNTIME_SUPPORT_HINT,
-    ),
+    checkRuntimeSupportObject(bplHome, bplHomeSource),
     checkFile(
       "WebAssembly runtime IR",
       path.join(bplHome, "lib", "runtime_wasm.ll"),
@@ -251,6 +252,7 @@ function createDoctorReport(
         ...(bunVersion ? { bun: bunVersion } : {}),
       },
       bplHome,
+      bplHomeSource,
       checks,
       timeouts: getTimeoutEnvDiagnostics(),
     },
@@ -258,7 +260,7 @@ function createDoctorReport(
 }
 
 function createSanitizerDoctorReport(version: string): DoctorReport {
-  const bplHome = getBplHome();
+  const { path: bplHome, source: bplHomeSource } = getBplHomeWithSource();
   const checks = [checkSanitizerRuntimeSupport()];
   const bunVersion = getCommandVersion("bun", ["--version"]);
 
@@ -274,6 +276,7 @@ function createSanitizerDoctorReport(version: string): DoctorReport {
         ...(bunVersion ? { bun: bunVersion } : {}),
       },
       bplHome,
+      bplHomeSource,
       checks,
       timeouts: getTimeoutEnvDiagnostics(),
     },
@@ -333,6 +336,31 @@ function checkDirectory(
     detail: directoryPath,
     required: true,
   };
+}
+
+/**
+ * The embedded library's runtime object is built from bundled C source on the
+ * first native link that needs it, so its absence there is not a failure.
+ */
+function checkRuntimeSupportObject(
+  bplHome: string,
+  bplHomeSource: BplHomeSource,
+): DoctorCheck {
+  const objectPath = path.join(bplHome, "lib", "runtime_support.o");
+  if (bplHomeSource === "embedded" && !fs.existsSync(objectPath)) {
+    return {
+      name: "Runtime support object",
+      ok: false,
+      detail: `${objectPath} is built with the native compiler on the first native link that needs it`,
+      hint: "Run a native build that uses runtime checks, or check the native compiler below.",
+      required: false,
+    };
+  }
+  return checkFile(
+    "Runtime support object",
+    objectPath,
+    NATIVE_RUNTIME_SUPPORT_HINT,
+  );
 }
 
 function checkFile(name: string, filePath: string, hint: string): DoctorCheck {
@@ -631,7 +659,9 @@ function getCommandProbeOptions(): {
   };
 }
 
-function getFirstOutputLine(output: string | Buffer | null | undefined): string {
+function getFirstOutputLine(
+  output: string | Buffer | null | undefined,
+): string {
   return output?.toString().split("\n")[0]?.trim() || "";
 }
 
@@ -647,7 +677,7 @@ function printDoctorReport(report: DoctorReport): void {
   if (report.platform.bun) {
     console.log(`Bun: ${report.platform.bun}`);
   }
-  console.log(`BPL_HOME: ${report.bplHome}`);
+  console.log(`BPL_HOME: ${report.bplHome} (from ${report.bplHomeSource})`);
   console.log("");
   console.log("Timeouts:");
   for (const timeout of report.timeouts) {

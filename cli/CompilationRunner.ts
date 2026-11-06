@@ -18,9 +18,10 @@ import {
   lexWithGrammar,
   SourceManager,
   TokenType,
+  type CompilationResult,
 } from "../compiler";
 import { loadFormatterConfig } from "../compiler/formatter/FormatterConfig";
-import { diagnosticFormatter } from "./DiagnosticFormatter";
+import { diagnosticFormatter, warningsForFile } from "./DiagnosticFormatter";
 import {
   compileBinaryAndRun,
   compileToBinary,
@@ -49,13 +50,19 @@ import { Logger, LogLevel, setLogLevel } from "../compiler/common/Logger";
 import { updateConfig } from "../compiler/common/Config";
 import {
   BUILD_CONFLICTING_INPUTS_CODE,
+  BUILD_INPUT_NOT_FOUND_CODE,
   BUILD_NO_INPUTS_CODE,
+  BUILD_OUTPUT_IS_SOURCE_CODE,
+  BUILD_PROJECT_ENTRY_INVALID_CODE,
 } from "./BuildErrorCodes";
 
 export {
   BUILD_CONFLICTING_INPUTS_CODE,
+  BUILD_INPUT_NOT_FOUND_CODE,
   BUILD_NO_INPUTS_CODE,
-} from "./BuildErrorCodes";
+  BUILD_OUTPUT_IS_SOURCE_CODE,
+  BUILD_PROJECT_ENTRY_INVALID_CODE,
+};
 
 const log = new Logger("CompilationRunner");
 
@@ -76,7 +83,6 @@ export const BUILD_INVALID_EMIT_CODE = "BPL_BUILD_INVALID_EMIT";
 export const BUILD_INVALID_WASM_RUNTIME_CODE = "BPL_BUILD_INVALID_WASM_RUNTIME";
 export const BUILD_INVALID_JOBS_CODE = "BPL_BUILD_INVALID_JOBS";
 export const BUILD_UNSUPPORTED_TARGET_CODE = "BPL_BUILD_UNSUPPORTED_TARGET";
-export const BUILD_INPUT_NOT_FOUND_CODE = "BPL_BUILD_INPUT_NOT_FOUND";
 export const BUILD_INPUT_SYMLINK_CODE = "BPL_BUILD_INPUT_SYMLINK";
 export const BUILD_INPUT_NOT_FILE_CODE = "BPL_BUILD_INPUT_NOT_FILE";
 export const BUILD_OUTPUT_SYMLINK_CODE = "BPL_BUILD_OUTPUT_SYMLINK";
@@ -106,6 +112,8 @@ export const BUILD_JSON_ERROR_CODES = [
   BUILD_OUTPUT_PARENT_NOT_FOUND_CODE,
   BUILD_OUTPUT_PARENT_SYMLINK_CODE,
   BUILD_OUTPUT_PARENT_NOT_DIRECTORY_CODE,
+  BUILD_OUTPUT_IS_SOURCE_CODE,
+  BUILD_PROJECT_ENTRY_INVALID_CODE,
 ] as const;
 
 class CompilationDiagnosticsError extends Error {
@@ -135,7 +143,7 @@ function applyOptions(options: CompileOptions): void {
   if (options.json) {
     setLogLevel(LogLevel.SILENT);
   } else if (options.quiet) {
-    setLogLevel(LogLevel.SILENT);
+    setLogLevel(LogLevel.ERROR);
   } else if (options.verbose) {
     setLogLevel(LogLevel.DEBUG);
   }
@@ -180,7 +188,7 @@ export function processFile(
       if (e instanceof CompilerError) {
         console.error(diagnosticFormatter.formatError(e));
       } else {
-        log.error(`${e}`);
+        log.error(describeError(e));
         if (e instanceof Error && e.stack && options.verbose) {
           log.error(e.stack);
         }
@@ -209,7 +217,7 @@ export async function processFileAsync(
       if (e instanceof CompilerError) {
         console.error(diagnosticFormatter.formatError(e));
       } else {
-        log.error(`${e}`);
+        log.error(describeError(e));
         if (e instanceof Error && e.stack && options.verbose) {
           log.error(e.stack);
         }
@@ -273,8 +281,11 @@ function handleCompilationError(
 
   if (e instanceof CompilerError) {
     console.error(diagnosticFormatter.formatError(e));
+  } else if (options.json) {
+    // Raw artifact emit modes do not use the JSON build-report envelope.
+    console.error(describeError(e));
   } else {
-    log.error(`${e}`);
+    log.error(describeError(e));
     if (e instanceof Error && e.stack && options.verbose) {
       log.error(e.stack);
     }
@@ -561,14 +572,13 @@ export function sourceContainsImportDeclaration(
 /**
  * Compile with module resolution (for files with imports)
  */
-function compileWithModules(
-  content: string,
+/** The module compiler for a file, configured from the CLI options. */
+function createModuleCompiler(
   filePath: string,
   options: CompileOptions,
-  programArgs?: string[],
-): void {
+): Compiler {
   const hostDefaults = getHostDefaults();
-  const compiler = new Compiler({
+  return new Compiler({
     filePath,
     outputPath: options.output,
     emitType: options.emit,
@@ -592,11 +602,15 @@ function compileWithModules(
     jobs: options.jobs ? parseInt(String(options.jobs)) : undefined,
     requireEntryPoint: !options.shared,
   });
+}
 
-  const endCompilation = startPhaseTimer("Compilation", options);
-  const result = compiler.compile(content);
-  endCompilation();
-
+/** Report a module compilation result and write, build or run its output. */
+function finishModuleCompilation(
+  result: CompilationResult,
+  filePath: string,
+  options: CompileOptions,
+  programArgs?: string[],
+): void {
   if (!result.success) {
     if (result.errors) {
       if (shouldEmitBuildJsonReport(options)) {
@@ -610,6 +624,7 @@ function compileWithModules(
     process.exit(1);
   }
 
+  printBuildWarnings(result.warnings ?? [], filePath, options);
   if (result.ast) writeCHeader(result.ast, filePath, options);
 
   // Handle different emit types
@@ -655,6 +670,19 @@ function compileWithModules(
   }
 }
 
+function compileWithModules(
+  content: string,
+  filePath: string,
+  options: CompileOptions,
+  programArgs?: string[],
+): void {
+  const compiler = createModuleCompiler(filePath, options);
+  const endCompilation = startPhaseTimer("Compilation", options);
+  const result = compiler.compile(content);
+  endCompilation();
+  finishModuleCompilation(result, filePath, options, programArgs);
+}
+
 /**
  * Compile imports with module resolution using async backends when available.
  */
@@ -664,92 +692,11 @@ async function compileWithModulesAsync(
   options: CompileOptions,
   programArgs?: string[],
 ): Promise<void> {
-  const hostDefaults = getHostDefaults();
-  const compiler = new Compiler({
-    filePath,
-    outputPath: options.output,
-    emitType: options.emit,
-    formatterOptions:
-      options.emit === "formatted"
-        ? loadFormatterConfig(filePath).options
-        : undefined,
-    verbose: options.verbose,
-    resolveImports: !options.cache,
-    useCache: options.cache,
-    objectFiles: options.object ? normalizeArray(options.object) : undefined,
-    libraries: options.lib ? normalizeArray(options.lib) : undefined,
-    libraryPaths: options.libPath ? normalizeArray(options.libPath) : undefined,
-    target: options.target || hostDefaults.target,
-    sysroot: options.sysroot,
-    clangFlags: getCompilerDriverFlags(options),
-    dwarf: options.dwarf,
-    debugIrPath: options.debugIrPath,
-    optimizationLevel: options.O ? parseInt(options.O) : 0,
-    treeShakeTopLevelFunctions: shouldTreeShakeTopLevelFunctions(options),
-    jobs: options.jobs ? parseInt(String(options.jobs)) : undefined,
-    requireEntryPoint: !options.shared,
-  });
-
+  const compiler = createModuleCompiler(filePath, options);
   const endCompilation = startPhaseTimer("Compilation", options);
   const result = await compiler.compileAsync(content);
   endCompilation();
-
-  if (!result.success) {
-    if (result.errors) {
-      if (shouldEmitBuildJsonReport(options)) {
-        throw new CompilationDiagnosticsError(result.errors);
-      }
-      console.error(diagnosticFormatter.formatErrors(result.errors));
-    }
-    if (options.watch) {
-      throw new Error("Compilation failed");
-    }
-    process.exit(1);
-  }
-
-  if (result.ast) writeCHeader(result.ast, filePath, options);
-
-  // Handle different emit types
-  if (options.emit === "ast" && result.ast) {
-    console.log(JSON.stringify(result.ast, null, 2));
-    return;
-  }
-
-  if (options.emit === "formatted" && result.output) {
-    if (options.write) {
-      assertWritableInputFilePath(filePath);
-      writeFileAtomically(filePath, result.output);
-      if (options.verbose) log.info(`Formatted ${filePath}`);
-    } else {
-      process.stdout.write(result.output);
-    }
-    return;
-  }
-
-  // For cached compilation, the executable is already created
-  if (options.cache) {
-    if (shouldEmitBuildJsonReport(options)) {
-      emitBuildJsonSuccess(filePath, options, {
-        executable: getCachedExecutablePath(filePath, options),
-      });
-      return;
-    }
-
-    if (result.output) {
-      console.log(result.output);
-    }
-    printCacheStatsIfRequested(result, options);
-
-    if (options.run) {
-      runCachedExecutable(filePath, options, programArgs);
-    }
-    return;
-  }
-
-  // Write LLVM IR and optionally compile/run
-  if (result.output) {
-    writeLlvmOutputAndMaybeBuild(filePath, options, result.output, programArgs);
-  }
+  finishModuleCompilation(result, filePath, options, programArgs);
 }
 
 /**
@@ -823,6 +770,8 @@ function compileSingleFile(
     process.exit(1);
   }
 
+  printBuildWarnings(typeChecker.getWarnings(), filePath, options);
+
   if (options.verbose) {
     log.info("Semantic analysis completed successfully.");
   }
@@ -842,6 +791,22 @@ function compileSingleFile(
 
   writeCHeader(ast, filePath, options);
   writeLlvmOutputAndMaybeBuild(filePath, options, ir, programArgs);
+}
+
+/**
+ * Warnings never fail a build. Show the entry file's on stderr, as `check`
+ * does; JSON reports keep stdout parseable and stay quiet.
+ */
+function printBuildWarnings(
+  allWarnings: CompilerError[],
+  filePath: string,
+  options: CompileOptions,
+): void {
+  if (shouldEmitBuildJsonReport(options)) return;
+  const warnings = warningsForFile(allWarnings, filePath);
+  if (warnings.length > 0) {
+    console.error(diagnosticFormatter.formatErrors(warnings));
+  }
 }
 
 /**
@@ -909,6 +874,28 @@ function getLlvmOutputPath(filePath: string, options: CompileOptions): string {
     : `${options.output}.ll`;
 }
 
+function isSameFile(outputPath: string, sourcePath: string): boolean {
+  if (path.resolve(outputPath) === path.resolve(sourcePath)) return true;
+  // Hard links and case-insensitive file systems reach the same file through
+  // a different path (symlinked outputs are refused separately).
+  try {
+    // BigInt stats: large inode numbers lose precision as JS numbers.
+    const output = fs.statSync(outputPath, { bigint: true });
+    const source = fs.statSync(sourcePath, { bigint: true });
+    return output.dev === source.dev && output.ino === source.ino;
+  } catch {
+    return false;
+  }
+}
+
+function assertOutputIsNotSource(outputPath: string, sourcePath: string): void {
+  if (!isSameFile(outputPath, sourcePath)) return;
+  throw new BuildValidationError(
+    `Output path would overwrite the source file: ${sourcePath}. Pass -o with a different path.`,
+    BUILD_OUTPUT_IS_SOURCE_CODE,
+  );
+}
+
 function assertWritableBuildOutputPath(outputPath: string): void {
   try {
     assertWritableFileOutputPath(outputPath);
@@ -961,9 +948,14 @@ function writeLlvmOutputAndMaybeBuild(
 
   const outputPath = getLlvmOutputPath(filePath, options);
   assertWritableBuildOutputPath(outputPath);
+  assertOutputIsNotSource(outputPath, filePath);
 
   if (shouldCompileExecutable(options)) {
-    assertWritableBuildOutputPath(getExecutableOutputPath(outputPath, options));
+    const executablePath = getExecutableOutputPath(outputPath, options);
+    assertWritableBuildOutputPath(executablePath);
+    // An extensionless source (e.g. a bpl.json entry "app") would otherwise
+    // be replaced by its own executable.
+    assertOutputIsNotSource(executablePath, filePath);
   }
 
   writeFileAtomically(outputPath, ir);
@@ -1004,37 +996,44 @@ function writeVirtualLlvmOutputAndMaybeBuild(
     filePath === "<stdin>" ? "stdin.ll" : "eval.ll",
   );
 
+  // `bpl -e` and `bpl --stdin` run the program like `bpl run`; an explicit
+  // `--emit llvm` (or a JSON report) prints the IR instead.
+  const runProgram =
+    options.run === true ||
+    (options.emitDefaulted === true && !shouldEmitBuildJsonReport(options));
+  let exitCode = 0;
   try {
     writeFileAtomically(outputPath, ir);
 
-    if (shouldCompileExecutable(options)) {
+    if (shouldCompileExecutable(options) || runProgram) {
       const compileResult = compileToBinary(outputPath, options);
       if (!compileResult.success) {
         throw new Error(compileResult.error || "Compilation failed");
       }
 
-      if (options.run && compileResult.executablePath) {
+      if (runProgram && compileResult.executablePath) {
         const runResult = runExecutable(
           compileResult.executablePath,
           programArgs || [],
           options.verbose,
         );
-        if (!runResult.success) {
-          throw new Error(
-            runResult.error || `Program exited with code ${runResult.exitCode}`,
-          );
+        if (runResult.error) {
+          throw new Error(runResult.error);
         }
+        exitCode = runResult.exitCode;
       }
     }
 
     if (shouldEmitBuildJsonReport(options)) {
       emitBuildJsonSuccess(filePath, options, { inlineLlvm: ir });
-    } else {
+    } else if (!runProgram) {
       console.log(ir);
     }
   } finally {
     fs.rmSync(tempDir, { recursive: true, force: true });
   }
+  // The program's own status, as `bpl run` reports it.
+  if (exitCode !== 0) process.exit(exitCode);
 }
 
 function runCachedExecutable(
@@ -1116,6 +1115,11 @@ function emitBuildJsonSuccess(
   );
 }
 
+/** User-facing text for an error: its message, without the internal class name. */
+function describeError(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
+
 function formatCompilationErrorMessage(error: unknown): string {
   if (error instanceof CompilerError) {
     return stripAnsi(diagnosticFormatter.formatError(error));
@@ -1138,7 +1142,7 @@ function shouldTreeShakeTopLevelFunctions(options: CompileOptions): boolean {
   return (
     !options.shared &&
     shouldCompileExecutable(options) &&
-    options.emit !== "llvm" &&
+    (options.emit !== "llvm" || options.emitDefaulted === true) &&
     !options.cache &&
     !options.debug &&
     !options.dwarf

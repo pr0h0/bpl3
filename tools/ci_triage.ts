@@ -123,6 +123,7 @@ const MAPPED_JSON_CODE_GROUP_NAMES = [
   "type-checker",
   "run-script",
   "sanitizer-runtime",
+  "test",
   "wasm-linker",
 ] as const;
 
@@ -446,6 +447,8 @@ const SWITCH_MISMATCH_STEP_PATTERN = new RegExp(
   [
     "BPL_SWITCH_VALUE_TYPE_MISMATCH",
     "BPL_SWITCH_CASE_TYPE_MISMATCH",
+    "BPL_SWITCH_CASE_VALUE_NOT_CONSTANT",
+    "Switch case values must be constants",
     "switch type mismatch",
     "switch mismatch",
     "Switch value must be an integer, string or enum type",
@@ -597,12 +600,14 @@ const EXPRESSION_SEMANTIC_GUARD_STEP_PATTERN = new RegExp(
     "Shift count [0-9]+ is out of range",
     "Cannot take address of constant expression",
     "Cannot take address of \\([^)]*\\)",
+    "Cannot take the address of a temporary value",
     "Array literal has inconsistent element types",
     "Cannot cast integer type .* to ['\"]string['\"]",
     "Cannot cast .* to .*",
     "Cannot take size of void",
     "Shift counts must be zero or greater",
     "Address-of requires an lvalue",
+    "Address-of requires a variable, field, element, or dereferenced pointer",
     "All elements in an array literal must have the same type",
     "This cast is not allowed",
     "Void type has no size",
@@ -617,7 +622,10 @@ const STATEMENT_SEMANTIC_GUARD_STEP_PATTERN = new RegExp(
     "BPL_ASSIGNMENT_TARGET_CONSTANT",
     "BPL_ASSIGNMENT_TARGET_INVALID",
     "BPL_TUPLE_DESTRUCTURE_TARGET_INVALID",
+    "BPL_GLOBAL_INITIALIZER_NOT_CONSTANT",
+    "BPL_VARIADIC_METHOD_UNSUPPORTED",
     "statement semantic guard",
+    "Global initializer must be a compile-time constant",
     "Missing type annotation for variable",
     "Variable '.*' is already declared in this scope",
     "Integer overflow: value .* does not fit in type",
@@ -965,6 +973,12 @@ const RUN_SCRIPT_JSON_VALIDATION_STEP_PATTERN = new RegExp(
   ].join("|"),
   "i",
 );
+const LINT_DISCOVERY_STEP_PATTERN = /BPL_LINT_PROCESSING_ERROR|lint discovery/i;
+const LINT_RULE_SELECTION_STEP_PATTERN =
+  /BPL_LINT_UNKNOWN_RULE|lint --disable/i;
+const TEST_COMMAND_STEP_PATTERN = /BPL_TEST_[A-Z_]+|bpl test/i;
+const CHECK_DISCOVERY_STEP_PATTERN =
+  /BPL_CHECK_PROCESSING_ERROR|check discovery/i;
 const SOURCE_ANALYSIS_NO_INPUT_STEP_PATTERN = new RegExp(
   [
     "BPL_CHECK_NO_INPUTS",
@@ -1116,12 +1130,9 @@ const PACKAGE_MANIFEST_JSON_STEP_PATTERN = new RegExp(
   "i",
 );
 const PACKAGE_PACK_JSON_STEP_PATTERN = new RegExp(
-  [
-    "package-pack",
-    "package pack JSON",
-    "pack JSON report",
-    "pack --json",
-  ].join("|"),
+  ["package-pack", "package pack JSON", "pack JSON report", "pack --json"].join(
+    "|",
+  ),
   "i",
 );
 const PACKAGE_INIT_JSON_STEP_PATTERN = new RegExp(
@@ -1134,12 +1145,9 @@ const PACKAGE_INIT_JSON_STEP_PATTERN = new RegExp(
   "i",
 );
 const PROJECT_NEW_JSON_STEP_PATTERN = new RegExp(
-  [
-    "BPL_NEW_",
-    "project-new",
-    "project creation JSON",
-    "new project JSON",
-  ].join("|"),
+  ["BPL_NEW_", "project-new", "project creation JSON", "new project JSON"].join(
+    "|",
+  ),
   "i",
 );
 const PACKAGE_CACHE_VALIDATION_JSON_STEP_PATTERN = new RegExp(
@@ -1398,10 +1406,7 @@ const PRIORITY_EXCLUSIVE_STEP_REPRO_COMMANDS: Array<[RegExp, string]> = [
     'bun test tests/PackageManagerCLI.test.ts -t "duplicate installed package names in list JSON"',
   ],
   [PACKAGE_LIST_JSON_STEP_PATTERN, "bun index.ts list --json"],
-  [
-    IMPORT_IDEMPOTENCY_STEP_PATTERN,
-    "bun test tests/ImportIdempotency.test.ts",
-  ],
+  [IMPORT_IDEMPOTENCY_STEP_PATTERN, "bun test tests/ImportIdempotency.test.ts"],
   [
     IMPORT_IDEMPOTENCY_STEP_PATTERN,
     'bun test tests/CLIJsonParseability.test.ts -t "repeated namespace imports"',
@@ -1430,10 +1435,7 @@ const EXCLUSIVE_STEP_REPRO_COMMANDS: Array<[RegExp, string]> = [
     RELEASE_PACKAGE_MANIFEST_SMOKE_STEP_PATTERN,
     'bun test tests/PackageJsonFailureContracts.test.ts -t "package manifest error codes"',
   ],
-  [
-    RELEASE_PACKAGE_MANIFEST_SMOKE_STEP_PATTERN,
-    "bun run release:smoke",
-  ],
+  [RELEASE_PACKAGE_MANIFEST_SMOKE_STEP_PATTERN, "bun run release:smoke"],
   [RELEASE_PACKAGE_MANIFEST_SMOKE_STEP_PATTERN, "bun run check"],
   [
     RELEASE_PACKAGE_CACHE_BIN_SMOKE_STEP_PATTERN,
@@ -1447,10 +1449,7 @@ const EXCLUSIVE_STEP_REPRO_COMMANDS: Array<[RegExp, string]> = [
     RELEASE_PACKAGE_CACHE_BIN_SMOKE_STEP_PATTERN,
     'bun test tests/PackageManagerCLI.test.ts -t "invalid cached package bin files|symlinked cached package bin archive entries"',
   ],
-  [
-    RELEASE_PACKAGE_CACHE_BIN_SMOKE_STEP_PATTERN,
-    "bun run release:smoke",
-  ],
+  [RELEASE_PACKAGE_CACHE_BIN_SMOKE_STEP_PATTERN, "bun run release:smoke"],
   [RELEASE_PACKAGE_CACHE_BIN_SMOKE_STEP_PATTERN, "bun run check"],
   [
     RELEASE_PACKAGE_ALLOWLIST_STEP_PATTERN,
@@ -1511,10 +1510,7 @@ const EXCLUSIVE_STEP_REPRO_COMMANDS: Array<[RegExp, string]> = [
     PACKAGE_DUPLICATE_INSTALLED_STEP_PATTERN,
     "bun index.ts doctor packages --json",
   ],
-  [
-    PACKAGE_DUPLICATE_INSTALLED_STEP_PATTERN,
-    "bun index.ts list --tree --json",
-  ],
+  [PACKAGE_DUPLICATE_INSTALLED_STEP_PATTERN, "bun index.ts list --tree --json"],
   [
     CI_SAFE_EXAMPLE_PHASE_STEP_PATTERN,
     "bun test tests/Integration.test.ts tests/PlaygroundExamples.test.ts",
@@ -1549,14 +1545,8 @@ const EXCLUSIVE_STEP_REPRO_COMMANDS: Array<[RegExp, string]> = [
     'bun test tests/TutorialExamples.test.ts -t "argv-vector execution"',
   ],
   [PLAYGROUND_PROCESS_EXECUTION_STEP_PATTERN, "bun run check"],
-  [
-    FUZZ_ARTIFACT_REPRO_STEP_PATTERN,
-    "bun run fuzz:repro -- fuzz/crashes",
-  ],
-  [
-    FUZZ_ARTIFACT_REPRO_STEP_PATTERN,
-    "bun run fuzz:validate-artifacts",
-  ],
+  [FUZZ_ARTIFACT_REPRO_STEP_PATTERN, "bun run fuzz:repro -- fuzz/crashes"],
+  [FUZZ_ARTIFACT_REPRO_STEP_PATTERN, "bun run fuzz:validate-artifacts"],
   [
     FUZZ_ARTIFACT_REPRO_STEP_PATTERN,
     "bun run fuzz:replay -- --metadata fuzz/crashes/<artifact>.json",
@@ -1757,7 +1747,10 @@ const EXCLUSIVE_STEP_REPRO_COMMANDS: Array<[RegExp, string]> = [
     'bun test tests/MarkdownDocs.test.ts -t "return type mismatch"',
   ],
   [RETURN_TYPE_MISMATCH_STEP_PATTERN, "bun run check"],
-  [RETURN_ARRAY_VIEW_ESCAPES_STEP_PATTERN, "bun test tests/ReturnedArrayViews.test.ts"],
+  [
+    RETURN_ARRAY_VIEW_ESCAPES_STEP_PATTERN,
+    "bun test tests/ReturnedArrayViews.test.ts",
+  ],
   [RETURN_ARRAY_VIEW_ESCAPES_STEP_PATTERN, "bun run check"],
   [
     ASSIGNMENT_TYPE_MISMATCH_STEP_PATTERN,
@@ -2054,15 +2047,9 @@ const STEP_REPRO_COMMANDS: Array<[RegExp, string]> = [
   ],
   [BUN_DEFAULT_TEST_TIMEOUT_STEP_PATTERN, "bun run test:ci"],
   [INTEGRATION_JOBS_STEP_PATTERN, "bun test tests/IntegrationRunner.test.ts"],
-  [
-    INTEGRATION_JOBS_STEP_PATTERN,
-    "BPL_INTEGRATION_JOBS=4 bun run test:ci",
-  ],
+  [INTEGRATION_JOBS_STEP_PATTERN, "BPL_INTEGRATION_JOBS=4 bun run test:ci"],
   [INTEGRATION_JOBS_STEP_PATTERN, "bun run test:ci"],
-  [
-    INTEGRATION_CONFIG_STEP_PATTERN,
-    "bun test tests/IntegrationConfig.test.ts",
-  ],
+  [INTEGRATION_CONFIG_STEP_PATTERN, "bun test tests/IntegrationConfig.test.ts"],
   [
     INTEGRATION_CONFIG_STEP_PATTERN,
     'bun test tests/Integration.test.ts -t "example test configs valid"',
@@ -2175,10 +2162,7 @@ const STEP_REPRO_COMMANDS: Array<[RegExp, string]> = [
     CLEAN_JSON_VALIDATION_STEP_PATTERN,
     'bun test tests/CLIJsonParseability.test.ts -t "clean JSON validation failures"',
   ],
-  [
-    CLEAN_JSON_VALIDATION_STEP_PATTERN,
-    'bun test tests/CLI.test.ts -t "clean"',
-  ],
+  [CLEAN_JSON_VALIDATION_STEP_PATTERN, 'bun test tests/CLI.test.ts -t "clean"'],
   [CLEAN_JSON_VALIDATION_STEP_PATTERN, "bun run check"],
   [
     FORMAT_JSON_VALIDATION_STEP_PATTERN,
@@ -2286,6 +2270,17 @@ const STEP_REPRO_COMMANDS: Array<[RegExp, string]> = [
     'bun test tests/CLI.test.ts -t "run-script"',
   ],
   [RUN_SCRIPT_JSON_VALIDATION_STEP_PATTERN, "bun run check"],
+  [
+    LINT_DISCOVERY_STEP_PATTERN,
+    "bun test tests/CLILintDiscoveryErrors.test.ts",
+  ],
+  [LINT_DISCOVERY_STEP_PATTERN, "bun run check"],
+  [LINT_RULE_SELECTION_STEP_PATTERN, "bun test tests/CLILintDisable.test.ts"],
+  [LINT_RULE_SELECTION_STEP_PATTERN, "bun run check"],
+  [TEST_COMMAND_STEP_PATTERN, "bun test tests/TestCommand.test.ts"],
+  [TEST_COMMAND_STEP_PATTERN, "bun run check"],
+  [CHECK_DISCOVERY_STEP_PATTERN, "bun test tests/CheckDirectories.test.ts"],
+  [CHECK_DISCOVERY_STEP_PATTERN, "bun run check"],
   [
     SOURCE_ANALYSIS_NO_INPUT_STEP_PATTERN,
     'bun test tests/CLIJsonParseability.test.ts -t "no-input failures"',
@@ -2438,7 +2433,10 @@ const STEP_REPRO_COMMANDS: Array<[RegExp, string]> = [
     PACKAGE_TIMEOUT_STEP_PATTERN,
     'BPL_PACKAGE_IR_VERIFY_TIMEOUT_MS=30000 bun test tests/CLI.test.ts -t "package IR verification"',
   ],
-  [OBJECT_SYMBOL_TIMEOUT_STEP_PATTERN, "bun test tests/ObjectFileParser.test.ts"],
+  [
+    OBJECT_SYMBOL_TIMEOUT_STEP_PATTERN,
+    "bun test tests/ObjectFileParser.test.ts",
+  ],
   [OBJECT_SYMBOL_TIMEOUT_STEP_PATTERN, "bun index.ts doctor --json"],
   [
     OBJECT_SYMBOL_TIMEOUT_STEP_PATTERN,
@@ -2465,7 +2463,10 @@ const STEP_REPRO_COMMANDS: Array<[RegExp, string]> = [
   [RUNTIME_TIMEOUT_STEP_PATTERN, "bun run test:ci"],
   [/Run compiler correctness tests/i, "bun run test:correctness"],
   [/Validate saved fuzz failure artifacts/i, "bun run fuzz:validate-artifacts"],
-  [/Run deterministic differential compiler fuzz/i, "bun run fuzz:differential"],
+  [
+    /Run deterministic differential compiler fuzz/i,
+    "bun run fuzz:differential",
+  ],
   [/Run deterministic compiler fuzz/i, "bun run fuzz:long"],
   [
     /Minimize fuzz crash artifacts/i,
@@ -2585,9 +2586,10 @@ export function summarizeWorkflowJobs(
 }
 
 export function localCommandsForStep(stepName: string): string[] {
-  const priorityExclusiveCommands = PRIORITY_EXCLUSIVE_STEP_REPRO_COMMANDS.filter(
-    ([pattern]) => pattern.test(stepName),
-  ).map(([, command]) => command);
+  const priorityExclusiveCommands =
+    PRIORITY_EXCLUSIVE_STEP_REPRO_COMMANDS.filter(([pattern]) =>
+      pattern.test(stepName),
+    ).map(([, command]) => command);
   if (priorityExclusiveCommands.length > 0) {
     return priorityExclusiveCommands;
   }
@@ -2790,14 +2792,10 @@ function readWorkflowDataFromJson(filePath: string): GitHubWorkflowData {
   }
 
   let parsed:
-    | GitHubWorkflowJobsResponse
-    | GitHubWorkflowData
-    | GitHubWorkflowJob[];
+    GitHubWorkflowJobsResponse | GitHubWorkflowData | GitHubWorkflowJob[];
   try {
     parsed = JSON.parse(source) as
-      | GitHubWorkflowJobsResponse
-      | GitHubWorkflowData
-      | GitHubWorkflowJob[];
+      GitHubWorkflowJobsResponse | GitHubWorkflowData | GitHubWorkflowJob[];
   } catch (error) {
     throw new CliUsageError(
       `Unable to parse --jobs-json file ${filePath}: ${formatJsonParseError(error)}.`,
@@ -2813,9 +2811,7 @@ function readWorkflowDataFromJson(filePath: string): GitHubWorkflowData {
   return {
     jobs,
     run:
-      !Array.isArray(parsed) &&
-      "run" in parsed &&
-      isWorkflowRunLike(parsed.run)
+      !Array.isArray(parsed) && "run" in parsed && isWorkflowRunLike(parsed.run)
         ? parsed.run
         : undefined,
   };
@@ -2944,9 +2940,7 @@ function formatCheckoutWarning(
   ].join(" ");
 }
 
-function detectLocalCheckout(
-  run: TriageRunIdentity,
-): TriageCheckoutIdentity {
+function detectLocalCheckout(run: TriageRunIdentity): TriageCheckoutIdentity {
   return compareCheckoutToRun(run, readLocalGitHeadSha());
 }
 

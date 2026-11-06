@@ -1,35 +1,9 @@
 import { describe, it, expect } from "bun:test";
-import { spawnSync } from "child_process";
-import fs from "fs";
-import path from "path";
+import { compileAndRunFull } from "./helpers/compileAndRun";
 
-const BPL_CLI = path.resolve(__dirname, "../index.ts");
-
+/** Compile and run; failures are returned, not thrown. */
 function runBPL(sourceCode: string) {
-  const tempFile = path.join(
-    __dirname,
-    `temp_${Math.random().toString(36).substring(7)}.bpl`,
-  );
-
-  try {
-    fs.writeFileSync(tempFile, sourceCode);
-
-    const result = spawnSync("bun", [BPL_CLI, "run", tempFile], {
-      encoding: "utf-8",
-      cwd: __dirname,
-    });
-    return {
-      stdout: result.stdout,
-      stderr: result.stderr,
-      exitCode: result.status ?? 1,
-    };
-  } finally {
-    if (fs.existsSync(tempFile)) fs.unlinkSync(tempFile);
-    const binFile = tempFile.replace(".bpl", "");
-    if (fs.existsSync(binFile)) fs.unlinkSync(binFile);
-    const llFile = tempFile.replace(".bpl", ".ll");
-    if (fs.existsSync(llFile)) fs.unlinkSync(llFile);
-  }
+  return compileAndRunFull(sourceCode, { timeout: 60000 });
 }
 
 describe("Examples Fuzzing & Syntax Edge Cases", () => {
@@ -87,13 +61,8 @@ describe("Examples Fuzzing & Syntax Edge Cases", () => {
       }
     `;
     const { stdout, stderr, exitCode } = runBPL(source);
-    // This is expected to fail currently, but we want to confirm it's a syntax error
-    if (exitCode !== 0) {
-      console.log("TrailingCommaCall failed as expected (feature missing)");
-    } else {
-      console.log("TrailingCommaCall SUCCEEDED (feature exists!)");
-    }
-    // expect(exitCode).toBe(0); // Commented out to not fail the suite
+    expect(exitCode, stderr).toBe(0);
+    expect(stdout).toBe("1 2\n");
   });
 
   it("should handle trailing commas in struct literals", () => {

@@ -1,9 +1,6 @@
 import [TlsContext], [TlsConnection] from "bpl-tls";
 import [HttpHeaders] from "./headers.bpl";
 import [Url] from "./url.bpl";
-import [Map], [MapNode] from "std/map.bpl";
-import [Array] from "std/array.bpl";
-import [Option] from "std/option.bpl";
 import [StringBuilder] from "std/string_builder.bpl";
 import [HttpParser], [HeaderField], [ChunkDecoder], [ChunkedBody] from "bpl-http-parser";
 import socket, connect, htons, gethostbyname, [sockaddr_in], [hostent], send, read, close, malloc, free, memcpy, memset, sprintf, strlen, strcmp, setsockopt, [timeval], __errno_location from "./libc.bpl";

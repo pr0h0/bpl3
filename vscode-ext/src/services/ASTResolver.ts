@@ -514,9 +514,7 @@ export class ASTResolver {
       const symbols = this.symbolIndex.findSymbol(funcName);
       if (symbols.length > 0 && symbols[0] && symbols[0].kind === "function") {
         const returnType = symbols[0].signature?.returnType || "void";
-        debugLog(
-          `[ASTResolver] Function ${funcName} returns: ${returnType}`,
-        );
+        debugLog(`[ASTResolver] Function ${funcName} returns: ${returnType}`);
         return returnType;
       }
     }
@@ -581,7 +579,10 @@ export class ASTResolver {
         }
       } else if (stmt.kind === "StructDecl") {
         for (const member of (stmt as AST.StructDecl).members) {
-          if (member.kind === "FunctionDecl" && this.containsNode(member, node)) {
+          if (
+            member.kind === "FunctionDecl" &&
+            this.containsNode(member, node)
+          ) {
             return member;
           }
         }
@@ -900,6 +901,13 @@ export class ASTResolver {
           (candidate) => candidate.name === pattern.variantName,
         );
         if (!enumDecl || variant?.dataType?.kind !== "EnumVariantStruct") {
+          for (const field of pattern.fields) {
+            // A nested field pattern binds its own names.
+            const nested = field.pattern
+              ? this.resolvePatternBindingType(field.pattern, name, null, ast)
+              : null;
+            if (nested) return nested;
+          }
           const field = pattern.fields.find(
             (candidate) => candidate.binding === name,
           );
@@ -910,6 +918,21 @@ export class ASTResolver {
 
         const typeMap = this.buildEnumTypeMap(enumDecl, matchedType);
         for (const field of pattern.fields) {
+          if (field.pattern) {
+            const variantField = variant.dataType.fields.find(
+              (candidate) => candidate.name === field.fieldName,
+            );
+            const found = this.resolvePatternBindingType(
+              field.pattern,
+              name,
+              variantField
+                ? this.typeNodeToResolvedString(variantField.type, typeMap)
+                : null,
+              ast,
+            );
+            if (found) return found;
+            continue;
+          }
           if (field.binding !== name) continue;
 
           if (field.bindingDeclaration?.typeAnnotation) {

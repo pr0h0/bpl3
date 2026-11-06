@@ -2,7 +2,7 @@ import { describe, expect, it } from "bun:test";
 import fs from "fs";
 import path from "path";
 
-const specPath = path.resolve(__dirname, "../LANGUAGE_SPEC.md");
+const specPath = path.resolve(__dirname, "../docs/LANGUAGE_SPEC.md");
 
 function readSpec(): string {
   return fs.readFileSync(specPath, "utf8");

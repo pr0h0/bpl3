@@ -6,9 +6,7 @@
   "difficulty": "intermediate",
   "duration": "12 min",
   "description": "Work with individual bits. Learn AND, OR, XOR, NOT, shifts, and practical applications like flags and masks.",
-  "prerequisites": [
-    "string-interpolation"
-  ],
+  "prerequisites": ["string-interpolation"],
   "objectives": [
     "Use bitwise operators: &, |, ^, ~, <<, >>",
     "Understand binary representation",
@@ -106,12 +104,7 @@
       "questions": [
         {
           "question": "What is 12 & 10 (binary: 1100 & 1010)?",
-          "options": [
-            "2",
-            "8",
-            "14",
-            "6"
-          ],
+          "options": ["2", "8", "14", "6"],
           "correct": 1,
           "explanation": "AND: 1100 & 1010 = 1000 = 8 (only position where both have 1)."
         },
@@ -128,12 +121,7 @@
         },
         {
           "question": "How do you check if bit 2 (value 4) is set in n?",
-          "options": [
-            "n == 4",
-            "n & 4",
-            "(n & 4) != 0",
-            "n | 4"
-          ],
+          "options": ["n == 4", "n & 4", "(n & 4) != 0", "n | 4"],
           "correct": 2,
           "explanation": "(n & 4) != 0 checks if bit 2 is set. Just n & 4 returns 0 or 4, not a boolean."
         }

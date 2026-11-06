@@ -1,5 +1,5 @@
 import add, max, factorial from "./math_lib.bpl";
-import [Point], [Circle], [Rectangle], [Drawable] from "./shapes.bpl";
+import [Point], [Circle] from "./shapes.bpl";
 
 import [printf] from "std/c.bpl";
 import [malloc] from "std/c.bpl";

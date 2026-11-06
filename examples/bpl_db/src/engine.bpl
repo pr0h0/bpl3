@@ -1,41 +1,53 @@
 export [Engine];
 
-import [Database], [Table], [Row], [Column] from "./storage.bpl";
+import [Database], [Table], [Row] from "./storage.bpl";
 import [Query], [Command], [Condition], [Operator] from "./query.bpl";
 import [Value], [DataType] from "./types.bpl";
 import [Array] from "std/array.bpl";
-import [String] from "std/string.bpl";
 
 import [printf] from "std/c.bpl";
 
 frame compare_values(v1: *Value, v2: *Value) ret int {
     # Integer ordering: -1, 0, 1. Other values support equality;
     # incompatible types and unequal non-integers return -2.
-    if (v1 == nullptr || v2 == nullptr) { return -2; }
+    if ((v1 == nullptr) || (v2 == nullptr)) {
+        return -2;
+    }
     return match (*v1) {
         Value.Int(left) => match (*v2) {
             Value.Int(right) => {
-                if (left < right) { return -1; }
-                if (left > right) { return 1; }
+                if (left < right) {
+                    return -1;
+                }
+                if (left > right) {
+                    return 1;
+                }
                 return 0;
             },
             _ => -2,
         },
         Value.Str(left) => match (*v2) {
             Value.Str(right) => {
-                if (left == right) { return 0; }
+                if (left == right) {
+                    return 0;
+                }
                 return -2;
             },
             _ => -2,
         },
         Value.Bool(left) => match (*v2) {
             Value.Bool(right) => {
-                if (left == right) { return 0; }
+                if (left == right) {
+                    return 0;
+                }
                 return -2;
             },
             _ => -2,
         },
-        Value.Null => match (*v2) { Value.Null => 0, _ => -2, },
+        Value.Null => match (*v2) {
+            Value.Null => 0,
+            _ => -2,
+        },
     };
 }
 
@@ -50,14 +62,14 @@ struct Engine {
     }
 
     frame check_row(this: *Engine, row: *Row, table: *Table, conditions: *Array<Condition>) ret bool {
-        if (conditions == nullptr) 
+        if (conditions == nullptr)
             return true;
-        if (conditions.len() == 0) 
+        if (conditions.len() == 0)
             return true;
         loop (local i: int = 0; i < conditions.len(); i = i + 1) {
             local cond: Condition = conditions.get(i);
             local col_idx: int = table.get_column_index(cond.column);
-            if (col_idx == -1) 
+            if (col_idx == -1)
                 return false;
             # Column not found
 
@@ -100,7 +112,7 @@ struct Engine {
                 loop (local i: int = 0; i < cols.len(); i = i + 1) {
                     t.add_column(cols.get(i), DataType.Int);
                 }
-                if (!this.silent) 
+                if (!this.silent)
                     printf("Table '%s' created.\n", name);
             },
             Command.Insert(name, values) => {
@@ -108,21 +120,21 @@ struct Engine {
                 if (t != nullptr) {
                     local id: int = t.insert(values);
                     if (id != -1) {
-                        if (!this.silent) 
+                        if (!this.silent)
                             printf("Inserted row ID: %d\n", id);
                     } else {
-                        if (!this.silent) 
+                        if (!this.silent)
                             printf("Error: Insert failed (column mismatch)\n");
                     }
                 } else {
-                    if (!this.silent) 
+                    if (!this.silent)
                         printf("Error: Table '%s' not found\n", name);
                 }
             },
             Command.Select(name, conditions) => {
                 local t: *Table = this.db.get_table(name);
                 if (t != nullptr) {
-                    if (!this.silent) 
+                    if (!this.silent)
                         printf("Results from '%s':\n", name);
                     # Iterate rows
                     loop (local i: int = 0; i < t.rows.len(); i = i + 1) {
@@ -146,7 +158,7 @@ struct Engine {
                         }
                     }
                 } else {
-                    if (!this.silent) 
+                    if (!this.silent)
                         printf("Error: Table '%s' not found\n", name);
                 }
             },
@@ -163,14 +175,14 @@ struct Engine {
                                 count = count + 1;
                             }
                         }
-                        if (!this.silent) 
+                        if (!this.silent)
                             printf("Updated %d rows in '%s'.\n", count, name);
                     } else {
-                        if (!this.silent) 
+                        if (!this.silent)
                             printf("Error: Column '%s' not found\n", col_name);
                     }
                 } else {
-                    if (!this.silent) 
+                    if (!this.silent)
                         printf("Error: Table '%s' not found\n", name);
                 }
             },
@@ -188,10 +200,10 @@ struct Engine {
                         }
                         i = i - 1;
                     }
-                    if (!this.silent) 
+                    if (!this.silent)
                         printf("Deleted %d rows from '%s'.\n", count, name);
                 } else {
-                    if (!this.silent) 
+                    if (!this.silent)
                         printf("Error: Table '%s' not found\n", name);
                 }
             },

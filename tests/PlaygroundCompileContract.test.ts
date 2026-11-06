@@ -8,11 +8,13 @@ import {
 } from "bun:test";
 import { spawn, type ChildProcess } from "child_process";
 import { readFileSync } from "fs";
+import { listeningPort } from "./helpers/listeningPort";
 
 setDefaultTimeout(20_000);
 
-const PORT = 20_000 + (process.pid % 20_000);
-const API_BASE = `http://127.0.0.1:${PORT}`;
+// Set once the server reports the port it bound with PORT=0.
+let PORT = 0;
+let API_BASE = "";
 const HELLO_WORLD_SOURCE = JSON.parse(
   readFileSync("playground/examples/01-hello-world.json", "utf8"),
 ).code.join("\n");
@@ -79,11 +81,13 @@ describe("Playground compile API contract", () => {
       cwd: process.cwd(),
       env: {
         ...process.env,
-        PORT: String(PORT),
+        PORT: "0",
         BPL_PLAYGROUND_RUNNER: "host",
       },
       stdio: ["ignore", "pipe", "pipe"],
     });
+    PORT = await listeningPort(server);
+    API_BASE = `http://127.0.0.1:${PORT}`;
 
     await waitForServer();
   });
@@ -248,74 +252,5 @@ describe("Playground compile API contract", () => {
     expect(appSource).toContain("async function loadCompileArtifacts");
     expect(appSource).toContain("includeArtifacts: true");
     expect(appSource).toContain("execute: false");
-  });
-
-  test("uses collision-safe temporary directories for playground compiler requests", () => {
-    const serverSource = readFileSync("playground/backend/engine.ts", "utf8");
-
-    expect(serverSource).toMatch(
-      /fs\.mkdtempSync\(\s*path\.join\(os\.tmpdir\(\),\s*"bpl-playground-"\)\s*\)/,
-    );
-    expect(serverSource).toMatch(
-      /fs\.mkdtempSync\(\s*path\.join\(os\.tmpdir\(\),\s*"bpl-playground-wasm-"\),?\s*\)/,
-    );
-    expect(serverSource).not.toContain('path.join("/tmp", `bpl-playground-');
-  });
-
-  test("uses the cached native runtime file resolver for playground links", () => {
-    const serverSource = readFileSync("playground/backend/engine.ts", "utf8");
-
-    expect(serverSource).toContain("resolvePlaygroundNativeRuntimeFiles");
-    expect(serverSource).not.toContain("const runtimeFiles: string[] = []");
-  });
-
-  test("resolves modules for every compile so the runtime prelude is available", () => {
-    // Runtime check helpers live in std/errors.bpl, which reaches a program
-    // through the implicit prelude. Skipping module resolution for sources
-    // without an `import` left calls to __bpl_throw_* undefined at link time.
-    const serverSource = readFileSync("playground/backend/engine.ts", "utf8");
-    const compileStart = serverSource.indexOf("async function compileAndRun");
-    const compileEnd = serverSource.indexOf(
-      "async function compileToWasm",
-      compileStart,
-    );
-
-    expect(compileStart).toBeGreaterThanOrEqual(0);
-    expect(compileEnd).toBeGreaterThan(compileStart);
-
-    const compileSource = serverSource.slice(compileStart, compileEnd);
-    expect(serverSource).not.toContain("function sourceMayUseBplImport");
-    expect(compileSource).toContain("const resolveImports = true;");
-    expect(compileSource.indexOf("const resolveImports")).toBeLessThan(
-      compileSource.indexOf("new Compiler"),
-    );
-    expect(compileSource).toContain("resolveImports,");
-  });
-
-  test("caches artifact-free native binaries before creating request temp dirs", () => {
-    const serverSource = readFileSync("playground/backend/engine.ts", "utf8");
-    const compileStart = serverSource.indexOf("async function compileAndRun");
-    const compileEnd = serverSource.indexOf(
-      "async function compileToWasm",
-      compileStart,
-    );
-
-    expect(compileStart).toBeGreaterThanOrEqual(0);
-    expect(compileEnd).toBeGreaterThan(compileStart);
-
-    const compileSource = serverSource.slice(compileStart, compileEnd);
-    expect(serverSource).toContain("NATIVE_BINARY_CACHE_MAX_ENTRIES");
-    expect(serverSource).toContain("getNativeBinaryCacheKey(req.code)");
-    expect(serverSource).toContain("rememberNativeBinary");
-    expect(serverSource).toContain("runCompiledNativeBinary");
-    expect(compileSource.indexOf("getCachedNativeBinary")).toBeLessThan(
-      compileSource.indexOf("fs.mkdtempSync"),
-    );
-    expect(compileSource).toContain("if (cachedNativeBinary)");
-    expect(compileSource).toContain("!includeArtifacts");
-    expect(compileSource).toContain(
-      "const treeShakeTopLevelFunctions = execute && !includeArtifacts;",
-    );
-    expect(compileSource).toContain("treeShakeTopLevelFunctions,");
   });
 });

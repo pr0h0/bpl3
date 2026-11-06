@@ -203,7 +203,17 @@ export abstract class ExpressionGenerator extends UnaryExpressionGenerator {
         expr.location,
       );
     }
-    let lambdaName = `lambda_L${expr.location.startLine}_C${expr.location.startColumn}`;
+    // Lambdas at the same line and column of different files must not share
+    // a function or context type name, so later files get a module suffix.
+    const file = expr.location.file ?? "";
+    let fileOrdinal = this.lambdaFileOrdinals.get(file);
+    if (fileOrdinal === undefined) {
+      fileOrdinal = this.lambdaFileOrdinals.size;
+      this.lambdaFileOrdinals.set(file, fileOrdinal);
+    }
+    // The module ordinal precedes the position, so generic-argument suffixes
+    // (a type named `M1`) cannot imitate it.
+    let lambdaName = `lambda_${fileOrdinal > 0 ? `M${fileOrdinal}_` : ""}L${expr.location.startLine}_C${expr.location.startColumn}`;
 
     // If we are in a generic context, append generic args to make the name unique
     if (this.currentTypeMap.size > 0) {
@@ -696,6 +706,40 @@ export abstract class ExpressionGenerator extends UnaryExpressionGenerator {
 
     const val = this.generateExpression(expr.value);
     const srcType = this.resolveType(expr.value.resolvedType!);
+
+    // `p += n` / `p -= n` step the pointer by elements, like `p + n`; the
+    // integer offset must not be converted to the pointer type.
+    if (destType.endsWith("*") && this.isIntegerType(srcType)) {
+      const operator = COMPOUND_BINARY_OPERATORS[expr.operator.type];
+      const stepped =
+        operator === TokenType.Plus || operator === TokenType.Minus
+          ? this.handlePointerArithmetic(
+              {
+                kind: "Binary",
+                left: expr.assignee,
+                right: expr.value,
+                operator: { ...expr.operator, type: operator },
+                location: expr.location,
+              },
+              currentValue,
+              val,
+              destType,
+              srcType,
+            )
+          : null;
+      if (stepped === null) {
+        throw new CompilerError(
+          `Operator '${expr.operator.lexeme}' is not supported on pointers`,
+          "Only '+=' and '-=' with an integer offset apply to pointers.",
+          expr.location,
+        );
+      }
+      this.emit(`  store ${destType} ${stepped}, ${destType}* ${addr}`);
+      this.clearBasicBlockPointerExpressionFact(
+        this.exprToDescription(expr.assignee),
+      );
+      return stepped;
+    }
     const castVal = this.emitCast(
       val,
       srcType,
@@ -1388,18 +1432,32 @@ export abstract class ExpressionGenerator extends UnaryExpressionGenerator {
 
     this.emit(`  br i1 ${cond}, label %${thenLabel}, label %${elseLabel}`);
 
+    const type = this.resolveType(expr.resolvedType!);
+    // Convert each branch to the unified result type inside its own block so
+    // the phi joins values of one LLVM type (BUG-425).
+    const generateBranch = (branch: AST.Expression): string => {
+      const value = this.generateExpression(branch);
+      if (!branch.resolvedType) return value;
+      return this.emitCast(
+        value,
+        this.resolveType(branch.resolvedType),
+        type,
+        branch.resolvedType,
+        expr.resolvedType!,
+      );
+    };
+
     this.emit(`${thenLabel}:`);
-    const thenVal = this.generateExpression(expr.trueExpr);
+    const thenVal = generateBranch(expr.trueExpr);
     const thenEndLabel = this.getCurrentLabel();
     this.emit(`  br label %${mergeLabel}`);
 
     this.emit(`${elseLabel}:`);
-    const elseVal = this.generateExpression(expr.falseExpr);
+    const elseVal = generateBranch(expr.falseExpr);
     const elseEndLabel = this.getCurrentLabel();
     this.emit(`  br label %${mergeLabel}`);
 
     this.emit(`${mergeLabel}:`);
-    const type = this.resolveType(expr.resolvedType!);
     const phi = this.newRegister();
     this.emit(
       `  ${phi} = phi ${type} [ ${thenVal}, %${thenEndLabel} ], [ ${elseVal}, %${elseEndLabel} ]`,

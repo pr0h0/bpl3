@@ -24,8 +24,11 @@ RateDecision {allowed, remaining, retry_after}; it does not write a response.
 Scopes are 1–64 bytes, identities 1–128, maximum is 1–1000000, and windows are
 1–86400 seconds. Use consistent settings for each scope. SQL values are bound;
 identities are stored as application data, not evaluated as SQL. Expired entries
-are pruned. `max_keys` defaults to 10000 (1–1000000); capacity rejects new
-identities while existing identities can continue within their budgets. Denied
+are pruned. `max_keys` defaults to 10000 (1–1000000) identities per scope;
+when a scope is full it rejects new identities while existing identities can
+continue within their budgets. Tracked identities are never evicted to make
+room, so cycling identities cannot reset another client's counter, and a full
+scope does not affect other scopes. Denied
 requests do not grow counters. Rate checks reject an active transaction so
 rolling back application work cannot undo admission counters. Use a dedicated
 connection outside user-managed transactions.

@@ -34,6 +34,10 @@ export function registerFormatCommand(program: Command): void {
     )
     .option("-w, --write", "write formatted output back to file")
     .option("--check", "check whether files are formatted without writing")
+    .option(
+      "--diff",
+      "like --check, and print a unified diff of the changes formatting would make",
+    )
     .option("--config <path>", "use an explicit formatter JSON configuration")
     .option("--no-config", "use BPL defaults without project configuration")
     .option("--indent-width <count>", "override indentation width (1 to 16)")

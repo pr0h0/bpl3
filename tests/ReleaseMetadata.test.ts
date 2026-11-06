@@ -1,3 +1,4 @@
+import { compact } from "./helpers/sourceText";
 import { describe, expect, test } from "bun:test";
 import { spawnSync } from "child_process";
 import { createHash } from "crypto";
@@ -71,8 +72,9 @@ function expectSourceContainsSnippets(
   source: string,
   snippets: readonly string[],
 ): void {
+  const compactSource = compact(source);
   const missingSnippets = snippets.filter(
-    (snippet) => !source.includes(snippet),
+    (snippet) => !compactSource.includes(compact(snippet)),
   );
 
   if (missingSnippets.length > 0) {
@@ -167,26 +169,37 @@ describe("Release metadata", () => {
       require: "./cli/index.js",
       default: "./cli/index.js",
     });
-    expect(packageJson.files).toEqual(
-      expect.arrayContaining([
-        "bpl",
-        "bpl-wrapper.sh",
-        "bpl-package.schema.json",
-        "cli/index.d.ts",
-        "cli/index.js",
-        "completions",
-        "compiler/common/Env.ts",
-        "compiler/common/PathSafety.ts",
-        "compiler/common/ProcessErrors.ts",
-        "docs",
-        "examples",
-        "grammar",
-        "lib",
-        "packages",
-        "README.md",
-        "LICENSE",
-      ]),
-    );
+    // BUG-450: `files` overrides .gitignore, so a broad examples entry would
+    // ship local build outputs; only source patterns are listed.
+    expect(packageJson.files).toEqual([
+      "bpl",
+      "cli/index.d.ts",
+      "cli/index.js",
+      "completions",
+      "compiler/common/Env.ts",
+      "compiler/common/PathSafety.ts",
+      "compiler/common/ProcessErrors.ts",
+      "docs",
+      "examples/**/*.bpl",
+      "examples/**/*.bte",
+      "examples/**/bpl.json",
+      "examples/**/test_config.json",
+      "examples/**/*.md",
+      "examples/http_server/test1.txt",
+      "examples/*/public/*",
+      "!examples/**/.bpl-cache",
+      "grammar",
+      "lib",
+      "!lib/*.a",
+      "packages",
+      "tools",
+      "README.md",
+      "schemas",
+      "LICENSE",
+    ]);
+    for (const entry of packageJson.files as string[]) {
+      expect(entry).not.toMatch(/^examples(?:\/\*\*)?\/?$/);
+    }
     expect(packageJson.scripts["release:check"]).toContain("bun run check");
     expect(packageJson.scripts["release:check"]).toContain(
       "bun run release:cli-registry",
@@ -227,6 +240,7 @@ describe("Release metadata", () => {
       ["fuzz:replay", "tools/fuzz_script_wrapper.ts"],
       ["fuzz:repro", "tools/fuzz_artifact_repro.ts"],
       ["release:cli-registry", "tools/cli_json_registry_shim.ts"],
+      ["test:baseline", "tools/test_baseline.ts"],
       ["test:ci", "tools/test_ci.ts"],
     ]);
 
@@ -271,6 +285,7 @@ describe("Release metadata", () => {
       ["release:cli-registry", "tools/cli_json_registry_shim.ts"],
       ["release:manifest", "tools/release_manifest.ts"],
       ["release:smoke", "tools/release_smoke.ts"],
+      ["test:baseline", "tools/test_baseline.ts"],
       ["test:ci", "tools/test_ci.ts"],
     ]);
 
@@ -282,6 +297,7 @@ describe("Release metadata", () => {
       "tools/generate_peggy_parser.ts",
       "tools/release_manifest.ts",
       "tools/release_smoke.ts",
+      "tools/test_baseline.ts",
       "tools/test_ci.ts",
     ]);
 
@@ -303,6 +319,7 @@ describe("Release metadata", () => {
       "tools/generate_peggy_parser.ts",
       "tools/release_manifest.ts",
       "tools/release_smoke.ts",
+      "tools/test_baseline.ts",
       "tools/test_ci.ts",
     ]);
 
@@ -339,7 +356,11 @@ describe("Release metadata", () => {
 
     expect(PACKAGE_HELPER_DEPENDENCIES).toEqual([
       {
-        importedBy: ["tools/release_manifest.ts", "tools/test_ci.ts"],
+        importedBy: [
+          "tools/release_manifest.ts",
+          "tools/test_baseline.ts",
+          "tools/test_ci.ts",
+        ],
         path: "compiler/common/Env.ts",
         reason:
           "Packed helper scripts share environment parsing without shipping broad compiler sources.",
@@ -767,7 +788,7 @@ describe("Release metadata", () => {
     expectReleaseSmokeSourceContains([
       "check packed npm CLI check/lint validation JSON",
       "runPackedSourceAnalysisValidationJsonSmoke",
-      "BPL_CHECK_INPUT_NOT_FILE",
+      "BPL_CHECK_NO_INPUTS",
       "BPL_LINT_INPUT_SYMLINK",
       "parseCheckReport",
       "parseLintReport",
@@ -1309,6 +1330,7 @@ describe("Release metadata", () => {
         ["fuzz:repro", "tools/fuzz_artifact_repro.ts"],
         ["release:manifest", "tools/release_manifest.ts"],
         ["release:smoke", "tools/release_smoke.ts"],
+        ["test:baseline", "tools/test_baseline.ts"],
         ["test:ci", "tools/test_ci.ts"],
       ]);
     } finally {
@@ -1717,6 +1739,7 @@ function writeReleaseFixture(tempRoot: string): void {
           "fuzz:promote": "bun tools/fuzz_script_wrapper.ts promote",
           "fuzz:replay": "bun tools/fuzz_script_wrapper.ts replay",
           "fuzz:repro": "bun tools/fuzz_artifact_repro.ts",
+          "test:baseline": "bun tools/test_baseline.ts",
           "test:ci": "bun tools/test_ci.ts",
         },
       },
@@ -1745,6 +1768,10 @@ function writeReleaseFixture(tempRoot: string): void {
       "release manifest helper",
       "",
     ].join("\n"),
+  );
+  writeFileSync(
+    join(tempRoot, "tools", "test_baseline.ts"),
+    ['import "../compiler/common/Env";', "test baseline helper", ""].join("\n"),
   );
   writeFileSync(
     join(tempRoot, "tools", "test_ci.ts"),

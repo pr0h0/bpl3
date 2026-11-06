@@ -1,5 +1,16 @@
 {
-  "expectedOutput": ["fnv1a32 hello: 1335831723", "checksum abc: 294"],
+  "expectedOutput": [
+    "fnv1a32 hello: 1335831723",
+    "checksum abc: 294",
+    "fnv1a64 hello: 11831194018420276491",
+    "fnv1a64 empty: 14695981039346656037",
+    "crc32 check: cbf43926",
+    "crc32 fox: 414fa339",
+    "crc32 empty: 00000000",
+    "crc32 streamed: 414fa339",
+    "adler32 wikipedia: 11e60398",
+    "adler32 empty: 00000001"
+  ],
   "args": [],
   "env": {},
   "input": ""

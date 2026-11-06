@@ -54,26 +54,34 @@ struct Rand {
     }
 
     frame range(this: *Rand, min: int, max: int) ret int {
-        if (max <= min) { return min; }
+        if (max <= min) {
+            return min;
+        }
         local span: ulong = cast<ulong>(cast<long>(max) - cast<long>(min));
         local domain: ulong = cast<ulong>(0x100000000);
         local limit: ulong = domain - (domain % span);
         local value: ulong = cast<ulong>(this.nextUInt());
-        loop (value >= limit) { value = cast<ulong>(this.nextUInt()); }
+        loop (value >= limit) {
+            value = cast<ulong>(this.nextUInt());
+        }
         return cast<int>(cast<long>(min) + cast<long>(value % span));
     }
 
     frame range(this: *Rand, min: float, max: float) ret float {
-        if (max <= min) { return min; }
+        if (max <= min) {
+            return min;
+        }
         local fraction: float = this.nextFloat();
         # A convex combination avoids overflow in max-min for opposite signs.
-        return min * (1.0 - fraction) + max * fraction;
+        return (min * (1.0 - fraction)) + (max * fraction);
     }
 
     # Box-Muller transform; reject zero instead of clipping the distribution.
     frame nextGaussian(this: *Rand) ret float {
         local u1: float = this.nextFloat();
-        loop (u1 == 0.0) { u1 = this.nextFloat(); }
+        loop (u1 == 0.0) {
+            u1 = this.nextFloat();
+        }
         local u2: float = this.nextFloat();
         return Math.sqrt(-2.0 * Math.log(u1)) * Math.cos(6.283185307179586 * u2);
     }
@@ -94,10 +102,35 @@ struct Rand {
     # Pick a random element from an array of integers
     frame choiceInt(this: *Rand, arr: *Array<int>) ret int {
         local n: int = arr.len();
-        if (n == 0) 
+        if (n == 0)
             return 0;
         local idx: int = this.range(0, n);
         return arr.get(idx);
+    }
+
+    # Shuffles the elements of any array in place (Fisher-Yates). It draws
+    # the same numbers as `shuffleInt`, so a seeded generator gives the same
+    # order for the same length.
+    frame shuffle<T>(this: *Rand, arr: *Array<T>) {
+        local i: int = arr.len() - 1;
+        loop (i > 0) {
+            local j: int = this.range(0, i + 1);
+            local temp: T = arr.get(i);
+            arr.set(i, arr.get(j));
+            arr.set(j, temp);
+            i = i - 1;
+        }
+    }
+
+    # Stores a random element of `arr` in `output` and returns true, or
+    # returns false, leaving `output` unchanged, when the array is empty.
+    frame choice<T>(this: *Rand, arr: *Array<T>, output: *T) ret bool {
+        local n: int = arr.len();
+        if (n == 0) {
+            return false;
+        }
+        *output = arr.get(this.range(0, n));
+        return true;
     }
 
     # Generate random bytes into a buffer

@@ -2,10 +2,11 @@ import { test } from "bun:test";
 import { expectCorrectnessSuite } from "./helpers/compilerCorrectness";
 
 test("StringBuilder can append its own text and suffix across growth", () => {
-  expectCorrectnessSuite([{
-    name: "string-builder-self-append",
-    validateLlvm: true,
-    source: `
+  expectCorrectnessSuite([
+    {
+      name: "string-builder-self-append",
+      validateLlvm: true,
+      source: `
       import [StringBuilder] from "std/string_builder.bpl";
       extern strcmp(a: string, b: string) ret int;
       frame main() ret int {
@@ -37,6 +38,7 @@ test("StringBuilder can append its own text and suffix across growth", () => {
         empty.destroy();
         return 0;
       }`,
-    expectedStdout: "",
-  }]);
+      expectedStdout: "",
+    },
+  ]);
 }, 60000);

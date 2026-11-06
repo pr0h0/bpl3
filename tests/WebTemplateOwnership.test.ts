@@ -1,14 +1,15 @@
 import { expect, test } from "bun:test";
-import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { spawnSync } from "node:child_process";
 import { checkBplSanitizerSupport } from "./helpers/compilerCorrectness";
+import { makeRepoTempDir } from "./helpers/repoTempDir";
 
 const support = checkBplSanitizerSupport();
 test.skipIf(!support.supported)(
   "template generator releases arguments and intermediate strings on success and usage errors",
   () => {
-    const dir = mkdtempSync(resolve(".web-template-ownership-"));
+    const dir = makeRepoTempDir("web-template-ownership-");
     try {
       const views = join(dir, "views");
       mkdirSync(views);

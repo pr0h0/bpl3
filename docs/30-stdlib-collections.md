@@ -16,6 +16,24 @@ local val: int = arr.get(0);
 arr.destroy();
 ```
 
+`arr.insert(index, value)` inserts at any index from 0 to `len()` (inclusive),
+shifting later elements right, and throws `IndexOutOfBoundsError` otherwise.
+`arr.clear()` removes every element but keeps the allocated capacity; it does
+not destroy elements, so release owned elements first. `arr.isEmpty()`
+reports whether the array has no elements.
+
+`arr.sortBy(compare)` sorts in place with a `Lambda<int>(T, T)` that returns a
+negative number, zero or a positive number when its first argument belongs
+before, with or after its second. The sort is stable, so equal elements keep
+their order, and runs in O(n log n) with one temporary buffer, which is
+released if `compare` throws (the elements are then in an unspecified order):
+
+```bpl
+words.sortBy(|a: string, b: string| ret int {
+    return strcmp(a, b);
+});
+```
+
 `map` and `filter` release their result-array buffer if a callback throws and
 propagate the original exception. Elements are shallow values: callbacks remain
 responsible for any separately allocated resources they create.
@@ -40,7 +58,11 @@ Other equality-comparable compound keys use their `==` operation with a constant
 which is correct but gives linear lookup. Supply the custom
 `Map<K, V>.new(capacity, hasher, equaler)` overload for efficient compound keys.
 Custom equality must be an equivalence relation, and equal keys must have equal
-hashes. Keys must remain unchanged while stored in the map.
+hashes. Keys must remain unchanged while stored in the map. Map equality
+(`a == b`) compares values with the same default equality, so `string` values
+compare by content. `Array.indexOf` and `contains` also compare `string`
+elements by content (a null element matches only null); other element types
+use `==`.
 
 ```bpl
 import [Map] from "std/map.bpl";
@@ -52,6 +74,12 @@ if (m.has("age")) {
 }
 m.destroy();
 ```
+
+`m.getOr(key, fallback)` returns the stored value or `fallback` without an
+`Option`. `m.keys()` and `m.values()` return new arrays, in the map's
+iteration order, that the caller destroys; keys and values are copied
+shallowly, as stored, so the arrays must not outlive owned entries they
+refer to.
 
 `reserve` computes all new bucket destinations before relinking entries. If a
 custom hasher throws or temporary allocation fails, the existing entries and
@@ -81,6 +109,11 @@ if (s.has(10)) {
 }
 s.destroy();
 ```
+
+`s.isEmpty()` reports whether the set has no elements, and
+`s.isSubsetOf(&other)` whether every element is also in `other` (the empty set
+is a subset of every set). `s.toArray()` returns a new array of the elements,
+in iteration order, that the caller destroys.
 
 ## Stack<T>
 

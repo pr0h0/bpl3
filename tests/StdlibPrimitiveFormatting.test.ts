@@ -2,10 +2,11 @@ import { test } from "bun:test";
 import { expectCorrectnessSuite } from "./helpers/compilerCorrectness";
 
 test("Double toString handles the full finite double range", () => {
-  expectCorrectnessSuite([{
-    name: "double-formatting-full-range",
-    validateLlvm: true,
-    source: `
+  expectCorrectnessSuite([
+    {
+      name: "double-formatting-full-range",
+      validateLlvm: true,
+      source: `
       import [Double] from "std/primitives.bpl";
       import [String] from "std/string.bpl";
       extern atof(s: string) ret double;
@@ -23,15 +24,19 @@ test("Double toString handles the full finite double range", () => {
         }
         return 0;
       }`,
-    expectedStdout: "",
-  }]);
+      expectedStdout: "",
+    },
+  ]);
 }, 60000);
-
 
 test("Primitive wrapper formatting preserves integer boundaries and characters", () => {
   const cases = [
     ["Int", "cast<int>(-2147483648)", "-2147483648"],
-    ["Long", "cast<long>(-9223372036854775807) - cast<long>(1)", "-9223372036854775808"],
+    [
+      "Long",
+      "cast<long>(-9223372036854775807) - cast<long>(1)",
+      "-9223372036854775808",
+    ],
     ["UInt", "cast<uint>(4294967295)", "4294967295"],
     ["ULong", "cast<ulong>(18446744073709551615)", "18446744073709551615"],
     ["Short", "cast<short>(-32768)", "-32768"],
@@ -41,22 +46,28 @@ test("Primitive wrapper formatting preserves integer boundaries and characters",
     ["UChar", "cast<uchar>(90)", "Z"],
     ["UChar", "cast<uchar>(0)", ""],
   ];
-  expectCorrectnessSuite([{
-    name: "primitive-wrapper-formatting",
-    validateLlvm: true,
-    source: `
+  expectCorrectnessSuite([
+    {
+      name: "primitive-wrapper-formatting",
+      validateLlvm: true,
+      source: `
       import [Int], [Long], [UInt], [ULong], [Short], [UShort], [Char], [UChar] from "std/primitives.bpl";
       import [String] from "std/string.bpl";
       extern strcmp(a: string, b: string) ret int;
       frame main() ret int {
-        ${cases.map(([type, value, expected], i) => `
+        ${cases
+          .map(
+            ([type, value, expected], i) => `
           local value${i}: ${type} = ${type} { value: ${value} };
           local text${i}: String = value${i}.toString();
           if (text${i}.length != ${expected!.length} || strcmp(text${i}.data, "${expected}") != 0) { return ${i + 1}; }
           text${i}.destroy();
-        `).join("\n")}
+        `,
+          )
+          .join("\n")}
         return 0;
       }`,
-    expectedStdout: "",
-  }]);
+      expectedStdout: "",
+    },
+  ]);
 }, 60000);

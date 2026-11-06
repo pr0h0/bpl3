@@ -38,8 +38,12 @@ export interface CompileAndRunResult {
   stdout: string;
   /** Standard error */
   stderr: string;
-  /** Exit code */
+  /** Exit code (-1 when the process was killed by a signal or timed out) */
   exitCode: number;
+  /** Signal that terminated the process, if any */
+  signal?: string | null;
+  /** Whether the run hit the timeout */
+  timedOut?: boolean;
   /** Path to temp file (if keepFiles=true) */
   tempFile?: string;
 }
@@ -53,7 +57,10 @@ function createTempSourcePath(prefix = "test"): {
 } {
   const id = Math.random().toString(36).substring(2, 10);
   const timestamp = Date.now();
-  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "bpl-test-run-"));
+  // Canonical path: the CLI refuses outputs below a symlinked directory.
+  const tempDir = fs.mkdtempSync(
+    path.join(fs.realpathSync(os.tmpdir()), "bpl-test-run-"),
+  );
 
   return {
     tempDir,
@@ -146,6 +153,10 @@ export function compileAndRunFull(
       stdout: String(result.stdout || ""),
       stderr: String(result.stderr || ""),
       exitCode: result.status ?? -1,
+      signal: result.signal,
+      timedOut:
+        (result.error as NodeJS.ErrnoException | undefined)?.code ===
+        "ETIMEDOUT",
       tempFile: keepFiles ? tempFile : undefined,
     };
   } finally {

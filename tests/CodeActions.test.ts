@@ -10,10 +10,10 @@ import { tmpdir } from "os";
  * 1. Unknown types → Import suggestions
  * 2. Unknown symbols → Import suggestions, typo corrections
  * 3. Type mismatches → Cast suggestions
- * 4. Missing return → Add return statement
+ * 4. Missing return → Requires a user-chosen return value
  * 5. Unused variables → Prefix with underscore
  * 6. Missing semicolons → Add semicolon
- * 7. Null safety → Add null checks
+ * 7. Null guards require context and a user-selected fallback
  */
 
 const TEST_DIR = join(tmpdir(), "bpl-code-actions-test");
@@ -94,7 +94,7 @@ frame calculateSum(a: int, b: int) ret int {
 }
 
 frame main() ret int {
-    local result: int = calcuateSum(5, 3);  # ERROR: Unknown symbol 'calcuateSum' (typo)
+    local result: int = calcuateSum(5, 3);  # ERROR: Undefined symbol 'calcuateSum' (typo)
     # QUICK FIX: Did you mean 'calculateSum'?
     return result;
 }
@@ -105,7 +105,7 @@ frame main() ret int {
       console.log("✓ Code Action: Typo in function name");
       console.log("  - Error: Unknown symbol 'calcuateSum'");
       console.log("  - Suggested fix: Did you mean 'calculateSum'?");
-      console.log("  - Uses Levenshtein distance to find similar names");
+      console.log("  - Uses the compiler scope-aware suggestion");
     });
 
     it("creates test for unknown function from import", () => {
@@ -186,31 +186,6 @@ frame main() ret int {
     });
   });
 
-  describe("Missing Return Statement", () => {
-    it("creates test for missing return", () => {
-      const testFile = join(TEST_DIR, "ca_missing_return.bpl");
-      const code = `
-frame getValue() ret int {  # ERROR: Missing return statement
-    local x: int = 42;
-    # QUICK FIX: Add return statement
-    # Result: Inserts 'return; // TODO: Add return value'
-}
-
-frame main() ret int {
-    local val: int = getValue();
-    return val;
-}
-`;
-      fs.writeFileSync(testFile, code);
-      expect(fs.existsSync(testFile)).toBe(true);
-
-      console.log("✓ Code Action: Missing return statement");
-      console.log("  - Error: Missing return statement");
-      console.log("  - Suggested fix: Add return statement");
-      console.log("  - Inserts 'return; // TODO: Add return value'");
-    });
-  });
-
   describe("Unused Variables", () => {
     it("creates test for unused variable", () => {
       const testFile = join(TEST_DIR, "ca_unused_var.bpl");
@@ -270,45 +245,6 @@ frame main() ret int {
       console.log("  - Error: Expected ';'");
       console.log("  - Suggested fix: Add semicolon");
       console.log("  - Appends ';' at end of line");
-    });
-  });
-
-  describe("Null Safety", () => {
-    it("creates test for null pointer dereference", () => {
-      const testFile = join(TEST_DIR, "ca_null_check.bpl");
-      const code = `
-frame processPointer(ptr: *int) ret int {
-    return *ptr;  # ERROR: 'ptr' may be null
-    # QUICK FIX: Add null check
-    # Result: Wraps in if (ptr != nullptr) { ... }
-}
-`;
-      fs.writeFileSync(testFile, code);
-      expect(fs.existsSync(testFile)).toBe(true);
-
-      console.log("✓ Code Action: Null pointer check");
-      console.log("  - Error: 'ptr' may be null");
-      console.log("  - Suggested fix: Add null check");
-      console.log("  - Wraps in if (ptr != nullptr) { ... }");
-    });
-
-    it("creates test for optional type access", () => {
-      const testFile = join(TEST_DIR, "ca_optional_access.bpl");
-      const code = `
-import [Option] from "std";
-
-frame getValue(opt: Option<int>) ret int {
-    return opt;  # ERROR: Cannot use Option<int> as int (possibly null)
-    # QUICK FIX: Add null check or unwrap
-    return 0;
-}
-`;
-      fs.writeFileSync(testFile, code);
-      expect(fs.existsSync(testFile)).toBe(true);
-
-      console.log("✓ Code Action: Optional type safety");
-      console.log("  - Error: Option<int> used as int");
-      console.log("  - Suggested fix: Add null check or use .unwrap()");
     });
   });
 

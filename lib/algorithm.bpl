@@ -48,9 +48,13 @@ struct Algorithm {
             local child: int = cast<int>(childIndex);
             if ((child + 1) <= high) {
                 if (ascending) {
-                    if (arr.get(child + 1) > arr.get(child)) { child = child + 1; }
+                    if (arr.get(child + 1) > arr.get(child)) {
+                        child = child + 1;
+                    }
                 } else {
-                    if (arr.get(child + 1) < arr.get(child)) { child = child + 1; }
+                    if (arr.get(child + 1) < arr.get(child)) {
+                        child = child + 1;
+                    }
                 }
             }
             local rootValue: int = arr.get(root);
@@ -211,13 +215,13 @@ struct Algorithm {
     }
 
     frame min(arr: *Array<int>) ret int {
-        if (arr.len() == 0) 
+        if (arr.len() == 0)
             return 0;
         local minVal: int = arr.get(0);
         local i: int = 1;
         loop (i < arr.len()) {
             local v: int = arr.get(i);
-            if (v < minVal) 
+            if (v < minVal)
                 minVal = v;
             i = i + 1;
         }
@@ -225,13 +229,13 @@ struct Algorithm {
     }
 
     frame max(arr: *Array<int>) ret int {
-        if (arr.len() == 0) 
+        if (arr.len() == 0)
             return 0;
         local maxVal: int = arr.get(0);
         local i: int = 1;
         loop (i < arr.len()) {
             local v: int = arr.get(i);
-            if (v > maxVal) 
+            if (v > maxVal)
                 maxVal = v;
             i = i + 1;
         }
@@ -249,7 +253,7 @@ struct Algorithm {
     }
 
     frame average(arr: *Array<int>) ret float {
-        if (arr.len() == 0) 
+        if (arr.len() == 0)
             return 0.0;
         local sum: long = Algorithm.sum(arr);
         return cast<float>(sum) / cast<float>(arr.len());
@@ -267,7 +271,7 @@ struct Algorithm {
         local count: int = 0;
         local i: int = 0;
         loop (i < arr.len()) {
-            if (arr.get(i) == value) 
+            if (arr.get(i) == value)
                 count = count + 1;
             i = i + 1;
         }
@@ -287,11 +291,11 @@ struct Algorithm {
     }
 
     frame isSorted(arr: *Array<int>) ret bool {
-        if (arr.len() <= 1) 
+        if (arr.len() <= 1)
             return true;
         local i: int = 0;
         loop (i < (arr.len() - 1)) {
-            if (arr.get(i) > arr.get(i + 1)) 
+            if (arr.get(i) > arr.get(i + 1))
                 return false;
             i = i + 1;
         }
@@ -314,13 +318,13 @@ struct Algorithm {
     # ============ Float Array Operations ============
 
     frame min(arr: *Array<float>) ret float {
-        if (arr.len() == 0) 
+        if (arr.len() == 0)
             return 0.0;
         local minVal: float = arr.get(0);
         local i: int = 1;
         loop (i < arr.len()) {
             local v: float = arr.get(i);
-            if (v < minVal) 
+            if (v < minVal)
                 minVal = v;
             i = i + 1;
         }
@@ -328,13 +332,13 @@ struct Algorithm {
     }
 
     frame max(arr: *Array<float>) ret float {
-        if (arr.len() == 0) 
+        if (arr.len() == 0)
             return 0.0;
         local maxVal: float = arr.get(0);
         local i: int = 1;
         loop (i < arr.len()) {
             local v: float = arr.get(i);
-            if (v > maxVal) 
+            if (v > maxVal)
                 maxVal = v;
             i = i + 1;
         }
@@ -377,7 +381,6 @@ struct Algorithm {
             }
             return sum / count;
         }
-
         local divisor: float = 1.0;
         if (Math.isInfinite(largest * count)) {
             divisor = count;
@@ -405,12 +408,18 @@ struct Algorithm {
             local total: float = running + correction;
             if (normalizedPass) {
                 local normalized: float = total / count;
-                if (normalized > 1.0) { normalized = 1.0; }
-                if (normalized < -1.0) { normalized = -1.0; }
+                if (normalized > 1.0) {
+                    normalized = 1.0;
+                }
+                if (normalized < -1.0) {
+                    normalized = -1.0;
+                }
                 return normalized * largest;
             }
             if (!Math.isInfinite(total)) {
-                if (divisor == 1.0) { return total / count; }
+                if (divisor == 1.0) {
+                    return total / count;
+                }
                 return total;
             }
             # Rounded scaled partial sums can still overflow at the limit.
@@ -448,7 +457,9 @@ struct Algorithm {
             }
             local child: int = cast<int>(childIndex);
             if ((child + 1) <= high) {
-                if (arr.get(child + 1) > arr.get(child)) { child = child + 1; }
+                if (arr.get(child + 1) > arr.get(child)) {
+                    child = child + 1;
+                }
             }
             local rootValue: float = arr.get(root);
             local childValue: float = arr.get(child);
@@ -484,8 +495,12 @@ struct Algorithm {
         # only ever a bound on the capacity, so it is worked out in long.
         local span: long = cast<long>(end) - cast<long>(start);
         local size: long = (span / cast<long>(step)) + cast<long>(1);
-        if (size < cast<long>(0)) { size = cast<long>(0); }
-        if (size > cast<long>(2147483646)) { size = cast<long>(2147483646); }
+        if (size < cast<long>(0)) {
+            size = cast<long>(0);
+        }
+        if (size > cast<long>(2147483646)) {
+            size = cast<long>(2147483646);
+        }
         local result: Array<int> = Array<int>.new(cast<int>(size));
         # Widen the cursor as well: the final step may cross an int boundary
         # even though every element emitted before the endpoint fits in int.
@@ -540,11 +555,11 @@ struct Algorithm {
     # ============ Comparison ============
 
     frame equals(a: *Array<int>, b: *Array<int>) ret bool {
-        if (a.len() != b.len()) 
+        if (a.len() != b.len())
             return false;
         local i: int = 0;
         loop (i < a.len()) {
-            if (a.get(i) != b.get(i)) 
+            if (a.get(i) != b.get(i))
                 return false;
             i = i + 1;
         }

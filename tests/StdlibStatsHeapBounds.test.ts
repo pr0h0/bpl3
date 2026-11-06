@@ -6,10 +6,11 @@ for (const [type, method, value] of [
   ["float", "siftDownFloat", "7.0"],
 ] as const) {
   test(`statistics ${type} heap leaves stop before overflowing child indices`, () => {
-    expectCorrectnessSuite([{
-      name: `stats-${type}-large-leaf`,
-      validateLlvm: true,
-      source: `
+    expectCorrectnessSuite([
+      {
+        name: `stats-${type}-large-leaf`,
+        validateLlvm: true,
+        source: `
         import [Stats] from "std/stats.bpl";
         frame main() ret int {
           local sentinel: ${type}[1] = [${value}];
@@ -21,18 +22,20 @@ for (const [type, method, value] of [
           if (sentinel[0] != ${value}) { return 1; }
           return 0;
         }`,
-      expectedStdout: "",
-    }]);
+        expectedStdout: "",
+      },
+    ]);
   }, 60000);
 }
 
 const values = Array.from({ length: 257 }, (_, i) => ((i * 73) % 67) - 33);
 const sorted = [...values].sort((a, b) => a - b);
 test("statistics heapsort preserves integer and float ordering across uneven heap sizes", () => {
-  expectCorrectnessSuite([{
-    name: "stats-sort-order-model",
-    validateLlvm: true,
-    source: `
+  expectCorrectnessSuite([
+    {
+      name: "stats-sort-order-model",
+      validateLlvm: true,
+      source: `
       import [Stats] from "std/stats.bpl";
       extern printf(fmt: string, ...);
       frame main() ret int {
@@ -46,6 +49,9 @@ test("statistics heapsort preserves integer and float ordering across uneven hea
         Stats.sortInPlace(&floats[0], 0);
         return 0;
       }`,
-    expectedStdout: sorted.map(x => `${x} ${(x / 4).toFixed(2)}\n`).join(""),
-  }]);
+      expectedStdout: sorted
+        .map((x) => `${x} ${(x / 4).toFixed(2)}\n`)
+        .join(""),
+    },
+  ]);
 }, 60000);

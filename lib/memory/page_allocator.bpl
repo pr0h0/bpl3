@@ -20,12 +20,15 @@ struct PageAllocator: Allocator {
     frame alloc(this: *PageAllocator, size: ulong) ret *void {
         local page: ulong = __bpl_memory_page_size();
         local max: ulong = cast<ulong>(0x7fffffffffffffff);
-        if ((size == 0) || (page < sizeof(PageHeader)) || (page > max / 2)) return nullptr;
-        if (size > max - page - (page - 1)) return nullptr;
-        local payload: ulong = ((size + page - 1) / page) * page;
+        if ((size == 0) || (page < sizeof(PageHeader)) || (page > (max / 2)))
+            return nullptr;
+        if (size > (max - page - (page - 1)))
+            return nullptr;
+        local payload: ulong = (((size + page) - 1) / page) * page;
         local total: ulong = payload + page;
         local base: *void = __bpl_memory_map(total);
-        if (base == nullptr) return nullptr;
+        if (base == nullptr)
+            return nullptr;
         local data: *void = cast<*void>(cast<ulong>(base) + page);
         local header: *PageHeader = cast<*PageHeader>(cast<ulong>(data) - sizeof(PageHeader));
         *header = PageHeader { base: base, size: total };
@@ -34,7 +37,8 @@ struct PageAllocator: Allocator {
 
     # Accept nullptr or an allocation returned by alloc that has not been freed.
     frame free(this: *PageAllocator, ptr: *void) {
-        if (ptr == nullptr) return;
+        if (ptr == nullptr)
+            return;
         local header: *PageHeader = cast<*PageHeader>(cast<ulong>(ptr) - sizeof(PageHeader));
         __bpl_memory_unmap(header.base, header.size);
     }

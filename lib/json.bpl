@@ -139,9 +139,29 @@ struct JsonParser {
         # "
         this.next(); # skip "
 
-        # Max length is remaining string length
-        local remaining: int = this.len - this.pos;
-        local res: string = malloc(cast<long>(remaining + 1));
+        # Size the buffer from the raw text up to the closing quote: decoding
+        # never makes it longer (an escape such as \u00e9 shrinks). Reserving
+        # the rest of the input instead made many short strings exhaust memory.
+        local scan: int = this.pos;
+        loop (scan < this.len) {
+            local sc: char = this.src[scan];
+            if (sc == cast<char>(34)) {
+                break;
+            }
+            if (sc == cast<char>(92)) {
+                scan = scan + 1;
+            }
+            scan = scan + 1;
+        }
+        if (scan >= this.len) {
+            this.fail("Unterminated string");
+            return nullptr;
+        }
+        local res: string = malloc(cast<long>((scan - this.pos) + 1));
+        if (res == nullptr) {
+            this.fail("Out of memory while parsing a string");
+            return nullptr;
+        }
         local idx: int = 0;
 
         loop (this.pos < this.len) {
@@ -270,7 +290,9 @@ struct JsonParser {
         this.skipWs();
         local start: int = this.pos;
         this.skipNumber();
-        if (this.has_error) { return 0; }
+        if (this.has_error) {
+            return 0;
+        }
         local threshold: ulong = maximum / 10;
         local lastDigit: ulong = maximum % 10;
         local value: ulong = 0;
@@ -285,7 +307,7 @@ struct JsonParser {
                 this.fail("Unsigned integer out of range");
                 return 0;
             }
-            value = value * 10 + digit;
+            value = (value * 10) + digit;
             start = start + 1;
         }
         return value;
@@ -493,12 +515,152 @@ frame appendJsonUnsigned(sb: *StringBuilder, value: ulong) {
         pos = pos - 1;
         bytes[pos] = cast<char>(48 + cast<int>(remaining % 10));
         remaining = remaining / 10;
-        if (remaining == 0) { break; }
+        if (remaining == 0) {
+            break;
+        }
     }
     sb.append(cast<string>(&bytes[pos]));
 }
 
 struct JSON {
+    # `text` re-indented with `indent` spaces (1 to 16) per level: one member
+    # or element per line, `": "` after keys, and `{}`/`[]` for empty
+    # containers. String contents are copied unchanged. Returns a new string
+    # (caller frees), or nullptr for another indent, unbalanced or mismatched
+    # brackets, an unterminated string, or failed allocation. Values are not
+    # otherwise validated.
+    frame pretty(text: string, indent: int) ret string {
+        if ((indent < 1) || (indent > 16)) {
+            return cast<string>(nullptr);
+        }
+        return JSON.reformat(text, indent);
+    }
+
+    # `text` with all whitespace outside strings removed, under the same
+    # rules and failures as `pretty`.
+    frame minify(text: string) ret string {
+        return JSON.reformat(text, 0);
+    }
+
+    frame reformat(text: string, indent: int) ret string {
+        if (text == nullptr) {
+            return cast<string>(nullptr);
+        }
+        local needed: long = JSON.layout(text, indent, cast<string>(nullptr));
+        if (needed < 0) {
+            return cast<string>(nullptr);
+        }
+        local output: string = malloc(needed + 1);
+        if (output == nullptr) {
+            return cast<string>(nullptr);
+        }
+        JSON.layout(text, indent, output);
+        output[needed] = cast<char>(0);
+        return output;
+    }
+
+    # Writes the reformatted text to `output` when it is not null and returns
+    # its length, or -1 if the brackets or strings do not balance. An indent
+    # of 0 minifies.
+    frame layout(text: string, indent: int, output: string) ret long {
+        local length: long = strlen(text);
+        # The open brackets, innermost last; nesting cannot exceed the length.
+        local stack: string = malloc(length + 1);
+        if (stack == nullptr) {
+            return -1;
+        }
+        local depth: long = 0;
+        local used: long = 0;
+        local inString: bool = false;
+        local escaped: bool = false;
+        local i: long = 0;
+        loop (i < length) {
+            local c: char = text[i];
+            if (inString) {
+                used = JSON.put(output, used, c);
+                if (escaped) {
+                    escaped = false;
+                } else if (c == '\\') {
+                    escaped = true;
+                } else if (c == '"') {
+                    inString = false;
+                }
+                i = i + 1;
+                continue;
+            }
+            if ((c == ' ') || (c == '\t') || (c == '\n') || (c == '\r')) {
+                i = i + 1;
+                continue;
+            }
+            if ((c == '{') || (c == '[')) {
+                used = JSON.put(output, used, c);
+                local next: long = i + 1;
+                loop ((next < length) && ((text[next] == ' ') || (text[next] == '\t') || (text[next] == '\n') || (text[next] == '\r'))) {
+                    next = next + 1;
+                }
+                local close: char = '}';
+                if (c == '[') {
+                    close = ']';
+                }
+                if ((next < length) && (text[next] == close)) {
+                    used = JSON.put(output, used, close);
+                    i = next + 1;
+                    continue;
+                }
+                stack[depth] = close;
+                depth = depth + 1;
+                used = JSON.newline(output, used, indent, depth);
+            } else if ((c == '}') || (c == ']')) {
+                if ((depth == 0) || (stack[depth - 1] != c)) {
+                    free(stack);
+                    return -1;
+                }
+                depth = depth - 1;
+                used = JSON.newline(output, used, indent, depth);
+                used = JSON.put(output, used, c);
+            } else if (c == ',') {
+                used = JSON.put(output, used, c);
+                used = JSON.newline(output, used, indent, depth);
+            } else if (c == ':') {
+                used = JSON.put(output, used, c);
+                if (indent > 0) {
+                    used = JSON.put(output, used, ' ');
+                }
+            } else {
+                if (c == '"') {
+                    inString = true;
+                }
+                used = JSON.put(output, used, c);
+            }
+            i = i + 1;
+        }
+        free(stack);
+        if (inString || (depth != 0)) {
+            return -1;
+        }
+        return used;
+    }
+
+    frame put(output: string, used: long, c: char) ret long {
+        if (output != nullptr) {
+            output[used] = c;
+        }
+        return used + 1;
+    }
+
+    # A newline and `depth` levels of indentation; nothing when minifying.
+    frame newline(output: string, used: long, indent: int, depth: long) ret long {
+        if (indent == 0) {
+            return used;
+        }
+        local at: long = JSON.put(output, used, '\n');
+        local spaces: long = depth * cast<long>(indent);
+        loop (local k: long = 0; k < spaces; k = k + 1) {
+            at = JSON.put(output, at, ' ');
+        }
+        return at;
+    }
+
     # Generic entry point for serializing any object to JSON
     frame stringify<T>(obj: *T) ret String {
         local sb: StringBuilder = StringBuilder.newDefault();
@@ -860,21 +1022,37 @@ struct JSON {
         loop (local i: long = 0; i < len; i = i + 1) {
             local c: char = s[i];
             if (quoted) {
-                if (escaped) { escaped = false; }
-                else if (c == '\\') { escaped = true; }
-                else if (c == '"') { quoted = false; }
+                if (escaped) {
+                    escaped = false;
+                } else if (c == '\\') {
+                    escaped = true;
+                } else if (c == '"') {
+                    quoted = false;
+                }
             } else {
-                if (c == '"') { quoted = true; }
-                else if (c == '{' || c == '[') { depth = depth + 1; if (depth > 64) { return false; } }
-                else if (c == '}' || c == ']') { depth = depth - 1; if (depth < 0) { return false; } }
+                if (c == '"') {
+                    quoted = true;
+                } else if ((c == '{') || (c == '[')) {
+                    depth = depth + 1;
+                    if (depth > 64) {
+                        return false;
+                    }
+                } else if ((c == '}') || (c == ']')) {
+                    depth = depth - 1;
+                    if (depth < 0) {
+                        return false;
+                    }
+                }
             }
         }
         return true;
     }
     frame parse<T>(s: string) ret *T {
-        if (s == nullptr) { return nullptr; }
+        if (s == nullptr) {
+            return nullptr;
+        }
         local bytes: long = strlen(s);
-        if (bytes > 2147483646 || !JSON.withinDepthLimit(s, bytes)) {
+        if ((bytes > 2147483646) || !JSON.withinDepthLimit(s, bytes)) {
             __bpl_write_stderr("JSON input exceeds parser limits\n");
             return nullptr;
         }
@@ -883,7 +1061,9 @@ struct JSON {
 
         # Safe allocation (zeroed)
         local ptr: ulong = cast<ulong>(malloc(info.size));
-        if (ptr == 0) { return nullptr; }
+        if (ptr == 0) {
+            return nullptr;
+        }
         memset(cast<string>(cast<*char>(ptr)), 0, info.size);
 
         JSON.parseAny(&p, ptr, info);
@@ -913,9 +1093,7 @@ struct JSON {
 
             local report: string = malloc(cast<long>(512));
             if (report != nullptr) {
-                snprintf(report, cast<long>(512),
-                    "JSON Parse Error: %s at line %d, column %d\n",
-                    p.error_msg, line, col);
+                snprintf(report, cast<long>(512), "JSON Parse Error: %s at line %d, column %d\n", p.error_msg, line, col);
                 __bpl_write_stderr(report);
                 free(report);
             }
@@ -1035,6 +1213,11 @@ struct JSON {
     frame parseAny(p: *JsonParser, ptr: ulong, info: *TypeInfo) {
         if (p.has_error) {
             return;
+        }
+        # Raw allocations are zeroed; install the vtable a constructor would,
+        # so methods on parsed objects dispatch correctly (BUG-454).
+        if ((info.kind == TYPE_KIND_STRUCT) && (info.vtable != nullptr)) {
+            *cast<*ulong>(ptr) = cast<ulong>(info.vtable);
         }
         # Check for user-defined fromJson
         if (info.kind == TYPE_KIND_STRUCT) {

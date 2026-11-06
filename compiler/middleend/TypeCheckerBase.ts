@@ -44,39 +44,35 @@ export const GENERIC_ARITY_MISMATCH_CODE = "BPL_GENERIC_ARITY_MISMATCH";
 export const TYPE_NOT_FOUND_CODE = "BPL_TYPE_NOT_FOUND";
 export const SPEC_POINTER_ESCAPES_CODE = "BPL_SPEC_POINTER_ESCAPES";
 export const CAPTURED_VALUE_ASSIGNED_CODE = "BPL_CAPTURED_VALUE_ASSIGNED";
-export const AUTO_DESTROY_ENUM_PAYLOAD_CODE =
-  "BPL_AUTO_DESTROY_ENUM_PAYLOAD";
+export const AUTO_DESTROY_ENUM_PAYLOAD_CODE = "BPL_AUTO_DESTROY_ENUM_PAYLOAD";
 export const OWNING_VALUE_COPIED_CODE = "BPL_OWNING_VALUE_COPIED";
 export const SYMBOL_NOT_FOUND_CODE = "BPL_SYMBOL_NOT_FOUND";
 export const VOID_TYPE_INVALID_CODE = "BPL_VOID_TYPE_INVALID";
-export const BUILTIN_TYPE_REDEFINITION_CODE =
-  "BPL_BUILTIN_TYPE_REDEFINITION";
+export const GLOBAL_INITIALIZER_NOT_CONSTANT_CODE =
+  "BPL_GLOBAL_INITIALIZER_NOT_CONSTANT";
+export const VARIADIC_METHOD_UNSUPPORTED_CODE =
+  "BPL_VARIADIC_METHOD_UNSUPPORTED";
+export const BUILTIN_TYPE_REDEFINITION_CODE = "BPL_BUILTIN_TYPE_REDEFINITION";
 export const ARRAY_SIZE_INVALID_CODE = "BPL_ARRAY_SIZE_INVALID";
 export const RETURN_TYPE_MISMATCH_CODE = "BPL_RETURN_TYPE_MISMATCH";
 export const RETURN_ARRAY_VIEW_ESCAPES_CODE = "BPL_RETURN_ARRAY_VIEW_ESCAPES";
-export const ASSIGNMENT_TYPE_MISMATCH_CODE =
-  "BPL_ASSIGNMENT_TYPE_MISMATCH";
+export const ASSIGNMENT_TYPE_MISMATCH_CODE = "BPL_ASSIGNMENT_TYPE_MISMATCH";
 export const VARIABLE_TYPE_ANNOTATION_MISSING_CODE =
   "BPL_VARIABLE_TYPE_ANNOTATION_MISSING";
 export const VARIABLE_REDECLARATION_CODE = "BPL_VARIABLE_REDECLARATION";
-export const INTEGER_LITERAL_OVERFLOW_CODE =
-  "BPL_INTEGER_LITERAL_OVERFLOW";
-export const ASSIGNMENT_TARGET_CONSTANT_CODE =
-  "BPL_ASSIGNMENT_TARGET_CONSTANT";
-export const ASSIGNMENT_TARGET_INVALID_CODE =
-  "BPL_ASSIGNMENT_TARGET_INVALID";
+export const INTEGER_LITERAL_OVERFLOW_CODE = "BPL_INTEGER_LITERAL_OVERFLOW";
+export const ASSIGNMENT_TARGET_CONSTANT_CODE = "BPL_ASSIGNMENT_TARGET_CONSTANT";
+export const ASSIGNMENT_TARGET_INVALID_CODE = "BPL_ASSIGNMENT_TARGET_INVALID";
 export const TUPLE_DESTRUCTURE_TARGET_INVALID_CODE =
   "BPL_TUPLE_DESTRUCTURE_TARGET_INVALID";
-export const CONDITION_TYPE_MISMATCH_CODE =
-  "BPL_CONDITION_TYPE_MISMATCH";
+export const CONDITION_TYPE_MISMATCH_CODE = "BPL_CONDITION_TYPE_MISMATCH";
 export const TERNARY_BRANCH_TYPE_MISMATCH_CODE =
   "BPL_TERNARY_BRANCH_TYPE_MISMATCH";
-export const SWITCH_VALUE_TYPE_MISMATCH_CODE =
-  "BPL_SWITCH_VALUE_TYPE_MISMATCH";
-export const SWITCH_CASE_TYPE_MISMATCH_CODE =
-  "BPL_SWITCH_CASE_TYPE_MISMATCH";
-export const CALL_TARGET_NOT_CALLABLE_CODE =
-  "BPL_CALL_TARGET_NOT_CALLABLE";
+export const SWITCH_VALUE_TYPE_MISMATCH_CODE = "BPL_SWITCH_VALUE_TYPE_MISMATCH";
+export const SWITCH_CASE_TYPE_MISMATCH_CODE = "BPL_SWITCH_CASE_TYPE_MISMATCH";
+export const SWITCH_CASE_VALUE_NOT_CONSTANT_CODE =
+  "BPL_SWITCH_CASE_VALUE_NOT_CONSTANT";
+export const CALL_TARGET_NOT_CALLABLE_CODE = "BPL_CALL_TARGET_NOT_CALLABLE";
 export const CALL_ARGUMENT_COUNT_MISMATCH_CODE =
   "BPL_CALL_ARGUMENT_COUNT_MISMATCH";
 export const CALL_ARGUMENT_TYPE_MISMATCH_CODE =
@@ -85,8 +81,7 @@ export const ENUM_VARIANT_ARGUMENT_COUNT_MISMATCH_CODE =
   "BPL_ENUM_VARIANT_ARGUMENT_COUNT_MISMATCH";
 export const ENUM_VARIANT_ARGUMENT_TYPE_MISMATCH_CODE =
   "BPL_ENUM_VARIANT_ARGUMENT_TYPE_MISMATCH";
-export const ENUM_VARIANT_FIELD_UNKNOWN_CODE =
-  "BPL_ENUM_VARIANT_FIELD_UNKNOWN";
+export const ENUM_VARIANT_FIELD_UNKNOWN_CODE = "BPL_ENUM_VARIANT_FIELD_UNKNOWN";
 export const ENUM_VARIANT_FIELD_TYPE_MISMATCH_CODE =
   "BPL_ENUM_VARIANT_FIELD_TYPE_MISMATCH";
 export const INTRINSIC_GENERIC_ARITY_MISMATCH_CODE =
@@ -99,16 +94,12 @@ export const MATCH_TUPLE_PATTERN_TYPE_MISMATCH_CODE =
   "BPL_MATCH_TUPLE_PATTERN_TYPE_MISMATCH";
 export const MATCH_TUPLE_PATTERN_ARITY_MISMATCH_CODE =
   "BPL_MATCH_TUPLE_PATTERN_ARITY_MISMATCH";
-export const TYPE_QUERY_ENUM_NOT_FOUND_CODE =
-  "BPL_TYPE_QUERY_ENUM_NOT_FOUND";
-export const TYPE_QUERY_TYPE_NOT_FOUND_CODE =
-  "BPL_TYPE_QUERY_TYPE_NOT_FOUND";
+export const TYPE_QUERY_ENUM_NOT_FOUND_CODE = "BPL_TYPE_QUERY_ENUM_NOT_FOUND";
+export const TYPE_QUERY_TYPE_NOT_FOUND_CODE = "BPL_TYPE_QUERY_TYPE_NOT_FOUND";
 export const BREAK_OUTSIDE_CONTEXT_CODE = "BPL_BREAK_OUTSIDE_CONTEXT";
 export const CONTINUE_OUTSIDE_LOOP_CODE = "BPL_CONTINUE_OUTSIDE_LOOP";
-export const FALLTHROUGH_OUTSIDE_SWITCH_CODE =
-  "BPL_FALLTHROUGH_OUTSIDE_SWITCH";
-export const DEFER_RETURN_VALUE_INVALID_CODE =
-  "BPL_DEFER_RETURN_VALUE_INVALID";
+export const FALLTHROUGH_OUTSIDE_SWITCH_CODE = "BPL_FALLTHROUGH_OUTSIDE_SWITCH";
+export const DEFER_RETURN_VALUE_INVALID_CODE = "BPL_DEFER_RETURN_VALUE_INVALID";
 export const POINTER_ARITHMETIC_VOID_CODE = "BPL_POINTER_ARITHMETIC_VOID";
 export const POINTER_DIFFERENCE_TYPE_MISMATCH_CODE =
   "BPL_POINTER_DIFFERENCE_TYPE_MISMATCH";
@@ -117,8 +108,7 @@ export const SHIFT_COUNT_INVALID_CODE = "BPL_SHIFT_COUNT_INVALID";
 export const STRING_CONCAT_UNSUPPORTED_CODE = "BPL_STRING_CONCAT_UNSUPPORTED";
 export const LOGICAL_OPERAND_TYPE_MISMATCH_CODE =
   "BPL_LOGICAL_OPERAND_TYPE_MISMATCH";
-export const COMPARISON_TYPE_MISMATCH_CODE =
-  "BPL_COMPARISON_TYPE_MISMATCH";
+export const COMPARISON_TYPE_MISMATCH_CODE = "BPL_COMPARISON_TYPE_MISMATCH";
 export const BITWISE_OPERAND_TYPE_MISMATCH_CODE =
   "BPL_BITWISE_OPERAND_TYPE_MISMATCH";
 export const MODULO_OPERAND_TYPE_MISMATCH_CODE =
@@ -127,11 +117,9 @@ export const BINARY_OPERAND_TYPE_MISMATCH_CODE =
   "BPL_BINARY_OPERAND_TYPE_MISMATCH";
 export const ARITHMETIC_OPERAND_TYPE_MISMATCH_CODE =
   "BPL_ARITHMETIC_OPERAND_TYPE_MISMATCH";
-export const DEREFERENCE_TARGET_INVALID_CODE =
-  "BPL_DEREFERENCE_TARGET_INVALID";
+export const DEREFERENCE_TARGET_INVALID_CODE = "BPL_DEREFERENCE_TARGET_INVALID";
 export const ADDRESS_OF_CONSTANT_CODE = "BPL_ADDRESS_OF_CONSTANT";
-export const ADDRESS_OF_TARGET_INVALID_CODE =
-  "BPL_ADDRESS_OF_TARGET_INVALID";
+export const ADDRESS_OF_TARGET_INVALID_CODE = "BPL_ADDRESS_OF_TARGET_INVALID";
 export const LOGICAL_NOT_OPERAND_TYPE_MISMATCH_CODE =
   "BPL_LOGICAL_NOT_OPERAND_TYPE_MISMATCH";
 export const BITWISE_NOT_OPERAND_TYPE_MISMATCH_CODE =
@@ -139,19 +127,16 @@ export const BITWISE_NOT_OPERAND_TYPE_MISMATCH_CODE =
 export const UNARY_NEGATION_OPERAND_TYPE_MISMATCH_CODE =
   "BPL_UNARY_NEGATION_OPERAND_TYPE_MISMATCH";
 export const UNARY_PLUS_UNSUPPORTED_CODE = "BPL_UNARY_PLUS_UNSUPPORTED";
-export const ARRAY_INDEX_TYPE_MISMATCH_CODE =
-  "BPL_ARRAY_INDEX_TYPE_MISMATCH";
+export const ARRAY_INDEX_TYPE_MISMATCH_CODE = "BPL_ARRAY_INDEX_TYPE_MISMATCH";
 export const POINTER_INDEX_TYPE_MISMATCH_CODE =
   "BPL_POINTER_INDEX_TYPE_MISMATCH";
-export const INDEX_TARGET_NOT_INDEXABLE_CODE =
-  "BPL_INDEX_TARGET_NOT_INDEXABLE";
+export const INDEX_TARGET_NOT_INDEXABLE_CODE = "BPL_INDEX_TARGET_NOT_INDEXABLE";
 export const ARRAY_LITERAL_TYPE_MISMATCH_CODE =
   "BPL_ARRAY_LITERAL_TYPE_MISMATCH";
 export const CAST_INTEGER_TO_STRING_CODE = "BPL_CAST_INTEGER_TO_STRING";
 export const CAST_INVALID_CODE = "BPL_CAST_INVALID";
 export const SIZEOF_VOID_INVALID_CODE = "BPL_SIZEOF_VOID_INVALID";
-export const STATIC_MEMBER_NOT_FOUND_CODE =
-  "BPL_STATIC_MEMBER_NOT_FOUND";
+export const STATIC_MEMBER_NOT_FOUND_CODE = "BPL_STATIC_MEMBER_NOT_FOUND";
 export const INSTANCE_METHOD_NOT_COMPATIBLE_CODE =
   "BPL_INSTANCE_METHOD_NOT_COMPATIBLE";
 export const TUPLE_INDEX_INVALID_CODE = "BPL_TUPLE_INDEX_INVALID";
@@ -164,8 +149,7 @@ export const STRUCT_LITERAL_FIELD_UNKNOWN_CODE =
   "BPL_STRUCT_LITERAL_FIELD_UNKNOWN";
 export const STRUCT_LITERAL_FIELD_TYPE_MISMATCH_CODE =
   "BPL_STRUCT_LITERAL_FIELD_TYPE_MISMATCH";
-export const FUNCTION_ATTRIBUTE_UNKNOWN_CODE =
-  "BPL_FUNCTION_ATTRIBUTE_UNKNOWN";
+export const FUNCTION_ATTRIBUTE_UNKNOWN_CODE = "BPL_FUNCTION_ATTRIBUTE_UNKNOWN";
 export const FUNCTION_ATTRIBUTE_DUPLICATE_CODE =
   "BPL_FUNCTION_ATTRIBUTE_DUPLICATE";
 export const FUNCTION_ATTRIBUTE_CONFLICT_CODE =
@@ -185,6 +169,8 @@ export const FUNCTION_ATTRIBUTE_AUTO_DESTROY_RETURN_TYPE_MISMATCH_CODE =
 
 export const TYPE_CHECKER_FAILURE_CODES = [
   TYPE_ALIAS_POINTER_UNSUPPORTED_CODE,
+  GLOBAL_INITIALIZER_NOT_CONSTANT_CODE,
+  VARIADIC_METHOD_UNSUPPORTED_CODE,
   SYMBOL_ALREADY_DEFINED_CODE,
   TYPE_RECURSION_CYCLE_CODE,
   GENERIC_ARITY_MISMATCH_CODE,
@@ -206,6 +192,7 @@ export const TYPE_CHECKER_FAILURE_CODES = [
   TERNARY_BRANCH_TYPE_MISMATCH_CODE,
   SWITCH_VALUE_TYPE_MISMATCH_CODE,
   SWITCH_CASE_TYPE_MISMATCH_CODE,
+  SWITCH_CASE_VALUE_NOT_CONSTANT_CODE,
   CALL_TARGET_NOT_CALLABLE_CODE,
   CALL_ARGUMENT_COUNT_MISMATCH_CODE,
   CALL_ARGUMENT_TYPE_MISMATCH_CODE,
@@ -269,7 +256,14 @@ export const TYPE_CHECKER_FAILURE_CODES = [
 ] as const;
 
 export const RESERVED_BUILTIN_TYPE_NAMES = new Set([
-  ...PRIMITIVE_NAMES, "void", "null", "nullptr", "string", "Self", "TypeInfo", "Any",
+  ...PRIMITIVE_NAMES,
+  "void",
+  "null",
+  "nullptr",
+  "string",
+  "Self",
+  "TypeInfo",
+  "Any",
 ]);
 
 const STANDARD_LIBRARY_RUNTIME_ERROR_TYPES = new Set([
@@ -594,7 +588,7 @@ function canReuseResolvedBasicType(type: AST.BasicTypeNode): boolean {
   return type.name === decl.name && decl.genericParams.length === 0;
 }
 
-function resolveQualifiedTypeSymbol(
+export function resolveQualifiedTypeSymbol(
   scope: SymbolTable,
   name: string,
 ): Symbol | undefined {
@@ -618,6 +612,19 @@ function resolveQualifiedTypeSymbol(
   }
 
   return currentSymbol;
+}
+
+/** The dotted name of an identifier or a chain of member accesses on one. */
+function qualifiedExpressionName(expr: AST.Expression): string | undefined {
+  if (expr.kind === "Identifier") return (expr as AST.IdentifierExpr).name;
+  if (expr.kind === "Member") {
+    const member = expr as AST.MemberExpr;
+    const objectName = qualifiedExpressionName(member.object);
+    return objectName === undefined
+      ? undefined
+      : `${objectName}.${member.property}`;
+  }
+  return undefined;
 }
 
 const EMPTY_DIRECT_STRUCT_MEMBERS: (AST.StructField | AST.FunctionDecl)[] = [];
@@ -696,10 +703,7 @@ export abstract class TypeCheckerBase {
   ): (AST.StructField | AST.FunctionDecl)[] {
     let membersByName = this.structMemberLookupCache.get(decl);
     if (!membersByName) {
-      membersByName = new Map<
-        string,
-        (AST.StructField | AST.FunctionDecl)[]
-      >();
+      membersByName = new Map<string, (AST.StructField | AST.FunctionDecl)[]>();
       for (const member of decl.members) {
         if (member.kind !== "StructField" && member.kind !== "FunctionDecl") {
           continue;
@@ -893,10 +897,7 @@ export abstract class TypeCheckerBase {
       if (!resolvedSymbol) {
         isQualifiedTypeName = name.includes(".");
         if (isQualifiedTypeName) {
-          resolvedSymbol = resolveQualifiedTypeSymbol(
-            this.currentScope,
-            name,
-          );
+          resolvedSymbol = resolveQualifiedTypeSymbol(this.currentScope, name);
         }
       }
 
@@ -904,10 +905,7 @@ export abstract class TypeCheckerBase {
         this.ensureImplicitPrimitiveWrappersLoaded(name);
         resolvedSymbol = this.currentScope.resolve(name);
         if (!resolvedSymbol && isQualifiedTypeName) {
-          resolvedSymbol = resolveQualifiedTypeSymbol(
-            this.currentScope,
-            name,
-          );
+          resolvedSymbol = resolveQualifiedTypeSymbol(this.currentScope, name);
         }
       }
 
@@ -920,10 +918,7 @@ export abstract class TypeCheckerBase {
           resolvedSymbol.kind === "Spec")
       ) {
         const decl = resolvedSymbol.declaration as
-          | AST.StructDecl
-          | AST.EnumDecl
-          | AST.TypeAliasDecl
-          | AST.SpecDecl;
+          AST.StructDecl | AST.EnumDecl | AST.TypeAliasDecl | AST.SpecDecl;
 
         const genericParams = decl.genericParams || [];
 
@@ -950,8 +945,9 @@ export abstract class TypeCheckerBase {
 
         if (genericParams.length > 0) {
           if (type.genericArgs.length === genericParams.length) {
-            const resolvedArgs = (constraintResolvedArgs =
-              type.genericArgs.map((t) => this.resolveType(t, true)));
+            const resolvedArgs = (constraintResolvedArgs = type.genericArgs.map(
+              (t) => this.resolveType(t, true),
+            ));
 
             const mapping = new Map<string, AST.TypeNode>();
             for (let i = 0; i < genericParams.length; i++) {
@@ -1094,9 +1090,7 @@ export abstract class TypeCheckerBase {
           if (resolvedSymbol.declaration) {
             const res = { ...type } as AST.BasicTypeNode;
             res.resolvedDeclaration = resolvedSymbol.declaration as
-              | AST.StructDecl
-              | AST.EnumDecl
-              | AST.SpecDecl;
+              AST.StructDecl | AST.EnumDecl | AST.SpecDecl;
             return res;
           }
           return type;
@@ -1357,10 +1351,11 @@ export abstract class TypeCheckerBase {
   public getEnumVariantIndex(expr: AST.Expression): number | undefined {
     if (expr.kind === "Member") {
       const memberExpr = expr as AST.MemberExpr;
-      if (memberExpr.object.kind === "Identifier") {
-        const symbol = this.currentScope.resolve(
-          (memberExpr.object as AST.IdentifierExpr).name,
-        );
+      // The enum is named directly (Shade.Light) or through module
+      // namespaces (shapes.Shade.Light).
+      const enumName = qualifiedExpressionName(memberExpr.object);
+      if (enumName !== undefined) {
+        const symbol = resolveQualifiedTypeSymbol(this.currentScope, enumName);
         if (symbol && symbol.kind === "Enum") {
           const enumDecl = symbol.declaration as AST.EnumDecl;
           const variantName = memberExpr.property;
@@ -1590,7 +1585,11 @@ export abstract class TypeCheckerBase {
           const expectedElement = target.types[index]!;
           const planned = visit(element, expectedElement);
           const actual = element.resolvedType;
-          if (!planned && (!actual || !this.areTypesCompatible(expectedElement, actual))) return;
+          if (
+            !planned &&
+            (!actual || !this.areTypesCompatible(expectedElement, actual))
+          )
+            return;
           // Tuple lowering converts each element; scalar expression annotations
           // keep the original types emitted by their operators.
           types.push(this.resolveType(expectedElement));
@@ -1802,11 +1801,7 @@ export abstract class TypeCheckerBase {
       }
     }
 
-    if (
-      isFunctionOverload &&
-      type &&
-      type.kind === "FunctionType"
-    ) {
+    if (isFunctionOverload && type && type.kind === "FunctionType") {
       const candidates = [existing, ...(existing.overloads || [])];
       for (const cand of candidates) {
         if (cand.type && cand.type.kind === "FunctionType") {
@@ -1984,6 +1979,18 @@ export abstract class TypeCheckerBase {
         ) {
           return false;
         }
+        // Subtyping applies to a value or a single pointer level only. Through
+        // `**Child` or `Child[]` an `Animal` could be written where a `Dog` is
+        // stored, so deeper pointers and arrays need identical types (BUG-424).
+        if (
+          !isAlias &&
+          (rt1.pointerDepth !== rt2.pointerDepth ||
+            rt1.pointerDepth > 1 ||
+            rt1.arrayDimensions.length > 0 ||
+            rt2.arrayDimensions.length > 0)
+        ) {
+          return false;
+        }
 
         // If subtype, check against the instantiated super type
         if (!isAlias) {
@@ -2105,8 +2112,8 @@ export abstract class TypeCheckerBase {
     if (rt1.kind !== rt2.kind) return false;
     if (
       !areArrayDimensionsExactlyEqual(
-        "arrayDimensions" in rt1 ? rt1.arrayDimensions ?? [] : [],
-        "arrayDimensions" in rt2 ? rt2.arrayDimensions ?? [] : [],
+        "arrayDimensions" in rt1 ? (rt1.arrayDimensions ?? []) : [],
+        "arrayDimensions" in rt2 ? (rt2.arrayDimensions ?? []) : [],
       )
     ) {
       return false;
@@ -2269,7 +2276,8 @@ export abstract class TypeCheckerBase {
       if (
         resolvedEntry.name === parent.name &&
         !haveDistinctNominalDeclarations(resolvedEntry, parent)
-      ) return true;
+      )
+        return true;
       const entrySymbol =
         recordedDeclarationSymbol(resolvedEntry) ??
         this.currentScope.resolve(resolvedEntry.name);
@@ -2378,7 +2386,6 @@ export abstract class TypeCheckerBase {
     );
   }
 
-
   public resolveMemberWithContext(
     baseType: AST.BasicTypeNode,
     memberName: string,
@@ -2398,9 +2405,7 @@ export abstract class TypeCheckerBase {
         (baseType.resolvedDeclaration as any).kind === "EnumDecl")
     ) {
       decl = baseType.resolvedDeclaration as
-        | AST.StructDecl
-        | AST.SpecDecl
-        | AST.EnumDecl;
+        AST.StructDecl | AST.SpecDecl | AST.EnumDecl;
     } else {
       const symbol = this.currentScope.resolve(baseType.name);
       if (symbol) {
@@ -2421,10 +2426,16 @@ export abstract class TypeCheckerBase {
           ) {
             const gp = aliasDecl as unknown as AST.GenericParam;
             if (gp.constraint && gp.constraint.kind === "BasicType") {
-              return this.resolveMemberWithContext(
+              const resolved = this.resolveMemberWithContext(
                 gp.constraint as AST.BasicTypeNode,
                 memberName,
               );
+              // Through `T: Spec<...>`, `Self` is `T`, not the spec: the
+              // receiver `*T` must match `this: *Self` (BUG-435).
+              if (resolved?.decl.kind === "SpecDecl") {
+                resolved.genericMap.set("Self", baseType);
+              }
+              return resolved;
             }
           }
         }
@@ -2447,10 +2458,7 @@ export abstract class TypeCheckerBase {
     let members: (AST.StructField | AST.FunctionDecl | AST.SpecMethod)[] = [];
 
     if (decl.kind === "StructDecl") {
-      members = this.getDirectStructMembers(
-        decl as AST.StructDecl,
-        memberName,
-      );
+      members = this.getDirectStructMembers(decl as AST.StructDecl, memberName);
     } else if (decl.kind === "EnumDecl") {
       members = (decl as AST.EnumDecl).methods.filter(
         (m) => m.name === memberName,
@@ -2681,8 +2689,7 @@ export abstract class TypeCheckerBase {
     const declaration =
       basic.resolvedDeclaration ??
       (this.currentScope.resolve(basic.name)?.declaration as
-        | AST.ASTNode
-        | undefined);
+        AST.ASTNode | undefined);
     if (!declaration) return undefined;
 
     // An alias names another type; follow it with its own arguments bound. A
@@ -2743,7 +2750,11 @@ export abstract class TypeCheckerBase {
       }
 
       for (const parent of structDecl.inheritanceList ?? []) {
-        const owner = this.findAutoDestroyOwner(parent, fieldBindings, visiting);
+        const owner = this.findAutoDestroyOwner(
+          parent,
+          fieldBindings,
+          visiting,
+        );
         if (owner) return owner;
       }
     } finally {
@@ -3115,6 +3126,8 @@ export abstract class TypeCheckerBase {
     name: string,
     location: SourceLocation,
   ): boolean {
-    return this.failedImportSymbolsByFile.get(location.file)?.has(name) ?? false;
+    return (
+      this.failedImportSymbolsByFile.get(location.file)?.has(name) ?? false
+    );
   }
 }

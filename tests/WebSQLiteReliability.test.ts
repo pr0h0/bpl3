@@ -1,7 +1,6 @@
 import { expect, test } from "bun:test";
 import { spawnSync } from "node:child_process";
 import {
-  mkdtempSync,
   writeFileSync,
   rmSync,
   statSync,
@@ -10,6 +9,7 @@ import {
   readdirSync,
 } from "node:fs";
 import { join, resolve } from "node:path";
+import { makeRepoTempDir } from "./helpers/repoTempDir";
 const sqlite =
   spawnSync("clang", ["-print-file-name=libsqlite3.so.0"], {
     encoding: "utf8",
@@ -18,7 +18,7 @@ const sqlite =
 test.skipIf(process.platform !== "linux" || !sqlite.includes("/"))(
   "SQLite migrations roll back failures and backups restore live WAL data without overwriting",
   () => {
-    const dir = mkdtempSync(resolve(".web-sqlite-reliable-"));
+    const dir = makeRepoTempDir("web-sqlite-reliable-");
     try {
       const path = join(dir, "source.sqlite"),
         backup = join(dir, "snapshot.sqlite"),

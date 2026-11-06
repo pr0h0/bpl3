@@ -2,10 +2,7 @@ import { describe, expect, it } from "bun:test";
 import { readFileSync } from "fs";
 import { join } from "path";
 
-import {
-  SymbolTable,
-  type Symbol,
-} from "../compiler/middleend/SymbolTable";
+import { SymbolTable, type Symbol } from "../compiler/middleend/SymbolTable";
 
 const dummyLocation = {
   file: "symbol-table-test.bpl",
@@ -149,7 +146,10 @@ describe("SymbolTable", () => {
       "utf8",
     );
     const resolveStart = source.indexOf("  public resolve(");
-    const nextMethodStart = source.indexOf("  public getUnusedVariables", resolveStart);
+    const nextMethodStart = source.indexOf(
+      "  public getUnusedVariables",
+      resolveStart,
+    );
 
     expect(resolveStart).toBeGreaterThanOrEqual(0);
     expect(nextMethodStart).toBeGreaterThan(resolveStart);

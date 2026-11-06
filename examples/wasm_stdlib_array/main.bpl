@@ -24,7 +24,6 @@ frame main() ret int {
         mapped.destroy();
         return 2;
     }
-
     values.destroy();
     mapped.destroy();
     return 0;

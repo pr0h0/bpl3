@@ -1224,10 +1224,21 @@ Postfix
         } else if (post.type === "enumStructVariant") {
           // For enum struct variant like Shape.Circle { radius: 5.0 }
           // expr should be an Identifier (enum name)
-          if (expr.kind === "Identifier") {
-            expr = enumStructVariant(expr.name, post.property, post.fields, mergeLocToEndPos(expr.location, post.endPos));
+          // or a module-qualified one like shapes.Shape.Circle { ... }
+          let enumName = null;
+          let base = expr;
+          const qualifiers = [];
+          while (base.kind === "Member" && typeof base.property === "string") {
+            qualifiers.unshift(base.property);
+            base = base.object;
+          }
+          if (base.kind === "Identifier") {
+            enumName = [base.name, ...qualifiers].join(".");
+          }
+          if (enumName !== null) {
+            expr = enumStructVariant(enumName, post.property, post.fields, mergeLocToEndPos(expr.location, post.endPos));
           } else {
-            error("Enum struct variant construction requires an identifier before '.'");
+            error("Enum struct variant construction requires a name before '.'");
           }
         } else if (post.type === "generic") {
           expr = genericInstantiation(expr, post.genericArgs, mergeLocToEndPos(expr.location, post.endPos));
@@ -1518,8 +1529,11 @@ PatternFieldList
     }
 
 PatternField
-  = fieldName:Identifier _ ":" _ binding:Identifier {
-      return { fieldName, binding };
+  = fieldName:Identifier _ ":" _ pattern:Pattern {
+      // A name binds the field; `_` ignores it; any other pattern must match it.
+      if (pattern.kind === "PatternIdentifier") return { fieldName, binding: pattern.name };
+      if (pattern.kind === "PatternWildcard") return { fieldName, binding: "_" };
+      return { fieldName, binding: "_", pattern };
     }
 
 ArrayLiteral

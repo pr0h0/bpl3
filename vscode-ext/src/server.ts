@@ -1,7 +1,5 @@
-import * as fs from "fs";
 import { ValidationScheduler } from "./ValidationScheduler";
 import { FormattingFailures } from "./FormattingFailures";
-import * as path from "path";
 import { fileURLToPath } from "url";
 import { TextDocument } from "vscode-languageserver-textdocument";
 import {
@@ -26,7 +24,6 @@ import {
 // Compiler integration
 import * as AST from "../../compiler/common/AST";
 import { formatDocumentText } from "./services/DocumentFormatter";
-import { Parser } from "../../compiler/frontend/Parser";
 import type { TypeChecker } from "../../compiler/middleend/TypeChecker";
 
 // Symbol index and module resolution services
@@ -36,6 +33,15 @@ import { ASTHoverHandler } from "./services/ASTHoverHandler";
 import { ASTDefinitionHandler } from "./services/ASTDefinitionHandler";
 import { ASTCompletionHandler } from "./services/ASTCompletionHandler";
 import { ASTRenameHandler } from "./services/ASTRenameHandler";
+import { unusedVariableEdit } from "./services/UnusedVariableCodeAction";
+import { compilerTypoEdit } from "./services/CompilerTypoCodeAction";
+
+import {
+  nearbyImportCodeActions,
+  importableTypeName,
+  type NearbyImportCache,
+} from "./services/NearbyImportCodeActions";
+import { STD_QUICK_IMPORT_TYPES } from "./services/stdQuickImports";
 import { SelectionRangeProvider } from "./services/SelectionRangeProvider";
 import { DocumentHighlightProvider } from "./services/DocumentHighlightProvider";
 import { FoldingRangeProvider } from "./services/FoldingRangeProvider";
@@ -47,6 +53,7 @@ import {
 } from "./services/SemanticTokenProvider";
 import { CallHierarchyProvider } from "./services/CallHierarchyProvider";
 import { TypeHierarchyProvider } from "./services/TypeHierarchyProvider";
+import { implementationLocations } from "./services/ImplementationLocations";
 import { WorkspaceSymbolProvider } from "./services/WorkspaceSymbolProvider";
 import { CodeLensProvider } from "./services/CodeLensProvider";
 import { DocumentLinkProvider } from "./services/DocumentLinkProvider";
@@ -161,38 +168,10 @@ interface AnalysisResult {
   checker: TypeChecker;
 }
 
-function _typeNodeToString(type: AST.TypeNode | undefined): string {
-  if (!type) return "void";
-  switch (type.kind) {
-    case "BasicType":
-      let name = type.name;
-      if (type.genericArgs && type.genericArgs.length > 0) {
-        name += `<${type.genericArgs.map(_typeNodeToString).join(", ")}>`;
-      }
-      if (type.arrayDimensions) {
-        for (const dim of type.arrayDimensions) {
-          name += `[${dim !== null ? dim : ""}]`;
-        }
-      }
-      if (type.pointerDepth) {
-        name = "*".repeat(type.pointerDepth) + name;
-      }
-      return name;
-    case "FunctionType":
-      const params = type.paramTypes.map(_typeNodeToString).join(", ");
-      const ret = _typeNodeToString(type.returnType);
-      return `Func<${ret}>(${params})`;
-    case "TupleType":
-      return `(${type.types.map(_typeNodeToString).join(", ")})`;
-    default:
-      return "unknown";
-  }
-}
 const documentAnalysis = new Map<string, AnalysisResult>();
 
 let hasConfigurationCapability = false;
 let hasWorkspaceFolderCapability = false;
-let _hasDiagnosticRelatedInformationCapability = false; // reserved for future use
 
 connection.onInitialize((params: InitializeParams) => {
   debugLog("[Server] onInitialize called");
@@ -206,11 +185,6 @@ connection.onInitialize((params: InitializeParams) => {
   hasWorkspaceFolderCapability = !!(
     capabilities.workspace && !!capabilities.workspace.workspaceFolders
   );
-  _hasDiagnosticRelatedInformationCapability = !!(
-    capabilities.textDocument &&
-    capabilities.textDocument.publishDiagnostics &&
-    capabilities.textDocument.publishDiagnostics.relatedInformation
-  );
 
   const result: InitializeResult = {
     capabilities: {
@@ -218,6 +192,8 @@ connection.onInitialize((params: InitializeParams) => {
       // Tell the client that this server supports code completion.
       completionProvider: {
         resolveProvider: true,
+        // Member completion (`value.`, `Module.`) starts without Ctrl+Space.
+        triggerCharacters: ["."],
       },
       definitionProvider: true,
       hoverProvider: true,
@@ -290,7 +266,8 @@ interface ExampleSettings {
 // The global settings, used when the `workspace/configuration` request is not supported by the client.
 // Please note that this is not the case when using this server with the client provided in this example
 // but could happen with other clients.
-const defaultSettings: ExampleSettings = { maxNumberOfProblems: 1000 };
+// Matches the `bplLanguageServer.maxNumberOfProblems` default in package.json.
+const defaultSettings: ExampleSettings = { maxNumberOfProblems: 100 };
 let globalSettings: ExampleSettings = defaultSettings;
 
 // Cache the settings of all open documents
@@ -344,203 +321,6 @@ documents.onDidClose((e) => {
 documents.onDidChangeContent((change) => {
   validateTextDocument(change.document);
 });
-
-function _getTextForUri(
-  uri: string,
-  openDocuments: TextDocuments<TextDocument>,
-): string | null {
-  const doc = openDocuments.get(uri);
-  if (doc) return doc.getText();
-  try {
-    const fsPath = fileURLToPath(uri);
-    return fs.readFileSync(fsPath, "utf-8");
-  } catch {
-    return null;
-  }
-}
-
-// Resolve workspace lib directory (for std/* imports)
-function findWorkspaceLibDir(startDir: string): string | null {
-  // Check BPL_HOME environment variable first
-  if (process.env.BPL_HOME) {
-    const bplHomeLib = path.join(process.env.BPL_HOME, "lib");
-    if (fs.existsSync(bplHomeLib)) {
-      return bplHomeLib;
-    }
-    // Also check if BPL_HOME itself is the lib dir (some users might set it that way)
-    if (fs.existsSync(path.join(process.env.BPL_HOME, "string.bpl"))) {
-      return process.env.BPL_HOME;
-    }
-  }
-
-  let dir = startDir;
-  const maxUp = 10;
-  for (let i = 0; i < maxUp; i++) {
-    const libDir = path.join(dir, "lib");
-    if (
-      fs.existsSync(libDir) &&
-      fs.existsSync(path.join(libDir, "string.bpl"))
-    ) {
-      return libDir;
-    }
-    const parent = path.dirname(dir);
-    if (parent === dir) break;
-    dir = parent;
-  }
-  return null;
-}
-
-function resolveImportToFile(
-  importPath: string | undefined,
-  currentDir: string,
-): string | null {
-  if (!importPath) return null;
-
-  if (
-    importPath === "std" ||
-    importPath.startsWith("std/") ||
-    importPath.startsWith("std\\")
-  ) {
-    const libDir =
-      findWorkspaceLibDir(currentDir) || path.join(currentDir, "lib");
-    let candidate =
-      importPath === "std"
-        ? path.join(libDir, "std.bpl")
-        : path.join(libDir, importPath.replace(/^std[\/\\]/, ""));
-    if (!candidate.endsWith(".bpl")) candidate += ".bpl";
-    return fs.existsSync(candidate) ? candidate : null;
-  }
-
-  let resolvedPath = path.resolve(currentDir, importPath || "");
-  if (!fs.existsSync(resolvedPath) && fs.existsSync(resolvedPath + ".bpl")) {
-    resolvedPath += ".bpl";
-  }
-  return fs.existsSync(resolvedPath) ? resolvedPath : null;
-}
-
-// Import cache: stores parsed modules to avoid re-parsing on every validation
-interface CacheEntry {
-  program: AST.Program;
-  timestamp: number;
-  filePath: string;
-}
-
-const importCache = new Map<string, CacheEntry>();
-const fileWatchers = new Map<string, NodeJS.Timeout>();
-
-// Invalidate cache entry when a file changes
-function invalidateCacheEntry(filePath: string): void {
-  importCache.delete(filePath);
-  // Also invalidate any files that imported this module
-  for (const [key] of importCache) {
-    importCache.delete(key);
-  }
-}
-
-// Watch a file for changes and invalidate cache
-function watchFileForChanges(filePath: string): void {
-  if (fileWatchers.has(filePath)) {
-    return; // Already watching
-  }
-
-  try {
-    const watcher = fs.watch(filePath, (eventType) => {
-      if (eventType === "change") {
-        invalidateCacheEntry(filePath);
-      }
-    });
-    fileWatchers.set(filePath, watcher as any);
-  } catch {
-    // File watch might fail on some systems, that's okay
-  }
-}
-
-// Load and parse an imported module with caching
-function _loadImportedModuleWithCache(
-  importPath: string,
-  currentDir: string,
-): { text: string; program: AST.Program } | null {
-  const resolvedPath = resolveImportToFile(importPath, currentDir);
-  if (!resolvedPath) return null;
-
-  // Check cache first
-  const cached = importCache.get(resolvedPath);
-  if (cached) {
-    const stat = fs.statSync(resolvedPath);
-    if (stat.mtimeMs === cached.timestamp) {
-      return { text: "", program: cached.program }; // Timestamp matches, cache is valid
-    }
-  }
-
-  // Parse fresh
-  try {
-    const moduleText = fs.readFileSync(resolvedPath, "utf-8");
-    const parser = new Parser(moduleText, resolvedPath);
-    const program = parser.parse();
-
-    // Store in cache with timestamp
-    const stat = fs.statSync(resolvedPath);
-    importCache.set(resolvedPath, {
-      program,
-      timestamp: stat.mtimeMs,
-      filePath: resolvedPath,
-    });
-
-    // Watch for future changes
-    watchFileForChanges(resolvedPath);
-
-    return { text: moduleText, program };
-  } catch {
-    return null;
-  }
-}
-
-// Check if an import error should be suppressed (only for valid std/* imports)
-function _shouldSuppressImportError(
-  errorMessage: string,
-  documentText: string,
-  documentUri: string,
-): boolean {
-  // Only check import-related errors
-  if (!/module not found|cannot resolve import/i.test(errorMessage)) {
-    return false;
-  }
-
-  const currentDir = path.dirname(fileURLToPath(documentUri));
-  const importRegex = /import\s+.+?\s+from\s+["'](.+?)["']/g;
-  let match;
-
-  while ((match = importRegex.exec(documentText)) !== null) {
-    const importPath = match[1];
-    // Suppress for valid std/* imports
-    if (
-      importPath &&
-      (importPath === "std" ||
-        importPath.startsWith("std/") ||
-        importPath.startsWith("std\\"))
-    ) {
-      const resolvedStd = resolveImportToFile(importPath, currentDir);
-      if (resolvedStd && fs.existsSync(resolvedStd)) {
-        return true;
-      }
-    }
-    // Also suppress for valid relative imports that resolve on disk
-    if (
-      importPath &&
-      (importPath.startsWith("./") ||
-        importPath.startsWith("../") ||
-        importPath.startsWith("/"))
-    ) {
-      const resolvedRel = resolveImportToFile(importPath, currentDir);
-      if (resolvedRel && fs.existsSync(resolvedRel)) {
-        return true;
-      }
-    }
-  }
-
-  // No valid std/* imports found, don't suppress
-  return false;
-}
 
 function validateTextDocument(textDocument: TextDocument): Promise<void> {
   const uri = textDocument.uri;
@@ -624,6 +404,9 @@ connection.onCompletion(
 // This handler resolves additional information for the item selected in
 // the completion list.
 connection.onCompletionResolve((item: CompletionItem): CompletionItem => {
+  // Items from the symbol index carry their own details; only built-in
+  // keyword and type items, which have none, get the generic text.
+  if (item.detail !== undefined) return item;
   if (item.kind === CompletionItemKind.Keyword) {
     item.detail = "Keyword";
     item.documentation = `BPL keyword: ${item.label}`;
@@ -809,30 +592,6 @@ function getWordAtPosition(
   return null;
 }
 
-function _findAllReferences(
-  word: string,
-  docs: TextDocuments<TextDocument>,
-): Location[] {
-  const locations: Location[] = [];
-  docs.all().forEach((doc) => {
-    const text = doc.getText();
-    const regex = new RegExp(`\\b${word}\\b`, "g");
-    let match;
-    while ((match = regex.exec(text)) !== null) {
-      locations.push(
-        Location.create(
-          doc.uri,
-          Range.create(
-            doc.positionAt(match.index),
-            doc.positionAt(match.index + match[0].length),
-          ),
-        ),
-      );
-    }
-  });
-  return locations;
-}
-
 connection.onPrepareRename((params) => {
   debugLog("[Rename] Prepare rename request");
   const document = documents.get(params.textDocument.uri);
@@ -891,29 +650,7 @@ connection.onImplementation((params) => {
   const word = getWordAtPosition(document, params.position);
   if (!word) return null;
 
-  // Find structs that implement this spec/interface
-  const locations: Location[] = [];
-  documents.all().forEach((doc) => {
-    const text = doc.getText();
-    // Regex for inheritance: struct Name : Parent or struct Name implements Parent
-    const regex = new RegExp(
-      `\\bstruct\\s+([a-zA-Z0-9_]+)\\s*(?::|implements)\\s*${word}\\b`,
-      "g",
-    );
-    let match;
-    while ((match = regex.exec(text)) !== null) {
-      locations.push(
-        Location.create(
-          doc.uri,
-          Range.create(
-            doc.positionAt(match.index),
-            doc.positionAt(match.index + match[0].length),
-          ),
-        ),
-      );
-    }
-  });
-  return locations;
+  return implementationLocations(word, documents.all(), astResolver);
 });
 
 connection.onCodeAction((params) => {
@@ -921,30 +658,14 @@ connection.onCodeAction((params) => {
   const document = documents.get(params.textDocument.uri);
   if (!document) return [];
 
-  const currentDir = path.dirname(fileURLToPath(document.uri));
-  const text = document.getText();
+  const parsedNearbyModules: NearbyImportCache = new Map();
 
   for (const diagnostic of params.context.diagnostics) {
     // 1. Unknown type suggestions
-    const unknownTypeMatch = /Unknown type '(\w+)'/.exec(diagnostic.message);
-    if (unknownTypeMatch) {
-      const typeName = unknownTypeMatch[1];
-
+    const typeName = importableTypeName(diagnostic);
+    if (typeName) {
       // Standard Library types
-      if (
-        typeName &&
-        [
-          "Result",
-          "Option",
-          "List",
-          "Map",
-          "Set",
-          "Vec2",
-          "Vec3",
-          "Stack",
-          "Queue",
-        ].includes(typeName)
-      ) {
+      if (STD_QUICK_IMPORT_TYPES.includes(typeName)) {
         actions.push({
           title: `Import ${typeName} from std`,
           kind: CodeActionKind.QuickFix,
@@ -962,44 +683,15 @@ connection.onCodeAction((params) => {
         });
       }
 
-      // Scan nearby files for exports
-      try {
-        const files = fs.readdirSync(currentDir);
-        for (const file of files) {
-          if (
-            file.endsWith(".bpl") &&
-            file !== path.basename(fileURLToPath(document.uri))
-          ) {
-            const content = fs.readFileSync(
-              path.join(currentDir, file),
-              "utf-8",
-            );
-            // Check for export struct TypeName or export [TypeName]
-            const exportRegex = new RegExp(
-              `export\\s+(struct\\s+${typeName}\\b|\\[\\s*${typeName}\\s*\\])`,
-            );
-            if (exportRegex.test(content)) {
-              actions.push({
-                title: `Import ${typeName} from ./${file}`,
-                kind: CodeActionKind.QuickFix,
-                diagnostics: [diagnostic],
-                edit: {
-                  changes: {
-                    [params.textDocument.uri]: [
-                      TextEdit.insert(
-                        { line: 0, character: 0 },
-                        `import [${typeName}] from "./${file}";\n`,
-                      ),
-                    ],
-                  },
-                },
-              });
-            }
-          }
-        }
-      } catch (_e) {
-        // Ignore fs errors
-      }
+      actions.push(
+        ...nearbyImportCodeActions(
+          document,
+          diagnostic,
+          typeName,
+          true,
+          parsedNearbyModules,
+        ),
+      );
     }
 
     // 2. Undefined symbol (function/variable) suggestions
@@ -1011,241 +703,47 @@ connection.onCodeAction((params) => {
 
       if (!symbolName) continue;
 
-      // Check if it's a common typo or similar name
-      const similarSymbols = findSimilarSymbols(symbolName, text);
-      for (const similar of similarSymbols) {
+      const typoEdit = compilerTypoEdit(document, diagnostic);
+      if (typoEdit) {
         actions.push({
-          title: `Change to '${similar}'`,
+          title: `Change to '${typoEdit.newText}'`,
           kind: CodeActionKind.QuickFix,
           diagnostics: [diagnostic],
-          edit: {
-            changes: {
-              [params.textDocument.uri]: [
-                TextEdit.replace(diagnostic.range, similar),
-              ],
-            },
-          },
+          edit: { changes: { [document.uri]: [typoEdit] } },
         });
       }
 
-      // Scan nearby files for export symbolName
-      try {
-        const files = fs.readdirSync(currentDir);
-        for (const file of files) {
-          if (
-            file.endsWith(".bpl") &&
-            file !== path.basename(fileURLToPath(document.uri))
-          ) {
-            const content = fs.readFileSync(
-              path.join(currentDir, file),
-              "utf-8",
-            );
-            // Check for export frame symbolName or export symbolName
-            const exportRegex = new RegExp(
-              `export\\s+(frame\\s+${symbolName}\\b|${symbolName}\\b)`,
-            );
-            if (exportRegex.test(content)) {
-              actions.push({
-                title: `Import ${symbolName} from ./${file}`,
-                kind: CodeActionKind.QuickFix,
-                diagnostics: [diagnostic],
-                edit: {
-                  changes: {
-                    [params.textDocument.uri]: [
-                      TextEdit.insert(
-                        { line: 0, character: 0 },
-                        `import ${symbolName} from "./${file}";\n`,
-                      ),
-                    ],
-                  },
-                },
-              });
-            }
-          }
-        }
-      } catch (_e) {
-        // Ignore fs errors
-      }
+      actions.push(
+        ...nearbyImportCodeActions(
+          document,
+          diagnostic,
+          symbolName,
+          false,
+          parsedNearbyModules,
+        ),
+      );
     }
 
-    // 3. Type mismatch suggestions
-    const typeMismatchMatch =
-      /Type mismatch.*expected '(\w+)'.*got '(\w+)'/.exec(diagnostic.message);
-    if (typeMismatchMatch) {
-      const expectedType = typeMismatchMatch[1];
-      const gotType = typeMismatchMatch[2];
+    // Missing-return diagnostics need a user-chosen value and insertion point.
+    // Do not offer a bare return, which is invalid in a value-returning frame.
 
-      // Suggest casting
-      if (expectedType && gotType) {
-        const _line = document.getText(
-          Range.create(
-            { line: diagnostic.range.start.line, character: 0 },
-            {
-              line: diagnostic.range.start.line,
-              character: Number.MAX_SAFE_INTEGER,
-            },
-          ),
-        );
-        const errorText = document.getText(diagnostic.range);
-
-        actions.push({
-          title: `Cast to ${expectedType}`,
-          kind: CodeActionKind.QuickFix,
-          diagnostics: [diagnostic],
-          edit: {
-            changes: {
-              [params.textDocument.uri]: [
-                TextEdit.replace(
-                  diagnostic.range,
-                  `cast<${expectedType}>(${errorText})`,
-                ),
-              ],
-            },
-          },
-        });
-      }
-    }
-
-    // 4. Missing return statement
-    if (diagnostic.message.includes("Missing return statement")) {
+    // 5. Unused variable: diagnostics span declarations, not just their names.
+    const unusedEdit = unusedVariableEdit(document, diagnostic);
+    if (unusedEdit) {
       actions.push({
-        title: "Add return statement",
+        title: "Prefix with '_' to mark as intentionally unused",
         kind: CodeActionKind.QuickFix,
         diagnostics: [diagnostic],
-        edit: {
-          changes: {
-            [params.textDocument.uri]: [
-              TextEdit.insert(
-                diagnostic.range.start,
-                "    return; // TODO: Add return value\n",
-              ),
-            ],
-          },
-        },
+        edit: { changes: { [params.textDocument.uri]: [unusedEdit] } },
       });
     }
 
-    // 5. Unused variable
-    if (diagnostic.message.includes("unused")) {
-      const unusedVarMatch = /'(\w+)'/.exec(diagnostic.message);
-      if (unusedVarMatch) {
-        const varName = unusedVarMatch[1];
-        actions.push({
-          title: `Prefix with '_' to mark as intentionally unused`,
-          kind: CodeActionKind.QuickFix,
-          diagnostics: [diagnostic],
-          edit: {
-            changes: {
-              [params.textDocument.uri]: [
-                TextEdit.replace(diagnostic.range, `_${varName}`),
-              ],
-            },
-          },
-        });
-      }
-    }
-
-    // 6. Missing semicolon
-    if (
-      diagnostic.message.includes("Expected ';'") ||
-      diagnostic.message.includes("Missing semicolon")
-    ) {
-      actions.push({
-        title: "Add semicolon",
-        kind: CodeActionKind.QuickFix,
-        diagnostics: [diagnostic],
-        edit: {
-          changes: {
-            [params.textDocument.uri]: [
-              TextEdit.insert(diagnostic.range.end, ";"),
-            ],
-          },
-        },
-      });
-    }
-
-    // 7. Suggest null check
-    if (
-      diagnostic.message.includes("possibly null") ||
-      diagnostic.message.includes("may be null")
-    ) {
-      const errorText = document.getText(diagnostic.range);
-      actions.push({
-        title: "Add null check",
-        kind: CodeActionKind.QuickFix,
-        diagnostics: [diagnostic],
-        edit: {
-          changes: {
-            [params.textDocument.uri]: [
-              TextEdit.replace(
-                diagnostic.range,
-                `if (${errorText} != nullptr) {\n        // TODO: Handle non-null case\n    }`,
-              ),
-            ],
-          },
-        },
-      });
-    }
+    // A null guard needs the pointer expression, enclosing statement, and
+    // user-selected fallback. Replacing a diagnostic span can corrupt code,
+    // so do not offer a guard without that context.
   }
   return actions;
 });
-
-/**
- * Find similar symbol names using Levenshtein distance
- */
-function findSimilarSymbols(target: string, text: string): string[] {
-  const symbols = new Set<string>();
-  const symbolRegex = /\b[a-zA-Z_][a-zA-Z0-9_]*\b/g;
-  let match;
-
-  while ((match = symbolRegex.exec(text)) !== null) {
-    symbols.add(match[0]);
-  }
-
-  const similar: Array<{ name: string; distance: number }> = [];
-  for (const symbol of symbols) {
-    if (symbol === target) continue;
-    const distance = levenshteinDistance(target, symbol);
-    if (distance <= 2 && distance > 0) {
-      // Max 2 character difference
-      similar.push({ name: symbol, distance });
-    }
-  }
-
-  // Sort by distance and return top 3
-  similar.sort((a, b) => a.distance - b.distance);
-  return similar.slice(0, 3).map((s) => s.name);
-}
-
-/**
- * Calculate Levenshtein distance between two strings
- */
-function levenshteinDistance(a: string, b: string): number {
-  const matrix: number[][] = [];
-
-  for (let i = 0; i <= b.length; i++) {
-    matrix[i] = [i];
-  }
-
-  for (let j = 0; j <= a.length; j++) {
-    matrix[0]![j] = j;
-  }
-
-  for (let i = 1; i <= b.length; i++) {
-    for (let j = 1; j <= a.length; j++) {
-      if (b.charAt(i - 1) === a.charAt(j - 1)) {
-        matrix[i]![j] = matrix[i - 1]![j - 1]!;
-      } else {
-        const substitution = matrix[i - 1]![j - 1]! + 1;
-        const insertion = matrix[i]![j - 1]! + 1;
-        const deletion = matrix[i - 1]![j]! + 1;
-        matrix[i]![j] = Math.min(substitution, insertion, deletion);
-      }
-    }
-  }
-
-  return matrix[b.length]![a.length]!;
-}
 
 // Make the text document manager listen on the connection
 // for open, change and close text document events

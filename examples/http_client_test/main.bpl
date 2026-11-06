@@ -1,4 +1,4 @@
-import [RequestBuilder], [HttpClient], [HttpResponse], [HttpMethod], [HttpHeaders], printf from "bpl-http-client";
+import [RequestBuilder], [HttpResponse], [HttpMethod], printf from "bpl-http-client";
 import [String] from "string";
 
 frame main() {

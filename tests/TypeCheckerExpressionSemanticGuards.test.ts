@@ -102,9 +102,9 @@ describe("TypeChecker expression semantic guard diagnostics", () => {
           return *ptr;
         }
       `,
-      "Cannot take address of",
+      "Cannot take the address of a temporary value",
       "BPL_ADDRESS_OF_TARGET_INVALID",
-      "Address-of requires an lvalue.",
+      "Address-of requires a variable, field, element, or dereferenced pointer",
     );
   });
 

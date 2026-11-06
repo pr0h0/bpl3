@@ -2,28 +2,27 @@
 
 ## 🎯 Getting Started
 
-1. **Start the server:**
+1. **Start the server** from the repository root:
 
    ```bash
-   cd playground
-   ./start.sh
+   bun run playground        # disposable Docker workers (default)
+   bun run playground:host   # trusted local host mode on 127.0.0.1
    ```
 
-   Or manually:
-
-   ```bash
-   cd playground/backend
-   bun run dev
-   ```
+   Docker mode (`bun run playground`) needs the worker image: build or refresh
+   it with `bun run playground:build`. Host mode (`bun run playground:host`)
+   does not use it, but needs Clang. Both commands go through
+   `playground/start.sh`, which checks the selected runner and its tools before
+   starting the server.
 
 2. **Open your browser:**
    Navigate to `http://localhost:3001`
 
 3. **Start learning:**
-   - Click any example in the sidebar
+   - Pick an example from the list in the toolbar
    - Read the description at the top
    - Study the annotated code
-   - Click "Run Code" to see it execute
+   - Click "Run" to see it execute
    - Explore the IR, AST, and Tokens tabs
 
 ## 🎓 Learning Path
@@ -144,13 +143,13 @@ kill -9 <PID>
 ```
 
 2. Restart server to load new example
-3. It will appear in the sidebar
+3. It will appear in the example list
 
 ### Customizing the UI
 
-- Edit `frontend/style.css` for appearance
-- Modify `frontend/app.js` for behavior
-- Update `frontend/index.html` for structure
+- Edit `frontend/style.css` for appearance (shared by both pages)
+- Modify `frontend/app.js` (playground) or `frontend/tutorial.js` (tutorial) for behavior
+- Update `frontend/index.html` or `frontend/tutorial.html` for structure
 - Changes take effect on browser refresh
 
 ### Backend API

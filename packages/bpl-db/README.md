@@ -29,8 +29,12 @@ borrow strings from those rows. Delete releases row allocations. `execute` repor
 `save(path)` writes a snapshot; `load(path)` loads one into an empty database.
 Strings use `X:` followed by hex bytes, preserving spaces, newlines, quotes,
 and UTF-8. Legacy `S:` strings are readable (legacy snapshots cannot preserve
-spaces). Individual loaded records are limited to 1 MiB. This format is intended
-for trusted local snapshots, has no transactions, locking, atomic writes, or
-recovery journal, and does not support embedded NULs. Do not use it as a
-concurrent or untrusted-import database. `save`/`load` print file-open errors;
-malformed hex and invalid names raise exceptions.
+spaces). A row's line is limited to 1 MiB, which hex encoding reaches at about
+512 KB of string data; `save` throws `Database record exceeds 1 MiB` for a
+larger row instead of writing a snapshot `load` would reject. `save` writes to
+`<path>.tmp` and renames it over `path` only after every write and the close
+succeeded, so a failed save (`Database save failed`) keeps the previous
+snapshot. This format is intended for trusted local snapshots, has no
+transactions, locking or recovery journal, and does not support embedded NULs.
+Do not use it as a concurrent or untrusted-import database. `save`/`load` print
+file-open errors; malformed hex and invalid names raise exceptions.

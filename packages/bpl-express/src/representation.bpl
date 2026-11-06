@@ -1,8 +1,7 @@
 import [Request], [Response], [HttpMethod] from "./http.bpl";
-import [HttpHeaders] from "bpl-http-parser";
 import [Option] from "std/option.bpl";
 import [String] from "std/string.bpl";
-import [Date], [DateTime] from "std/date.bpl";
+import [DateTime] from "std/date.bpl";
 import sprintf, strlen, strcmp, strncmp from "./libc.bpl";
 export [Representation];
 export [HttpDate];

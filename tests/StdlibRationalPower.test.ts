@@ -3,16 +3,17 @@ import { expectCorrectnessSuite } from "./helpers/compilerCorrectness";
 
 test("Rational powers handle the minimum exponent and ordinary signed powers", () => {
   const cases = Array.from({ length: 21 }, (_, i) => i - 10);
-  const expected = cases.map(n => {
+  const expected = cases.map((n) => {
     const magnitude = BigInt(Math.abs(n));
     const numerator = (n < 0 ? 3n : 2n) ** magnitude * (n % 2 === 0 ? 1n : -1n);
     const denominator = (n < 0 ? 2n : 3n) ** magnitude;
     return `${numerator} ${denominator}`;
   });
-  expectCorrectnessSuite([{
-    name: "rational-power-exponents",
-    validateLlvm: true,
-    source: `
+  expectCorrectnessSuite([
+    {
+      name: "rational-power-exponents",
+      validateLlvm: true,
+      source: `
       import [Rational] from "std/rational.bpl";
       extern printf(fmt: string, ...);
       frame main() ret int {
@@ -31,6 +32,7 @@ test("Rational powers handle the minimum exponent and ordinary signed powers", (
         }
         return 0;
       }`,
-    expectedStdout: expected.join("\n") + "\n",
-  }]);
+      expectedStdout: expected.join("\n") + "\n",
+    },
+  ]);
 }, 60000);

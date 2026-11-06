@@ -3,9 +3,15 @@
     "=== Log Demo ===",
     "debug message",
     "warn message",
-    "error message"
+    "error message",
+    "[WARN] disk almost full",
+    "[ERROR] write at a level",
+    "debug enabled: 0, error enabled: 1",
+    "from env: 1",
+    "[INFO] info is back",
+    "off enabled: 0"
   ],
   "args": [],
-  "env": {},
+  "env": { "BPL_LOG_LEVEL": "info" },
   "input": ""
 }

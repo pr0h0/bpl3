@@ -9,10 +9,7 @@ test("string throws compile without importing printf", () => {
       ),
     ).toMatchObject({ exitCode: 0, stdout: "", stderr: "" });
     expect(
-      runBplAtOptimization(
-        'frame main() ret int { throw "problem"; }',
-        opt,
-      ),
+      runBplAtOptimization('frame main() ret int { throw "problem"; }', opt),
     ).toMatchObject({
       exitCode: 1,
       stdout: "",

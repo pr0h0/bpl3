@@ -1,0 +1,37 @@
+# Dependency update PRs target staging like every other change (see the
+# release policy in AGENTS.md). Bun itself and the oven/bun images follow
+# .bun-version and are updated by hand, so @types/bun is left alone here.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    target-branch: staging
+    schedule:
+      interval: weekly
+    groups:
+      actions:
+        patterns: ["*"]
+
+  - package-ecosystem: bun
+    directory: /
+    target-branch: staging
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 3
+    ignore:
+      - dependency-name: "@types/bun"
+    groups:
+      dev-dependencies:
+        dependency-type: development
+      dependencies:
+        dependency-type: production
+
+  - package-ecosystem: npm
+    directory: /vscode-ext
+    target-branch: staging
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 3
+    groups:
+      extension:
+        patterns: ["*"]

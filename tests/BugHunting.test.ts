@@ -263,14 +263,21 @@ describe("Bug Hunting - Edge Cases", () => {
   });
 
   describe("9. Unreachable Code & Unused Variables", () => {
-    it("should warn or error on unreachable code after return", () => {
+    it("warns, without failing, on unreachable code after return", () => {
       const source = `
             frame main() {
                 return;
-                local x: i32 = 1;
+                local _x: i32 = 1;
             }
           `;
-      expectError(source, "unreachable");
+      const tokens = lexWithGrammar(source, "test.bpl");
+      const program = new Parser(source, "test.bpl", tokens).parse();
+      const typeChecker = new TypeChecker();
+      typeChecker.checkProgram(program);
+      expect(typeChecker.getErrors()).toEqual([]);
+      expect(typeChecker.getWarnings().map((w) => w.message)).toEqual([
+        "Unreachable code detected.",
+      ]);
     });
 
     it("should warn or error on unused variable", () => {

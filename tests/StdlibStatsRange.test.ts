@@ -2,10 +2,11 @@ import { test } from "bun:test";
 import { expectCorrectnessSuite } from "./helpers/compilerCorrectness";
 
 test("integer statistics range rejects an unrepresentable difference", () => {
-  expectCorrectnessSuite([{
-    name: "stats-range-result-boundaries",
-    validateLlvm: true,
-    source: `
+  expectCorrectnessSuite([
+    {
+      name: "stats-range-result-boundaries",
+      validateLlvm: true,
+      source: `
       import [Stats] from "std/stats.bpl";
       extern strcmp(a: string, b: string) ret int;
       frame main() ret int {
@@ -27,6 +28,7 @@ test("integer statistics range rejects an unrepresentable difference", () => {
         if (Stats.range(cast<*int>(nullptr), 2) != 0) { return 6; }
         return 0;
       }`,
-    expectedStdout: "",
-  }]);
+      expectedStdout: "",
+    },
+  ]);
 }, 60000);

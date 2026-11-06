@@ -5,7 +5,6 @@ export [ScopeStack];
 import [Array] from "std/array.bpl";
 import [Map] from "std/map.bpl";
 import [Option] from "std/option.bpl";
-import [String] from "std/string.bpl";
 
 struct ScopeStack<T> {
     scopes: Array<Map<string, T>>,
@@ -64,7 +63,7 @@ struct ScopeStack<T> {
 
     # Check if symbol is defined in the current scope (for shadowing checks)
     frame isDefinedInCurrentScope(this: *ScopeStack<T>, name: string) ret bool {
-        if (this.scopes.length == 0) 
+        if (this.scopes.length == 0)
             return false;
         local top: *Map<string, T> = this.scopes.getRef(this.scopes.length - 1);
         return top.has(name);
