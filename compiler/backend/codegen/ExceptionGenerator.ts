@@ -190,6 +190,15 @@ export abstract class ExceptionGenerator extends ExpressionGenerator {
 
       this.emit(`${labels.body}:`);
 
+      const binding =
+        !isCatchAll && clause.variable
+          ? {
+              name: clause.variable,
+              hadLocal: this.locals.has(clause.variable),
+              pointer: this.localPointers.get(clause.variable),
+              type: this.localTypes.get(clause.variable),
+            }
+          : undefined;
       if (!isCatchAll) {
         // Bind variable for typed catch
         const targetTypeStr = this.resolveType(clause.type!);
@@ -265,6 +274,9 @@ export abstract class ExceptionGenerator extends ExpressionGenerator {
             `  store ${targetTypeStr} ${convertedVal}, ${targetTypeStr}* ${localVar}`,
           );
         }
+        // Deferred code and lambdas in the clause capture locals by their
+        // recorded type, so the binding needs one like any other local.
+        this.localTypes.set(clause.variable!, clause.type!);
       }
       // For catch-all, no variable binding needed
 
@@ -276,6 +288,22 @@ export abstract class ExceptionGenerator extends ExpressionGenerator {
         undefined,
         caughtStorage,
       );
+      if (binding) {
+        // The binding is scoped to the clause; restore any outer local of
+        // the same name.
+        if (binding.hadLocal) this.locals.add(binding.name);
+        else this.locals.delete(binding.name);
+        if (binding.pointer !== undefined) {
+          this.localPointers.set(binding.name, binding.pointer);
+        } else {
+          this.localPointers.delete(binding.name);
+        }
+        if (binding.type !== undefined) {
+          this.localTypes.set(binding.name, binding.type);
+        } else {
+          this.localTypes.delete(binding.name);
+        }
+      }
       if (!this.isTerminator(this.output[this.output.length - 1] || "")) {
         hasContinuation = true;
         this.emit(`  br label %${endLabel}`);

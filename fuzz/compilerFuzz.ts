@@ -235,6 +235,8 @@ export interface FuzzCampaignOptions {
   iterationsPerSeed: number;
   crashDir?: string;
   enableDifferential?: boolean;
+  /** Run only generated programs against their oracle (`--oracle-only`). */
+  oracleOnly?: boolean;
   minimizeFailures?: boolean;
   maxMinimizePasses?: number;
   progressInterval?: number;
@@ -1251,6 +1253,8 @@ export function generateMutatedStructuredSources(
 
 export interface GenerateFuzzInputOptions {
   enableDifferential?: boolean;
+  /** Every iteration is a generated program checked against its oracle. */
+  oracleOnly?: boolean;
 }
 
 /**
@@ -1275,7 +1279,9 @@ export function generateFuzzInput(
 ): FuzzInput {
   const lane = iteration % (options.enableDifferential ? 8 : 6);
   let kind: FuzzInputKind;
-  if (options.enableDifferential && (lane === 0 || lane === 4)) {
+  if (options.oracleOnly) {
+    kind = "oracle";
+  } else if (options.enableDifferential && (lane === 0 || lane === 4)) {
     kind = "differential";
   } else if (lane === 3 || (options.enableDifferential && lane === 7)) {
     // Generated programs: run against their oracle in differential mode,
@@ -1322,6 +1328,7 @@ export function runFuzzCampaign(
     ((context: FuzzIterationContext) =>
       generateFuzzInput(context.seed, context.iteration, {
         enableDifferential: options.enableDifferential,
+        oracleOnly: options.oracleOnly,
       }));
   const stageCounts = createStageCounts();
   const seedSummaries: FuzzSeedSummary[] = [];

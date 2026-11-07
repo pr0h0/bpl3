@@ -44,10 +44,21 @@ export class CaptureAnalyzer {
 
   public analyze(): (AST.VariableDecl | AST.Parameter | AST.LambdaParameter)[] {
     this.visit(this.lambdaExpr.body);
-    // Return as VariableDecl[] (casting needed as we store ASTNode)
-    return Array.from(this.capturedVariables) as (
-      AST.VariableDecl | AST.Parameter | AST.LambdaParameter
-    )[];
+    // Return as VariableDecl[] (casting needed as we store ASTNode). A catch
+    // binding is declared by its clause, whose name is in `variable`, so it
+    // is reported as a variable of the caught type.
+    return Array.from(this.capturedVariables, (declaration) => {
+      if (declaration.kind !== "CatchClause") return declaration;
+      const clause = declaration as AST.CatchClause;
+      return {
+        kind: "VariableDecl",
+        isGlobal: false,
+        isConst: false,
+        name: clause.variable!,
+        typeAnnotation: clause.type!,
+        location: clause.location,
+      } as AST.VariableDecl;
+    }) as (AST.VariableDecl | AST.Parameter | AST.LambdaParameter)[];
   }
 
   private visit(node: AST.ASTNode) {
