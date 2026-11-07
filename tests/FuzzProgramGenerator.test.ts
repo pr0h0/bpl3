@@ -64,6 +64,10 @@ describe("generated fuzz programs", () => {
       /throw mk\d+\(/,
       /catch \(e\d+: S\d+\)/,
       /^\s+s\d+ = mk\d+\(/m,
+      /switch \(e\d+\) \{/,
+      /case E\d+\.V\d+: \{/,
+      /case "[a-z ]*": \{/,
+      /[{,] -\d+ => /,
     ]) {
       expect(sources).toMatch(feature);
     }

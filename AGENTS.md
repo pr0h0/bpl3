@@ -178,7 +178,8 @@ is an error except as a `switch` case label.
 
 **Pattern Types:**
 
-- **Literals**: `0`, `3.14`, `true`, `"hello"`, `'A'`
+- **Literals**: `0`, `-1`, `3.14`, `true`, `"hello"`, `'A'`, of the matched
+  value's type (an integer literal must fit it)
 - **Identifiers**: `x`, `n` (binds matched value)
 - **Tuples**: `(a, b)`, `(0, y)`, `(x, y, z)`
 - **Enum variants**: `E.V`, `E.V(a, b)`, `E.V { field: x }`; payloads and

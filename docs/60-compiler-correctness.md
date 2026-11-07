@@ -426,8 +426,9 @@ Each campaign iteration picks one input lane:
   copy), tuples returned and destructured, pointers and pointer-writing
   helpers, arrays, enums with payloads and `match`, generic functions and
   structs, capturing lambdas, recursion, while, C-style and infinite loops
-  with `break`/`continue` and `defer`, `switch` with `fallthrough`, integer
-  `match` with guards, nested `try`/`catch` with exceptions thrown directly
+  with `break`/`continue` and `defer`, `switch` on integers, enum values
+  and strings with `fallthrough`, integer `match` with negative literals and
+  guards, nested `try`/`catch` with exceptions thrown directly
   or from a called function, through intermediate functions that run a
   `defer` or rethrow as another type (including typed clauses that do not
   match and rethrows from a catch body), calls through `Func` pointer

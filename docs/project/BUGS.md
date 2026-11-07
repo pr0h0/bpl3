@@ -1041,6 +1041,28 @@ analysis reports a captured catch binding as a variable of the caught type.
 `tests/CatchBindingCaptures.test.ts` covers `defer` in a loop, struct, `int`
 and `double` bindings, lambdas, and an outer local of the same name.
 
+### BUG-482: Literal match patterns are not type-checked
+
+**Status**: Fixed · **Priority**: P1
+
+Found while extending the generated-program fuzzer to negative match
+patterns (2026-11-07). The checker accepted any literal pattern on a
+primitive value ("type checking happens at runtime comparison"). `match (x)
+{ 300 => 1, _ => 0 }` on a `u8` holding 44 returned 1, because the literal
+was truncated to 8 bits for the comparison: wrong code without a
+diagnostic. A string, floating-point or `nullptr` literal on an integer
+produced invalid LLVM IR, `true` matched integers, and a repeated literal
+arm was accepted although it can never run. Negative literals could not be
+written as patterns at all, although switch case labels accept them.
+
+**Resolution**: a literal pattern must have the matched value's type
+(`BPL_MATCH_LITERAL_PATTERN_TYPE_MISMATCH`) and an integer literal must fit
+it (`BPL_INTEGER_LITERAL_OVERFLOW`), in top-level, tuple and enum payload
+patterns. An unguarded literal arm repeating an earlier one, and any arm
+after an unguarded binding arm, is rejected as unreachable. Number literal
+patterns may be negative (`-3 => ...`, `Opt.Some(-4)`, `(0, -1)`). R-MATCH-2
+and R-MATCH-3 state the rules. `tests/MatchLiteralPatterns.test.ts`.
+
 ## Developer experience fixes (2026-10-28)
 
 - **Fixed:** Installing required `init.sh` (sudo link into `/usr/bin`, edits to
