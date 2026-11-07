@@ -221,6 +221,13 @@ interface FuncPointer {
   helper: Helper;
 }
 
+/** `frame ovK(p: T) ret R` declared once per parameter type `T`. */
+interface OverloadSet {
+  name: string;
+  returnType: IntType;
+  variants: { paramType: IntType; param: string; body: Expr }[];
+}
+
 interface Mutator {
   name: string;
   type: IntType;
@@ -319,6 +326,28 @@ class ProgramBuilder {
   private readonly throwers: Thrower[] = [];
   private readonly relays: Relay[] = [];
   private readonly funcPointers: FuncPointer[] = [];
+  private readonly overloads: OverloadSet[] = [];
+  /**
+   * main's `T[4]` array with its helpers: `byValue(xs: T[4], d)` changes
+   * its copy, `slice(xs: T[], d)` writes through a view, and `pointer` is a
+   * `*T` to element 0 read with pointer arithmetic.
+   */
+  private mainArray:
+    | {
+        name: string;
+        type: IntType;
+        byValue: string;
+        slice: string;
+        pointer: string;
+      }
+    | undefined;
+  /**
+   * `local kK: T` counters in main, changed only by `kK++`/`++kK`/`kK--`/
+   * `--kK` inside expressions and printed at the end. Nothing else reads
+   * them, so each value depends only on how many times, and in which order,
+   * the increments were evaluated.
+   */
+  private readonly counters: { name: string; type: IntType }[] = [];
 
   constructor(
     private readonly rng: () => number,
@@ -555,6 +584,15 @@ class ProgramBuilder {
   }
 
   private intExpr(type: IntType, depth: number, constantOnly: boolean): Expr {
+    if (!constantOnly && this.canIncrement() && this.chance(0.07)) {
+      return this.incrementExpr(type);
+    }
+    if (!constantOnly && this.overloads.length > 0 && this.chance(0.05)) {
+      return this.overloadCall(type, depth);
+    }
+    if (!constantOnly && this.canUseArray() && this.chance(0.06)) {
+      return this.arrayFeatureExpr(type, depth);
+    }
     const choice = this.int(
       0,
       constantOnly ? 5 : this.plainOnly ? 6 : this.canThrow() ? 17 : 15,
@@ -869,6 +907,112 @@ class ProgramBuilder {
     );
   }
 
+  /**
+   * The array helpers read main's array as it is now, so they stay out of
+   * functions, lambdas (which capture copies) and deferred code.
+   */
+  private canUseArray(): boolean {
+    return (
+      this.mainArray !== undefined &&
+      !this.plainOnly &&
+      !this.inFunctionBody &&
+      !this.inLambdaBody
+    );
+  }
+
+  /** `byValueK(a, d)` or `*(pa + (i & 3))`, converted to `type`. */
+  private arrayFeatureExpr(type: IntType, depth: number): Expr {
+    const array = this.mainArray!;
+    const cast = (code: string) =>
+      type === array.type ? code : `cast<${type.name}>(${code})`;
+    if (this.chance(0.5)) {
+      const arg = guard(this.expr(INT, depth - 1, false));
+      return {
+        type,
+        code: cast(`${array.byValue}(${array.name}, ${arg.code})`),
+        constant: false,
+        reads: union(arg.reads, new Set([array.name])),
+        eval: (env) => {
+          const d = convert(arg.eval(env), INT) as bigint;
+          // The parameter is a copy: main's array is unchanged.
+          const xs = [0, 1, 2, 3].map(
+            (slot) => env.get(`${array.name}[${slot}]`) as bigint,
+          );
+          const j = Number(d & 3n);
+          xs[j] = wrap(
+            xs[Number(wrap(d + 1n, INT) & 3n)]! ^ xs[2]!,
+            array.type,
+          );
+          return convert(wrap(xs[0]! + xs[j]!, array.type), type);
+        },
+      };
+    }
+    const index = this.indexExpr();
+    return {
+      type,
+      code: cast(`*(${array.pointer} + ((${index.code}) & 3))`),
+      constant: false,
+      reads: union(index.reads, new Set([array.pointer])),
+      eval: (env) => {
+        const slot = Number((index.eval(env) as bigint) & 3n);
+        return convert(env.get(`${array.name}[${slot}]`)!, type);
+      },
+    };
+  }
+
+  /** Increments run once per evaluation of main's code, never elsewhere. */
+  private canIncrement(): boolean {
+    return (
+      this.counters.length > 0 &&
+      !this.plainOnly &&
+      !this.inFunctionBody &&
+      !this.inLambdaBody &&
+      this.indexNesting === 0
+    );
+  }
+
+  /** `(kK++)`, `(++kK)`, `(kK--)` or `(--kK)`: the old or the new value. */
+  private incrementExpr(type: IntType): Expr {
+    const counter = this.pick(this.counters);
+    const op = this.pick(["++", "--"]);
+    const prefix = this.chance(0.5);
+    const code = prefix ? `(${op}${counter.name})` : `(${counter.name}${op})`;
+    return {
+      type,
+      code: type === counter.type ? code : `cast<${type.name}>${code}`,
+      constant: false,
+      reads: new Set(),
+      eval: (env) => {
+        const old = env.get(counter.name) as bigint;
+        const updated = wrap(op === "++" ? old + 1n : old - 1n, counter.type);
+        env.set(counter.name, updated);
+        return convert(prefix ? updated : old, type);
+      },
+    };
+  }
+
+  /** `ovK(arg)` with an argument whose static type selects one overload. */
+  private overloadCall(type: IntType, depth: number): Expr {
+    const set = this.pick(this.overloads);
+    const variant = this.pick(set.variants);
+    const arg = guard(this.expr(variant.paramType, depth - 1, false));
+    const call = `${set.name}(${arg.code})`;
+    return {
+      type,
+      code: type === set.returnType ? call : `cast<${type.name}>(${call})`,
+      constant: false,
+      reads: arg.reads,
+      eval: (env) => {
+        const callEnv = this.callEnv(env);
+        callEnv.set(variant.param, convert(arg.eval(env), variant.paramType));
+        return convert(
+          convert(variant.body.eval(callEnv), set.returnType),
+          type,
+        );
+      },
+    };
+  }
+
   /** `thrK((x) & mask, limit)`, which throws when its argument is too big. */
   private throwerCall(type: ScalarType, depth: number): Expr | undefined {
     if (!this.canThrow() || type.kind !== "int") return undefined;
@@ -957,7 +1101,7 @@ class ProgramBuilder {
           guard: limit,
           test: (value, env) => {
             const right = convert(
-              limit.eval(new Map(env).set(binding, value)),
+              limit.eval(env.set(binding, value)),
               subjectType,
             ) as bigint;
             return op === "<"
@@ -995,9 +1139,7 @@ class ProgramBuilder {
       eval: (env) => {
         const value = convert(subject.eval(env), subjectType) as bigint;
         for (const arm of arms) {
-          const armEnv = arm.binding
-            ? new Map(env).set(arm.binding, value)
-            : env;
+          const armEnv = arm.binding ? env.set(arm.binding, value) : env;
           if (arm.test(value, armEnv)) {
             return convert(arm.body.eval(armEnv), type);
           }
@@ -1066,7 +1208,9 @@ class ProgramBuilder {
       eval: (env) => {
         const value = env.get(local) as EnumValue;
         const arm = arms[value.tag]!;
-        const armEnv = new Map(env);
+        // Bindings have fresh names, so they go into the shared environment:
+        // a copy would drop side effects of the arm (counter increments).
+        const armEnv = env;
         arm.bindings.forEach((binding, index) =>
           armEnv.set(binding.name, value.payload[index]!),
         );
@@ -1077,7 +1221,11 @@ class ProgramBuilder {
 
   private boolExpr(depth: number, constantOnly: boolean): Expr {
     // The constant folder handles !, casts and literals, not comparisons.
-    const choice = this.int(0, constantOnly ? 1 : 4);
+    const choice = this.int(0, constantOnly ? 1 : 5);
+    if (choice === 5) {
+      const equality = this.structEquality();
+      if (equality) return equality;
+    }
     switch (choice) {
       case 0: {
         const operand = this.expr(BOOL, depth - 1, constantOnly);
@@ -1177,6 +1325,33 @@ class ProgramBuilder {
         };
       }
     }
+  }
+
+  /**
+   * `(sA == sB)` or `!=` on two locals of one struct: field by field, with
+   * floating-point fields compared like `==` (NaN is unequal) (R-EXPR-4).
+   */
+  private structEquality(): Expr | undefined {
+    if (this.inFunctionBody || this.instances.length === 0) return undefined;
+    const left = this.pick(this.instances);
+    const right = this.pick(
+      this.instances.filter((instance) => instance.struct === left.struct),
+    );
+    const op = this.pick(["==", "!="]);
+    return {
+      type: BOOL,
+      code: `(${left.name} ${op} ${right.name})`,
+      constant: false,
+      reads: new Set([left.name, right.name]),
+      eval: (env) => {
+        const equal = left.struct.fields.every(
+          (_, field) =>
+            env.get(`${left.name}.f${field}`) ===
+            env.get(`${right.name}.f${field}`),
+        );
+        return op === "==" ? equal : !equal;
+      },
+    };
   }
 
   // ------------------------------------------------------- statements ----
@@ -1349,7 +1524,46 @@ class ProgramBuilder {
 
   /** Calls that write through `this`, a pointer, or a new enum value. */
   private featureStatement(): Stmt | undefined {
-    const choice = this.int(0, 3);
+    const choice = this.int(0, 5);
+    if (choice === 4 && this.canUseArray()) {
+      // `sliceK(a, d);` writes through a slice view of main's array.
+      const array = this.mainArray!;
+      const arg = guard(this.expr(INT, 2, false));
+      return {
+        code: (indent) =>
+          `${indent}${array.slice}(${array.name}, ${arg.code});`,
+        exec: (env) => {
+          const d = convert(arg.eval(env), INT) as bigint;
+          const j = `${array.name}[${Number(d & 3n)}]`;
+          const k = `${array.name}[${Number(wrap(d + 2n, INT) & 3n)}]`;
+          env.set(
+            j,
+            wrap((env.get(j) as bigint) + (env.get(k) as bigint), array.type),
+          );
+          return undefined;
+        },
+      };
+    }
+    if (choice === 5) {
+      // `a = b = v;`: `b = v` yields b's new value, in b's type.
+      const targets = this.scope.filter(
+        (place) => !place.array && !place.readonly && place.type.kind === "int",
+      );
+      if (targets.length < 2) return undefined;
+      const outer = this.pick(targets);
+      const inner = this.pick(targets.filter((place) => place !== outer));
+      const value = guard(this.expr(this.intType(), 2, false));
+      return {
+        code: (indent) =>
+          `${indent}${outer.code} = ${inner.code} = ${value.code};`,
+        exec: (env) => {
+          const innerValue = convert(value.eval(env), inner.type);
+          env.set(inner.key, innerValue);
+          env.set(outer.key, convert(innerValue, outer.type));
+          return undefined;
+        },
+      };
+    }
     if (choice === 3) {
       // `s = mkK(x);` replaces every field of a struct local.
       const candidates = this.instances.filter(
@@ -2129,6 +2343,36 @@ class ProgramBuilder {
       );
     }
 
+    // Overload sets: one declaration per distinct parameter type.
+    for (
+      let index = this.chance(0.5) ? this.int(1, 2) : 0;
+      index > 0;
+      index--
+    ) {
+      const name = this.fresh("ov");
+      const returnType = this.intType();
+      const set: OverloadSet = { name, returnType, variants: [] };
+      for (let count = this.int(2, 3); count > 0; count--) {
+        const paramType = this.intType();
+        if (set.variants.some((variant) => variant.paramType === paramType)) {
+          continue;
+        }
+        const param = this.fresh("p");
+        this.scope = [
+          ...this.globals,
+          { type: paramType, code: param, key: param, readonly: true },
+        ];
+        const body = guard(this.expr(returnType, 2, false));
+        this.scope = [];
+        set.variants.push({ paramType, param, body });
+        const used = body.reads.has(param) ? param : `_${param}`;
+        lines.push(
+          `frame ${name}(${used}: ${paramType.name}) ret ${returnType.name} {\n    return ${body.code};\n}`,
+        );
+      }
+      this.overloads.push(set);
+    }
+
     // Throwing helpers, called from expressions inside `try` bodies.
     for (
       let index = this.chance(0.6) ? this.int(1, 2) : 0;
@@ -2217,6 +2461,18 @@ class ProgramBuilder {
     // main: locals, a struct, an array, then random statements.
     this.scope = [...this.globals];
     const decls: string[] = [];
+    for (
+      let index = this.chance(0.6) ? this.int(1, 2) : 0;
+      index > 0;
+      index--
+    ) {
+      const type = this.intType();
+      const name = this.fresh("k");
+      const init = this.literal(type);
+      decls.push(`    local ${name}: ${type.name} = ${guard(init).code};`);
+      env.set(name, convert(init.eval(env), type));
+      this.counters.push({ name, type });
+    }
     for (const helper of this.helpers) {
       if (!this.chance(0.4)) continue;
       const name = this.fresh("fp");
@@ -2312,6 +2568,18 @@ class ProgramBuilder {
         key: name,
         array: { base: name, length },
       });
+      // Helpers after main: one takes the array by value, one a slice.
+      const byValue = this.fresh("av");
+      const slice = this.fresh("sl");
+      const pointer = this.fresh("pa");
+      functionsAfterMain.push(
+        `frame ${byValue}(xs: ${type.name}[4], d: int) ret ${type.name} {\n    xs[d & 3] = xs[(d + 1) & 3] ^ xs[2];\n    return xs[0] + xs[d & 3];\n}`,
+        `frame ${slice}(xs: ${type.name}[], d: int) {\n    xs[d & 3] = xs[d & 3] + xs[(d + 2) & 3];\n}`,
+      );
+      decls.push(`    local ${pointer}: *${type.name} = &${name}[0];`);
+      this.mainArray = { name, type, byValue, slice, pointer };
+      // Used at least once, and checked: reads element 1 through `pointer`.
+      printed.push({ type, code: `*(${pointer} + 1)`, key: `${name}[1]` });
     }
     if (this.hierarchy) {
       const h = this.hierarchy;
@@ -2448,6 +2716,13 @@ class ProgramBuilder {
     }
 
     for (const global of this.globals) printed.push(global);
+    for (const counter of this.counters) {
+      printed.push({
+        type: counter.type,
+        code: counter.name,
+        key: counter.name,
+      });
+    }
 
     const statements = Array.from({ length: this.int(3, 12) }, () =>
       this.statement(2),
