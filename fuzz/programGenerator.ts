@@ -971,7 +971,8 @@ class ProgramBuilder {
         });
         continue;
       }
-      const literal = BigInt(this.int(0, 15));
+      // Negative literal patterns (`-3 =>`) for signed subjects.
+      const literal = BigInt(this.int(subjectType.signed ? -8 : 0, 15));
       if (literals.has(literal)) continue;
       literals.add(literal);
       arms.push({
@@ -1684,14 +1685,51 @@ class ProgramBuilder {
     };
   }
 
+  /**
+   * `switch` on an integer folded into `0..m-1`, on an enum local (variant
+   * labels), or on a string chosen by a condition (string labels).
+   */
   private switchStatement(depth: number): Stmt {
-    const subject = this.expr(INT, 2, false);
-    const modulus = this.int(2, 5);
+    const roll = this.rng();
+    let subjectCode: string;
+    let selector: (env: Env) => string;
+    let labels: string[];
+    if (roll < 0.25 && this.enumDef && this.enumLocals.length > 0) {
+      const def = this.enumDef;
+      const local = this.pick(this.enumLocals);
+      subjectCode = local;
+      selector = (env) => `${def.name}.V${(env.get(local) as EnumValue).tag}`;
+      labels = def.variants.map((_, tag) => `${def.name}.V${tag}`);
+    } else if (roll < 0.45) {
+      const words = ["", "a", "b", "ab", "zz", "a b"];
+      const condition = this.boolExpr(2, false);
+      const yes = this.pick(words);
+      const no = this.pick(words);
+      subjectCode = `((${condition.code}) ? "${yes}" : "${no}")`;
+      selector = (env) => JSON.stringify(condition.eval(env) ? yes : no);
+      labels = words.map((word) => JSON.stringify(word));
+    } else {
+      const subject = this.expr(INT, 2, false);
+      const modulus = this.int(2, 5);
+      subjectCode = `((${subject.code}) % ${modulus} + ${modulus}) % ${modulus}`;
+      selector = (env) => {
+        const raw = subject.eval(env) as bigint;
+        const m = BigInt(modulus);
+        return String(wrap(wrap(wrap(raw % m, INT) + m, INT) % m, INT));
+      };
+      labels = Array.from({ length: modulus }, (_, value) => String(value));
+    }
+    // A random subset of distinct labels, in random order.
+    const chosen: string[] = [];
+    for (let index = this.int(1, labels.length); index > 0; index--) {
+      const label = this.pick(labels);
+      if (!chosen.includes(label)) chosen.push(label);
+    }
     // Arms run in order; one ending in `fallthrough` continues with the next
     // (R-CTRL-8). The default arm, when present, is last.
-    const arms: { value?: number; body: Stmt[]; fallthrough: boolean }[] =
-      Array.from({ length: this.int(1, modulus) }, (_, value) => ({
-        value,
+    const arms: { label?: string; body: Stmt[]; fallthrough: boolean }[] =
+      chosen.map((label) => ({
+        label,
         body: this.block(depth, this.int(1, 2)),
         fallthrough: this.chance(0.25),
       }));
@@ -1706,19 +1744,15 @@ class ProgramBuilder {
         const bodyIndent = caseIndent + "    ";
         const text = arms.map(
           (arm) =>
-            `${caseIndent}${arm.value === undefined ? "default" : `case ${arm.value}`}: {\n${arm.body.map((s) => s.code(bodyIndent)).join("\n")}\n${bodyIndent}${arm.fallthrough ? "fallthrough" : "break"};\n${caseIndent}}`,
+            `${caseIndent}${arm.label === undefined ? "default" : `case ${arm.label}`}: {\n${arm.body.map((s) => s.code(bodyIndent)).join("\n")}\n${bodyIndent}${arm.fallthrough ? "fallthrough" : "break"};\n${caseIndent}}`,
         );
-        return `${indent}switch (((${subject.code}) % ${modulus} + ${modulus}) % ${modulus}) {\n${text.join("\n")}\n${indent}}`;
+        return `${indent}switch (${subjectCode}) {\n${text.join("\n")}\n${indent}}`;
       },
       exec: (env) => {
-        const raw = subject.eval(env) as bigint;
-        const m = BigInt(modulus);
-        const selected = wrap(wrap(wrap(raw % m, INT) + m, INT) % m, INT);
-        let index = arms.findIndex(
-          (arm) => arm.value !== undefined && BigInt(arm.value) === selected,
-        );
+        const selected = selector(env);
+        let index = arms.findIndex((arm) => arm.label === selected);
         if (index < 0) {
-          index = arms.findIndex((arm) => arm.value === undefined);
+          index = arms.findIndex((arm) => arm.label === undefined);
         }
         for (; index >= 0 && index < arms.length; index++) {
           const signal = execBlock(arms[index]!.body, env);

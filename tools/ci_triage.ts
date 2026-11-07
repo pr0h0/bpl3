@@ -716,6 +716,15 @@ const TUPLE_PATTERN_DIAGNOSTIC_STEP_PATTERN = new RegExp(
   ].join("|"),
   "i",
 );
+const LITERAL_PATTERN_DIAGNOSTIC_STEP_PATTERN = new RegExp(
+  [
+    "BPL_MATCH_LITERAL_PATTERN_TYPE_MISMATCH",
+    "literal match pattern",
+    "literal pattern diagnostics",
+    "Literal pattern .* cannot match a value of type",
+  ].join("|"),
+  "i",
+);
 const TYPE_QUERY_DIAGNOSTIC_STEP_PATTERN = new RegExp(
   [
     "BPL_TYPE_QUERY_ENUM_NOT_FOUND",
@@ -1960,6 +1969,11 @@ const EXCLUSIVE_STEP_REPRO_COMMANDS: Array<[RegExp, string]> = [
     'bun test tests/MarkdownDocs.test.ts -t "tuple match pattern diagnostic"',
   ],
   [TUPLE_PATTERN_DIAGNOSTIC_STEP_PATTERN, "bun run check"],
+  [
+    LITERAL_PATTERN_DIAGNOSTIC_STEP_PATTERN,
+    "bun test tests/MatchLiteralPatterns.test.ts",
+  ],
+  [LITERAL_PATTERN_DIAGNOSTIC_STEP_PATTERN, "bun run check"],
   [
     TYPE_QUERY_DIAGNOSTIC_STEP_PATTERN,
     "bun test tests/TypeCheckerTypeQueryDiagnostics.test.ts",

@@ -1100,6 +1100,12 @@ bun test tests/TypeCheckerMatchExhaustivenessDiagnostics.test.ts
 bun test tests/CLIJsonParseability.test.ts -t "match exhaustiveness diagnostics"
 ```
 
+Literal match pattern failures use `BPL_MATCH_LITERAL_PATTERN_TYPE_MISMATCH` when a literal pattern's type cannot match the matched value, such as `"a"`, `1.0` or `true` matched against an integer, or `1` against a `bool`. An integer literal that does not fit the matched integer type uses `BPL_INTEGER_LITERAL_OVERFLOW`. A representative message is `Literal pattern "a" of type string cannot match a value of type u8`. Reproduce with:
+
+```bash
+bun test tests/MatchLiteralPatterns.test.ts
+```
+
 Tuple match pattern failures use `BPL_MATCH_TUPLE_PATTERN_TYPE_MISMATCH` and `BPL_MATCH_TUPLE_PATTERN_ARITY_MISMATCH`. This covers tuple patterns used on non-tuple values and tuple pattern element-count mismatches. Representative messages include `Tuple pattern used on non-tuple type` and `Tuple pattern has 3 elements, but type has 2`. The corresponding hints include `Expected tuple type, got BasicType` and `Pattern and type must have the same number of elements`. Valid tuple pattern matching and tuple destructuring remain accepted. Reproduce the type-checker and JSON contracts with:
 
 ```bash

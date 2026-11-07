@@ -33,6 +33,7 @@ import {
   MATCH_EXHAUSTIVENESS_MISMATCH_CODE,
   MATCH_TUPLE_PATTERN_ARITY_MISMATCH_CODE,
   MATCH_TUPLE_PATTERN_TYPE_MISMATCH_CODE,
+  MATCH_LITERAL_PATTERN_TYPE_MISMATCH_CODE,
   POINTER_ARITHMETIC_VOID_CODE,
   RESERVED_BUILTIN_TYPE_NAMES,
   SYMBOL_ALREADY_DEFINED_CODE,
@@ -3134,6 +3135,96 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
 
   // ========== Match Pattern Checking ==========
 
+  /**
+   * An arm after an unguarded catch-all (`_` or a binding), or an unguarded
+   * literal arm repeating an earlier one, can never be selected.
+   */
+  private checkNonEnumArmsReachable(expr: AST.MatchExpr): void {
+    const seen = new Set<string>();
+    let catchAll = false;
+    for (const arm of expr.arms) {
+      const pattern = arm.pattern;
+      const key =
+        pattern.kind === "PatternLiteral"
+          ? `${pattern.value.type}:${String(pattern.value.value)}`
+          : undefined;
+      if (catchAll || (key !== undefined && !arm.guard && seen.has(key))) {
+        throw new CompilerError(
+          catchAll
+            ? "Unreachable match arm: an earlier arm matches every value"
+            : `Unreachable match arm: ${pattern.kind === "PatternLiteral" ? pattern.value.raw : "this value"} is already matched by an earlier arm`,
+          "Remove the arm, or move it before the arm that already matches its values.",
+          pattern.location ?? arm.location,
+          MATCH_EXHAUSTIVENESS_MISMATCH_CODE,
+        );
+      }
+      if (arm.guard) continue;
+      if (
+        pattern.kind === "PatternWildcard" ||
+        pattern.kind === "PatternIdentifier"
+      ) {
+        catchAll = true;
+      } else if (key !== undefined) {
+        seen.add(key);
+      }
+    }
+  }
+
+  /**
+   * A literal pattern must have a type the matched value can be compared
+   * with, and an integer literal must fit the matched integer type.
+   */
+  private checkLiteralPattern(
+    pattern: AST.PatternLiteral,
+    matchedType: AST.TypeNode,
+  ): void {
+    const checkedType = this.checkExpression(pattern.value);
+    // Resolved like the matched type, so both read the same way (`i32`).
+    const literalType = checkedType ? this.resolveType(checkedType) : undefined;
+    const resolved = this.resolveType(matchedType);
+    const isFloat =
+      resolved.kind === "BasicType" &&
+      resolved.pointerDepth === 0 &&
+      resolved.arrayDimensions.length === 0 &&
+      ["double", "float", "f32", "f64"].includes(resolved.name);
+    const fractional =
+      pattern.value.type === "number" &&
+      typeof pattern.value.value === "number" &&
+      !Number.isInteger(pattern.value.value);
+    // A floating-point literal never compares with an integer value, even
+    // when its value is whole (`1.0`), because the comparison is integral.
+    const floatLiteralOnInteger =
+      TypeUtils.isIntegerType(resolved) &&
+      pattern.value.type === "number" &&
+      (fractional || /[.eE]/.test(pattern.value.raw)) &&
+      !/^-?0[xXbBoO]/.test(pattern.value.raw);
+    // `bool` converts to integers, but `true` is not an integer pattern.
+    const boolMismatch =
+      (pattern.value.type === "bool") !== TypeUtils.isBoolType(resolved);
+    if (
+      !literalType ||
+      floatLiteralOnInteger ||
+      boolMismatch ||
+      (!isFloat && !this.areTypesCompatible(resolved, literalType))
+    ) {
+      throw new CompilerError(
+        `Literal pattern ${pattern.value.raw} of type ${literalType ? this.formatDiagnosticType(literalType) : "unknown"} cannot match a value of type ${this.formatDiagnosticType(resolved)}`,
+        "Use a literal of the matched value's type.",
+        pattern.location,
+        MATCH_LITERAL_PATTERN_TYPE_MISMATCH_CODE,
+      );
+    }
+    if (isFloat && pattern.value.type !== "number") {
+      throw new CompilerError(
+        `Literal pattern ${pattern.value.raw} of type ${this.formatDiagnosticType(literalType)} cannot match a value of type ${this.formatDiagnosticType(resolved)}`,
+        "Use a literal of the matched value's type.",
+        pattern.location,
+        MATCH_LITERAL_PATTERN_TYPE_MISMATCH_CODE,
+      );
+    }
+    this.checkIntegerConstantRange(pattern.value, resolved, pattern.location);
+  }
+
   public checkMatchExhaustiveness(
     expr: AST.MatchExpr,
     enumDecl: AST.EnumDecl | undefined,
@@ -3141,6 +3232,7 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
   ): void {
     // Non-enum matches need an unguarded catch-all or provable finite coverage.
     if (!enumDecl) {
+      this.checkNonEnumArmsReachable(expr);
       if (!valueType || !this.isNonEnumMatchExhaustive(expr, valueType)) {
         throw new CompilerError(
           "Non-exhaustive match: missing default case (_)",
@@ -3524,8 +3616,7 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
     if (!enumDecl) {
       // Allow literals on primitive types
       if (pattern.kind === "PatternLiteral") {
-        // Literal patterns like 5, "hello", true, etc.
-        // Type checking happens at runtime comparison
+        this.checkLiteralPattern(pattern, enumType);
         return;
       }
 

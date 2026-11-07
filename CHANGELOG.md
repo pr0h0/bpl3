@@ -8,14 +8,21 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Changed
 
+- Literal match patterns must have the matched value's type: `300` on a
+  `u8`, `"a"` or `1.0` on an integer, and `true` on an integer are rejected
+  (`BPL_MATCH_LITERAL_PATTERN_TYPE_MISMATCH` or
+  `BPL_INTEGER_LITERAL_OVERFLOW`), and a repeated literal arm is rejected as
+  unreachable. `300` used to match a `u8` holding 44 (BUG-482).
+- Number literal patterns may be negative: `match (x) { -1 => ..., _ => ... }`.
 - The generated-program fuzzer covers exceptions: nested `try`/`catch` with
   values thrown directly or from a called function, typed clauses that do
   not match, catch-all clauses, rethrows from a catch body, and exceptions
   that pass through a function running a `defer` or one that rethrows them
   as another type, and struct values thrown and caught by type. It also
   generates struct-returning functions, calls through `Func` locals, C-style
-  and infinite loops, `switch` arms ending in `fallthrough`, and integer
-  `match` expressions with guarded arms.
+  and infinite loops, `switch` on integers, enum values and strings with
+  arms ending in `fallthrough`, and integer `match` expressions with
+  negative literal and guarded arms.
 - `bun run fuzz -- --oracle-only` (`FUZZ_ORACLE_ONLY=1`) runs only generated
   programs against their expected output, for local miscompile hunts.
 

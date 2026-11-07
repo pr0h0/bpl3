@@ -657,11 +657,11 @@ function optimizeGeneratedIdBoundary(parserSource: string): string {
     "    s0 = peg$currPos;",
     "    peg$silentFails++;",
     "    s1 = input.charAt(peg$currPos);",
-    "    if (peg$r12.test(s1)) {",
+    "    if (peg$rIDBOUNDARY.test(s1)) {",
     "      peg$currPos++;",
     "    } else {",
     "      s1 = peg$FAILED;",
-    "      if (peg$silentFails === 0) { peg$fail(peg$e79); }",
+    "      if (peg$silentFails === 0) { peg$fail(peg$eIDBOUNDARY); }",
     "    }",
     "    peg$silentFails--;",
     "    if (s1 === peg$FAILED) {",
@@ -690,13 +690,21 @@ function optimizeGeneratedIdBoundary(parserSource: string): string {
     "  }",
   ].join("\n");
 
-  if (!parserSource.includes(original)) {
+  // Peggy numbers its regexes and expectations in grammar order, so the
+  // indices change whenever an earlier rule adds one.
+  const pattern = new RegExp(
+    original
+      .replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
+      .replace("peg\\$rIDBOUNDARY", "peg\\$r\\d+")
+      .replace("peg\\$eIDBOUNDARY", "peg\\$e\\d+"),
+  );
+  if (!pattern.test(parserSource)) {
     throw new Error(
       "Generated Peggy parser IdBoundary shape changed; update the BPL parser boundary optimizer.",
     );
   }
 
-  return parserSource.replace(original, replacement);
+  return parserSource.replace(pattern, replacement);
 }
 
 function optimizeGeneratedFrameKeywordParsing(parserSource: string): string {

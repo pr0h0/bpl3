@@ -1421,7 +1421,17 @@ LambdaBody
     }
 
 PatternLiteral
-  = lit:(BoolLiteral / NumberLiteral / StringLiteral / CharLiteral / NullptrLiteral) { 
+  = "-" _ lit:NumberLiteral {
+      // A negative number literal (`-3`, `-1.5`), as in switch case labels.
+      const negated = literal(
+        typeof lit.value === "bigint" ? -lit.value : -lit.value,
+        "-" + lit.raw,
+        "number",
+        location(),
+      );
+      return patternLiteral(negated, location());
+    }
+  / lit:(BoolLiteral / NumberLiteral / StringLiteral / CharLiteral / NullptrLiteral) { 
       return patternLiteral(lit, location()); 
     }
 

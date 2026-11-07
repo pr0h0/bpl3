@@ -784,15 +784,23 @@ try {
   Sub-patterns nest: a tuple-variant payload or a struct-variant field may be
   any pattern, as in `Scene.Single { shape: Shape.Circle { radius: 0, shade: _ }, label: l }`.
   Generic enum patterns may be written `Option<int>.Some(x)` or
-  `Option.Some(x)`.
+  `Option.Some(x)`. A number literal pattern may be negative (`-1`, `-0.5`).
+  A literal pattern must have the matched value's type: an integer literal
+  must fit the matched integer type (`BPL_INTEGER_LITERAL_OVERFLOW`), a
+  floating-point literal such as `1.0` never matches an integer, `true` and
+  `false` match only `bool`, and a string literal matches only a string;
+  otherwise the pattern is rejected with
+  `BPL_MATCH_LITERAL_PATTERN_TYPE_MISMATCH`. An integer literal may match a
+  floating-point value.
 - **[R-MATCH-3]** An enum match must cover every variant or include a
   catch-all arm. Other matches must include an unguarded `_` or identifier arm.
   Guarded arms do not count toward exhaustiveness. Arms with sub-patterns
   cover a variant together: `E.V(true)` and `E.V(false)` cover `E.V`, while
   `E.V(1, y)` alone does not; struct-variant fields count the same way. The catch-all arm of an enum match is `_`; an
   identifier cannot bind the whole enum value.
-  An arm that can never be selected (after an unguarded `_`, or after an arm
-  that already matches every value of its variant) is rejected. Violations are
+  An arm that can never be selected (after an unguarded `_` or binding, after
+  an arm that already matches every value of its variant, or an unguarded
+  literal arm that repeats an earlier one) is rejected. Violations are
   rejected with `BPL_MATCH_EXHAUSTIVENESS_MISMATCH`.
 - **[R-MATCH-4]** An arm body may be a block. Inside a block arm of a match
   used as an expression, `return expression;` yields the arm's value rather
