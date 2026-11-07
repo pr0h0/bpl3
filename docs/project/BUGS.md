@@ -1009,6 +1009,38 @@ assignments.
 an invalid target stays invalid (`(1 + 2) = 3`). R-EXPR-5 states the rule, and
 the fuzzer parenthesizes targets at random. `tests/AuditCompilerFixes.test.ts`.
 
+### BUG-480: Formatter adds a blank line after a multi-line `match` subject
+
+**Status**: Fixed · **Priority**: P3
+
+Found by the generated-program fuzzer once it produced integer `match`
+expressions (2026-11-07). The `match` counterpart of BUG-466: when the subject
+spanned several lines (a nested `match`), the second formatting pass inserted
+a blank line before the first arm, because blank lines were measured from the
+`match` keyword's line.
+
+**Resolution**: blank lines before the first arm are measured from the
+header's `{`, as for `switch`; blank lines written between arms are kept.
+`tests/FormatterMatchSubject.test.ts`.
+
+### BUG-481: A catch variable cannot be captured by `defer` or a lambda
+
+**Status**: Fixed · **Priority**: P2
+
+Found by the generated-program fuzzer once it produced `try`/`catch` with
+deferred prints in loops (2026-11-07). Inside `catch (e: T) { ... }`, a
+`defer` that read `e` failed to compile with `Cannot resolve type for
+captured variable e`, because code generation bound the catch variable
+without recording its type. A lambda that read `e` produced IR loading from
+`%undefined_ptr`: the capture analysis reported the catch clause itself as
+the declaration, and a clause keeps its name in `variable`, not `name`.
+
+**Resolution**: the catch binding records its type like any other local, and
+is restored to any outer local of the same name after the clause. Capture
+analysis reports a captured catch binding as a variable of the caught type.
+`tests/CatchBindingCaptures.test.ts` covers `defer` in a loop, struct, `int`
+and `double` bindings, lambdas, and an outer local of the same name.
+
 ## Developer experience fixes (2026-10-28)
 
 - **Fixed:** Installing required `init.sh` (sudo link into `/usr/bin`, edits to

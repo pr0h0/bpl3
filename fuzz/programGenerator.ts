@@ -11,7 +11,8 @@
  *
  * Programs avoid undefined or trapping behavior by construction: divisors and
  * shift counts are masked into safe ranges, and array indices are masked to
- * the array length.
+ * the array length. Exceptions are thrown only inside a `try` whose clauses
+ * catch them (R-EXC-2), so every program exits normally.
  */
 
 export interface IntType {
@@ -73,6 +74,15 @@ interface Expr {
 /** How a statement left its block: normally, or by break/continue. */
 type Signal = "break" | "continue" | undefined;
 
+/** A value thrown by the generated program, unwinding the oracle too. */
+class Thrown {
+  constructor(
+    /** A struct's field values, in order, for a thrown struct. */
+    readonly value: Value | Value[],
+    readonly type: ThrowType,
+  ) {}
+}
+
 interface Stmt {
   code(indent: string): string;
   exec(env: Env): Signal;
@@ -80,19 +90,25 @@ interface Stmt {
   defer?(env: Env): () => void;
 }
 
-/** Run a block; deferred statements run last-in, first-out at its exit. */
+/**
+ * Run a block; deferred statements run last-in, first-out at its exit,
+ * including an exit by a thrown exception (R-DEFER-1).
+ */
 function execBlock(statements: Stmt[], env: Env): Signal {
   const deferred: (() => void)[] = [];
   let signal: Signal;
-  for (const statement of statements) {
-    if (statement.defer) {
-      deferred.push(statement.defer(env));
-      continue;
+  try {
+    for (const statement of statements) {
+      if (statement.defer) {
+        deferred.push(statement.defer(env));
+        continue;
+      }
+      signal = statement.exec(env);
+      if (signal) break;
     }
-    signal = statement.exec(env);
-    if (signal) break;
+  } finally {
+    for (const run of deferred.reverse()) run();
   }
-  for (const run of deferred.reverse()) run();
   return signal;
 }
 
@@ -123,6 +139,15 @@ interface StructDef {
   mutators: { name: string; field: number; body: Expr }[];
   /** `frame name(s: S, d: int) ret T`, taking the struct by value. */
   byValue: { name: string; returnType: ScalarType; body: Expr }[];
+  /** `frame mkK(x: int) ret S`, returning a new value (also thrown). */
+  maker?: { name: string; fields: Expr[] };
+}
+
+/** What a generated program throws: an integer or a struct value. */
+type ThrowType = IntType | StructDef;
+
+function isStructType(type: ThrowType): type is StructDef {
+  return !("kind" in type);
 }
 
 /** A struct-typed local in main. */
@@ -167,6 +192,33 @@ interface Hierarchy {
   /** Locals with their dynamic type; `up` are `*Parent` pointers to a child. */
   locals: { name: string; dynamic: "parent" | "child" }[];
   pointers: { name: string; target: string }[];
+}
+
+/** `frame thrK(x: int, limit: int) ret int`: throws when `x > limit`. */
+interface Thrower {
+  name: string;
+  throwType: IntType;
+  scale: bigint;
+  offset: bigint;
+  mask: bigint;
+}
+
+/**
+ * `frame rlK(x: int) ret int` between main and a thrower: it either runs a
+ * deferred print while the exception passes through it, or catches an `int`
+ * and rethrows it as a `long`.
+ */
+interface Relay {
+  name: string;
+  target: Thrower;
+  limit: bigint;
+  form: "defer" | "translate";
+}
+
+/** `local fpK: Func<R>(P...) = hN;` in main, called like the helper. */
+interface FuncPointer {
+  name: string;
+  helper: Helper;
 }
 
 interface Mutator {
@@ -262,6 +314,11 @@ class ProgramBuilder {
   private scope: Place[] = [];
   /** Enclosing loops, so break/continue are only generated inside one. */
   private loopDepth = 0;
+  /** Enclosing `try` bodies of main; throws are only generated inside one. */
+  private tryDepth = 0;
+  private readonly throwers: Thrower[] = [];
+  private readonly relays: Relay[] = [];
+  private readonly funcPointers: FuncPointer[] = [];
 
   constructor(
     private readonly rng: () => number,
@@ -498,7 +555,13 @@ class ProgramBuilder {
   }
 
   private intExpr(type: IntType, depth: number, constantOnly: boolean): Expr {
-    const choice = this.int(0, constantOnly ? 5 : this.plainOnly ? 6 : 15);
+    const choice = this.int(
+      0,
+      constantOnly ? 5 : this.plainOnly ? 6 : this.canThrow() ? 17 : 15,
+    );
+    if (choice === 6 && this.chance(0.35)) {
+      return this.intMatchExpr(type, depth);
+    }
     if (choice >= 9) {
       const feature = this.featureExpr(choice, type, depth);
       if (feature) return feature;
@@ -594,13 +657,18 @@ class ProgramBuilder {
         const args = helper.params.map((param) =>
           guard(this.expr(param.type, depth - 1, false)),
         );
+        // Through a `Func` local of main, which holds the helper's address.
+        const pointer = this.inFunctionBody
+          ? undefined
+          : this.funcPointers.find((candidate) => candidate.helper === helper);
+        const callee = pointer && this.chance(0.5) ? pointer.name : helper.name;
         return {
           type,
-          code: `${helper.name}(${args.map((arg) => arg.code).join(", ")})`,
+          code: `${callee}(${args.map((arg) => arg.code).join(", ")})`,
           constant: false,
           reads: args.reduce(
             (all, arg) => union(all, arg.reads),
-            new Set<string>(),
+            new Set(callee === helper.name ? [] : [callee]),
           ),
           eval: (env) => {
             const callEnv: Env = new Map(
@@ -633,6 +701,7 @@ class ProgramBuilder {
     if (this.inFunctionBody && [9, 11, 13, 14, 15].includes(choice)) {
       return undefined;
     }
+    if (choice >= 16) return this.throwerCall(type, sub);
     switch (choice) {
       case 9: {
         const candidates = this.instances.flatMap((instance) => [
@@ -782,6 +851,159 @@ class ProgramBuilder {
         };
       }
     }
+  }
+
+  /**
+   * Whether an expression may throw here: inside a `try` body of main, but
+   * not in deferred code, lambdas, functions or array indices, whose
+   * evaluation order relative to the stored value is not observable.
+   */
+  private canThrow(): boolean {
+    return (
+      this.tryDepth > 0 &&
+      this.throwers.length > 0 &&
+      !this.plainOnly &&
+      !this.inFunctionBody &&
+      !this.inLambdaBody &&
+      this.indexNesting === 0
+    );
+  }
+
+  /** `thrK((x) & mask, limit)`, which throws when its argument is too big. */
+  private throwerCall(type: ScalarType, depth: number): Expr | undefined {
+    if (!this.canThrow() || type.kind !== "int") return undefined;
+    const arg = this.expr(INT, depth, false);
+    if (this.relays.length > 0 && this.chance(0.4)) {
+      const relay = this.pick(this.relays);
+      const mask = relay.target.mask;
+      const call = `${relay.name}((${arg.code}) & ${mask})`;
+      return {
+        type,
+        code: type === INT ? call : `cast<${type.name}>(${call})`,
+        constant: false,
+        reads: arg.reads,
+        eval: (env) =>
+          convert(
+            this.callRelay(relay, (arg.eval(env) as bigint) & mask),
+            type,
+          ),
+      };
+    }
+    const thrower = this.pick(this.throwers);
+    const limit = BigInt(this.int(0, Number(thrower.mask)));
+    const call = `${thrower.name}((${arg.code}) & ${thrower.mask}, ${limit})`;
+    return {
+      type,
+      code: type === INT ? call : `cast<${type.name}>(${call})`,
+      constant: false,
+      reads: arg.reads,
+      eval: (env) =>
+        convert(
+          callThrower(thrower, (arg.eval(env) as bigint) & thrower.mask, limit),
+          type,
+        ),
+    };
+  }
+
+  /** What a relay returns, throws, and prints from its `defer`. */
+  private callRelay(relay: Relay, x: bigint): bigint {
+    if (relay.form === "defer") {
+      try {
+        return wrap(callThrower(relay.target, x, relay.limit) + 1n, INT);
+      } finally {
+        this.out.push(relay.name);
+      }
+    }
+    try {
+      return callThrower(relay.target, x, relay.limit) ^ 3n;
+    } catch (error) {
+      if (!(error instanceof Thrown) || error.type !== INT) throw error;
+      throw new Thrown(wrap((error.value as bigint) * 2n, LONG), LONG);
+    }
+  }
+
+  /**
+   * `match (x) { 3 => a, n if n < k => b, _ => c }` on an integer: literal
+   * arms, guarded binding arms, then a catch-all.
+   */
+  private intMatchExpr(type: IntType, depth: number): Expr {
+    const subjectType = this.intType();
+    const subject = this.expr(subjectType, depth - 1, false);
+    const saved = this.scope;
+    const literals = new Set<bigint>();
+    const arms: {
+      pattern: string;
+      binding?: string;
+      test: (value: bigint, env: Env) => boolean;
+      body: Expr;
+      guard?: Expr;
+    }[] = [];
+    for (let index = this.int(1, 4); index > 0; index--) {
+      if (this.chance(0.35)) {
+        const binding = this.fresh("n");
+        this.scope = [
+          ...saved,
+          { type: subjectType, code: binding, key: binding, readonly: true },
+        ];
+        const limit = this.expr(this.intType(), depth - 1, false);
+        const op = this.pick(["<", ">", "==", "!="]);
+        const condition = `(${binding}) ${op} (${limit.code})`;
+        const body = guard(this.expr(type, depth - 1, false));
+        this.scope = saved;
+        arms.push({
+          pattern: `${binding} if ${condition}`,
+          binding,
+          body,
+          guard: limit,
+          test: (value, env) => {
+            const right = convert(
+              limit.eval(new Map(env).set(binding, value)),
+              subjectType,
+            ) as bigint;
+            return op === "<"
+              ? value < right
+              : op === ">"
+                ? value > right
+                : op === "=="
+                  ? value === right
+                  : value !== right;
+          },
+        });
+        continue;
+      }
+      const literal = BigInt(this.int(0, 15));
+      if (literals.has(literal)) continue;
+      literals.add(literal);
+      arms.push({
+        pattern: String(literal),
+        test: (value) => value === literal,
+        body: guard(this.expr(type, depth - 1, false)),
+      });
+    }
+    const fallback = guard(this.expr(type, depth - 1, false));
+    arms.push({ pattern: "_", test: () => true, body: fallback });
+    return {
+      type,
+      code: `(match (${subject.code}) { ${arms.map((arm) => `${arm.pattern} => ${arm.body.code}`).join(", ")} })`,
+      constant: false,
+      reads: arms.reduce(
+        (all, arm) =>
+          union(all, union(arm.body.reads, arm.guard?.reads ?? new Set())),
+        subject.reads,
+      ),
+      eval: (env) => {
+        const value = convert(subject.eval(env), subjectType) as bigint;
+        for (const arm of arms) {
+          const armEnv = arm.binding
+            ? new Map(env).set(arm.binding, value)
+            : env;
+          if (arm.test(value, armEnv)) {
+            return convert(arm.body.eval(armEnv), type);
+          }
+        }
+        throw new Error("unreachable: the match has a catch-all arm");
+      },
+    };
   }
 
   /** An `int` index expression, with array reads inside it bounded. */
@@ -993,6 +1215,15 @@ class ProgramBuilder {
   private statement(depth: number): Stmt {
     if (this.loopDepth > 0 && this.chance(0.08)) return this.jump();
     if (this.loopDepth > 0 && this.chance(0.05)) return this.deferStatement();
+    if (
+      depth > 0 &&
+      this.tryDepth < 2 &&
+      this.throwers.length > 0 &&
+      this.chance(0.1)
+    ) {
+      return this.tryStatement(depth);
+    }
+    if (this.tryDepth > 0 && this.chance(0.06)) return this.throwStatement();
     if (this.chance(0.15)) {
       const feature = this.featureStatement();
       if (feature) return feature;
@@ -1117,7 +1348,27 @@ class ProgramBuilder {
 
   /** Calls that write through `this`, a pointer, or a new enum value. */
   private featureStatement(): Stmt | undefined {
-    const choice = this.int(0, 2);
+    const choice = this.int(0, 3);
+    if (choice === 3) {
+      // `s = mkK(x);` replaces every field of a struct local.
+      const candidates = this.instances.filter(
+        (instance) => instance.struct.maker,
+      );
+      if (candidates.length === 0) return undefined;
+      const instance = this.pick(candidates);
+      const maker = instance.struct.maker!;
+      const arg = guard(this.expr(INT, 2, false));
+      return {
+        code: (indent) =>
+          `${indent}${instance.name} = ${maker.name}(${arg.code});`,
+        exec: (env) => {
+          this.makeValues(instance.struct, arg.eval(env), env).forEach(
+            (value, field) => env.set(`${instance.name}.f${field}`, value),
+          );
+          return undefined;
+        },
+      };
+    }
     if (choice === 0) {
       const candidates = this.instances.filter(
         (instance) => instance.struct.mutators.length > 0,
@@ -1223,6 +1474,185 @@ class ProgramBuilder {
     };
   }
 
+  /** The fields `mkK(x)` returns, evaluated like a call. */
+  private makeValues(struct: StructDef, x: Value, env: Env): Value[] {
+    const callEnv = this.callEnv(env);
+    callEnv.set("x", convert(x, INT));
+    return struct.maker!.fields.map((field, index) =>
+      convert(field.eval(callEnv), struct.fields[index]!),
+    );
+  }
+
+  /** Struct types a `throw` may produce. */
+  private throwableStructs(): StructDef[] {
+    return this.structs.filter((struct) => struct.maker);
+  }
+
+  /**
+   * `try { ... } catch (e: T) { ... } catch { ... }`. Typed clauses match the
+   * thrown type exactly and are tested in order (R-EXC-2); an exception no
+   * clause handles reaches the enclosing `try`, so the outermost one always
+   * handles both thrown types.
+   */
+  private tryStatement(depth: number): Stmt {
+    const outermost = this.tryDepth === 0;
+    this.tryDepth++;
+    const body = this.block(depth, this.int(1, 3));
+    if (this.chance(0.5)) {
+      body.splice(this.int(0, body.length), 0, this.throwStatement());
+    }
+    this.tryDepth--;
+    const thrownTypes: ThrowType[] = [INT, LONG, ...this.throwableStructs()];
+    // Struct clauses may name a struct that is never thrown.
+    const candidates: ThrowType[] = [INT, LONG, INT_TYPES[1]!, ...this.structs];
+    const types: ThrowType[] = [];
+    for (let index = this.int(1, 3); index > 0; index--) {
+      const type = this.pick(candidates);
+      if (!types.includes(type)) types.push(type);
+    }
+    const covered = thrownTypes.every((type) => types.includes(type));
+    const catchAll = (outermost && !covered) || this.chance(0.3);
+    const clauses = [
+      ...types.map((type) => this.catchClause(depth, type)),
+      ...(catchAll ? [this.catchClause(depth, undefined)] : []),
+    ];
+    return {
+      code: (indent) => {
+        const inner = indent + "    ";
+        const lines = (statements: Stmt[]) =>
+          statements.map((statement) => `${statement.code(inner)}\n`).join("");
+        let text = `${indent}try {\n${lines(body)}${indent}}`;
+        for (const clause of clauses) {
+          const head = clause.type
+            ? `catch (${clause.variable}: ${clause.type.name})`
+            : "catch";
+          text += ` ${head} {\n${lines(clause.body)}${indent}}`;
+        }
+        return text;
+      },
+      exec: (env) => {
+        try {
+          return execBlock(body, env);
+        } catch (error) {
+          if (!(error instanceof Thrown)) throw error;
+          const clause = clauses.find(
+            (candidate) =>
+              !candidate.type || candidate.type.name === error.type.name,
+          );
+          if (!clause) throw error;
+          if (clause.type && isStructType(clause.type)) {
+            (error.value as Value[]).forEach((value, field) =>
+              env.set(`${clause.variable}.f${field}`, value),
+            );
+          } else if (clause.type) {
+            env.set(clause.variable, error.value as Value);
+          }
+          return execBlock(clause.body, env);
+        }
+      },
+    };
+  }
+
+  /**
+   * A catch clause. A typed clause folds its value into an integer place
+   * first, so the variable is used; it is `_`-prefixed when there is none.
+   */
+  private catchClause(
+    depth: number,
+    type: ThrowType | undefined,
+  ): { type?: ThrowType; variable: string; body: Stmt[] } {
+    const name = this.fresh("e");
+    const saved = this.scope;
+    const statements: Stmt[] = [];
+    const targets = saved.filter(
+      (place) => !place.array && !place.readonly && place.type.kind === "int",
+    );
+    // The value folded into the target: the variable, or a struct's integer
+    // field. Struct fields are readable in the clause body like other locals.
+    const intFields =
+      type && isStructType(type)
+        ? type.fields.flatMap((field, index) =>
+            field.kind === "int" ? [index] : [],
+          )
+        : [];
+    const source =
+      type === undefined || targets.length === 0
+        ? undefined
+        : isStructType(type)
+          ? intFields.length > 0
+            ? `${name}.f${this.pick(intFields)}`
+            : undefined
+          : name;
+    const used = source !== undefined;
+    if (used) {
+      const target = this.pick(targets);
+      const targetType = target.type as IntType;
+      statements.push({
+        code: (indent) => `${indent}${target.code} ^= ${source};`,
+        exec: (env) => {
+          const right = convert(env.get(source)!, targetType) as bigint;
+          env.set(
+            target.key,
+            applyIntOp("^", env.get(target.key) as bigint, right, targetType),
+          );
+          return undefined;
+        },
+      });
+      this.scope = [
+        ...saved,
+        ...(isStructType(type!)
+          ? (type as StructDef).fields.map((fieldType, field) => ({
+              type: fieldType,
+              code: `${name}.f${field}`,
+              key: `${name}.f${field}`,
+              readonly: true,
+            }))
+          : [{ type: type as IntType, code: name, key: name, readonly: true }]),
+      ];
+    }
+    statements.push(...this.block(depth, this.int(0, 2)));
+    this.scope = saved;
+    return { type, variable: used ? name : `_${name}`, body: statements };
+  }
+
+  /**
+   * `if (c) { throw v; }` inside a `try`, with an `int` or `long` value or a
+   * struct returned by `mkK(x)`.
+   */
+  private throwStatement(): Stmt {
+    const condition = this.boolExpr(2, false);
+    const structs = this.throwableStructs();
+    if (structs.length > 0 && this.chance(0.35)) {
+      const struct = this.pick(structs);
+      const arg = guard(this.expr(INT, 2, false));
+      return {
+        code: (indent) =>
+          `${indent}if (${condition.code}) {\n${indent}    throw ${struct.maker!.name}(${arg.code});\n${indent}}`,
+        exec: (env) => {
+          if (condition.eval(env)) {
+            throw new Thrown(
+              this.makeValues(struct, arg.eval(env), env),
+              struct,
+            );
+          }
+          return undefined;
+        },
+      };
+    }
+    const type = this.pick([INT, LONG]);
+    const value = guard(this.expr(type, 2, false));
+    return {
+      code: (indent) =>
+        `${indent}if (${condition.code}) {\n${indent}    throw ${value.code};\n${indent}}`,
+      exec: (env) => {
+        if (condition.eval(env)) {
+          throw new Thrown(convert(value.eval(env), type) as bigint, type);
+        }
+        return undefined;
+      },
+    };
+  }
+
   /** `if (c) { break; }` or `continue`, only inside a loop. */
   private jump(): Stmt {
     const condition = this.boolExpr(2, false);
@@ -1257,36 +1687,46 @@ class ProgramBuilder {
   private switchStatement(depth: number): Stmt {
     const subject = this.expr(INT, 2, false);
     const modulus = this.int(2, 5);
-    const cases = Array.from({ length: this.int(1, modulus) }, (_, value) => ({
-      value,
-      body: this.block(depth, this.int(1, 2)),
-    }));
-    const fallback = this.chance(0.7) ? this.block(depth, 1) : undefined;
+    // Arms run in order; one ending in `fallthrough` continues with the next
+    // (R-CTRL-8). The default arm, when present, is last.
+    const arms: { value?: number; body: Stmt[]; fallthrough: boolean }[] =
+      Array.from({ length: this.int(1, modulus) }, (_, value) => ({
+        value,
+        body: this.block(depth, this.int(1, 2)),
+        fallthrough: this.chance(0.25),
+      }));
+    if (this.chance(0.7)) {
+      arms.push({ body: this.block(depth, 1), fallthrough: false });
+    } else {
+      arms[arms.length - 1]!.fallthrough = false;
+    }
     return {
       code: (indent) => {
         const caseIndent = indent + "    ";
         const bodyIndent = caseIndent + "    ";
-        const arms = cases.map(
+        const text = arms.map(
           (arm) =>
-            `${caseIndent}case ${arm.value}: {\n${arm.body.map((s) => s.code(bodyIndent)).join("\n")}\n${bodyIndent}break;\n${caseIndent}}`,
+            `${caseIndent}${arm.value === undefined ? "default" : `case ${arm.value}`}: {\n${arm.body.map((s) => s.code(bodyIndent)).join("\n")}\n${bodyIndent}${arm.fallthrough ? "fallthrough" : "break"};\n${caseIndent}}`,
         );
-        if (fallback) {
-          arms.push(
-            `${caseIndent}default: {\n${fallback.map((s) => s.code(bodyIndent)).join("\n")}\n${bodyIndent}break;\n${caseIndent}}`,
-          );
-        }
-        return `${indent}switch (((${subject.code}) % ${modulus} + ${modulus}) % ${modulus}) {\n${arms.join("\n")}\n${indent}}`;
+        return `${indent}switch (((${subject.code}) % ${modulus} + ${modulus}) % ${modulus}) {\n${text.join("\n")}\n${indent}}`;
       },
       exec: (env) => {
         const raw = subject.eval(env) as bigint;
         const m = BigInt(modulus);
         const selected = wrap(wrap(wrap(raw % m, INT) + m, INT) % m, INT);
-        const arm = cases.find(
-          (candidate) => BigInt(candidate.value) === selected,
+        let index = arms.findIndex(
+          (arm) => arm.value !== undefined && BigInt(arm.value) === selected,
         );
-        const signal = execBlock(arm ? arm.body : (fallback ?? []), env);
-        // `break` leaves the switch; `continue` reaches the enclosing loop.
-        return signal === "break" ? undefined : signal;
+        if (index < 0) {
+          index = arms.findIndex((arm) => arm.value === undefined);
+        }
+        for (; index >= 0 && index < arms.length; index++) {
+          const signal = execBlock(arms[index]!.body, env);
+          // `break` leaves the switch; `continue` reaches the enclosing loop.
+          if (signal) return signal === "break" ? undefined : signal;
+          if (!arms[index]!.fallthrough) break;
+        }
+        return undefined;
       },
     };
   }
@@ -1307,19 +1747,40 @@ class ProgramBuilder {
     const body = depth > 0 ? this.block(depth, this.int(1, 3)) : [];
     this.loopDepth--;
     this.scope.pop();
+    // A while loop, a C-style loop (its step also runs on `continue`, and
+    // the counter counts from 0), or `loop { }` with an explicit break.
+    const form = this.int(0, 2);
     return {
       code: (indent) => {
         const inner = indent + "    ";
+        const statements = body.map((s) => s.code(inner));
+        if (form === 1) {
+          return [
+            `${indent}loop (local ${counter}: int = 0; ${counter} < ${limit}; ${counter} = ${counter} + 1) {`,
+            ...statements,
+            `${indent}}`,
+          ].join("\n");
+        }
         return [
           `${indent}local ${counter}: int = 0;`,
-          `${indent}loop (${counter} < ${limit}) {`,
+          form === 0
+            ? `${indent}loop (${counter} < ${limit}) {`
+            : `${indent}loop {`,
           `${inner}${counter} = ${counter} + 1;`,
-          ...body.map((s) => s.code(inner)),
+          ...(form === 2
+            ? [
+                `${inner}if (${counter} > ${limit}) {`,
+                `${inner}    break;`,
+                `${inner}}`,
+              ]
+            : []),
+          ...statements,
           `${indent}}`,
         ].join("\n");
       },
       exec: (env) => {
-        for (let i = 1; i <= limit; i++) {
+        const first = form === 1 ? 0 : 1;
+        for (let i = first; i < first + limit; i++) {
           env.set(counter, BigInt(i));
           if (execBlock(body, env) === "break") break;
         }
@@ -1583,6 +2044,26 @@ class ProgramBuilder {
     for (let index = this.int(0, 2); index > 0; index--) {
       lines.push(this.structDefinition());
     }
+    // Struct-returning functions: assigned to struct locals and thrown.
+    for (const struct of this.structs) {
+      if (!this.chance(0.5)) continue;
+      const name = this.fresh("mk");
+      this.scope = [
+        ...this.globals,
+        { type: INT, code: "x", key: "x", readonly: true },
+      ];
+      this.inFunctionBody = true;
+      const fields = struct.fields.map((type) =>
+        guard(this.expr(type, 2, false)),
+      );
+      this.inFunctionBody = false;
+      this.scope = [];
+      const param = fields.some((field) => field.reads.has("x")) ? "x" : "_x";
+      lines.push(
+        `frame ${name}(${param}: int) ret ${struct.name} {\n    return ${struct.name} { ${fields.map((field, index) => `f${index}: ${field.code}`).join(", ")} };\n}`,
+      );
+      struct.maker = { name, fields };
+    }
 
     if (this.chance(0.5)) lines.push(this.hierarchyDefinition());
 
@@ -1612,6 +2093,46 @@ class ProgramBuilder {
       lines.push(
         `frame ${name}(q: *${type.name}, delta: ${deltaType.name}) {\n    *q = *q ${op} delta;\n}`,
       );
+    }
+
+    // Throwing helpers, called from expressions inside `try` bodies.
+    for (
+      let index = this.chance(0.6) ? this.int(1, 2) : 0;
+      index > 0;
+      index--
+    ) {
+      const throwType = this.pick([INT, LONG]);
+      const name = this.fresh("thr");
+      const thrower: Thrower = {
+        name,
+        throwType,
+        scale: BigInt(this.int(1, 9)),
+        offset: BigInt(this.int(0, 100)),
+        mask: this.pick([7n, 15n, 31n]),
+      };
+      this.throwers.push(thrower);
+      const value =
+        throwType === INT
+          ? `x * ${thrower.scale} + ${thrower.offset}`
+          : `cast<long>(x) * cast<long>(${thrower.scale}) + cast<long>(${thrower.offset})`;
+      lines.push(
+        `frame ${name}(x: int, limit: int) ret int {\n    if (x > limit) {\n        throw ${value};\n    }\n    return x ^ ${thrower.offset};\n}`,
+      );
+      if (this.chance(0.6)) {
+        const relay: Relay = {
+          name: this.fresh("rl"),
+          target: thrower,
+          limit: BigInt(this.int(0, Number(thrower.mask))),
+          form: this.chance(0.5) ? "defer" : "translate",
+        };
+        this.relays.push(relay);
+        const call = `${name}(x, ${relay.limit})`;
+        lines.push(
+          relay.form === "defer"
+            ? `frame ${relay.name}(x: int) ret int {\n    defer printf("${relay.name}\\n");\n    return ${call} + 1;\n}`
+            : `frame ${relay.name}(x: int) ret int {\n    try {\n        return ${call} ^ 3;\n    } catch (e: int) {\n        throw cast<long>(e) * cast<long>(2);\n    }\n}`,
+        );
+      }
     }
 
     for (let index = this.int(0, 3); index > 0; index--) {
@@ -1662,6 +2183,14 @@ class ProgramBuilder {
     // main: locals, a struct, an array, then random statements.
     this.scope = [...this.globals];
     const decls: string[] = [];
+    for (const helper of this.helpers) {
+      if (!this.chance(0.4)) continue;
+      const name = this.fresh("fp");
+      decls.push(
+        `    local ${name}: Func<${helper.returnType.name}>(${helper.params.map((param) => param.type.name).join(", ")}) = ${helper.name};`,
+      );
+      this.funcPointers.push({ name, helper });
+    }
     const printed: { code: string; key: string; type: ScalarType }[] = [];
     for (let index = this.int(2, 5); index > 0; index--) {
       const type = this.scalarType();
@@ -1909,6 +2438,21 @@ class ProgramBuilder {
           output,
         ),
       ),
+      // Every `Func` local is used at least once: called with all ones.
+      ...this.funcPointers.map((pointer) => {
+        const { helper } = pointer;
+        const callEnv = this.callEnv(env);
+        helper.params.forEach((param) =>
+          callEnv.set(param.name, convert(1n, param.type)),
+        );
+        return this.printValue(
+          `${pointer.name}_1`,
+          `${pointer.name}(${helper.params.map((param) => `cast<${param.type.name}>(1)`).join(", ")})`,
+          helper.returnType,
+          convert(helper.body.eval(callEnv), helper.returnType),
+          output,
+        );
+      }),
       ...this.enumLocals.flatMap((local) => this.printEnum(local, env, output)),
       ...printedCalls.map((pointer) => {
         const h = this.hierarchy!;
@@ -1972,6 +2516,18 @@ function guard(expr: Expr): Expr {
   return expr.constant && expr.type === INT && !expr.code.startsWith("cast<")
     ? { ...expr, code: `cast<int>(${expr.code})` }
     : expr;
+}
+
+/** `thrK(x, limit)`: `x ^ offset`, or throws `x * scale + offset`. */
+function callThrower(thrower: Thrower, x: bigint, limit: bigint): bigint {
+  if (x > limit) {
+    const thrown = convert(x, thrower.throwType) as bigint;
+    throw new Thrown(
+      wrap(thrown * thrower.scale + thrower.offset, thrower.throwType),
+      thrower.throwType,
+    );
+  }
+  return wrap(x ^ thrower.offset, INT);
 }
 
 function union(a: Set<string>, b: Set<string>): Set<string> {

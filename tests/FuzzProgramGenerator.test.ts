@@ -47,6 +47,23 @@ describe("generated fuzz programs", () => {
       /\bdefer printf\(/,
       /: f32 = /,
       /%llx/,
+      /\btry \{/,
+      /\} catch \(e\d+: (int|long|u8)\) \{/,
+      /\} catch \{/,
+      /\bthrow /,
+      /\bthr\d+\(/,
+      /\bfallthrough;/,
+      /loop \(local i\d+: int = 0; /,
+      /loop \{/,
+      /\bn\d+ if \(n\d+\) /,
+      /local fp\d+: Func</,
+      /\bfp\d+\(/,
+      /\brl\d+\(\(/,
+      /defer printf\("rl\d+\\n"\);/,
+      /throw cast<long>\(e\) \* cast<long>\(2\);/,
+      /throw mk\d+\(/,
+      /catch \(e\d+: S\d+\)/,
+      /^\s+s\d+ = mk\d+\(/m,
     ]) {
       expect(sources).toMatch(feature);
     }

@@ -6,6 +6,27 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Changed
+
+- The generated-program fuzzer covers exceptions: nested `try`/`catch` with
+  values thrown directly or from a called function, typed clauses that do
+  not match, catch-all clauses, rethrows from a catch body, and exceptions
+  that pass through a function running a `defer` or one that rethrows them
+  as another type, and struct values thrown and caught by type. It also
+  generates struct-returning functions, calls through `Func` locals, C-style
+  and infinite loops, `switch` arms ending in `fallthrough`, and integer
+  `match` expressions with guarded arms.
+- `bun run fuzz -- --oracle-only` (`FUZZ_ORACLE_ONLY=1`) runs only generated
+  programs against their expected output, for local miscompile hunts.
+
+### Fixed
+
+- Formatting a `match` whose subject spans several lines no longer adds a
+  blank line before the first arm on the next pass (BUG-480).
+- A `defer` or lambda inside a `catch` clause can use the clause's variable.
+  It failed to compile with "Cannot resolve type for captured variable", or
+  produced invalid IR for a lambda (BUG-481).
+
 ## [0.1.2] - 2026-11-06
 
 See [release notes](docs/releases/v0.1.2.md) for the release scope and validation.

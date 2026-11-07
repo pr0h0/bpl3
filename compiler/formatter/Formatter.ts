@@ -1160,7 +1160,20 @@ export class Formatter {
     let output = `match (${this.formatExpression(expr.value)}) {\n`;
     this.indentLevel++;
 
-    this.lastLineProcessed = expr.location.startLine;
+    // Like a switch, blank lines before the first arm are measured from the
+    // header's `{`: a multi-line subject is not a blank line.
+    const subjectEnd = expr.value.location ?? expr.location;
+    const firstLine = expr.arms[0]?.location.startLine ?? expr.location.endLine;
+    this.lastLineProcessed = Math.max(
+      expr.location.startLine,
+      subjectEnd.endLine,
+      this.braceLineAfter(
+        expr.location.file,
+        subjectEnd.endLine,
+        subjectEnd.endColumn,
+        firstLine,
+      ) ?? 0,
+    );
 
     for (let i = 0; i < expr.arms.length; i++) {
       const arm = expr.arms[i]!;

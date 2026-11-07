@@ -51,6 +51,7 @@ Options:
   --crash-dir <dir>   Directory for .bpl repros and .json metadata
   --progress <n>      Progress log interval per seed
   --differential      Include deterministic O0/O3 runtime comparison inputs
+  --oracle-only       Run only generated programs against their oracle output
   --minimize <bool>   Write token-minimized .min.bpl artifacts for failures
   --minimize-passes <n>
                      Maximum minimization passes per failed artifact`,
@@ -61,7 +62,7 @@ Options:
       "progress",
       "minimize-passes",
     ]),
-    booleanOptions: new Set(["differential", "minimize"]),
+    booleanOptions: new Set(["differential", "oracle-only", "minimize"]),
     flagOptions: new Set(),
     valueValidators: {
       iterations: assertPositiveIntegerValue,
