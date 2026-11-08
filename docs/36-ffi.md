@@ -83,8 +83,12 @@ extern strlen(s: string) ret long;
 extern strlen(s: *char) ret u64;
 ```
 
-For scalar and pointer returns, leaving the return type off allows this module
-to ignore the result, so `extern printf(fmt: string, ...);` and
+An extern of a known C function that returns `int` (`printf`, `fprintf`,
+`dprintf`, `sprintf`, `snprintf`, `puts`, `putchar`, `scanf`, `sscanf`) has
+return type `int` when the declaration leaves it off, so its calls match the
+C definition; WebAssembly rejects a call through a mismatched signature at run
+time. For other scalar and pointer returns, leaving the return type off allows
+this module to ignore the result, so `extern printf(fmt: string, ...);` and
 `extern printf(fmt: string, ...) ret int;` can appear in different modules of
 the same program. A difference in the width or class of the return type, or
 in the parameters, is an error. Aggregate returns cannot be omitted this way:

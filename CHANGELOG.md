@@ -8,6 +8,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Changed
 
+- An extern of a known C function that returns `int` (`printf`, `puts`,
+  `putchar`, `fprintf`, `dprintf`, `sprintf`, `snprintf`, `scanf`, `sscanf`)
+  has return type `int` when the declaration omits it (R-EXTERN-8).
+- Hosted WebAssembly `printf` supports `%i`, `%u` and 64-bit `%ld`/`%lld`,
+  `%lu`/`%llu` and `%lx`/`%llx` conversions.
+- `bun run fuzz -- --wasm` also runs the generated programs (without
+  exceptions) as hosted WebAssembly against their expected output.
 - Literal match patterns must have the matched value's type: `300` on a
   `u8`, `"a"` or `1.0` on an integer, and `true` on an integer are rejected
   (`BPL_MATCH_LITERAL_PATTERN_TYPE_MISMATCH` or
@@ -38,6 +45,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - A `defer` or lambda inside a `catch` clause can use the clause's variable.
   It failed to compile with "Cannot resolve type for captured variable", or
   produced invalid IR for a lambda (BUG-481).
+- `extern printf(fmt: string, ...);` without `ret int` no longer makes hosted
+  WebAssembly print zeros or trap: the call now matches the runtime's
+  `int printf` (BUG-485).
 - `sizeof` of a type name such as `uint` inside a lambda no longer produces
   invalid IR (the type name was captured like a variable) (BUG-483).
 

@@ -8,6 +8,7 @@ import {
 } from "../fuzz/compilerFuzz";
 import {
   EXPECT_MARKER,
+  WASM_MARKER,
   generateOracleProgram,
   readExpectedStdout,
 } from "../fuzz/programGenerator";
@@ -128,6 +129,22 @@ describe("generated fuzz programs", () => {
     expect(outcome.mismatch?.expectedStdout).toContain("=wrong");
     expect(outcome.message).toContain("differs from its oracle");
   }, 60000);
+
+  test("for WebAssembly, omit exceptions and carry the target marker", () => {
+    for (let seed = 0; seed < 200; seed++) {
+      const { source } = generateOracleProgram(createSeededRandom(seed), {
+        wasm: true,
+      });
+      expect(source.startsWith(WASM_MARKER)).toBe(true);
+      expect({ seed, exceptions: /\btry \{|\bthrow /.test(source) }).toEqual({
+        seed,
+        exceptions: false,
+      });
+    }
+    expect(generateFuzzInput(0xabc, 3, { wasm: true }).source).toStartWith(
+      WASM_MARKER,
+    );
+  });
 
   test("deferred expressions contain no calls", () => {
     // A deferred call would run at block exit and could observe later
