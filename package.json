@@ -110,7 +110,7 @@
     "typescript": "^5"
   },
   "dependencies": {
-    "commander": "^14.0.2",
-    "peggy": "^5.0.6"
+    "commander": "^15.0.0",
+    "peggy": "^5.1.1"
   }
 }
