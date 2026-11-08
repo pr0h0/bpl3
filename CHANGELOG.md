@@ -12,7 +12,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   `"\xF0"` is one byte, not the two-byte UTF-8 encoding of U+00F0, so strings
   can hold any byte sequence. `\uHHHH` still encodes the character as UTF-8.
   Character literals accept `'\xHH'` and, up to `\u007F`, `'\uHHHH'`.
-
+- The generated-program fuzzer covers operator methods on structs, tuple
+  assignment and swaps, methods bound to lambdas including value receivers,
+  a generic enum, arrays of structs, and byte reads of strings holding escapes
+  and UTF-8 text.
 - An extern of a known C function that returns `int` (`printf`, `puts`,
   `putchar`, `fprintf`, `dprintf`, `sprintf`, `snprintf`, `scanf`, `sscanf`)
   has return type `int` when the declaration omits it (R-EXTERN-8).
@@ -49,6 +52,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   programs against their expected output, for local miscompile hunts.
 
 ### Fixed
+
+- A match pattern binding that starts with `_`, such as `E.A(_x)`, is no longer
+  a syntax error (BUG-487).
+- Tuple assignment accepts parenthesized targets: `((*p), x) = (x, *p);`
+  (BUG-488).
 
 - Formatting a `match` whose subject spans several lines no longer adds a
   blank line before the first arm on the next pass (BUG-480).

@@ -454,6 +454,8 @@ Each campaign iteration picks one input lane:
   catches miscompiles and wrong constant folds that are identical at both
   levels, which O0/O3 comparison alone misses. Oracle and generated artifacts
   are not token-minimized, because minimizing would drop the expectation.
+  They also exercise operator methods, tuple assignment, bound methods, a
+  generic enum, arrays of structs and byte reads of UTF-8 strings.
   `--oracle-only` (or `FUZZ_ORACLE_ONLY=1`) makes every iteration an oracle
   program, for a local campaign aimed at miscompiles:
   `bun run fuzz -- --oracle-only --iterations 2000 --seeds 0x1,0x2`.

@@ -1109,6 +1109,29 @@ same; optimized builds and local arrays were valid.
 before the `getelementptr`; it has already passed the bounds check for fixed
 arrays. `tests/WasmRuntime.test.ts`.
 
+### BUG-487: A pattern binding starting with `_` is a syntax error
+
+**Status**: Fixed · **Priority**: P2
+
+Found while extending the fuzzer's generic enum matches (2026-11-08).
+`match (e) { E.A(_x) => 1, ... }` failed with an unexpected-syntax error,
+although a leading `_` is the documented way to mark a name as unused. The
+wildcard rule matched the `_` of `_x` and left `x` behind.
+
+**Resolution**: the wildcard pattern now requires that no identifier character
+follows. `tests/LanguageSpecExpressions.test.ts`.
+
+### BUG-488: Parenthesized tuple assignment targets are rejected
+
+**Status**: Fixed · **Priority**: P3
+
+Found by the fuzzer's tuple assignments (2026-11-08). `(*p) = 1` was accepted,
+but `((*p), x) = (x, *p)` failed with "Invalid assignment target in tuple
+destructuring", because only the outermost target was unwrapped.
+
+**Resolution**: each tuple target is unwrapped before validation, as a single
+target is. `tests/LanguageSpecDeclarations.test.ts`.
+
 ## Developer experience fixes (2026-10-28)
 
 - **Fixed:** Installing required `init.sh` (sudo link into `/usr/bin`, edits to
