@@ -130,17 +130,16 @@ describe("generated fuzz programs", () => {
     expect(outcome.message).toContain("differs from its oracle");
   }, 60000);
 
-  test("for WebAssembly, omit exceptions and carry the target marker", () => {
-    for (let seed = 0; seed < 200; seed++) {
-      const { source } = generateOracleProgram(createSeededRandom(seed), {
-        wasm: true,
-      });
+  test("for WebAssembly, carry the target marker and keep exceptions", () => {
+    const sources = Array.from(
+      { length: 60 },
+      (_, seed) =>
+        generateOracleProgram(createSeededRandom(seed), { wasm: true }).source,
+    );
+    for (const source of sources) {
       expect(source.startsWith(WASM_MARKER)).toBe(true);
-      expect({ seed, exceptions: /\btry \{|\bthrow /.test(source) }).toEqual({
-        seed,
-        exceptions: false,
-      });
     }
+    expect(sources.join("\n")).toMatch(/\btry \{/);
     expect(generateFuzzInput(0xabc, 3, { wasm: true }).source).toStartWith(
       WASM_MARKER,
     );

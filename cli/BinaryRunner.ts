@@ -424,6 +424,9 @@ function buildClangArgs(
   }
 
   if (wasmTarget) {
+    // try/catch lowers to setjmp/longjmp, which WebAssembly implements with
+    // its exception-handling instructions (see lib/runtime_wasm.ll).
+    args.push("-fwasm-exceptions", "-mllvm", "-wasm-enable-sjlj");
     if (linkWasm) {
       args.push(
         "-nostdlib",

@@ -13,8 +13,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   has return type `int` when the declaration omits it (R-EXTERN-8).
 - Hosted WebAssembly `printf` supports `%i`, `%u` and 64-bit `%ld`/`%lld`,
   `%lu`/`%llu` and `%lx`/`%llx` conversions.
-- `bun run fuzz -- --wasm` also runs the generated programs (without
-  exceptions) as hosted WebAssembly against their expected output.
+- `bun run fuzz -- --wasm` also runs the generated programs as hosted
+  WebAssembly against their expected output.
+- Exceptions work on WebAssembly: `try`/`catch`, `throw` and `defer` during
+  unwinding, and runtime errors inside a `try` are caught as on native
+  targets. Builds use WebAssembly exception handling.
 - Literal match patterns must have the matched value's type: `300` on a
   `u8`, `"a"` or `1.0` on an integer, and `true` on an integer are rejected
   (`BPL_MATCH_LITERAL_PATTERN_TYPE_MISMATCH` or

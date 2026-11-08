@@ -207,8 +207,8 @@ Options:
   --differential      Include deterministic O0/O3 runtime comparison inputs
   --oracle-only       Run only generated programs, at -O0 and -O3, against
                      their oracle output
-  --wasm              Generate programs without exceptions and also run them
-                     as hosted WebAssembly (needs wasm-ld)
+  --wasm              Also run generated programs as hosted WebAssembly
+                     (needs wasm-ld)
   --minimize <bool>   Write token-minimized .min.bpl artifacts for failures
   --minimize-passes <n>
                      Maximum minimization passes per failed artifact

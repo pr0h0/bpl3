@@ -377,7 +377,7 @@ class ProgramBuilder {
   constructor(
     private readonly rng: () => number,
     private readonly trace = false,
-    /** For the hosted WebAssembly lane: no exceptions (R-WASM-1). */
+    /** Also run as hosted WebAssembly: adds the target marker. */
     private readonly wasm = false,
   ) {}
 
@@ -2612,7 +2612,7 @@ class ProgramBuilder {
     // Throwing helpers, called from expressions inside `try` bodies. Without
     // them no `try` or `throw` is generated.
     for (
-      let index = !this.wasm && this.chance(0.6) ? this.int(1, 2) : 0;
+      let index = this.chance(0.6) ? this.int(1, 2) : 0;
       index > 0;
       index--
     ) {

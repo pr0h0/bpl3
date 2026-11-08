@@ -125,13 +125,51 @@ entry:
   ret i32 0
 }
 
-define i32 @setjmp(i8* %buf) {
+; Exceptions use setjmp/longjmp. Builds pass `-mllvm -wasm-enable-sjlj`, which
+; rewrites those calls to the three functions below and WebAssembly exception
+; handling (the `__c_longjmp` tag).
+%struct.__bpl_wasm_jmp_buf = type { i8*, i32, i8*, i32 }
+
+declare void @llvm.wasm.throw(i32 immarg, i8*)
+
+define void @__wasm_setjmp(i8* %env, i32 %label, i8* %func_invocation_id) {
 entry:
+  %jb = bitcast i8* %env to %struct.__bpl_wasm_jmp_buf*
+  %id_slot = getelementptr inbounds %struct.__bpl_wasm_jmp_buf, %struct.__bpl_wasm_jmp_buf* %jb, i32 0, i32 0
+  store i8* %func_invocation_id, i8** %id_slot
+  %label_slot = getelementptr inbounds %struct.__bpl_wasm_jmp_buf, %struct.__bpl_wasm_jmp_buf* %jb, i32 0, i32 1
+  store i32 %label, i32* %label_slot
+  ret void
+}
+
+define i32 @__wasm_setjmp_test(i8* %env, i8* %func_invocation_id) {
+entry:
+  %jb = bitcast i8* %env to %struct.__bpl_wasm_jmp_buf*
+  %id_slot = getelementptr inbounds %struct.__bpl_wasm_jmp_buf, %struct.__bpl_wasm_jmp_buf* %jb, i32 0, i32 0
+  %id = load i8*, i8** %id_slot
+  %same_call = icmp eq i8* %id, %func_invocation_id
+  br i1 %same_call, label %found, label %not_found
+
+found:
+  %label_slot = getelementptr inbounds %struct.__bpl_wasm_jmp_buf, %struct.__bpl_wasm_jmp_buf* %jb, i32 0, i32 1
+  %label = load i32, i32* %label_slot
+  ret i32 %label
+
+not_found:
   ret i32 0
 }
 
-define void @longjmp(i8* %buf, i32 %value) {
+define void @__wasm_longjmp(i8* %env, i32 %value) {
 entry:
+  %jb = bitcast i8* %env to %struct.__bpl_wasm_jmp_buf*
+  %env_slot = getelementptr inbounds %struct.__bpl_wasm_jmp_buf, %struct.__bpl_wasm_jmp_buf* %jb, i32 0, i32 2
+  store i8* %env, i8** %env_slot
+  %value_slot = getelementptr inbounds %struct.__bpl_wasm_jmp_buf, %struct.__bpl_wasm_jmp_buf* %jb, i32 0, i32 3
+  %is_zero = icmp eq i32 %value, 0
+  %thrown = select i1 %is_zero, i32 1, i32 %value
+  store i32 %thrown, i32* %value_slot
+  %arg = bitcast i8** %env_slot to i8*
+  call void @llvm.wasm.throw(i32 1, i8* %arg)
   unreachable
 }
 
@@ -531,11 +569,12 @@ entry:
   ret void
 }
 
-; Exceptions need setjmp/longjmp, which freestanding wasm lacks, so runtime
-; checks always report and trap instead of throwing.
+; With a handler active, runtime checks throw instead of reporting and trapping.
 define i1 @__bpl_has_exception_handler() {
 entry:
-  ret i1 0
+  %top = load %struct.ExceptionFrame*, %struct.ExceptionFrame** @exception_top
+  %has_handler = icmp ne %struct.ExceptionFrame* %top, null
+  ret i1 %has_handler
 }
 
 define void @__bpl_panic_null_access(i8* %func, i8* %expr, i32 %line, i32 %col) {
