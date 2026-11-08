@@ -7,6 +7,7 @@ import { FunctionAttributeGroups } from "./attributes/FunctionAttributeGroups";
 import {} from "../../middleend/BuiltinTypes";
 import {
   parseTargetTriple,
+  isWasmTargetArch,
   targetHasAnyComponent,
   targetHasComponent,
   type ParsedTargetTriple,
@@ -196,6 +197,7 @@ export class BaseCodeGenerator {
         : this.getDebugIrPathFromEnv();
     this.functionAttributeGroups = new FunctionAttributeGroups({
       preserveFramePointer: this.shouldPreserveFramePointers(),
+      wasmExceptions: isWasmTargetArch(this.target),
     });
     this.debugInfoGenerator = new DebugInfoGenerator(
       "unknown.bpl",
