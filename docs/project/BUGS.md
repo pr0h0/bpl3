@@ -1132,6 +1132,57 @@ destructuring", because only the outermost target was unwrapped.
 **Resolution**: each tuple target is unwrapped before validation, as a single
 target is. `tests/LanguageSpecDeclarations.test.ts`.
 
+### BUG-489: A pointer to an array passes as an array of pointers
+
+**Status**: Fixed · **Priority**: P2
+
+Found while prototyping fuzzer support for nested arrays (2026-11-08). `*int[2]`
+is an array of two pointers, but `local q: *int[2] = &row;` passed the type
+checker, whose modifiers (one pointer, one dimension) match those of `&row`,
+and then stopped in code generation with
+`Unsupported cast from [2 x i32]* to [2 x i32*]`.
+
+**Resolution**: the checker compares whether each side is a pointer to an
+array and reports an ordinary type mismatch.
+`tests/PointerToArrayTypes.test.ts`.
+
+### BUG-490: bindgen emits an invalid extern for C matrix parameters
+
+**Status**: Fixed · **Priority**: P2
+
+Found with BUG-489. `void f(int m[2][3])` became `extern f(m: *int[3]);`, an
+array of pointers by value, which the extern ABI check rejects, so the
+generated binding did not compile.
+
+**Resolution**: bindgen emits a named row alias, `type CRow_int_3 = int[3];`,
+and `*CRow_int_3` for the parameter. `tests/CLI.test.ts`.
+
+### BUG-491: Calling a method on a zero-initialized global struct crashes
+
+**Status**: Fixed · **Priority**: P1
+
+Found by the fuzzer's global structs (2026-11-08). A struct with methods has a
+hidden vtable pointer, but `global s: S;` was emitted as `zeroinitializer`, so
+the pointer was null and the first method call segfaulted, or failed a generic
+constraint check. Uninitialized locals set the pointer, except inside an array
+field of a struct.
+
+**Resolution**: zero values of globals are emitted as constants with each
+hidden pointer set, through nested structs and arrays. Local defaults use the
+same constants for array fields. `tests/GlobalStructVTables.test.ts`.
+
+### BUG-492: A failed temp directory cleanup ended a fuzz campaign
+
+**Status**: Fixed · **Priority**: P3
+
+Two Wasm-lane campaigns stopped after 1,100 and 1,300 clean programs when
+`rmSync` raised `EFAULT` on a temporary directory (2026-11-08, Bun 1.3.14). The
+programs left behind passed when replayed, so the error came from the runtime,
+not from the compiler or the generated program.
+
+**Resolution**: the oracle pipeline reports a cleanup failure as a warning and
+continues. The cause inside Bun is unknown.
+
 ## Developer experience fixes (2026-10-28)
 
 - **Fixed:** Installing required `init.sh` (sudo link into `/usr/bin`, edits to

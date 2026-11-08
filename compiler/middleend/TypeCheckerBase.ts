@@ -33,6 +33,7 @@ import {
   isImplicitIntegerToBool,
   lowerImplicitConversion,
 } from "./lowering/ImplicitConversions";
+import { getArrayAliasPointer } from "../common/ArrayAliasPointer";
 
 function formatSymbolKind(kind: SymbolKind): string {
   return kind === "TypeAlias" ? "type alias" : kind.toLowerCase();
@@ -2030,6 +2031,21 @@ export abstract class TypeCheckerBase {
             isWildcard = true;
           }
         }
+      }
+
+      // `*int[2]` is an array of pointers; `&row` is a pointer to an array.
+      // Their modifiers match, but the layouts do not.
+      if (
+        rt1.pointerDepth > 0 &&
+        rt2.pointerDepth > 0 &&
+        rt1.arrayDimensions.length > 0 &&
+        rt2.arrayDimensions.length > 0 &&
+        (rt1.isPointerToArray === true ||
+          getArrayAliasPointer(rt1) !== undefined) !==
+          (rt2.isPointerToArray === true ||
+            getArrayAliasPointer(rt2) !== undefined)
+      ) {
+        return false;
       }
 
       if (
