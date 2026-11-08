@@ -8,6 +8,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Changed
 
+- **Breaking:** `\xHH` in a string literal is one raw byte, as in C and Go:
+  `"\xF0"` is one byte, not the two-byte UTF-8 encoding of U+00F0, so strings
+  can hold any byte sequence. `\uHHHH` still encodes the character as UTF-8.
+  Character literals accept `'\xHH'` and, up to `\u007F`, `'\uHHHH'`.
+
 - An extern of a known C function that returns `int` (`printf`, `puts`,
   `putchar`, `fprintf`, `dprintf`, `sprintf`, `snprintf`, `scanf`, `sscanf`)
   has return type `int` when the declaration omits it (R-EXTERN-8).

@@ -13685,7 +13685,9 @@ function peg$parse(input, options) {
             if (i + 3 < inner.length) {
               const hex = inner.slice(i + 2, i + 4);
               if (/^[0-9a-fA-F]{2}$/.test(hex)) {
-                result += String.fromCharCode(parseInt(hex, 16));
+                // One byte; see compiler/common/StringEncoding.ts.
+                const byte = parseInt(hex, 16);
+                result += String.fromCharCode(byte < 0x80 ? byte : 0xdc00 + byte);
                 i += 4;
                 break;
               }
@@ -13700,7 +13702,17 @@ function peg$parse(input, options) {
             if (i + 5 < inner.length) {
               const hex = inner.slice(i + 2, i + 6);
               if (/^[0-9a-fA-F]{4}$/.test(hex)) {
-                result += String.fromCharCode(parseInt(hex, 16));
+                const unit = parseInt(hex, 16);
+                const high = unit >= 0xd800 && unit <= 0xdbff;
+                const low = unit >= 0xdc00 && unit <= 0xdfff;
+                const pair = high && /^\\u[dD][c-fC-F][0-9a-fA-F]{2}$/.test(inner.slice(i + 6, i + 12));
+                if (pair) {
+                  result += String.fromCharCode(unit, parseInt(inner.slice(i + 8, i + 12), 16));
+                  i += 12;
+                  break;
+                }
+                // An unpaired surrogate is not a character.
+                result += high || low ? "\uFFFD" : String.fromCharCode(unit);
                 i += 6;
                 break;
               }
@@ -13867,6 +13879,13 @@ function peg$parse(input, options) {
 
   function parseChar(raw) {
     const inner = raw.slice(1, -1);
+    // A byte escape, or a Unicode escape that fits one byte as ASCII.
+    if (/^\\x[0-9a-fA-F]{2}$/.test(inner)) {
+      return String.fromCharCode(parseInt(inner.slice(2), 16));
+    }
+    if (/^\\u00[0-7][0-9a-fA-F]$/.test(inner)) {
+      return String.fromCharCode(parseInt(inner.slice(2), 16));
+    }
     // Escape decoding must not discard trailing characters before the width check.
     if (inner.startsWith("\\") && inner.length !== 2) return inner;
     if (inner.startsWith("\\")) {

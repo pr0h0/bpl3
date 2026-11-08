@@ -20,6 +20,7 @@ import { Token } from "./Token";
 import { TokenType } from "./TokenType";
 
 import type { Grammar } from "../../grammar/types";
+import { rawByteToString } from "../common/StringEncoding";
 let cachedGrammar: Grammar | null = null;
 
 /** The grammar bundled into the CLI, else `grammar/grammar.bpl` on disk. */
@@ -447,7 +448,7 @@ function decodeString(raw: string): string {
           if (i + 3 < inner.length) {
             const hex = inner.slice(i + 2, i + 4);
             if (/^[0-9a-fA-F]{2}$/.test(hex)) {
-              result += String.fromCharCode(parseInt(hex, 16));
+              result += rawByteToString(parseInt(hex, 16));
               i += 4;
               break;
             }
@@ -462,7 +463,24 @@ function decodeString(raw: string): string {
           if (i + 5 < inner.length) {
             const hex = inner.slice(i + 2, i + 6);
             if (/^[0-9a-fA-F]{4}$/.test(hex)) {
-              result += String.fromCharCode(parseInt(hex, 16));
+              const unit = parseInt(hex, 16);
+              const high = unit >= 0xd800 && unit <= 0xdbff;
+              const low = unit >= 0xdc00 && unit <= 0xdfff;
+              if (
+                high &&
+                /^\\u[dD][c-fC-F][0-9a-fA-F]{2}$/.test(
+                  inner.slice(i + 6, i + 12),
+                )
+              ) {
+                result += String.fromCharCode(
+                  unit,
+                  parseInt(inner.slice(i + 8, i + 12), 16),
+                );
+                i += 12;
+                break;
+              }
+              // An unpaired surrogate is not a character.
+              result += high || low ? "\uFFFD" : String.fromCharCode(unit);
               i += 6;
               break;
             }
@@ -491,6 +509,9 @@ function decodeChar(raw: string): number {
   const inner = raw.slice(1, -1);
   // Single-quoted char literal -> numeric codepoint (int)
   // Supports common escape sequences
+  if (/^\\(x[0-9a-fA-F]{2}|u00[0-7][0-9a-fA-F])$/.test(inner)) {
+    return parseInt(inner.slice(2), 16);
+  }
   if (inner.startsWith("\\")) {
     switch (inner[1]) {
       case "n":
