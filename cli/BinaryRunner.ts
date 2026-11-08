@@ -223,12 +223,9 @@ export function compileToBinary(
   let compileResult: ReturnType<typeof spawnSync>;
   try {
     const readsStdin = clangArgs.includes(WASM_EH_TAG_STDIN_ARG);
+    const verboseStdin = readsStdin ? "pipe" : "inherit";
     compileResult = spawnSync(clangCommand, clangArgs, {
-      stdio: options.verbose
-        ? readsStdin
-          ? ["pipe", "inherit", "inherit"]
-          : "inherit"
-        : "pipe",
+      stdio: options.verbose ? [verboseStdin, "inherit", "inherit"] : "pipe",
       input: readsStdin ? WASM_EH_TAG_ASSEMBLY : undefined,
       timeout: getCompilerDriverTimeoutMs(),
     });
