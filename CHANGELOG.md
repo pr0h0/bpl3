@@ -22,7 +22,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   generates struct-returning functions, calls through `Func` locals,
   overloaded functions, `++`/`--` inside expressions, struct equality,
   arrays passed by value and through slices, pointer arithmetic, chained
-  assignment, C-style
+  assignment, `sizeof`, `is`, lambdas passed as arguments, full-width shift
+  counts, negative divisors, C-style
   and infinite loops, `switch` on integers, enum values and strings with
   arms ending in `fallthrough`, and integer `match` expressions with
   negative literal and guarded arms.
@@ -36,6 +37,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - A `defer` or lambda inside a `catch` clause can use the clause's variable.
   It failed to compile with "Cannot resolve type for captured variable", or
   produced invalid IR for a lambda (BUG-481).
+- `sizeof` of a type name such as `uint` inside a lambda no longer produces
+  invalid IR (the type name was captured like a variable) (BUG-483).
 
 ## [0.1.2] - 2026-11-06
 

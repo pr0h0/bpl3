@@ -400,12 +400,16 @@ export class CaptureAnalyzer {
       return;
     }
 
-    // If it's a function, struct, etc., we don't capture
+    // Functions, types and specs are not values: an identifier naming one
+    // (`sizeof(uint)` resolves `uint` to its alias) captures nothing.
     if (
       decl.kind === "FunctionDecl" ||
       decl.kind === "StructDecl" ||
       decl.kind === "EnumDecl" ||
-      decl.kind === "Extern"
+      decl.kind === "Extern" ||
+      decl.kind === "TypeAlias" ||
+      decl.kind === "SpecDecl" ||
+      decl.kind === "SpecMethod"
     ) {
       return;
     }

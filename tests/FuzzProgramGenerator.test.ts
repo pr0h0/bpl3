@@ -76,6 +76,12 @@ describe("generated fuzz programs", () => {
       /^\s+sl\d+\(a\d+, /m,
       /\*\(pa\d+ \+ \(\(/,
       /^\s+\S+ = \S+ = /m,
+      /\(up\d+ is \*C\d+\)/,
+      /local uq\d+: \*P\d+ = &/,
+      /sizeof\((bool|i8|u16|int|uint|long|double|f32)\)/,
+      /\bapply\d+\(l\d+, /,
+      /\(-\(\(\(.*\) & 3\) \+ 2\)\)/,
+      /& 63\)/,
     ]) {
       expect(sources).toMatch(feature);
     }
@@ -132,7 +138,7 @@ describe("generated fuzz programs", () => {
       const argument = line.slice(line.indexOf(", ") + 2);
       expect({
         line,
-        call: /\b(?:l|h|rec|byval|callv|m|u|ov|fp|mk|thr|rl|av)\d+\(|\.vf\(|\.get\(|gid</.test(
+        call: /\b(?:l|h|rec|byval|callv|m|u|ov|fp|mk|thr|rl|av|apply)\d+\(|\.vf\(|\.get\(|gid</.test(
           argument,
         ),
       }).toEqual({ line, call: false });
