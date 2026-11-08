@@ -8,8 +8,11 @@ const invalid = [
   String.raw`'\0z'`,
   String.raw`'\qtail'`,
   String.raw`'\\x'`,
-  String.raw`'\x41'`,
-  String.raw`'\u0041'`,
+  String.raw`'\x4'`,
+  String.raw`'\x411'`,
+  String.raw`'\xZZ'`,
+  String.raw`'\u00e9'`,
+  String.raw`'\u20ac'`,
   "'ab'",
 ];
 for (const raw of invalid) {
@@ -34,6 +37,9 @@ const valid = [
   [String.raw`'\''`, "'"],
   [String.raw`'\"'`, '"'],
   [String.raw`'\q'`, "q"],
+  [String.raw`'\x41'`, "A"],
+  [String.raw`'\xF0'`, "\u00f0"],
+  [String.raw`'\u0041'`, "A"],
 ] as const;
 for (const [raw, value] of valid) {
   // spec: R-LEX-9

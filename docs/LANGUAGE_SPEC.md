@@ -71,12 +71,16 @@ multi-line comment
   unary operator; negating the literal `9223372036854775808` produces the signed
   `long` minimum. A floating-point literal has the 64-bit floating-point type.
 - **[R-LEX-8]** A string literal `"..."` has type `string`. The escapes `\n`,
-  `\t`, `\r`, `\0`, `\\`, `\'`, `\"`, `\xHH`, and `\uHHHH` produce the corresponding
-  character/code unit. Hex escapes decode only when all required digits are
-  present and valid. Unknown, malformed and incomplete escapes retain their
+  `\t`, `\r`, `\0`, `\\`, `\'`, `\"`, `\xHH`, and `\uHHHH` are decoded as follows.
+  `\xHH` is the single byte `HH`, as in C and Go, so `"\xF0"` is one byte and
+  `"\xC3\xA9"` is the two bytes of `é`. `\uHHHH` is that character encoded as
+  UTF-8, so `"\u00e9"` is two bytes; two escapes forming a surrogate pair are
+  one character, and an unpaired surrogate becomes U+FFFD. Hex escapes decode
+  only when all required digits are present and valid. Unknown, malformed and incomplete escapes retain their
   backslash spelling; subsequent complete escapes are processed independently.
 - **[R-LEX-9]** A character literal `'c'` has type `char` and must contain
-  exactly one character after escape processing.
+  exactly one character after escape processing. `'\xHH'` is the byte `HH`
+  (`'\xF0'` is the `char` -16), and `'\uHHHH'` is accepted up to `\u007F`.
 - **[R-LEX-10]** `true` and `false` are `bool` literals. `null` and `nullptr`
   are two spellings of the same null pointer literal.
 - **[R-LEX-11]** An interpolated string `` `text ${expression} text` ``

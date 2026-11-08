@@ -12,6 +12,7 @@ import {
   targetHasComponent,
   type ParsedTargetTriple,
 } from "../../common/TargetTriple";
+import { encodeStringLiteral } from "../../common/StringEncoding";
 
 export const EXTERN_SIGNATURE_CONFLICT_CODE = "BPL_EXTERN_SIGNATURE_CONFLICT";
 
@@ -932,7 +933,7 @@ export class BaseCodeGenerator {
   protected escapeString(str: string): string {
     // Encode together so UTF-16 surrogate pairs become one UTF-8 code point.
     let result = "";
-    for (const byte of new TextEncoder().encode(str)) {
+    for (const byte of encodeStringLiteral(str)) {
       if (byte >= 32 && byte <= 126 && byte !== 34 && byte !== 92) {
         result += String.fromCharCode(byte);
       } else {
@@ -945,8 +946,7 @@ export class BaseCodeGenerator {
   // BUG-118: Calculate actual UTF-8 byte length for LLVM string constants
   // This needs to match what escapeString produces
   protected getUtf8ByteLength(str: string): number {
-    const encoder = new TextEncoder();
-    return encoder.encode(str).length;
+    return encodeStringLiteral(str).length;
   }
 
   protected isTerminator(line: string): boolean {
