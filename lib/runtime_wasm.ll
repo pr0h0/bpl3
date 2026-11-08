@@ -125,9 +125,24 @@ entry:
   ret i32 0
 }
 
-; Exceptions use setjmp/longjmp. Builds pass `-mllvm -wasm-enable-sjlj`, which
-; rewrites those calls to the three functions below and WebAssembly exception
-; handling (the `__c_longjmp` tag).
+; Exceptions use setjmp/longjmp. With clang 19 or newer, builds pass `-mllvm
+; -wasm-enable-sjlj`, which rewrites those calls to the three `__wasm_*`
+; functions below and WebAssembly exception handling (the `__c_longjmp` tag).
+; Older clang uses an API that needs a 32-bit malloc, so it gets no lowering and
+; these stubs run instead: `setjmp` records that exceptions are unavailable.
+@__bpl_wasm_no_sjlj = internal global i1 false
+
+define weak i32 @setjmp(i8* %buf) {
+entry:
+  store i1 true, i1* @__bpl_wasm_no_sjlj
+  ret i32 0
+}
+
+define weak void @longjmp(i8* %buf, i32 %value) {
+entry:
+  unreachable
+}
+
 %struct.__bpl_wasm_jmp_buf = type { i8*, i32, i8*, i32 }
 
 declare void @llvm.wasm.throw(i32 immarg, i8*)
@@ -569,11 +584,15 @@ entry:
   ret void
 }
 
-; With a handler active, runtime checks throw instead of reporting and trapping.
+; With a handler active, runtime checks throw instead of reporting and trapping,
+; unless the `setjmp` stub above ran because exceptions are unavailable.
 define i1 @__bpl_has_exception_handler() {
 entry:
   %top = load %struct.ExceptionFrame*, %struct.ExceptionFrame** @exception_top
-  %has_handler = icmp ne %struct.ExceptionFrame* %top, null
+  %has_top = icmp ne %struct.ExceptionFrame* %top, null
+  %no_sjlj = load i1, i1* @__bpl_wasm_no_sjlj
+  %has_sjlj = xor i1 %no_sjlj, true
+  %has_handler = and i1 %has_top, %has_sjlj
   ret i1 %has_handler
 }
 

@@ -14,6 +14,7 @@ import {
   formatOptionalWasmRuntimeSkipMessage,
   formatRequiredWasmLinkerError,
   getWasmLinkerCandidates,
+  supportsWasmExceptions,
 } from "../cli/WasmToolchain";
 import {
   WASM_FREESTANDING_EXAMPLES,
@@ -60,6 +61,9 @@ const REQUIRE_WASM_LINKER = /^(1|true)$/i.test(
 
 const standaloneWasmLinker = findWasmLinker();
 const wasmIt = standaloneWasmLinker ? it : it.skip;
+// Exceptions need clang 19 or newer; older clang keeps trapping on `throw`.
+const wasmExceptionsIt =
+  standaloneWasmLinker && supportsWasmExceptions() ? it : it.skip;
 
 async function compileWasmSource(
   source: string,
@@ -687,7 +691,7 @@ frame main() ret int {
     },
   );
 
-  wasmIt("catches exceptions across frames with defers", async () => {
+  wasmExceptionsIt("catches exceptions across frames with defers", async () => {
     const host = createHostImports();
     const exports = await compileWasmSource(
       `
@@ -737,7 +741,7 @@ frame main() ret int {
     expect(host.stdout()).toBe("unwind 1\nunwind 3\ncaught 30 kept 5\n");
   });
 
-  wasmIt("catches checked runtime errors inside a try", async () => {
+  wasmExceptionsIt("catches checked runtime errors inside a try", async () => {
     const host = createHostImports();
     const exports = await compileWasmSource(
       `

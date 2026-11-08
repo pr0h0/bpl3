@@ -17,6 +17,31 @@ export const DEFAULT_WASM_LINKER_CANDIDATES: string[] = [
 const DEFAULT_WASM_LINKER_PROBE_TIMEOUT_MS =
   TIMEOUT_ENV_DEFAULTS.BPL_WASM_LINKER_PROBE_TIMEOUT_MS;
 
+let cachedSjljSupport: { driver: string; supported: boolean } | undefined;
+
+/**
+ * Whether `driver` lowers setjmp/longjmp to WebAssembly exception handling
+ * with the `__wasm_setjmp` API the runtime implements (LLVM 19 and newer).
+ * Apple clang has its own version numbers and no wasm backend worth probing.
+ */
+export function supportsWasmExceptions(
+  driver = process.env.BPL_WASM_CC || process.env.WASM_CC || "clang",
+): boolean {
+  if (cachedSjljSupport?.driver === driver) return cachedSjljSupport.supported;
+  const result = spawnSync(driver, ["--version"], {
+    encoding: "utf8",
+    timeout: 10000,
+  });
+  const output = `${result.stdout ?? ""}`;
+  const major = /clang version (\d+)\./.exec(output)?.[1];
+  const supported =
+    !output.includes("Apple clang") &&
+    major !== undefined &&
+    Number(major) >= 19;
+  cachedSjljSupport = { driver, supported };
+  return supported;
+}
+
 export function getWasmLinkerCandidates(
   env: NodeJS.ProcessEnv = process.env,
 ): string[] {

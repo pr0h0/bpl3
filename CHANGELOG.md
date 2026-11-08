@@ -17,7 +17,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   WebAssembly against their expected output.
 - Exceptions work on WebAssembly: `try`/`catch`, `throw` and `defer` during
   unwinding, and runtime errors inside a `try` are caught as on native
-  targets. Builds use WebAssembly exception handling.
+  targets. Builds use WebAssembly exception handling and need clang 19 or
+  newer; with older clang a `throw` still traps.
 - Literal match patterns must have the matched value's type: `300` on a
   `u8`, `"a"` or `1.0` on an integer, and `true` on an integer are rejected
   (`BPL_MATCH_LITERAL_PATTERN_TYPE_MISMATCH` or
