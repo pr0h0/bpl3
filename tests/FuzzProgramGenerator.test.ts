@@ -132,7 +132,7 @@ describe("generated fuzz programs", () => {
       const argument = line.slice(line.indexOf(", ") + 2);
       expect({
         line,
-        call: /\b(?:l|h|rec|byval|callv|m|u)\d+\(|\.vf\(|\.get\(|gid</.test(
+        call: /\b(?:l|h|rec|byval|callv|m|u|ov|fp|mk|thr|rl|av)\d+\(|\.vf\(|\.get\(|gid</.test(
           argument,
         ),
       }).toEqual({ line, call: false });

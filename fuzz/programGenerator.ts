@@ -587,7 +587,14 @@ class ProgramBuilder {
     if (!constantOnly && this.canIncrement() && this.chance(0.07)) {
       return this.incrementExpr(type);
     }
-    if (!constantOnly && this.overloads.length > 0 && this.chance(0.05)) {
+    // Calls run at block exit in deferred code and could observe later
+    // state, so overloads, like other calls, stay out of it.
+    if (
+      !constantOnly &&
+      !this.plainOnly &&
+      this.overloads.length > 0 &&
+      this.chance(0.05)
+    ) {
       return this.overloadCall(type, depth);
     }
     if (!constantOnly && this.canUseArray() && this.chance(0.06)) {
