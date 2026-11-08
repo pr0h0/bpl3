@@ -433,8 +433,9 @@ Each campaign iteration picks one input lane:
   structs, a generic function constrained by a spec that some structs
   implement, capturing lambdas, recursion, while, C-style and infinite loops
   with `break`/`continue` and `defer`, `switch` on integers, enum values
-  and strings with `fallthrough`, integer `match` with negative literals and
-  guards, nested `try`/`catch` with exceptions thrown directly
+  and strings with `fallthrough`, `match` on integers (negative literals and
+  guards), `bool`, `double` and tuples, `defer` blocks writing through pointers
+  and to globals, lambdas writing through captured pointers, global arrays, nested `try`/`catch` with exceptions thrown directly
   or from a called function, through intermediate functions that run a
   `defer` or rethrow as another type (including typed clauses that do not
   match and rethrows from a catch body), calls through `Func` pointer

@@ -481,14 +481,15 @@ export abstract class AddressExpressionGenerator extends ReflectionGenerator {
       }
     }
 
+    const gepIndex = this.formatGepIndex(indexVal);
     const addr = this.newRegister();
     if (llvmType.startsWith("[")) {
       this.emit(
-        `  ${addr} = getelementptr inbounds ${llvmType}, ${llvmType}* ${objectAddr}, i64 0, i64 ${indexVal}`,
+        `  ${addr} = getelementptr inbounds ${llvmType}, ${llvmType}* ${objectAddr}, i64 0, ${gepIndex}`,
       );
     } else {
       this.emit(
-        `  ${addr} = getelementptr inbounds ${llvmType}, ${llvmType}* ${objectAddr}, i64 ${indexVal}`,
+        `  ${addr} = getelementptr inbounds ${llvmType}, ${llvmType}* ${objectAddr}, ${gepIndex}`,
       );
     }
     return addr;
@@ -589,9 +590,10 @@ export abstract class AddressExpressionGenerator extends ReflectionGenerator {
       );
     }
 
+    const gepIndex = this.formatGepIndex(indexVal);
     const addr = this.newRegister();
     this.emit(
-      `  ${addr} = getelementptr inbounds ${arrayType}, ${ptrType} ${ptrReg}, i64 0, i64 ${indexVal}`,
+      `  ${addr} = getelementptr inbounds ${arrayType}, ${ptrType} ${ptrReg}, i64 0, ${gepIndex}`,
     );
     return addr;
   }
@@ -925,6 +927,20 @@ export abstract class AddressExpressionGenerator extends ReflectionGenerator {
   /**
    * Allocate stack space for a local variable
    */
+  /**
+   * The typed index operand of an element GEP. On wasm32 it is pointer-sized:
+   * LLVM's -O0 instruction selector emits an invalid module (a 64-bit address
+   * for a load) when a global array is indexed with an `i64`.
+   */
+  private formatGepIndex(indexVal: string): string {
+    if (!this.target?.toLowerCase().startsWith("wasm32")) {
+      return `i64 ${indexVal}`;
+    }
+    const truncated = this.newRegister();
+    this.emit(`  ${truncated} = trunc i64 ${indexVal} to i32`);
+    return `i32 ${truncated}`;
+  }
+
   protected allocateStack(name: string, type: string): string {
     const ptr = this.allocateStackSlot(type, name);
     this.locals.add(name);

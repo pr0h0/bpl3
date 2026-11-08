@@ -34,7 +34,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   overloaded functions, `++`/`--` inside expressions, struct equality,
   arrays passed by value and through slices, pointer arithmetic, chained
   assignment, nested structs with static constructors, spec-constrained
-  generics, `sizeof`, `is`, lambdas passed as arguments, full-width shift
+  generics, `match` on `bool`, `double` and tuples, `defer` blocks that write
+  through pointers, lambdas writing through captured pointers, global arrays, `sizeof`, `is`, lambdas passed as arguments, full-width shift
   counts, negative divisors, C-style
   and infinite loops, `switch` on integers, enum values and strings with
   arms ending in `fallthrough`, and integer `match` expressions with
@@ -49,6 +50,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - A `defer` or lambda inside a `catch` clause can use the clause's variable.
   It failed to compile with "Cannot resolve type for captured variable", or
   produced invalid IR for a lambda (BUG-481).
+- Indexing a global array no longer produces an invalid WebAssembly module in
+  unoptimized wasm32 builds (BUG-486).
 - `extern printf(fmt: string, ...);` without `ret int` no longer makes hosted
   WebAssembly print zeros or trap: the call now matches the runtime's
   `int printf` (BUG-485).
