@@ -1063,6 +1063,32 @@ after an unguarded binding arm, is rejected as unreachable. Number literal
 patterns may be negative (`-3 => ...`, `Opt.Some(-4)`, `(0, -1)`). R-MATCH-2
 and R-MATCH-3 state the rules. `tests/MatchLiteralPatterns.test.ts`.
 
+### BUG-483: `sizeof(uint)` in a lambda captures the type name
+
+**Status**: Fixed · **Priority**: P2
+
+Found by the generated-program fuzzer once it produced `sizeof` of
+primitive types (2026-11-08). `sizeof(uint)` parses its argument as an
+identifier, which resolves to the `uint` type alias. Inside a lambda, capture
+analysis treated that declaration as a captured variable, and the lambda
+loaded from an undefined `%uint_ptr`, so clang rejected the IR.
+
+**Resolution**: capture analysis skips type aliases, specs and spec methods
+as well as functions, structs and enums. `tests/LambdaTypeNameCaptures.test.ts`.
+
+### BUG-483: `sizeof(uint)` in a lambda captures the type name
+
+**Status**: Fixed · **Priority**: P2
+
+Found by the generated-program fuzzer once it produced `sizeof` of
+primitive types (2026-11-08). `sizeof(uint)` parses its argument as an
+identifier, which resolves to the `uint` type alias. Inside a lambda, capture
+analysis treated that declaration as a captured variable, and the lambda
+loaded from an undefined `%uint_ptr`, so clang rejected the IR.
+
+**Resolution**: capture analysis skips type aliases, specs and spec methods
+as well as functions, structs and enums. `tests/LambdaTypeNameCaptures.test.ts`.
+
 ## Developer experience fixes (2026-10-28)
 
 - **Fixed:** Installing required `init.sh` (sudo link into `/usr/bin`, edits to

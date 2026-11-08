@@ -177,6 +177,8 @@ interface LambdaDef {
   body: Expr;
   /** Locals as they were when the lambda was created (capture by value). */
   snapshot: Env;
+  /** A function after main that takes the lambda as an argument. */
+  apply?: string;
 }
 
 /** A parent struct and a child overriding its virtual method `vf`. */
@@ -192,6 +194,8 @@ interface Hierarchy {
   /** Locals with their dynamic type; `up` are `*Parent` pointers to a child. */
   locals: { name: string; dynamic: "parent" | "child" }[];
   pointers: { name: string; target: string }[];
+  /** `*Parent` pointers tested with `is *Child`, and whether they are. */
+  typed: { name: string; child: boolean }[];
 }
 
 /** `frame thrK(x: int, limit: int) ret int`: throws when `x > limit`. */
@@ -597,6 +601,26 @@ class ProgramBuilder {
     ) {
       return this.overloadCall(type, depth);
     }
+    if (!constantOnly && this.chance(0.03)) {
+      // `sizeof` of a primitive: a known byte count.
+      const [name, size] = this.pick([
+        ["bool", 1n],
+        ["i8", 1n],
+        ["u16", 2n],
+        ["int", 4n],
+        ["uint", 4n],
+        ["long", 8n],
+        ["double", 8n],
+        ["f32", 4n],
+      ] as const);
+      return {
+        type,
+        code: `cast<${type.name}>(sizeof(${name}))`,
+        constant: false,
+        reads: new Set(),
+        eval: () => convert(size, type),
+      };
+    }
     if (!constantOnly && this.canUseArray() && this.chance(0.06)) {
       return this.arrayFeatureExpr(type, depth);
     }
@@ -635,38 +659,45 @@ class ProgramBuilder {
         return binary(type, op, left, right);
       }
       case 3: {
-        // Divisor masked into 1..8: never zero, never MIN / -1.
+        // Divisor masked into 1..8, or for signed types sometimes -2..-5:
+        // never zero, never MIN / -1. Division truncates toward zero and
+        // `%` takes the dividend's sign (R-EXPR-1), as BigInt does.
         const left = this.expr(type, depth - 1, constantOnly);
         const right = this.expr(type, depth - 1, constantOnly);
         const op = this.pick(["/", "%"]);
+        const negative = type.signed && this.chance(0.3);
         return {
           type,
-          code: `(${left.code}) ${op} (((${right.code}) & 7) + 1)`,
+          code: negative
+            ? `(${left.code}) ${op} (-(((${right.code}) & 3) + 2))`
+            : `(${left.code}) ${op} (((${right.code}) & 7) + 1)`,
           constant: left.constant && right.constant,
           reads: union(left.reads, right.reads),
           eval: (env) => {
             const a = left.eval(env) as bigint;
-            const b = wrap(
-              (wrap(right.eval(env) as bigint, type) & 7n) + 1n,
-              type,
-            );
+            const masked = wrap(right.eval(env) as bigint, type);
+            const b = negative
+              ? wrap(-((masked & 3n) + 2n), type)
+              : wrap((masked & 7n) + 1n, type);
             return wrap(op === "/" ? a / b : a % b, type);
           },
         };
       }
       case 4: {
-        // Shift count masked below the narrowest width.
+        // Shift count masked below the left operand's width (up to 63):
+        // `<<` wraps and `>>` is arithmetic on signed values.
         const left = this.expr(type, depth - 1, constantOnly);
         const count = this.expr(type, depth - 1, constantOnly);
         const op = this.pick(["<<", ">>"]);
+        const mask = BigInt(type.bits - 1);
         return {
           type,
-          code: `(${left.code}) ${op} ((${count.code}) & 7)`,
+          code: `(${left.code}) ${op} ((${count.code}) & ${mask})`,
           constant: left.constant && count.constant,
           reads: union(left.reads, count.reads),
           eval: (env) => {
             const a = left.eval(env) as bigint;
-            const n = wrap(count.eval(env) as bigint, type) & 7n;
+            const n = wrap(count.eval(env) as bigint, type) & mask;
             return wrap(op === "<<" ? a << n : a >> n, type);
           },
         };
@@ -813,9 +844,13 @@ class ProgramBuilder {
         );
         if (!lambda) return undefined;
         const arg = guard(this.expr(lambda.param, sub, false));
+        // Directly, or passed to `applyK(f: Lambda<R>(P), x: P) ret R`.
+        const viaApply = lambda.apply !== undefined && this.chance(0.5);
         return {
           type,
-          code: `${lambda.name}(${arg.code})`,
+          code: viaApply
+            ? `${lambda.apply}(${lambda.name}, ${arg.code})`
+            : `${lambda.name}(${arg.code})`,
           constant: false,
           reads: union(arg.reads, new Set([lambda.name])),
           eval: (env) => this.callLambda(lambda, env, arg.eval(env)),
@@ -1230,6 +1265,18 @@ class ProgramBuilder {
     // The constant folder handles !, casts and literals, not comparisons.
     const choice = this.int(0, constantOnly ? 1 : 5);
     if (choice === 5) {
+      const h = this.hierarchy;
+      if (h && h.typed.length > 0 && !this.inFunctionBody && this.chance(0.3)) {
+        // `p is *Child` tests the pointed-to object's dynamic type.
+        const pointer = this.pick(h.typed);
+        return {
+          type: BOOL,
+          code: `(${pointer.name} is *${h.child})`,
+          constant: false,
+          reads: new Set([pointer.name]),
+          eval: () => pointer.child,
+        };
+      }
       const equality = this.structEquality();
       if (equality) return equality;
     }
@@ -2154,6 +2201,7 @@ class ProgramBuilder {
       dispatcher,
       locals: [],
       pointers: [],
+      typed: [],
     };
     const param = (body: Expr) => (body.reads.has("d") ? "d" : "_d");
     const fields = (types: ScalarType[], offset: number) =>
@@ -2282,6 +2330,8 @@ class ProgramBuilder {
     const printedLambdas: LambdaDef[] = [];
     // Pointer locals that must be used: printed through a call.
     const printedCalls: string[] = [];
+    // `*Parent` pointers to parents, printed through `is *Child`.
+    const printedTyped: string[] = [];
     // Functions emitted after main (they may be referenced from it).
     const functionsAfterMain: string[] = [];
 
@@ -2627,7 +2677,18 @@ class ProgramBuilder {
         const pointer = this.fresh("up");
         decls.push(`    local ${pointer}: *${h.parent} = &${childLocal};`);
         h.pointers.push({ name: pointer, target: childLocal });
+        h.typed.push({ name: pointer, child: true });
         printedCalls.push(pointer);
+      }
+      const parentLocal = h.locals.find((local) => local.dynamic === "parent");
+      if (parentLocal && this.chance(0.6)) {
+        // A `*Parent` to a parent object: `is *Child` is false.
+        const pointer = this.fresh("uq");
+        decls.push(
+          `    local ${pointer}: *${h.parent} = &${parentLocal.name};`,
+        );
+        h.typed.push({ name: pointer, child: false });
+        printedTyped.push(pointer);
       }
     }
 
@@ -2689,6 +2750,13 @@ class ProgramBuilder {
       decls.push(
         `    local ${name}: Lambda<${returnType.name}>(${param.name}) = |${usedName}: ${param.name}| ret ${returnType.name} {\n        return ${body.code};\n    };`,
       );
+      let apply: string | undefined;
+      if (this.chance(0.5)) {
+        apply = this.fresh("apply");
+        functionsAfterMain.push(
+          `frame ${apply}(f: Lambda<${returnType.name}>(${param.name}), x: ${param.name}) ret ${returnType.name} {\n    return f(x);\n}`,
+        );
+      }
       const lambda = {
         name,
         param,
@@ -2696,6 +2764,7 @@ class ProgramBuilder {
         returnType,
         body,
         snapshot: new Map(env),
+        apply,
       };
       this.lambdas.push(lambda);
       printedLambdas.push(lambda);
@@ -2770,6 +2839,15 @@ class ProgramBuilder {
         );
       }),
       ...this.enumLocals.flatMap((local) => this.printEnum(local, env, output)),
+      ...printedTyped.map((pointer) =>
+        this.printValue(
+          `${pointer}_is`,
+          `cast<int>(${pointer} is *${this.hierarchy!.child})`,
+          INT,
+          0n,
+          output,
+        ),
+      ),
       ...printedCalls.map((pointer) => {
         const h = this.hierarchy!;
         const target = h.pointers.find(
