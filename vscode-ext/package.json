@@ -27,15 +27,15 @@
     "test": "npm run compile && npm run compile:test && bun test ./src/test"
   },
   "devDependencies": {
-    "@types/node": "^20.19.43",
-    "@types/vscode": "^1.75.0",
-    "@vscode/vsce": "^3.9.2",
-    "typescript": "^5.9.3"
+    "@types/node": "^26.6.6",
+    "@types/vscode": "^1.145.0",
+    "@vscode/vsce": "^4.1.0",
+    "typescript": "^7.0.2"
   },
   "dependencies": {
-    "peggy": "^5.0.6",
-    "vscode-languageclient": "^8.1.0",
-    "vscode-languageserver": "^8.1.0",
+    "peggy": "^5.1.1",
+    "vscode-languageclient": "^11.0.0",
+    "vscode-languageserver": "^11.0.0",
     "vscode-languageserver-textdocument": "^1.0.8"
   },
   "contributes": {
