@@ -426,10 +426,12 @@ Each campaign iteration picks one input lane:
   copy), tuples returned and destructured, pointers and pointer-writing
   helpers, arrays (copied when passed by value, written through slices,
   read with pointer arithmetic), struct `==`/`!=`, chained assignment,
-  `sizeof` of primitives, `is *Child` on parent pointers, lambdas passed as
+  nested structs (a struct and an array as fields, a static constructor,
+  whole-value copies and assignments), `sizeof` of primitives, `is *Child` on parent pointers, lambdas passed as
   arguments, shifts by up to the operand width, negative divisors,
   enums with payloads and `match`, generic functions and
-  structs, capturing lambdas, recursion, while, C-style and infinite loops
+  structs, a generic function constrained by a spec that some structs
+  implement, capturing lambdas, recursion, while, C-style and infinite loops
   with `break`/`continue` and `defer`, `switch` on integers, enum values
   and strings with `fallthrough`, integer `match` with negative literals and
   guards, nested `try`/`catch` with exceptions thrown directly

@@ -141,6 +141,8 @@ interface StructDef {
   byValue: { name: string; returnType: ScalarType; body: Expr }[];
   /** `frame mkK(x: int) ret S`, returning a new value (also thrown). */
   maker?: { name: string; fields: Expr[] };
+  /** `frame val(this: *S, d: int) ret long`, implementing the spec. */
+  specVal?: Expr;
 }
 
 /** What a generated program throws: an integer or a struct value. */
@@ -331,6 +333,23 @@ class ProgramBuilder {
   private readonly relays: Relay[] = [];
   private readonly funcPointers: FuncPointer[] = [];
   private readonly overloads: OverloadSet[] = [];
+  /**
+   * `spec VK { frame val(this: *Self, d: int) ret long; }`, implemented by
+   * some structs, and `totK<T: VK>(p: *T, d: int) ret long` calling it.
+   */
+  private spec: { name: string; total: string } | undefined;
+  /** `struct OK { x: T, inner: S, arr: E[4] }` locals and its `mk` fields. */
+  private outer:
+    | {
+        name: string;
+        xType: IntType;
+        inner: StructDef;
+        arrType: IntType;
+        /** `OK.mk(k)`: x, inner fields, then the four elements. */
+        make: Expr[];
+        locals: string[];
+      }
+    | undefined;
   /**
    * main's `T[4]` array with its helpers: `byValue(xs: T[4], d)` changes
    * its copy, `slice(xs: T[], d)` writes through a view, and `pointer` is a
@@ -620,6 +639,10 @@ class ProgramBuilder {
         reads: new Set(),
         eval: () => convert(size, type),
       };
+    }
+    if (!constantOnly && this.chance(0.05)) {
+      const total = this.specCall(type, depth);
+      if (total) return total;
     }
     if (!constantOnly && this.canUseArray() && this.chance(0.06)) {
       return this.arrayFeatureExpr(type, depth);
@@ -998,6 +1021,44 @@ class ProgramBuilder {
       eval: (env) => {
         const slot = Number((index.eval(env) as bigint) & 3n);
         return convert(env.get(`${array.name}[${slot}]`)!, type);
+      },
+    };
+  }
+
+  /**
+   * `totK<S>(&s, d)`: the generic function calls `val` through its spec
+   * constraint, on main's struct local as it is now.
+   */
+  private specCall(type: IntType, depth: number): Expr | undefined {
+    if (
+      !this.spec ||
+      this.plainOnly ||
+      this.inFunctionBody ||
+      this.inLambdaBody
+    ) {
+      return undefined;
+    }
+    const candidates = this.instances.filter(
+      (instance) => instance.struct.specVal,
+    );
+    if (candidates.length === 0) return undefined;
+    const instance = this.pick(candidates);
+    const arg = guard(this.expr(INT, depth - 1, false));
+    const call = `${this.spec.total}<${instance.struct.name}>(&${instance.name}, ${arg.code})`;
+    return {
+      type,
+      code: type === LONG ? call : `cast<${type.name}>(${call})`,
+      constant: false,
+      reads: union(arg.reads, new Set([instance.name])),
+      eval: (env) => {
+        const d = convert(arg.eval(env), INT);
+        const callEnv = this.callEnv(env);
+        instance.struct.fields.forEach((_, field) =>
+          callEnv.set(`this.f${field}`, env.get(`${instance.name}.f${field}`)!),
+        );
+        callEnv.set("d", d);
+        const value = convert(instance.struct.specVal!.eval(callEnv), LONG);
+        return convert(wrap((value as bigint) + 1n, LONG), type);
       },
     };
   }
@@ -1578,7 +1639,38 @@ class ProgramBuilder {
 
   /** Calls that write through `this`, a pointer, or a new enum value. */
   private featureStatement(): Stmt | undefined {
-    const choice = this.int(0, 5);
+    const choice = this.int(0, 6);
+    if (choice === 6 && this.outer && this.outer.locals.length > 0) {
+      // `o = OK.mk(k);` or `o = other;` replaces the whole nested value.
+      const outer = this.outer;
+      const target = this.pick(outer.locals);
+      if (this.chance(0.5) && outer.locals.length > 1) {
+        const source = this.pick(
+          outer.locals.filter((local) => local !== target),
+        );
+        return {
+          code: (indent) => `${indent}${target} = ${source};`,
+          exec: (env) => {
+            const values = this.outerKeys(source).map((key) => env.get(key)!);
+            this.outerKeys(target).forEach((key, slot) =>
+              env.set(key, values[slot]!),
+            );
+            return undefined;
+          },
+        };
+      }
+      const arg = guard(this.expr(INT, 2, false));
+      return {
+        code: (indent) => `${indent}${target} = ${outer.name}.mk(${arg.code});`,
+        exec: (env) => {
+          const values = this.outerMake(arg.eval(env), env);
+          this.outerKeys(target).forEach((key, slot) =>
+            env.set(key, values[slot]!),
+          );
+          return undefined;
+        },
+      };
+    }
     if (choice === 4 && this.canUseArray()) {
       // `sliceK(a, d);` writes through a slice view of main's array.
       const array = this.mainArray!;
@@ -2142,6 +2234,16 @@ class ProgramBuilder {
         `    frame ${method}(this: *${name}, ${parameter(body)}: int) {\n        this.f${field} = ${body.code};\n    }`,
       );
     }
+    let header = `struct ${name}`;
+    if (this.spec && this.chance(0.7)) {
+      this.scope = bodyScope("this");
+      const body = guard(this.expr(LONG, 2, false));
+      def.specVal = body;
+      header += `: ${this.spec.name}`;
+      members.push(
+        `    frame val(this: *${name}, ${parameter(body)}: int) ret long {\n        return ${body.code};\n    }`,
+      );
+    }
     let freeFunctions = "";
     if (this.chance(0.5)) {
       const returnType = this.scalarType();
@@ -2158,7 +2260,7 @@ class ProgramBuilder {
     }
     this.scope = [];
     this.structs.push(def);
-    return `struct ${name} {\n${members.join("\n")}\n}${freeFunctions}`;
+    return `${header} {\n${members.join("\n")}\n}${freeFunctions}`;
   }
 
   /** `struct P { ... frame vf }`, `struct C: P { ... frame vf }`, dispatcher. */
@@ -2213,6 +2315,67 @@ class ProgramBuilder {
       `struct ${child}: ${parent} {\n${fields(childFields, parentFields.length)}\n    frame vf(this: *${child}, ${param(childBody)}: int) ret ${returnType.name} {\n        return ${childBody.code};\n    }\n}`,
       `frame ${dispatcher}(p: *${parent}, d: int) ret ${returnType.name} {\n    return p.vf(d);\n}`,
     ].join("\n");
+  }
+
+  /** Env keys of an outer local, in `mk` order. */
+  private outerKeys(name: string): string[] {
+    const outer = this.outer!;
+    return [
+      `${name}.x`,
+      ...outer.inner.fields.map((_, field) => `${name}.inner.f${field}`),
+      ...[0, 1, 2, 3].map((slot) => `${name}.arr[${slot}]`),
+    ];
+  }
+
+  private outerSlotType(slot: number): ScalarType {
+    const outer = this.outer!;
+    if (slot === 0) return outer.xType;
+    if (slot <= outer.inner.fields.length) return outer.inner.fields[slot - 1]!;
+    return outer.arrType;
+  }
+
+  /** The values `OK.mk(k)` returns. */
+  private outerMake(k: Value, env: Env): Value[] {
+    const callEnv = this.callEnv(env);
+    callEnv.set("k", convert(k, INT));
+    return this.outer!.make.map((field, slot) =>
+      convert(field.eval(callEnv), this.outerSlotType(slot)),
+    );
+  }
+
+  /**
+   * `struct OK { x: T, inner: S, arr: E[4], frame mk(k: int) ret OK }`,
+   * nesting one of the program's structs and an array; `mk` is static.
+   */
+  private outerDefinition(): string {
+    const name = `O${this.fresh("")}`;
+    const xType = this.intType();
+    const inner = this.pick(this.structs);
+    const arrType = this.intType();
+    this.scope = [
+      ...this.globals,
+      { type: INT, code: "k", key: "k", readonly: true },
+    ];
+    this.inFunctionBody = true;
+    const make = [
+      xType,
+      ...inner.fields,
+      arrType,
+      arrType,
+      arrType,
+      arrType,
+    ].map((type) => guard(this.expr(type, 2, false)));
+    this.inFunctionBody = false;
+    this.scope = [];
+    const param = make.some((field) => field.reads.has("k")) ? "k" : "_k";
+    const fieldCount = inner.fields.length;
+    const innerLiteral = `${inner.name} { ${inner.fields.map((_, index) => `f${index}: ${make[index + 1]!.code}`).join(", ")} }`;
+    const arrayLiteral = `[${make
+      .slice(fieldCount + 1)
+      .map((element) => element.code)
+      .join(", ")}]`;
+    this.outer = { name, xType, inner, arrType, make, locals: [] };
+    return `struct ${name} {\n    x: ${xType.name},\n    inner: ${inner.name},\n    arr: ${arrType.name}[4],\n    frame mk(${param}: int) ret ${name} {\n        return ${name} { x: ${make[0]!.code}, inner: ${innerLiteral}, arr: ${arrayLiteral} };\n    }\n}`;
   }
 
   /** A random variant of the program's enum and its value. */
@@ -2346,6 +2509,15 @@ class ProgramBuilder {
       env.set(name, convert(init.eval(env), type));
     }
 
+    if (this.chance(0.5)) {
+      const name = `V${this.fresh("")}`;
+      const total = this.fresh("tot");
+      this.spec = { name, total };
+      lines.push(
+        `spec ${name} {\n    frame val(this: *Self, d: int) ret long;\n}`,
+        `frame ${total}<T: ${name}>(p: *T, d: int) ret long {\n    return p.val(d) + cast<long>(1);\n}`,
+      );
+    }
     for (let index = this.int(0, 2); index > 0; index--) {
       lines.push(this.structDefinition());
     }
@@ -2578,6 +2750,69 @@ class ProgramBuilder {
           env.set(`${copy}.f${field}`, env.get(`${name}.f${field}`)!),
         );
         addInstance(copy, struct);
+      }
+    }
+    if (this.structs.length > 0 && this.chance(0.5)) {
+      lines.push(this.outerDefinition());
+      const outer = this.outer!;
+      // Places of one outer local: x, inner.fK and arr (masked index).
+      const declareOuter = (name: string, values: Value[]) => {
+        const keys = this.outerKeys(name);
+        keys.forEach((key, slot) => env.set(key, values[slot]!));
+        this.scope.push({
+          type: outer.xType,
+          code: `${name}.x`,
+          key: keys[0]!,
+        });
+        outer.inner.fields.forEach((type, field) => {
+          const key = `${name}.inner.f${field}`;
+          this.scope.push({ type, code: key, key });
+        });
+        this.scope.push({
+          type: outer.arrType,
+          code: `${name}.arr`,
+          key: `${name}.arr`,
+          array: { base: `${name}.arr`, length: 4 },
+        });
+        keys.forEach((key, slot) =>
+          printed.push({ type: this.outerSlotType(slot), code: key, key }),
+        );
+        outer.locals.push(name);
+      };
+      const first = this.fresh("o");
+      const x = guard(this.expr(outer.xType, 2, false));
+      const fields = outer.inner.fields.map((type) =>
+        guard(this.expr(type, 2, false)),
+      );
+      const elements = [0, 1, 2, 3].map(() =>
+        guard(this.expr(outer.arrType, 1, false)),
+      );
+      decls.push(
+        `    local ${first}: ${outer.name} = ${outer.name} { x: ${x.code}, inner: ${outer.inner.name} { ${fields.map((field, index) => `f${index}: ${field.code}`).join(", ")} }, arr: [${elements.map((element) => element.code).join(", ")}] };`,
+      );
+      declareOuter(first, [
+        convert(x.eval(env), outer.xType),
+        ...fields.map((field, index) =>
+          convert(field.eval(env), outer.inner.fields[index]!),
+        ),
+        ...elements.map((element) => convert(element.eval(env), outer.arrType)),
+      ]);
+      if (this.chance(0.6)) {
+        // A copy holds its own inner struct and array (value semantics).
+        const copy = this.fresh("o");
+        decls.push(`    local ${copy}: ${outer.name} = ${first};`);
+        declareOuter(
+          copy,
+          this.outerKeys(first).map((key) => env.get(key)!),
+        );
+      }
+      if (this.chance(0.5)) {
+        const made = this.fresh("o");
+        const arg = guard(this.expr(INT, 2, false));
+        decls.push(
+          `    local ${made}: ${outer.name} = ${outer.name}.mk(${arg.code});`,
+        );
+        declareOuter(made, this.outerMake(arg.eval(env), env));
       }
     }
     if (this.chance(0.5)) {

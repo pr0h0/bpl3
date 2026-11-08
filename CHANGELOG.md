@@ -22,7 +22,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   generates struct-returning functions, calls through `Func` locals,
   overloaded functions, `++`/`--` inside expressions, struct equality,
   arrays passed by value and through slices, pointer arithmetic, chained
-  assignment, `sizeof`, `is`, lambdas passed as arguments, full-width shift
+  assignment, nested structs with static constructors, spec-constrained
+  generics, `sizeof`, `is`, lambdas passed as arguments, full-width shift
   counts, negative divisors, C-style
   and infinite loops, `switch` on integers, enum values and strings with
   arms ending in `fallthrough`, and integer `match` expressions with
