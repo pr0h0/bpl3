@@ -1094,6 +1094,21 @@ every argument or trapped with `unreachable`, while the build succeeded.
 (R-EXTERN-8). The hosted `printf` also gained `%i`, `%u` and 64-bit
 `%l`/`%ll` conversions. `tests/WasmRuntime.test.ts`.
 
+### BUG-486: Indexing a global array makes an invalid wasm32 module at -O0
+
+**Status**: Fixed · **Priority**: P2
+
+Found by the fuzzer's hosted WebAssembly lane once it generated global arrays
+(2026-11-08). Array element addresses were computed with a 64-bit index. For
+a global base, LLVM's -O0 instruction selector for wasm32 then emitted a load
+or store with a 64-bit address, and the module failed validation
+(`I32Load8U pointer type mismatch`). Every clang from 18 to 21 tried did the
+same; optimized builds and local arrays were valid.
+
+**Resolution**: on wasm32 the element index is truncated to the pointer width
+before the `getelementptr`; it has already passed the bounds check for fixed
+arrays. `tests/WasmRuntime.test.ts`.
+
 ## Developer experience fixes (2026-10-28)
 
 - **Fixed:** Installing required `init.sh` (sudo link into `/usr/bin`, edits to

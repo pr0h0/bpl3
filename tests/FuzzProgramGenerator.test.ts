@@ -89,6 +89,13 @@ describe("generated fuzz programs", () => {
       /local o\d+: O\d+ = o\d+;/,
       /struct S\d+: V\d+ \{/,
       /\btot\d+<S\d+>\(&s\d+, /,
+      /\{ (true|false) => /,
+      /\(\d+, (true|false)\) => /,
+      /\(_, _\) => /,
+      /\{ -?\d+\.\d+ => /,
+      /defer \{/,
+      /global ga\d+: [a-z0-9]+\[4\] = \[/,
+      /local cl\d+: Lambda</,
     ]) {
       expect(sources).toMatch(feature);
     }

@@ -373,6 +373,11 @@ class ProgramBuilder {
    * the increments were evaluated.
    */
   private readonly counters: { name: string; type: IntType }[] = [];
+  /** Lambdas adding their argument to a counter through a captured pointer. */
+  private readonly counterLambdas: {
+    name: string;
+    counter: { name: string; type: IntType };
+  }[] = [];
 
   constructor(
     private readonly rng: () => number,
@@ -612,7 +617,9 @@ class ProgramBuilder {
 
   private intExpr(type: IntType, depth: number, constantOnly: boolean): Expr {
     if (!constantOnly && this.canIncrement() && this.chance(0.07)) {
-      return this.incrementExpr(type);
+      return this.counterLambdas.length > 0 && this.chance(0.3)
+        ? this.counterLambdaCall(type, depth)
+        : this.incrementExpr(type);
     }
     // Calls run at block exit in deferred code and could observe later
     // state, so overloads, like other calls, stay out of it.
@@ -656,7 +663,9 @@ class ProgramBuilder {
       constantOnly ? 5 : this.plainOnly ? 6 : this.canThrow() ? 17 : 15,
     );
     if (choice === 6 && this.chance(0.35)) {
-      return this.intMatchExpr(type, depth);
+      return this.chance(0.5)
+        ? this.intMatchExpr(type, depth)
+        : this.richMatchExpr(type, depth);
     }
     if (choice >= 9) {
       const feature = this.featureExpr(choice, type, depth);
@@ -1098,6 +1107,28 @@ class ProgramBuilder {
     };
   }
 
+  /** `cl(d)`: a lambda writes the counter through its captured pointer. */
+  private counterLambdaCall(type: IntType, depth: number): Expr {
+    const { name, counter } = this.pick(this.counterLambdas);
+    const arg = guard(this.expr(counter.type, depth - 1, false));
+    const call = `${name}(${arg.code})`;
+    return {
+      type,
+      code: type === counter.type ? call : `cast<${type.name}>(${call})`,
+      constant: false,
+      reads: union(arg.reads, new Set([name])),
+      eval: (env) => {
+        const delta = convert(arg.eval(env), counter.type) as bigint;
+        const updated = wrap(
+          (env.get(counter.name) as bigint) + delta,
+          counter.type,
+        );
+        env.set(counter.name, updated);
+        return convert(updated, type);
+      },
+    };
+  }
+
   /** `ovK(arg)` with an argument whose static type selects one overload. */
   private overloadCall(type: IntType, depth: number): Expr {
     const set = this.pick(this.overloads);
@@ -1252,6 +1283,87 @@ class ProgramBuilder {
           }
         }
         throw new Error("unreachable: the match has a catch-all arm");
+      },
+    };
+  }
+
+  /** `match` on a `bool`, a `double`, or an `(int-like, bool)` tuple. */
+  private richMatchExpr(type: IntType, depth: number): Expr {
+    const sub = depth - 1;
+    const form = this.int(0, 2);
+    if (form === 0) {
+      const subject = this.boolExpr(sub, false);
+      const yes = guard(this.expr(type, sub, false));
+      const no = guard(this.expr(type, sub, false));
+      return {
+        type,
+        code: this.chance(0.5)
+          ? `(match (${subject.code}) { true => ${yes.code}, false => ${no.code} })`
+          : `(match (${subject.code}) { false => ${no.code}, true => ${yes.code} })`,
+        constant: false,
+        reads: union(subject.reads, union(yes.reads, no.reads)),
+        eval: (env) => (subject.eval(env) ? yes.eval(env) : no.eval(env)),
+      };
+    }
+    if (form === 1) {
+      // Literals compare like `==`: NaN matches none and -0.0 equals 0.0.
+      const subject = this.expr(FLOAT_TYPES[0]!, sub, false);
+      const pool = ["0.0", "1.0", "2.25", "0.5", "-1.5", "100.0", "-0.5"];
+      const literals = [...new Set([this.pick(pool), this.pick(pool)])];
+      const bodies = literals.map(() => guard(this.expr(type, sub, false)));
+      const fallback = guard(this.expr(type, sub, false));
+      return {
+        type,
+        code: `(match (${subject.code}) { ${literals.map((literal, index) => `${literal} => ${bodies[index]!.code}`).join(", ")}, _ => ${fallback.code} })`,
+        constant: false,
+        reads: bodies.reduce(
+          (all, body) => union(all, body.reads),
+          union(subject.reads, fallback.reads),
+        ),
+        eval: (env) => {
+          const value = subject.eval(env) as number;
+          const slot = literals.findIndex(
+            (literal) => Number(literal) === value,
+          );
+          return (slot >= 0 ? bodies[slot]! : fallback).eval(env);
+        },
+      };
+    }
+    const firstType = this.intType();
+    const first = guard(this.expr(firstType, sub, false));
+    const second = this.boolExpr(sub, false);
+    const literal = BigInt(this.int(0, 15));
+    const flag = this.chance(0.5);
+    const a = this.fresh("n");
+    const b = this.fresh("n");
+    const saved = this.scope;
+    this.scope = [
+      ...saved,
+      { type: firstType, code: a, key: a, readonly: true },
+      { type: BOOL, code: b, key: b, readonly: true },
+    ];
+    const guarded = guard(this.expr(type, sub, false));
+    this.scope = saved;
+    const exact = guard(this.expr(type, sub, false));
+    const fallback = guard(this.expr(type, sub, false));
+    return {
+      type,
+      code: `(match ((${first.code}, ${second.code})) { (${literal}, ${flag}) => ${exact.code}, (${a}, ${b}) if (${b}) && ((${a}) != cast<${firstType.name}>(3)) => ${guarded.code}, (_, _) => ${fallback.code} })`,
+      constant: false,
+      reads: union(
+        union(first.reads, second.reads),
+        union(exact.reads, union(guarded.reads, fallback.reads)),
+      ),
+      eval: (env) => {
+        const x = convert(first.eval(env), firstType) as bigint;
+        const y = second.eval(env) as boolean;
+        if (x === literal && y === flag) return exact.eval(env);
+        if (y && x !== 3n) {
+          env.set(a, x);
+          env.set(b, y);
+          return guarded.eval(env);
+        }
+        return fallback.eval(env);
       },
     };
   }
@@ -1811,6 +1923,33 @@ class ProgramBuilder {
    * globals, pointers or calls, which would observe later state.
    */
   private deferStatement(): Stmt {
+    const written = this.scope.filter(
+      (place) =>
+        !place.array &&
+        !place.readonly &&
+        place.type.kind === "int" &&
+        (place.code.startsWith("(*") || place.key.startsWith("g")),
+    );
+    if (written.length > 0 && this.chance(0.4)) {
+      // `defer { *p += k; }`: pointers and globals are written at block exit,
+      // to whatever they hold then (R-DEFER-5 allows these writes).
+      const target = this.pick(written);
+      const type = target.type as IntType;
+      const delta = BigInt(this.int(1, 9));
+      return {
+        code: (indent) =>
+          `${indent}defer {\n${indent}    ${target.code} = ${target.code} + cast<${type.name}>(${delta});\n${indent}}`,
+        exec: () => {
+          throw new Error("defer statements run through execBlock");
+        },
+        defer: (env) => () => {
+          env.set(
+            target.key,
+            wrap((env.get(target.key) as bigint) + delta, type),
+          );
+        },
+      };
+    }
     const saved = this.scope;
     this.scope = saved.filter(
       (place) =>
@@ -2515,6 +2654,24 @@ class ProgramBuilder {
       lines.push(`global ${name}: ${type.name} = ${init.code};`);
       env.set(name, convert(init.eval(env), type));
     }
+    if (this.chance(0.4)) {
+      // The `g` prefix keeps the elements visible to functions (callEnv).
+      const type = this.intType();
+      const name = this.fresh("ga");
+      const inits = [0, 1, 2, 3].map(() => this.literal(type));
+      lines.push(
+        `global ${name}: ${type.name}[4] = [${inits.map((init) => guard(init).code).join(", ")}];`,
+      );
+      inits.forEach((init, slot) =>
+        env.set(`${name}[${slot}]`, convert(init.eval(env), type)),
+      );
+      this.globals.push({
+        type,
+        code: name,
+        key: name,
+        array: { base: name, length: 4 },
+      });
+    }
 
     if (this.chance(0.5)) {
       const name = `V${this.fresh("")}`;
@@ -2968,6 +3125,30 @@ class ProgramBuilder {
       });
     }
 
+    // Each counter may get a lambda writing it through a captured pointer.
+    for (const counter of this.counters) {
+      if (!this.chance(0.5)) continue;
+      const pointer = this.fresh("cp");
+      const name = this.fresh("cl");
+      const type = counter.type.name;
+      decls.push(
+        `    local ${pointer}: *${type} = &${counter.name};`,
+        `    local ${name}: Lambda<${type}>(${type}) = |d: ${type}| ret ${type} {\n        *${pointer} = *${pointer} + d;\n        return *${pointer};\n    };`,
+      );
+      // Called once so the local is used even if no expression picks it.
+      const callArg = this.literal(counter.type);
+      decls.push(`    ${name}(${guard(callArg).code});`);
+      env.set(
+        counter.name,
+        wrap(
+          (env.get(counter.name) as bigint) +
+            (convert(callArg.eval(env), counter.type) as bigint),
+          counter.type,
+        ),
+      );
+      this.counterLambdas.push({ name, counter });
+    }
+
     // Lambdas capture by value, so they only read plain locals and fields.
     for (let index = this.int(0, 2); index > 0; index--) {
       const name = this.fresh("l");
@@ -3034,7 +3215,16 @@ class ProgramBuilder {
       printed.push(place);
     }
 
-    for (const global of this.globals) printed.push(global);
+    for (const global of this.globals) {
+      if (!global.array) {
+        printed.push(global);
+        continue;
+      }
+      for (let slot = 0; slot < global.array.length; slot++) {
+        const key = `${global.array.base}[${slot}]`;
+        printed.push({ type: global.type, code: key, key });
+      }
+    }
     for (const counter of this.counters) {
       printed.push({
         type: counter.type,

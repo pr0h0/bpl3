@@ -781,6 +781,33 @@ frame main() ret int {
     expect(host.stdout()).toBe("index\nnull\ndivision\n");
   });
 
+  // BUG-486: at -O0 LLVM selected a 64-bit address for a global array indexed
+  // with an i64, so the module failed WebAssembly validation.
+  wasmIt("indexes global arrays in unoptimized wasm32 builds", async () => {
+    const host = createHostImports();
+    const exports = await compileWasmSource(
+      `
+extern printf(fmt: string, ...) ret int;
+
+global bytes: u8[4] = [cast<u8>(1), cast<u8>(2), cast<u8>(3), cast<u8>(4)];
+global longs: long[2] = [cast<long>(5), cast<long>(6)];
+
+frame main() ret int {
+    local i: int = 2;
+    bytes[i & 3] = bytes[(i + 1) & 3] + cast<u8>(1);
+    longs[i & 1] = longs[(i + 1) & 1] * cast<long>(2);
+    printf("%d %lld\\n", cast<int>(bytes[2]), longs[0]);
+    return 0;
+}
+`,
+      { wasmRuntime: "host", imports: host.imports },
+    );
+    host.attach(exports);
+
+    expect(getMain(exports)(0, 0)).toBe(0);
+    expect(host.stdout()).toBe("5 12\n");
+  });
+
   // Hosted printf reads `%i`, `%u` and 64-bit `%l`/`%ll` conversions; it
   // used to print them literally without consuming their arguments.
   wasmIt(
