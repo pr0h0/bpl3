@@ -247,6 +247,8 @@ export interface GeneratedProgram {
 }
 
 export const EXPECT_MARKER = "# fuzz-expect: ";
+/** First line of a program that is also run as hosted WebAssembly. */
+export const WASM_MARKER = "# fuzz-target: wasm";
 
 function wrap(value: bigint, type: IntType): bigint {
   return type.signed
@@ -375,6 +377,8 @@ class ProgramBuilder {
   constructor(
     private readonly rng: () => number,
     private readonly trace = false,
+    /** For the hosted WebAssembly lane: no exceptions (R-WASM-1). */
+    private readonly wasm = false,
   ) {}
 
   private int(min: number, max: number): number {
@@ -2486,7 +2490,10 @@ class ProgramBuilder {
   // ---------------------------------------------------------- program ----
 
   build(): GeneratedProgram {
-    const lines: string[] = ["extern printf(fmt: string, ...);"];
+    const lines: string[] = [
+      ...(this.wasm ? [WASM_MARKER] : []),
+      "extern printf(fmt: string, ...);",
+    ];
     const env: Env = new Map();
     const output: string[] = [];
     this.out = output;
@@ -2602,9 +2609,10 @@ class ProgramBuilder {
       this.overloads.push(set);
     }
 
-    // Throwing helpers, called from expressions inside `try` bodies.
+    // Throwing helpers, called from expressions inside `try` bodies. Without
+    // them no `try` or `throw` is generated.
     for (
-      let index = this.chance(0.6) ? this.int(1, 2) : 0;
+      let index = !this.wasm && this.chance(0.6) ? this.int(1, 2) : 0;
       index > 0;
       index--
     ) {
@@ -3199,9 +3207,9 @@ function binary(type: IntType, op: string, left: Expr, right: Expr): Expr {
 /** Generate one program and the stdout it must print. */
 export function generateOracleProgram(
   rng: () => number,
-  options: { trace?: boolean } = {},
+  options: { trace?: boolean; wasm?: boolean } = {},
 ): GeneratedProgram {
-  return new ProgramBuilder(rng, options.trace).build();
+  return new ProgramBuilder(rng, options.trace, options.wasm).build();
 }
 
 /** The expected stdout recorded in a generated program, if any. */

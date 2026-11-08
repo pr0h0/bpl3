@@ -234,6 +234,10 @@ aggregates in callback (`Func`) signatures and in variadic extern declarations.
 `String` (passed as its data pointer) and payload-free enums (passed as their
 `i32` tag).
 **[R-EXTERN-5]** These restrictions do not change ordinary BPL aggregate calls.
+**[R-EXTERN-8]** An extern without a return type returns `void`, except the C
+functions `printf`, `fprintf`, `dprintf`, `sprintf`, `snprintf`, `puts`,
+`putchar`, `scanf`, and `sscanf`, which return `int` as in C, so their calls
+match the C definition (WebAssembly requires an exact signature match).
 
 ### Slice ABI
 

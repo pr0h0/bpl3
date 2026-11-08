@@ -329,6 +329,19 @@ function collectReboundParameters(decl: AST.FunctionDecl): Set<string> {
   return rebound;
 }
 
+/** C library functions whose return type is `int`. */
+const C_INT_RETURNING_FUNCTIONS = new Set([
+  "printf",
+  "fprintf",
+  "dprintf",
+  "sprintf",
+  "snprintf",
+  "puts",
+  "putchar",
+  "scanf",
+  "sscanf",
+]);
+
 export class TypeChecker extends TypeCheckerBase implements CheckerContext {
   private importHandler: ImportHandler;
   private overloadResolver: OverloadResolver;
@@ -678,7 +691,10 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
             ? this.resolveType(stmt.returnType)
             : {
                 kind: "BasicType",
-                name: "void",
+                // A C function that returns `int` keeps that type when the
+                // declaration omits it: WebAssembly calls must match the
+                // definition's signature exactly (R-FFI-1).
+                name: C_INT_RETURNING_FUNCTIONS.has(stmt.name) ? "int" : "void",
                 genericArgs: [],
                 pointerDepth: 0,
                 arrayDimensions: [],

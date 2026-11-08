@@ -1076,18 +1076,23 @@ loaded from an undefined `%uint_ptr`, so clang rejected the IR.
 **Resolution**: capture analysis skips type aliases, specs and spec methods
 as well as functions, structs and enums. `tests/LambdaTypeNameCaptures.test.ts`.
 
-### BUG-483: `sizeof(uint)` in a lambda captures the type name
+### BUG-485: `extern printf(...)` without `ret int` breaks hosted WebAssembly
 
 **Status**: Fixed · **Priority**: P2
 
-Found by the generated-program fuzzer once it produced `sizeof` of
-primitive types (2026-11-08). `sizeof(uint)` parses its argument as an
-identifier, which resolves to the `uint` type alias. Inside a lambda, capture
-analysis treated that declaration as a captured variable, and the lambda
-loaded from an undefined `%uint_ptr`, so clang rejected the IR.
+Found while adding a hosted WebAssembly lane to the generated-program fuzzer
+(2026-11-08). An extern without a return type returned `void`, so
+`extern printf(fmt: string, ...);` (the form used across the documentation
+and examples) was called as `void (i8*, ...)`. Natively the ignored `int`
+result is harmless, but the hosted Wasm runtime defines `i32 printf`, and
+Wasm calls through a mismatched signature: the program printed zeros for
+every argument or trapped with `unreachable`, while the build succeeded.
 
-**Resolution**: capture analysis skips type aliases, specs and spec methods
-as well as functions, structs and enums. `tests/LambdaTypeNameCaptures.test.ts`.
+**Resolution**: an extern of a known C function that returns `int`
+(`printf`, `fprintf`, `dprintf`, `sprintf`, `snprintf`, `puts`, `putchar`,
+`scanf`, `sscanf`) has return type `int` when the declaration omits it
+(R-EXTERN-8). The hosted `printf` also gained `%i`, `%u` and 64-bit
+`%l`/`%ll` conversions. `tests/WasmRuntime.test.ts`.
 
 ## Developer experience fixes (2026-10-28)
 

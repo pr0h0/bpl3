@@ -456,6 +456,11 @@ Each campaign iteration picks one input lane:
   `--oracle-only` (or `FUZZ_ORACLE_ONLY=1`) makes every iteration an oracle
   program, for a local campaign aimed at miscompiles:
   `bun run fuzz -- --oracle-only --iterations 2000 --seeds 0x1,0x2`.
+  `--wasm` (or `FUZZ_WASM=1`) generates the programs without exceptions,
+  which WebAssembly does not support yet, marks them with
+  `# fuzz-target: wasm`, and also builds them for `wasm32-unknown-unknown`
+  with the hosted runtime and runs them with the playground's host adapter;
+  that output must match too. It needs `wasm-ld`, and is skipped without it.
 - **differential**: templates whose O0 and O3 behavior must match.
 
 To find which statement of a failing generated program diverges, regenerate it

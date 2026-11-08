@@ -687,6 +687,61 @@ frame main() ret int {
     },
   );
 
+  // Hosted printf reads `%i`, `%u` and 64-bit `%l`/`%ll` conversions; it
+  // used to print them literally without consuming their arguments.
+  wasmIt(
+    "formats hosted wasm printf 64-bit, unsigned and %i arguments",
+    async () => {
+      const host = createHostImports();
+      const exports = await compileWasmSource(
+        `
+extern printf(fmt: string, ...) ret int;
+
+frame main() ret int {
+    local minLong: long = cast<long>(-9223372036854775807) - cast<long>(1);
+    local len: int = printf("%lld %llu %llx %llX %ld %lu %u %i|%lld %d\\n", minLong, cast<ulong>(18446744073709551615), cast<ulong>(3735928559), cast<ulong>(255), cast<long>(-42), cast<ulong>(42), cast<uint>(4294967295), -7, cast<long>(0), 9);
+    if (len != 79) {
+        return len;
+    }
+    return 0;
+}
+`,
+        { wasmRuntime: "host", imports: host.imports },
+      );
+      host.attach(exports);
+
+      expect(getMain(exports)(0, 0)).toBe(0);
+      expect(host.stdout()).toBe(
+        "-9223372036854775808 18446744073709551615 deadbeef FF -42 42 4294967295 -7|0 9\n",
+      );
+      expect(host.stderr()).toBe("");
+    },
+  );
+
+  // BUG-485: an extern declared without its C return type (`extern
+  // printf(fmt: string, ...);`) was called as `void`, which does not match
+  // the runtime's `i32` definition, so hosted wasm printed garbage or
+  // trapped. Known C functions keep their `int` return type (R-EXTERN-8).
+  wasmIt("calls printf declared without a return type", async () => {
+    const host = createHostImports();
+    const exports = await compileWasmSource(
+      `
+extern printf(fmt: string, ...);
+
+frame main() ret int {
+    printf("%d %s\\n", 5, "ok");
+    local n: int = printf("ab\\n");
+    return n - 3;
+}
+`,
+      { wasmRuntime: "host", imports: host.imports },
+    );
+    host.attach(exports);
+
+    expect(getMain(exports)(0, 0)).toBe(0);
+    expect(host.stdout()).toBe("5 ok\nab\n");
+  });
+
   wasmIt("keeps hosted wasm printf edge cases predictable", async () => {
     const host = createHostImports();
     const exports = await compileWasmSource(

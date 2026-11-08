@@ -138,6 +138,10 @@ regression work is prioritized in [PLAN.md](PLAN.md).
 - [ ] [2] Plan package dependency graphs before mutation and provide rollback
       across package replacements; retain root/transitive version constraints.
 - [ ] [2] Expand required-linker wasm execution and host API/platform coverage.
+- [ ] [2] Support exceptions on WebAssembly. The Wasm runtimes stub
+      `longjmp` with `unreachable`, so `throw` traps instead of reaching a
+      `catch`; lower handlers with Wasm exception handling or SjLj
+      emulation. The fuzzer's `--wasm` lane omits exceptions until then.
 - [ ] [3] Improve binding generation for complex C headers and ABI layouts.
 - [x] [4] Assess qualified-pattern support: module-qualified enums
       (`ns.Shape.Circle { ... }`) work in construction, nested patterns and

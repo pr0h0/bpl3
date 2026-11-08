@@ -9,6 +9,7 @@ import {
 } from "fs";
 import { tmpdir } from "os";
 import { join, resolve } from "path";
+import { findWasmLinker } from "../cli/WasmToolchain";
 import { CodeGenerator } from "../compiler/backend/CodeGenerator";
 import { CompilerError } from "../compiler/common/CompilerError";
 import { lexWithGrammar } from "../compiler/frontend/GrammarLexer";
@@ -17,7 +18,11 @@ import { TypeChecker } from "../compiler/middleend/TypeChecker";
 import { verifyLlvmFile } from "../compiler/common/LlvmVerifier";
 import { Formatter } from "../compiler/formatter/Formatter";
 import { formatterSemantics } from "../compiler/formatter/FormatterSemantics";
-import { generateOracleProgram, readExpectedStdout } from "./programGenerator";
+import {
+  WASM_MARKER,
+  generateOracleProgram,
+  readExpectedStdout,
+} from "./programGenerator";
 import {
   findNonDirectoryPathComponent,
   findSymlinkedPathComponent,
@@ -237,6 +242,8 @@ export interface FuzzCampaignOptions {
   enableDifferential?: boolean;
   /** Run only generated programs against their oracle (`--oracle-only`). */
   oracleOnly?: boolean;
+  /** Also run generated programs as hosted WebAssembly (`--wasm`). */
+  wasm?: boolean;
   minimizeFailures?: boolean;
   maxMinimizePasses?: number;
   progressInterval?: number;
@@ -644,6 +651,18 @@ export function runBplOraclePipeline(
             : `generated program output differs from its oracle (O0 ${wrong(o0) ? "wrong" : "ok"}, O3 ${wrong(o3) ? "wrong" : "ok"})`,
         mismatch: { o0, o3, expectedStdout },
       };
+    }
+    if (source.startsWith(WASM_MARKER)) {
+      const wasm = runBplHostedWasm(sourcePath, dir);
+      if (wasm === "no-linker") return { ok: true, stage: "codegen" };
+      if (wrong(wasm)) {
+        return {
+          ok: false,
+          stage: "codegen",
+          message: `generated program output differs from its oracle as hosted WebAssembly (exit ${wasm.exitCode})${wasm.stderr ? `: ${wasm.stderr.slice(0, 300)}` : ""}`,
+          mismatch: { o0, o3: wasm, expectedStdout },
+        };
+      }
     }
     return { ok: true, stage: "codegen" };
   } finally {
@@ -1253,6 +1272,8 @@ export function generateMutatedStructuredSources(
 
 export interface GenerateFuzzInputOptions {
   enableDifferential?: boolean;
+  /** Generated programs are also run as hosted WebAssembly. */
+  wasm?: boolean;
   /** Every iteration is a generated program checked against its oracle. */
   oracleOnly?: boolean;
 }
@@ -1264,7 +1285,7 @@ export interface GenerateFuzzInputOptions {
 export function generateOracleSource(
   seed: number,
   iteration: number,
-  options: { trace?: boolean } = {},
+  options: { trace?: boolean; wasm?: boolean } = {},
 ): string {
   return generateOracleProgram(
     createSeededRandom(mixSeed(seed, iteration)),
@@ -1297,7 +1318,7 @@ export function generateFuzzInput(
   let source: string;
 
   if (kind === "generated" || kind === "oracle") {
-    source = generateOracleSource(seed, iteration);
+    source = generateOracleSource(seed, iteration, { wasm: options.wasm });
   } else if (kind === "differential") {
     source = generateDifferentialRuntimeSource(seed, Math.floor(iteration / 4));
   } else if (kind === "structured") {
@@ -1329,6 +1350,7 @@ export function runFuzzCampaign(
       generateFuzzInput(context.seed, context.iteration, {
         enableDifferential: options.enableDifferential,
         oracleOnly: options.oracleOnly,
+        wasm: options.wasm,
       }));
   const stageCounts = createStageCounts();
   const seedSummaries: FuzzSeedSummary[] = [];
@@ -1935,6 +1957,82 @@ export function runBplRuntimePipeline(
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
+}
+
+let wasmLinkerAvailable: boolean | undefined;
+
+/**
+ * Build `sourcePath` for wasm32 with the hosted runtime and run it with the
+ * playground's host adapter. Returns "no-linker" when wasm-ld is missing.
+ */
+function runBplHostedWasm(
+  sourcePath: string,
+  cwd: string,
+): DifferentialCommandResult | "no-linker" {
+  wasmLinkerAvailable ??= Boolean(findWasmLinker());
+  if (!wasmLinkerAvailable) return "no-linker";
+  const wasmPath = join(cwd, "main.wasm");
+  const build = spawnSync(
+    "bun",
+    [
+      BPL_CLI,
+      "build",
+      sourcePath,
+      "--target",
+      "wasm32-unknown-unknown",
+      "--wasm-runtime",
+      "host",
+      "-o",
+      wasmPath,
+    ],
+    { cwd, encoding: "utf8", timeout: 60000 },
+  );
+  if (build.status !== 0) {
+    return {
+      exitCode: build.status ?? -1,
+      stdout: "",
+      stderr: `wasm build failed: ${build.stderr}${build.stdout}`,
+    } as DifferentialCommandResult;
+  }
+  const adapter = require("../playground/frontend/wasmHostAdapter.js") as {
+    createHostedWasmBrowserHost(argv: string[]): {
+      imports: Record<string, Record<string, unknown>>;
+      attach(exports: Record<string, unknown>): void;
+      setReturnCode(code: number): void;
+      captureException(error: unknown): void;
+      result(): {
+        stdout: string;
+        stderr: string;
+        returnCode: number | null;
+        trapped: boolean;
+        error: string;
+      };
+    };
+  };
+  const host = adapter.createHostedWasmBrowserHost([]);
+  try {
+    const module = new WebAssembly.Module(readFileSync(wasmPath));
+    const instance = new WebAssembly.Instance(
+      module,
+      host.imports as ConstructorParameters<typeof WebAssembly.Instance>[1],
+    );
+    host.attach(instance.exports);
+    const main = instance.exports.main as (
+      argc: number,
+      argv: number,
+    ) => number;
+    host.setReturnCode(main(0, 0));
+  } catch (error) {
+    host.captureException(error);
+  }
+  const result = host.result();
+  return {
+    exitCode: result.trapped ? -1 : (result.returnCode ?? -1),
+    stdout: result.stdout,
+    stderr: result.trapped
+      ? `trap: ${result.error}\n${result.stderr}`
+      : result.stderr,
+  } as DifferentialCommandResult;
 }
 
 function runBplCommand(
