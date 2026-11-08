@@ -192,7 +192,7 @@ extern puts(s: string) ret int;
 extern malloc(size: ulong) ret *void;
 extern pow(base: double, exp: double) ret double;
 extern fill(values: *int, count: ulong) ret void;
-extern fill_matrix(matrix: *int[3]) ret void;
+extern fill_matrix(matrix: *CRow_int_3) ret void;
 extern printf(fmt: string, ...) ret int;
 ```
 
@@ -204,8 +204,10 @@ subnormal values. Simple `(float)` constant casts also produce `f32`.
 
 For function parameters, C array declarations such as `int values[]` or
 `const int values[4]` are emitted as pointers because the C ABI receives them as
-pointers. Multidimensional parameter arrays decay at the outer dimension, so
-`int matrix[2][3]` becomes `*int[3]`. Fixed arrays inside structs stay fixed
+pointers. Multidimensional parameter arrays decay at the outer dimension, and
+the row gets a generated alias because `*int[3]` would be an array of pointers:
+`int matrix[2][3]` becomes `*CRow_int_3` with `type CRow_int_3 = int[3];`.
+Fixed arrays inside structs stay fixed
 arrays. Legacy C octal constants such as `0755` are normalized to BPL `0o755`
 syntax, binary constants keep `0b` syntax, and exponent-only floating constants
 such as `1e-3` are emitted as `double` so generated bindings preserve C numeric

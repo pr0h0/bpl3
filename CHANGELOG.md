@@ -14,8 +14,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   Character literals accept `'\xHH'` and, up to `\u007F`, `'\uHHHH'`.
 - The generated-program fuzzer covers operator methods on structs, tuple
   assignment and swaps, methods bound to lambdas including value receivers,
-  a generic enum, arrays of structs, and byte reads of strings holding escapes
-  and UTF-8 text.
+  a generic enum, arrays of structs, and byte reads of strings holding escapes,
+  raw bytes and UTF-8 text. It also covers type aliases, constant locals, `T[2][2]`
+  arrays, global structs, two-parameter and nested generics, `Func` fields and
+  closures returned from closures.
 - An extern of a known C function that returns `int` (`printf`, `puts`,
   `putchar`, `fprintf`, `dprintf`, `sprintf`, `snprintf`, `scanf`, `sscanf`)
   has return type `int` when the declaration omits it (R-EXTERN-8).
@@ -52,6 +54,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   programs against their expected output, for local miscompile hunts.
 
 ### Fixed
+
+- A method call on a zero-initialized global struct, or on a struct element of
+  an array field, no longer crashes on a null vtable pointer (BUG-491).
+
+- Assigning a pointer to an array to an array of pointers is a type error
+  instead of an internal code generation failure (BUG-489).
+- `bpl bindgen` emits a compilable extern for a C matrix parameter, using a
+  generated row alias such as `CRow_int_3` (BUG-490).
 
 - A match pattern binding that starts with `_`, such as `E.A(_x)`, is no longer
   a syntax error (BUG-487).

@@ -80,6 +80,10 @@ export function generateBplBindings(options: BindgenOptions): string {
     typedefs.map((typedef) => [typedef.name, typedef.mappedType]),
   );
   const prototypes = extractFunctionPrototypes(source);
+  const arrayRows = new Map<string, string>();
+  const formattedPrototypes = prototypes.map((prototype) =>
+    formatPrototype(prototype, aliases, arrayRows),
+  );
   const lines = [
     `# Generated from ${options.headerPath}`,
     "# Review pointer and platform-specific integer mappings before publishing.",
@@ -92,7 +96,9 @@ export function generateBplBindings(options: BindgenOptions): string {
     ...sectionBreak(structs.length > 0),
     ...enums.map(formatEnum),
     ...sectionBreak(enums.length > 0),
-    ...prototypes.map((prototype) => formatPrototype(prototype, aliases)),
+    ...[...arrayRows].map(([name, type]) => `type ${name} = ${type};`),
+    ...sectionBreak(arrayRows.size > 0),
+    ...formattedPrototypes,
     "",
   ];
 
@@ -894,15 +900,39 @@ function formatEnum(enumDecl: CEnum): string {
 function formatPrototype(
   prototype: CPrototype,
   aliases: Record<string, string>,
+  arrayRows: Map<string, string>,
 ): string {
   const params = prototype.parameters
     .map((param, index) =>
       param.variadic
         ? "..."
-        : `${param.name ?? `arg${index}`}: ${mapCType(param.type, aliases)}`,
+        : `${param.name ?? `arg${index}`}: ${mapParameterType(param.type, aliases, arrayRows)}`,
     )
     .join(", ");
   return `extern ${prototype.name}(${params}) ret ${mapCType(prototype.returnType, aliases)};`;
+}
+
+/**
+ * `int matrix[2][3]` decays to a pointer to `int[3]`. BPL spells `*int[3]` as
+ * an array of pointers, so the row needs a name: `*CRow_int_3`.
+ */
+function mapParameterType(
+  rawType: string,
+  aliases: Record<string, string>,
+  arrayRows: Map<string, string>,
+): string {
+  const decayed = /^(.*?)\s*((?:\[\d+\]\s*)+)\*$/.exec(rawType.trim());
+  if (!decayed) return mapCType(rawType, aliases);
+  const element = mapCType(decayed[1]!, aliases);
+  const dimensions = [...decayed[2]!.matchAll(/\[(\d+)\]/g)].map(
+    (dimension) => dimension[1]!,
+  );
+  const name = `CRow_${element.replace(/\*/g, "p").replace(/\W/g, "_")}_${dimensions.join("_")}`;
+  arrayRows.set(
+    name,
+    `${element}${dimensions.map((dimension) => `[${dimension}]`).join("")}`,
+  );
+  return `*${name}`;
 }
 
 function mapCType(

@@ -60,8 +60,11 @@ const FLOAT_TYPES: FloatType[] = [
 const LONG = INT_TYPES[6]!;
 /** How many array subscripts may enclose another array read. */
 const MAX_INDEX_NESTING = 2;
-/** Source spelling and decoded text of the pieces of generated strings. */
-const STRING_PIECES: readonly (readonly [string, string])[] = [
+/**
+ * Source spelling of the pieces of generated strings, and their text or, for
+ * a `\\xHH` escape of 0x80 and above, the one byte it stands for.
+ */
+const STRING_PIECES: readonly (readonly [string, string | number])[] = [
   ["a", "a"],
   ["Z", "Z"],
   ["7", "7"],
@@ -76,6 +79,10 @@ const STRING_PIECES: readonly (readonly [string, string])[] = [
   ["\\0", "\0"],
   ["\\x41", "A"],
   ["\\x7e", "~"],
+  ["\\x80", 0x80],
+  ["\\xC3", 0xc3],
+  ["\\xF0", 0xf0],
+  ["\\xff", 0xff],
   ["\\u0042", "B"],
   ["\\u00e9", "\u00e9"],
   ["\\u20ac", "\u20ac"],
@@ -202,6 +209,26 @@ interface OperatorValue {
 interface Instance {
   name: string;
   struct: StructDef;
+}
+
+/** `struct HK { f: Func<T>(T), k: T }`: `x + first` or `x ^ second`. */
+interface FuncHolder {
+  name: string;
+  type: IntType;
+  firstName: string;
+  secondName: string;
+  first: bigint;
+  second: bigint;
+}
+
+/** `curK(a)` returns a closure computing `(a ^ b) + offset`. */
+interface Curried {
+  name: string;
+  applied: string;
+  type: IntType;
+  offset: bigint;
+  /** The `a` captured by `applied`. */
+  bound: bigint;
 }
 
 interface BoundMutator {
@@ -457,6 +484,18 @@ class ProgramBuilder {
     method: StructDef["methods"][number];
   }[] = [];
   private readonly boundMutators: BoundMutator[] = [];
+  /** `T[2][2]` locals with their `sum` and `set` helpers. */
+  private readonly grids: {
+    name: string;
+    type: IntType;
+    sum: string;
+    set: string;
+  }[] = [];
+  /** `Pr<A, B>` locals, each with a `Pr<B, A>` holding the swapped fields. */
+  private readonly pairs: { name: string; swapped: string }[] = [];
+  private readonly nestedBoxes: { name: string; type: IntType }[] = [];
+  private readonly holders: FuncHolder[] = [];
+  private readonly curried: Curried[] = [];
 
   constructor(
     private readonly rng: () => number,
@@ -3062,7 +3101,17 @@ class ProgramBuilder {
 
   /** The expression forms over main's operator, option and struct locals. */
   private localFeatureExpr(type: IntType, depth: number): Expr | undefined {
-    switch (this.int(0, 3)) {
+    switch (this.int(0, 8)) {
+      case 4:
+        return this.gridRead(type, depth);
+      case 5:
+        return this.pairRead(type);
+      case 6:
+        return this.nestedBoxRead(type);
+      case 7:
+        return this.holderRead(type, depth);
+      case 8:
+        return this.curriedRead(type, depth);
       case 0:
         return this.operators && this.operators.locals.length > 0
           ? this.operatorRead(type, depth)
@@ -3252,7 +3301,11 @@ class ProgramBuilder {
   }
 
   private localFeatureStatement(): Stmt | undefined {
-    switch (this.int(0, 5)) {
+    switch (this.int(0, 7)) {
+      case 6:
+        return this.gridStatement();
+      case 7:
+        return this.nestedDataStatement();
       case 0:
         return this.tupleAssignment();
       case 1:
@@ -3280,14 +3333,15 @@ class ProgramBuilder {
 
   /** The source of a random string and its UTF-8 bytes. */
   private stringConstant(): { literal: string; bytes: number[] } {
+    const encoder = new TextEncoder();
     const pieces = Array.from({ length: this.int(1, 12) }, () =>
       this.pick(STRING_PIECES),
     );
     return {
       literal: `"${pieces.map((piece) => piece[0]).join("")}"`,
-      bytes: [
-        ...new TextEncoder().encode(pieces.map((piece) => piece[1]).join("")),
-      ],
+      bytes: pieces.flatMap(([, value]) =>
+        typeof value === "number" ? [value] : [...encoder.encode(value)],
+      ),
     };
   }
 
@@ -3353,6 +3407,214 @@ class ProgramBuilder {
         output,
       ),
     );
+  }
+
+  // ------------------------------------------- nested and generic data ----
+
+  /** `mK[i & 1][j & 1]` or `sumK(mK, d)`, which edits its own copy. */
+  private gridRead(type: IntType, depth: number): Expr | undefined {
+    if (this.grids.length === 0) return undefined;
+    const grid = this.pick(this.grids);
+    if (this.chance(0.3)) {
+      const arg = guard(this.expr(INT, depth - 1, false));
+      return {
+        type,
+        code: `cast<${type.name}>(${grid.sum}(${grid.name}, ${arg.code}))`,
+        constant: false,
+        reads: union(arg.reads, new Set([grid.name])),
+        eval: (env) => {
+          const slot = (convert(arg.eval(env), INT) as bigint) & 1n;
+          const read = (i: bigint | number, j: number) =>
+            env.get(`${grid.name}[${i}][${j}]`) as bigint;
+          // g[d & 1][0] = g[1][1]; return g[0][0] + g[1][0];
+          const copied = read(1, 1);
+          const first = slot === 0n ? copied : read(0, 0);
+          const second = slot === 1n ? copied : read(1, 0);
+          return convert(wrap(first + second, grid.type), type);
+        },
+      };
+    }
+    const row = this.indexExpr();
+    const column = this.indexExpr();
+    return {
+      type,
+      code: `cast<${type.name}>(${grid.name}[(${row.code}) & 1][(${column.code}) & 1])`,
+      constant: false,
+      reads: union(row.reads, union(column.reads, new Set([grid.name]))),
+      eval: (env) => {
+        const i = (row.eval(env) as bigint) & 1n;
+        const j = (column.eval(env) as bigint) & 1n;
+        return convert(env.get(`${grid.name}[${i}][${j}]`)!, type);
+      },
+    };
+  }
+
+  /** `pK.first()`, `pK.swap().a` or `pK.swap().first()` on `Pr<A, B>`. */
+  private pairRead(type: IntType): Expr | undefined {
+    if (this.pairs.length === 0) return undefined;
+    const { name } = this.pick(this.pairs);
+    const form = this.int(0, 2);
+    const code = [
+      `${name}.first()`,
+      `${name}.swap().a`,
+      `${name}.swap().first()`,
+    ][form]!;
+    const key = form === 0 ? `${name}.a` : `${name}.b`;
+    return {
+      type,
+      code: `cast<${type.name}>(${code})`,
+      constant: false,
+      reads: new Set([name]),
+      eval: (env) => convert(env.get(key)!, type),
+    };
+  }
+
+  /** `bbK.get().get()` through a generic struct nested in itself. */
+  private nestedBoxRead(type: IntType): Expr | undefined {
+    if (this.nestedBoxes.length === 0) return undefined;
+    const { name } = this.pick(this.nestedBoxes);
+    return {
+      type,
+      code: `cast<${type.name}>(${name}.get().get())`,
+      constant: false,
+      reads: new Set([name]),
+      eval: (env) => convert(env.get(`${name}.v.v`)!, type),
+    };
+  }
+
+  /** The value the holder's current function returns for `x`. */
+  private holderCall(holder: FuncHolder, x: bigint, env: Env): bigint {
+    const usesSecond = env.get(`${holder.name}.fn`) === 1n;
+    const operand = usesSecond ? holder.second : holder.first;
+    return wrap(usesSecond ? x ^ operand : x + operand, holder.type);
+  }
+
+  /** `hK.f(x)` through the stored pointer, or `hK.run(x)` adding `k`. */
+  private holderRead(type: IntType, depth: number): Expr | undefined {
+    if (this.holders.length === 0) return undefined;
+    const holder = this.pick(this.holders);
+    const arg = guard(this.expr(holder.type, depth - 1, false));
+    const direct = this.chance(0.5);
+    return {
+      type,
+      code: `cast<${type.name}>(${holder.name}.${direct ? "f" : "run"}(${arg.code}))`,
+      constant: false,
+      reads: union(arg.reads, new Set([holder.name])),
+      eval: (env) => {
+        const called = this.holderCall(
+          holder,
+          convert(arg.eval(env), holder.type) as bigint,
+          env,
+        );
+        return convert(
+          direct
+            ? called
+            : wrap(
+                called + (env.get(`${holder.name}.k`) as bigint),
+                holder.type,
+              ),
+          type,
+        );
+      },
+    };
+  }
+
+  /** The closure `curK(a)` applied to `b`. */
+  private curriedValue(curried: Curried, a: bigint, b: bigint): bigint {
+    return wrap((a ^ b) + curried.offset, curried.type);
+  }
+
+  /** `curK(a)(b)` or `addK(b)`, a closure returned from a closure. */
+  private curriedRead(type: IntType, depth: number): Expr | undefined {
+    if (this.curried.length === 0) return undefined;
+    const curried = this.pick(this.curried);
+    const right = guard(this.expr(curried.type, depth - 1, false));
+    if (this.chance(0.5)) {
+      const left = guard(this.expr(curried.type, depth - 1, false));
+      return {
+        type,
+        code: `cast<${type.name}>(${curried.name}(${left.code})(${right.code}))`,
+        constant: false,
+        reads: union(left.reads, union(right.reads, new Set([curried.name]))),
+        eval: (env) => {
+          const a = convert(left.eval(env), curried.type) as bigint;
+          const b = convert(right.eval(env), curried.type) as bigint;
+          return convert(this.curriedValue(curried, a, b), type);
+        },
+      };
+    }
+    return {
+      type,
+      code: `cast<${type.name}>(${curried.applied}(${right.code}))`,
+      constant: false,
+      reads: union(right.reads, new Set([curried.applied])),
+      eval: (env) => {
+        const b = convert(right.eval(env), curried.type) as bigint;
+        return convert(this.curriedValue(curried, curried.bound, b), type);
+      },
+    };
+  }
+
+  /** Row copies and `setK(&mK[i], v)` on `T[2][2]` locals. */
+  private gridStatement(): Stmt | undefined {
+    if (this.grids.length === 0) return undefined;
+    const grid = this.pick(this.grids);
+    const row = this.indexExpr();
+    const slot = (env: Env) => (row.eval(env) as bigint) & 1n;
+    if (this.chance(0.5)) {
+      const source = this.indexExpr();
+      return {
+        code: (indent) =>
+          `${indent}${grid.name}[(${row.code}) & 1] = ${grid.name}[(${source.code}) & 1];`,
+        exec: (env) => {
+          const to = slot(env);
+          const from = (source.eval(env) as bigint) & 1n;
+          const values = [0, 1].map((column) =>
+            env.get(`${grid.name}[${from}][${column}]`)!,
+          );
+          values.forEach((value, column) =>
+            env.set(`${grid.name}[${to}][${column}]`, value),
+          );
+          return undefined;
+        },
+      };
+    }
+    const value = guard(this.expr(grid.type, 2, false));
+    return {
+      code: (indent) =>
+        `${indent}${grid.set}(&${grid.name}[(${row.code}) & 1], ${value.code});`,
+      exec: (env) => {
+        const to = slot(env);
+        env.set(`${grid.name}[${to}][1]`, convert(value.eval(env), grid.type));
+        return undefined;
+      },
+    };
+  }
+
+  /** `qK = pK.swap();`, or storing the other function in a holder. */
+  private nestedDataStatement(): Stmt | undefined {
+    if (this.chance(0.5) && this.pairs.length > 0) {
+      const { name, swapped } = this.pick(this.pairs);
+      return {
+        code: (indent) => `${indent}${swapped} = ${name}.swap();`,
+        exec: (env) => {
+          env.set(`${swapped}.a`, env.get(`${name}.b`)!);
+          env.set(`${swapped}.b`, env.get(`${name}.a`)!);
+          return undefined;
+        },
+      };
+    }
+    if (this.holders.length === 0) return undefined;
+    const holder = this.pick(this.holders);
+    const useSecond = this.chance(0.5);
+    return {
+      code: (indent) =>
+        `${indent}${holder.name}.f = ${useSecond ? holder.secondName : holder.firstName};`,
+      exec: (env) => {
+        env.set(`${holder.name}.fn`, useSecond ? 1n : 0n);
+        return undefined;
+      },
+    };
   }
 
   // ---------------------------------------------------------- program ----
@@ -3453,6 +3715,10 @@ class ProgramBuilder {
       lines.push(`global ${name}: string = ${literal};`);
       this.strings.push({ name, bytes, global: true });
     }
+
+    lines.push(
+      "struct Pr<A, B> {\n    a: A,\n    b: B,\n    frame first(this: *Pr<A, B>) ret A {\n        return this.a;\n    }\n    frame swap(this: *Pr<A, B>) ret Pr<B, A> {\n        return Pr<B, A> { a: this.b, b: this.a };\n    }\n}",
+    );
 
     // Generic code paths: an identity function and a generic struct.
     lines.push("frame gid<T>(x: T) ret T {\n    return x;\n}");
@@ -3662,6 +3928,186 @@ class ProgramBuilder {
         );
         addInstance(copy, struct);
       }
+    }
+    for (const struct of this.structs) {
+      if (!this.chance(0.3)) continue;
+      // `global gsK: S;` starts zeroed; struct initializers are not constant.
+      const name = this.fresh("gs");
+      lines.push(`global ${name}: ${struct.name};`);
+      struct.fields.forEach((type, field) =>
+        env.set(
+          `${name}.f${field}`,
+          type.kind === "bool" ? false : type.kind === "float" ? 0 : 0n,
+        ),
+      );
+      addInstance(name, struct);
+    }
+    if (this.chance(0.5)) {
+      const type = this.intType();
+      const alias = `A${this.fresh("")}`;
+      lines.push(`type ${alias} = ${type.name};`);
+      const name = this.fresh("v");
+      const init = guard(this.expr(type, 2, false));
+      decls.push(`    local ${name}: ${alias} = ${init.code};`);
+      env.set(name, convert(init.eval(env), type));
+      const place = { type, code: name, key: name };
+      this.scope.push(place);
+      printed.push(place);
+    }
+    if (this.chance(0.5)) {
+      const type = this.intType();
+      const name = this.fresh("c");
+      const init = guard(this.expr(type, 2, false));
+      decls.push(`    local const ${name}: ${type.name} = ${init.code};`);
+      env.set(name, convert(init.eval(env), type));
+      const place = { type, code: name, key: name, readonly: true };
+      this.scope.push(place);
+      printed.push(place);
+    }
+    if (this.chance(0.6)) {
+      const type = this.intType();
+      const name = this.fresh("m");
+      const sum = this.fresh("sum");
+      const set = this.fresh("set");
+      const row = `R${this.fresh("")}`;
+      const cells = [0, 1].map(() =>
+        [0, 1].map(() => guard(this.expr(type, 1, false))),
+      );
+      lines.push(`type ${row} = ${type.name}[2];`);
+      functionsAfterMain.push(
+        `frame ${set}(p: *${row}, v: ${type.name}) {\n    (*p)[1] = v;\n}`,
+        `frame ${sum}(g: ${type.name}[2][2], d: int) ret ${type.name} {\n    g[d & 1][0] = g[1][1];\n    return g[0][0] + g[1][0];\n}`,
+      );
+      decls.push(
+        `    local ${name}: ${type.name}[2][2] = [${cells.map((cols) => `[${cols.map((cell) => cell.code).join(", ")}]`).join(", ")}];`,
+      );
+      cells.forEach((cols, i) =>
+        cols.forEach((cell, j) =>
+          env.set(`${name}[${i}][${j}]`, convert(cell.eval(env), type)),
+        ),
+      );
+      const addGrid = (local: string) => {
+        for (const i of [0, 1]) {
+          for (const j of [0, 1]) {
+            const key = `${local}[${i}][${j}]`;
+            const place = { type, code: key, key };
+            this.scope.push(place);
+            printed.push(place);
+          }
+        }
+        this.grids.push({ name: local, type, sum, set });
+      };
+      addGrid(name);
+      if (this.chance(0.5)) {
+        // A copied grid holds its own rows (value semantics).
+        const copy = this.fresh("m");
+        decls.push(`    local ${copy}: ${type.name}[2][2] = ${name};`);
+        for (const i of [0, 1]) {
+          for (const j of [0, 1]) {
+            env.set(`${copy}[${i}][${j}]`, env.get(`${name}[${i}][${j}]`)!);
+          }
+        }
+        addGrid(copy);
+      }
+    }
+    if (this.chance(0.5)) {
+      const a = this.intType();
+      const b = this.intType();
+      const name = this.fresh("pr");
+      const swapped = this.fresh("pr");
+      const left = guard(this.expr(a, 2, false));
+      const right = guard(this.expr(b, 2, false));
+      decls.push(
+        `    local ${name}: Pr<${a.name}, ${b.name}> = Pr<${a.name}, ${b.name}> { a: ${left.code}, b: ${right.code} };`,
+        `    local ${swapped}: Pr<${b.name}, ${a.name}> = ${name}.swap();`,
+      );
+      const x = convert(left.eval(env), a);
+      const y = convert(right.eval(env), b);
+      env.set(`${name}.a`, x);
+      env.set(`${name}.b`, y);
+      env.set(`${swapped}.a`, y);
+      env.set(`${swapped}.b`, x);
+      for (const [local, field, type] of [
+        [name, "a", a],
+        [name, "b", b],
+        [swapped, "a", b],
+        [swapped, "b", a],
+      ] as const) {
+        const key = `${local}.${field}`;
+        const place = { type, code: key, key };
+        this.scope.push(place);
+        printed.push(place);
+      }
+      this.pairs.push({ name, swapped });
+    }
+    if (this.chance(0.5)) {
+      const type = this.intType();
+      const name = this.fresh("bb");
+      const init = guard(this.expr(type, 2, false));
+      decls.push(
+        `    local ${name}: Box<Box<${type.name}>> = Box<Box<${type.name}>> { v: Box<${type.name}> { v: ${init.code} } };`,
+      );
+      const key = `${name}.v.v`;
+      env.set(key, convert(init.eval(env), type));
+      const place = { type, code: key, key };
+      this.scope.push(place);
+      printed.push(place);
+      this.nestedBoxes.push({ name, type });
+    }
+    if (this.chance(0.5)) {
+      const type = this.intType();
+      const struct = `H${this.fresh("")}`;
+      const firstName = this.fresh("hf");
+      const secondName = this.fresh("hg");
+      const first = BigInt(this.int(1, 90));
+      const second = BigInt(this.int(1, 90));
+      lines.push(
+        `frame ${firstName}(x: ${type.name}) ret ${type.name} {\n    return x + cast<${type.name}>(${first});\n}`,
+        `frame ${secondName}(x: ${type.name}) ret ${type.name} {\n    return x ^ cast<${type.name}>(${second});\n}`,
+        `struct ${struct} {\n    f: Func<${type.name}>(${type.name}),\n    k: ${type.name},\n    frame run(this: *${struct}, x: ${type.name}) ret ${type.name} {\n        return this.f(x) + this.k;\n    }\n}`,
+      );
+      const name = this.fresh("h");
+      const init = guard(this.expr(type, 2, false));
+      decls.push(
+        `    local ${name}: ${struct} = ${struct} { f: ${firstName}, k: ${init.code} };`,
+      );
+      env.set(`${name}.fn`, 0n);
+      env.set(`${name}.k`, convert(init.eval(env), type));
+      const key = `${name}.k`;
+      const place = { type, code: key, key };
+      this.scope.push(place);
+      printed.push(place);
+      this.holders.push({
+        name,
+        type,
+        firstName,
+        secondName,
+        first: convert(first, type) as bigint,
+        second: convert(second, type) as bigint,
+      });
+    }
+    if (this.chance(0.5)) {
+      const type = this.intType();
+      const name = this.fresh("cur");
+      const applied = this.fresh("add");
+      const offset = BigInt(this.int(0, 50));
+      const a = this.fresh("ca");
+      const b = this.fresh("cb");
+      const t = type.name;
+      decls.push(
+        `    local ${name}: Lambda<Lambda<${t}>(${t})>(${t}) = |${a}: ${t}| ret Lambda<${t}>(${t}) { return |${b}: ${t}| ret ${t} { return (${a} ^ ${b}) + cast<${t}>(${offset}); }; };`,
+      );
+      const arg = guard(this.expr(type, 2, false));
+      decls.push(
+        `    local ${applied}: Lambda<${t}>(${t}) = ${name}(${arg.code});`,
+      );
+      this.curried.push({
+        name,
+        applied,
+        type,
+        offset: convert(offset, type) as bigint,
+        bound: convert(arg.eval(env), type) as bigint,
+      });
     }
     if (this.operators) {
       const ops = this.operators;
@@ -4156,6 +4602,28 @@ class ProgramBuilder {
           `cast<int>(${name}[0])`,
           INT,
           BigInt.asIntN(8, BigInt(bytes[0] ?? 0)),
+          output,
+        ),
+      ),
+      ...this.holders.map((holder) =>
+        this.printValue(
+          `${holder.name}_end`,
+          `${holder.name}.run(cast<${holder.type.name}>(1))`,
+          holder.type,
+          wrap(
+            this.holderCall(holder, 1n, env) +
+              (env.get(`${holder.name}.k`) as bigint),
+            holder.type,
+          ),
+          output,
+        ),
+      ),
+      ...this.curried.map((curried) =>
+        this.printValue(
+          `${curried.applied}_end`,
+          `${curried.applied}(cast<${curried.type.name}>(1))`,
+          curried.type,
+          this.curriedValue(curried, curried.bound, 1n),
           output,
         ),
       ),

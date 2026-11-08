@@ -112,6 +112,22 @@ describe("generated fuzz programs", () => {
       /local sa\d+: S\d+\[2\] = \[/,
       /\bsa\d+\[\(.*\) & 1\] = /,
       /local sp\d+: \*S\d+ = &sa\d+\[/,
+      /\\x(80|C3|F0|ff)/,
+      /global gs\d+: S\d+;/,
+      /^type A\d+ = /m,
+      /local const c\d+: /,
+      /local m\d+: [a-z0-9]+\[2\]\[2\] = \[\[/,
+      /\bm\d+\[\(.*\) & 1\]\[\(/,
+      /\bset\d+\(&m\d+\[/,
+      /\bsum\d+\(m\d+, /,
+      /\bpr\d+\.swap\(\)\.first\(\)/,
+      /^\s+pr\d+ = pr\d+\.swap\(\);/m,
+      /Box<Box<[a-z0-9]+>>/,
+      /\bbb\d+\.get\(\)\.get\(\)/,
+      /f: Func<[a-z0-9]+>\(/,
+      /^\s+h\d+\.f = h[fg]\d+;/m,
+      /\bcur\d+\(.*\)\(/,
+      /\badd\d+\(/,
     ]) {
       expect(sources).toMatch(feature);
     }

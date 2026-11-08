@@ -4146,11 +4146,13 @@ describe("CLI Tests", () => {
       );
       expect(result.stdout).toContain("extern sum(values: *int) ret int;");
       expect(result.stdout).toContain(
-        "extern fill_matrix(matrix: *int[3]) ret void;",
+        "extern fill_matrix(matrix: *CRow_int_3) ret void;",
       );
       expect(result.stdout).toContain(
-        "extern copy_names(names: *char[8]) ret void;",
+        "extern copy_names(names: *CRow_char_8) ret void;",
       );
+      expect(result.stdout).toContain("type CRow_int_3 = int[3];");
+      expect(result.stdout).toContain("type CRow_char_8 = char[8];");
       expect(result.stdout).toContain(
         "extern run(argc: int, argv: **char) ret int;",
       );

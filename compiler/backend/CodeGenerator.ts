@@ -1761,6 +1761,7 @@ export class CodeGenerator extends StatementGenerator {
       init = "0";
     else if (type === "double") init = "0.0";
     else if (type.endsWith("*")) init = "null";
+    else init = this.zeroConstantWithVTables(type) ?? init;
     const keyword = decl.isConst ? "constant" : "global";
 
     let dbgSuffix = "";

@@ -670,7 +670,19 @@ export function runBplOraclePipeline(
     }
     return { ok: true, stage: "codegen" };
   } finally {
+    removeOracleDir(dir);
+  }
+}
+
+/**
+ * Bun's `rmSync` occasionally fails with EFAULT late in a long campaign that
+ * runs WebAssembly in-process. A leftover directory must not end the campaign.
+ */
+function removeOracleDir(dir: string): void {
+  try {
     rmSync(dir, { recursive: true, force: true });
+  } catch (error) {
+    console.warn(`fuzz: could not remove ${dir}: ${String(error)}`);
   }
 }
 

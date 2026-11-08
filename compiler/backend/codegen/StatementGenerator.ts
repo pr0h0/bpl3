@@ -1981,10 +1981,17 @@ export abstract class StatementGenerator extends AsmGenerator {
         return true;
       }
 
+      // Array elements hold their own hidden vtable pointers.
+      const elementLlvmType = fieldLlvmType
+        .replace(/^(\[\d+ x )+/, "")
+        .replace(/\]+$/, "");
       if (
-        fieldLlvmType.startsWith("%struct.") &&
-        !fieldLlvmType.endsWith("*") &&
-        this.structNeedsDefaultInitialization(fieldLlvmType.substring(8), seen)
+        elementLlvmType.startsWith("%struct.") &&
+        !elementLlvmType.endsWith("*") &&
+        this.structNeedsDefaultInitialization(
+          elementLlvmType.substring(8),
+          seen,
+        )
       ) {
         seen.delete(structName);
         this.structDefaultInitializationRequiredCache.set(structName, true);
@@ -1997,8 +2004,64 @@ export abstract class StatementGenerator extends AsmGenerator {
     return false;
   }
 
+  /**
+   * The all-zero value of an LLVM type as a constant, with every hidden vtable
+   * pointer set, including those of nested structs and array elements. A
+   * value whose hidden pointer is null crashes on its first method call.
+   * Returns undefined when plain zero is already correct.
+   */
+  protected zeroConstantWithVTables(llvmType: string): string | undefined {
+    const array = /^\[(\d+) x (.+)\]$/.exec(llvmType);
+    if (array) {
+      const elementType = array[2]!;
+      const element = this.zeroConstantWithVTables(elementType);
+      if (!element) return undefined;
+      const items = Array.from(
+        { length: Number(array[1]) },
+        () => `${elementType} ${element}`,
+      );
+      return `[${items.join(", ")}]`;
+    }
+    if (!llvmType.startsWith("%struct.") || llvmType.endsWith("*")) {
+      return undefined;
+    }
+    const structName = llvmType.substring(8);
+    const layout = this.structLayouts.get(structName);
+    const decl = this.structMap.get(structName);
+    if (!layout || !decl) return undefined;
+
+    let needed = false;
+    const fields = Array.from(layout.entries())
+      .sort((a, b) => a[1] - b[1])
+      .map(([fieldName]) => {
+        if (fieldName === "__vtable__") {
+          const vtableGlobal = this.vtableGlobalNames.get(structName);
+          if (!vtableGlobal) return "i8* null";
+          needed = true;
+          const methods = this.vtableLayouts.get(structName)!;
+          return `i8* bitcast ([${methods.length} x i8*]* ${vtableGlobal} to i8*)`;
+        }
+        const field = this.getAllStructFields(decl).find(
+          (candidate) => candidate.name === fieldName,
+        );
+        if (!field) return undefined;
+        const fieldType = this.resolveType(field.type);
+        const nested = this.zeroConstantWithVTables(fieldType);
+        if (nested) needed = true;
+        return `${fieldType} ${nested ?? "zeroinitializer"}`;
+      });
+    if (!needed || fields.some((field) => field === undefined)) {
+      return undefined;
+    }
+    return `{ ${fields.join(", ")} }`;
+  }
+
   protected generateDefaultValue(type: AST.TypeNode): string {
     const llvmType = this.resolveType(type);
+
+    if (llvmType.startsWith("[")) {
+      return this.zeroConstantWithVTables(llvmType) ?? "undef";
+    }
 
     if (llvmType.startsWith("%struct.") && !llvmType.endsWith("*")) {
       const structName = llvmType.substring(8);
