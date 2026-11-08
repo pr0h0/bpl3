@@ -2554,6 +2554,13 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
     // For tuple destructuring, verify all elements are l-values
     if (expr.assignee.kind === "TupleLiteral") {
       const tupleLit = expr.assignee as AST.TupleLiteralExpr;
+      tupleLit.elements = tupleLit.elements.map((target) => {
+        let elem = target;
+        while (elem.kind === "Group") {
+          elem = (elem as AST.GroupExpr).expression;
+        }
+        return elem;
+      });
       for (const elem of tupleLit.elements) {
         if (
           elem.kind !== "Identifier" &&

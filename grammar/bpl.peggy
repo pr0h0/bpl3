@@ -1383,7 +1383,7 @@ Pattern
   / PatternIdentifier
 
 PatternWildcard
-  = "_" { return patternWildcard(location()); }
+  = "_" ![a-zA-Z0-9_] { return patternWildcard(location()); }
 
 PatternTuple
   = "(" _ patterns:PatternList _ ")" {

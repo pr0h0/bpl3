@@ -321,6 +321,8 @@ type IntArr = int[];
   parenthesized `int`.
 - **[R-DECL-6]** Tuple assignment `(x, y) = (y, x);` assigns to existing
   bindings after evaluating the whole right-hand side, so it swaps values.
+  Each target is a variable, member, element or dereference, and may be
+  parenthesized.
 
 ```bpl
 local (a: int, b: bool) = getTuple();
@@ -785,7 +787,8 @@ try {
   expression. Arms are tested in order, and the first arm whose pattern matches
   and whose optional `if` guard is true is selected.
 - **[R-MATCH-2]** Patterns are literals (`0`, `3.14`, `true`, `"hello"`,
-  `'A'`), identifiers that bind the matched value, `_`, tuple patterns such as
+  `'A'`), identifiers that bind the matched value (`_x` is a binding like any
+  other; only `_` alone is the wildcard), `_`, tuple patterns such as
   `(0, y)`, and enum patterns `E.V`, `E.V(a, b)`, and `E.V { field: name }`.
   Sub-patterns nest: a tuple-variant payload or a struct-variant field may be
   any pattern, as in `Scene.Single { shape: Shape.Circle { radius: 0, shade: _ }, label: l }`.
