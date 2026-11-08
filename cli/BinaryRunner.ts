@@ -42,6 +42,19 @@ import { resolveNativeRuntimeFiles } from "./NativeRuntimeFiles";
 
 const log = new Logger("BinaryRunner");
 
+/**
+ * The exception tag `__c_longjmp` thrown by the runtime's `__wasm_longjmp`.
+ * LLVM 22 and newer leave it undefined, and earlier versions emit it in every
+ * module that uses it, so it is defined weakly in a module of its own, which
+ * clang reads from stdin.
+ */
+const WASM_EH_TAG_ASSEMBLY = `.globl __c_longjmp
+.weak __c_longjmp
+.tagtype __c_longjmp i32
+__c_longjmp:
+`;
+const WASM_EH_TAG_STDIN_ARG = "-";
+
 export function isWasmTarget(target?: string): boolean {
   return isCompilerDriverWasmTarget(target);
 }
@@ -209,8 +222,14 @@ export function compileToBinary(
 
   let compileResult: ReturnType<typeof spawnSync>;
   try {
+    const readsStdin = clangArgs.includes(WASM_EH_TAG_STDIN_ARG);
     compileResult = spawnSync(clangCommand, clangArgs, {
-      stdio: options.verbose ? "inherit" : "pipe",
+      stdio: options.verbose
+        ? readsStdin
+          ? ["pipe", "inherit", "inherit"]
+          : "inherit"
+        : "pipe",
+      input: readsStdin ? WASM_EH_TAG_ASSEMBLY : undefined,
       timeout: getCompilerDriverTimeoutMs(),
     });
   } finally {
@@ -428,7 +447,7 @@ function buildClangArgs(
     // try/catch lowers to setjmp/longjmp, which WebAssembly implements with
     // its exception-handling instructions (see lib/runtime_wasm.ll). The
     // runtime uses those instructions, so the feature is always enabled.
-    args.push("-fwasm-exceptions");
+    args.push("-fwasm-exceptions", "-mexception-handling");
     if (supportsWasmExceptions(getCompilerDriver(target))) {
       args.push("-mllvm", "-wasm-enable-sjlj");
     }
@@ -510,6 +529,9 @@ function buildClangArgs(
 
     if (linkWasm && !alreadyLinked) {
       args.push(runtimeWasmPath);
+      if (supportsWasmExceptions(getCompilerDriver(target))) {
+        args.push("-x", "assembler", WASM_EH_TAG_STDIN_ARG, "-x", "none");
+      }
     }
 
     if (wasmRuntimeMode === "host") {
