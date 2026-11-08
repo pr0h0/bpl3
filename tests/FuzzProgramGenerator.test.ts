@@ -96,6 +96,22 @@ describe("generated fuzz programs", () => {
       /defer \{/,
       /global ga\d+: [a-z0-9]+\[4\] = \[/,
       /local cl\d+: Lambda</,
+      /frame __add__\(this: /,
+      /\(q\d+ [-+] q\d+\)/,
+      /\(q\d+ (==|!=) q\d+\)/,
+      /^\s+q\d+\[.*\] = /m,
+      /^\s+\(\S+, \S+\) = \(/m,
+      /local bm\d+: Lambda</,
+      /local bu\d+: Lambda<void>\(int\)/,
+      /frame m\d+\(this: S\d+, /,
+      /\bmkOpt<[a-z0-9]+>\(/,
+      /Opt<[a-z0-9]+>\.Pair\(\w+, \w+\) if /,
+      /\\u[0-9a-f]{4}/,
+      /\bg?str\d+\[\(\(/,
+      /\{ '.{1,2}' => /,
+      /local sa\d+: S\d+\[2\] = \[/,
+      /\bsa\d+\[\(.*\) & 1\] = /,
+      /local sp\d+: \*S\d+ = &sa\d+\[/,
     ]) {
       expect(sources).toMatch(feature);
     }

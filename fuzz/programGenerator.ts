@@ -60,6 +60,45 @@ const FLOAT_TYPES: FloatType[] = [
 const LONG = INT_TYPES[6]!;
 /** How many array subscripts may enclose another array read. */
 const MAX_INDEX_NESTING = 2;
+/** Source spelling and decoded text of the pieces of generated strings. */
+const STRING_PIECES: readonly (readonly [string, string])[] = [
+  ["a", "a"],
+  ["Z", "Z"],
+  ["7", "7"],
+  [" ", " "],
+  ["%", "%"],
+  ["\\n", "\n"],
+  ["\\t", "\t"],
+  ["\\r", "\r"],
+  ["\\\\", "\\"],
+  ['\\"', '"'],
+  ["\\'", "'"],
+  ["\\0", "\0"],
+  ["\\x41", "A"],
+  ["\\x7e", "~"],
+  ["\\u0042", "B"],
+  ["\\u00e9", "\u00e9"],
+  ["\\u20ac", "\u20ac"],
+  ["\u00e9", "\u00e9"],
+  ["\u20ac", "\u20ac"],
+  ["\u{1f600}", "\u{1f600}"],
+];
+/** Character literals with their values, used as `match` patterns. */
+const CHAR_PATTERNS: readonly (readonly [string, number])[] = [
+  ["'a'", 97],
+  ["'Z'", 90],
+  ["'7'", 55],
+  ["' '", 32],
+  ["'%'", 37],
+  ["'\\n'", 10],
+  ["'\\t'", 9],
+  ["'\\\\'", 92],
+  ["'\\''", 39],
+  ["'\"'", 34],
+  ["'A'", 65],
+  ["'~'", 126],
+  ["'\\0'", 0],
+];
 
 interface Expr {
   type: ScalarType;
@@ -152,10 +191,23 @@ function isStructType(type: ThrowType): type is StructDef {
   return !("kind" in type);
 }
 
+/** A value of the operator struct: its fields `a` and `b`. */
+interface OperatorValue {
+  code: string;
+  reads: Set<string>;
+  eval(env: Env): [bigint, bigint];
+}
+
 /** A struct-typed local in main. */
 interface Instance {
   name: string;
   struct: StructDef;
+}
+
+interface BoundMutator {
+  name: string;
+  instance: Instance;
+  mutator: StructDef["mutators"][number];
 }
 
 interface EnumDef {
@@ -378,6 +430,33 @@ class ProgramBuilder {
     name: string;
     counter: { name: string; type: IntType };
   }[] = [];
+
+  /** A struct defining operators as methods, and its locals in main. */
+  private operators:
+    { name: string; a: IntType; b: IntType; locals: string[] } | undefined;
+  /** `Opt<T>` locals in main. */
+  private readonly options: { name: string; type: IntType }[] = [];
+  /** String constants read by byte; only global ones reach functions. */
+  private readonly strings: {
+    name: string;
+    bytes: number[];
+    global: boolean;
+  }[] = [];
+  /** `saK: S[2]` locals in main. */
+  private readonly structArrays: { name: string; struct: StructDef }[] = [];
+  /** `spK: *S` locals pointing at an element of an array of structs. */
+  private readonly elementPointers: {
+    name: string;
+    target: string;
+    struct: StructDef;
+  }[] = [];
+  /** `bmK: Lambda<R>(int)` locals bound to a struct local's method. */
+  private readonly boundMethods: {
+    name: string;
+    instance: Instance;
+    method: StructDef["methods"][number];
+  }[] = [];
+  private readonly boundMutators: BoundMutator[] = [];
 
   constructor(
     private readonly rng: () => number,
@@ -657,6 +736,14 @@ class ProgramBuilder {
     }
     if (!constantOnly && this.canUseArray() && this.chance(0.06)) {
       return this.arrayFeatureExpr(type, depth);
+    }
+    if (!constantOnly && this.inMainExpression() && this.chance(0.14)) {
+      const feature = this.localFeatureExpr(type, depth);
+      if (feature) return feature;
+    }
+    if (!constantOnly && this.indexNesting < 1 && this.chance(0.04)) {
+      const read = this.stringExpr(type);
+      if (read) return read;
     }
     const choice = this.int(
       0,
@@ -1454,6 +1541,14 @@ class ProgramBuilder {
           eval: () => pointer.child,
         };
       }
+      if (
+        this.operators &&
+        this.operators.locals.length > 0 &&
+        this.inMainExpression() &&
+        this.chance(0.4)
+      ) {
+        return this.operatorEquality();
+      }
       const equality = this.structEquality();
       if (equality) return equality;
     }
@@ -1633,6 +1728,10 @@ class ProgramBuilder {
     if (this.tryDepth > 0 && this.chance(0.06)) return this.throwStatement();
     if (this.chance(0.15)) {
       const feature = this.featureStatement();
+      if (feature) return feature;
+    }
+    if (this.chance(0.15)) {
+      const feature = this.localFeatureStatement();
       if (feature) return feature;
     }
     const target = this.assignableTarget();
@@ -2363,8 +2462,9 @@ class ProgramBuilder {
       const body = guard(this.expr(returnType, 2, false));
       const method = this.fresh("m");
       def.methods.push({ name: method, returnType, body });
+      const receiver = this.chance(0.3) ? name : `*${name}`;
       members.push(
-        `    frame ${method}(this: *${name}, ${parameter(body)}: int) ret ${returnType.name} {\n        return ${body.code};\n    }`,
+        `    frame ${method}(this: ${receiver}, ${parameter(body)}: int) ret ${returnType.name} {\n        return ${body.code};\n    }`,
       );
     }
     if (this.chance(0.6)) {
@@ -2626,6 +2726,635 @@ class ProgramBuilder {
     return lines;
   }
 
+  // ---------------------------------------------- operators and locals ----
+
+  /** Reads main's locals directly: not functions, lambdas or deferred code. */
+  private inMainExpression(): boolean {
+    return !this.plainOnly && !this.inFunctionBody && !this.inLambdaBody;
+  }
+
+  /** A value of the operator struct: a local, or operators applied to one. */
+  private operatorValue(depth: number): OperatorValue {
+    const ops = this.operators!;
+    if (depth <= 0 || this.chance(0.35)) {
+      const name = this.pick(ops.locals);
+      return {
+        code: name,
+        reads: new Set([name]),
+        eval: (env) => [
+          env.get(`${name}.a`) as bigint,
+          env.get(`${name}.b`) as bigint,
+        ],
+      };
+    }
+    const left = this.operatorValue(depth - 1);
+    const form = this.int(0, 3);
+    if (form === 2) {
+      const factor = guard(this.expr(INT, depth - 1, false));
+      return {
+        code: `(${left.code} * (${factor.code}))`,
+        reads: union(left.reads, factor.reads),
+        eval: (env) => {
+          const [a, b] = left.eval(env);
+          const k = convert(factor.eval(env), INT);
+          return [
+            wrap(a * (convert(k, ops.a) as bigint), ops.a),
+            wrap(b * (convert(k, ops.b) as bigint), ops.b),
+          ];
+        },
+      };
+    }
+    if (form === 3) {
+      return {
+        code: `(-${left.code})`,
+        reads: left.reads,
+        eval: (env) => {
+          const [a, b] = left.eval(env);
+          return [wrap(-a, ops.a), wrap(-b, ops.b)];
+        },
+      };
+    }
+    const right = this.operatorValue(depth - 1);
+    const sign = form === 0 ? 1n : -1n;
+    return {
+      code: `(${left.code} ${form === 0 ? "+" : "-"} ${right.code})`,
+      reads: union(left.reads, right.reads),
+      eval: (env) => {
+        const [a, b] = left.eval(env);
+        const [c, d] = right.eval(env);
+        return [wrap(a + sign * c, ops.a), wrap(b + sign * d, ops.b)];
+      },
+    };
+  }
+
+  /** `(value).a`, `(value).b` or `value[index]` through `__get__`. */
+  private operatorRead(type: IntType, depth: number): Expr {
+    const ops = this.operators!;
+    const value = this.operatorValue(Math.min(depth, 2));
+    const form = this.int(0, 2);
+    if (form === 2) {
+      const index = this.indexExpr();
+      return {
+        type,
+        code: `cast<${type.name}>(${value.code}[${index.code}])`,
+        constant: false,
+        reads: union(value.reads, index.reads),
+        eval: (env) => {
+          const [, b] = value.eval(env);
+          const i = convert(index.eval(env), ops.b) as bigint;
+          return convert(wrap(b + i, ops.b), type);
+        },
+      };
+    }
+    return {
+      type,
+      code: `cast<${type.name}>((${value.code}).${form === 0 ? "a" : "b"})`,
+      constant: false,
+      reads: value.reads,
+      eval: (env) => convert(value.eval(env)[form]!, type),
+    };
+  }
+
+  /** `value == value` or `!=` through `__eq__` and `__ne__`. */
+  private operatorEquality(): Expr {
+    const left = this.operatorValue(1);
+    const right = this.operatorValue(1);
+    const op = this.pick(["==", "!="]);
+    return {
+      type: BOOL,
+      code: `(${left.code} ${op} ${right.code})`,
+      constant: false,
+      reads: union(left.reads, right.reads),
+      eval: (env) => {
+        const [a, b] = left.eval(env);
+        const [c, d] = right.eval(env);
+        const equal = a === c && b === d;
+        return op === "==" ? equal : !equal;
+      },
+    };
+  }
+
+  /** `bmK(arg)`: a method bound to a struct local, seeing its current fields. */
+  private boundCall(type: IntType, depth: number): Expr | undefined {
+    const bound = this.boundMethods.filter(
+      (candidate) => candidate.method.returnType.name === type.name,
+    );
+    if (bound.length === 0) return undefined;
+    const { name, instance, method } = this.pick(bound);
+    const arg = guard(this.expr(INT, depth - 1, false));
+    return {
+      type,
+      code: `${name}(${arg.code})`,
+      constant: false,
+      reads: union(arg.reads, new Set([name])),
+      eval: (env) =>
+        convert(
+          method.body.eval(
+            this.receiverEnv(
+              env,
+              instance.name,
+              instance.struct,
+              arg.eval(env),
+            ),
+          ),
+          type,
+        ),
+    };
+  }
+
+  /** The env of a method body running on the struct stored at `base`. */
+  private receiverEnv(
+    env: Env,
+    base: string,
+    struct: StructDef,
+    d: Value,
+  ): Env {
+    const callEnv = this.callEnv(env);
+    struct.fields.forEach((_, field) =>
+      callEnv.set(`this.f${field}`, env.get(`${base}.f${field}`)!),
+    );
+    callEnv.set("d", convert(d, INT));
+    return callEnv;
+  }
+
+  /** `Opt<T>.Some(e)`, `.None`, `.Pair(e, k)` or `mkOpt<T>(e, k & 3)`. */
+  private optionValue(type: IntType): {
+    code: string;
+    eval(env: Env): EnumValue;
+  } {
+    const name = `Opt<${type.name}>`;
+    const value = guard(this.expr(type, 2, false));
+    const key = guard(this.expr(INT, 2, false));
+    switch (this.int(0, 3)) {
+      case 0:
+        return {
+          code: `${name}.Some(${value.code})`,
+          eval: (env) => ({
+            tag: 0,
+            payload: [convert(value.eval(env), type)],
+          }),
+        };
+      case 1:
+        return { code: `${name}.None`, eval: () => ({ tag: 1, payload: [] }) };
+      case 2:
+        return {
+          code: `${name}.Pair(${value.code}, ${key.code})`,
+          eval: (env) => ({
+            tag: 2,
+            payload: [
+              convert(value.eval(env), type),
+              convert(key.eval(env), INT),
+            ],
+          }),
+        };
+      default:
+        return {
+          code: `mkOpt<${type.name}>(${value.code}, (${key.code}) & 3)`,
+          eval: (env) => {
+            const v = convert(value.eval(env), type);
+            const k = (convert(key.eval(env), INT) as bigint) & 3n;
+            if (k === 0n) return { tag: 1, payload: [] };
+            if (k === 1n) return { tag: 0, payload: [v] };
+            return { tag: 2, payload: [v, k] };
+          },
+        };
+    }
+  }
+
+  /** `match` on an `Opt<T>` local; a guarded arm splits `Pair`. */
+  private optionMatch(type: IntType): Expr {
+    const local = this.pick(this.options);
+    const name = `Opt<${local.type.name}>`;
+    const value = this.fresh("ov");
+    const count = this.fresh("on");
+    const none = this.literal(type);
+    const guardKey = BigInt(this.int(1, 4));
+    const convertTo = (code: string) => `cast<${type.name}>(${code})`;
+    return {
+      type,
+      code: `(match (${local.name}) { ${name}.Some(${value}) => ${convertTo(value)}, ${name}.None => ${convertTo(none.code)}, ${name}.Pair(${value}, ${count}) if (${count} == ${guardKey}) => ${convertTo(value)}, ${name}.Pair(${value}, ${count}) => ${convertTo(value)} ^ ${convertTo(count)} })`,
+      constant: false,
+      reads: new Set([local.name]),
+      eval: (env) => {
+        const option = env.get(local.name) as EnumValue;
+        if (option.tag === 1) return convert(none.eval(env), type);
+        const v = convert(option.payload[0]!, type) as bigint;
+        if (option.tag === 0 || option.payload[1] === guardKey) return v;
+        return wrap(v ^ (convert(option.payload[1]!, type) as bigint), type);
+      },
+    };
+  }
+
+  /** One byte of a string constant, as the signed `char` it reads as. */
+  private charRead():
+    { code: string; reads: Set<string>; eval(env: Env): bigint } | undefined {
+    const strings = this.strings.filter(
+      (candidate) => candidate.global || !this.inFunctionBody,
+    );
+    if (strings.length === 0) return undefined;
+    const { name, bytes } = this.pick(strings);
+    const index = this.indexExpr();
+    return {
+      code: `${name}[((${index.code}) & 1023) % ${bytes.length}]`,
+      reads: union(index.reads, new Set([name])),
+      eval: (env) => {
+        const position =
+          ((index.eval(env) as bigint) & 1023n) % BigInt(bytes.length);
+        return BigInt.asIntN(8, BigInt(bytes[Number(position)]!));
+      },
+    };
+  }
+
+  /** `cast<T>(s[i])`, a `match` on `s[i]` or a character literal. */
+  private stringExpr(type: IntType): Expr | undefined {
+    const form = this.int(0, 3);
+    if (form === 3) {
+      const [code, value] = this.pick(CHAR_PATTERNS);
+      return {
+        type,
+        code: `cast<${type.name}>(${code})`,
+        constant: false,
+        reads: new Set(),
+        eval: () => convert(BigInt(value), type),
+      };
+    }
+    const read = this.charRead();
+    if (!read) return undefined;
+    if (form < 2) {
+      return {
+        type,
+        code: `cast<${type.name}>(${read.code})`,
+        constant: false,
+        reads: read.reads,
+        eval: (env) => convert(read.eval(env), type),
+      };
+    }
+    const first = this.pick(CHAR_PATTERNS);
+    const second = this.pick(
+      CHAR_PATTERNS.filter((pattern) => pattern[0] !== first[0]),
+    );
+    const arms = [this.literal(type), this.literal(type), this.literal(type)];
+    const fallback = this.literal(type);
+    const binding = this.fresh("ch");
+    const result = (arm: Expr) => `cast<${type.name}>(${arm.code})`;
+    return {
+      type,
+      code: `(match (${read.code}) { ${first[0]} => ${result(arms[0]!)}, ${second[0]} => ${result(arms[1]!)}, ${binding} if (${binding} < cast<char>(0)) => ${result(arms[2]!)}, _ => ${result(fallback)} })`,
+      constant: false,
+      reads: read.reads,
+      eval: (env) => {
+        const char = read.eval(env);
+        const arm =
+          char === BigInt(first[1])
+            ? arms[0]!
+            : char === BigInt(second[1])
+              ? arms[1]!
+              : char < 0n
+                ? arms[2]!
+                : fallback;
+        return convert(arm.eval(env), type);
+      },
+    };
+  }
+
+  /** `saK[i & 1].fN` or `saK[i & 1].mN(d)` on an array of structs. */
+  private structArrayRead(type: IntType, depth: number): Expr | undefined {
+    if (this.structArrays.length === 0) return undefined;
+    const { name, struct } = this.pick(this.structArrays);
+    const index = this.indexExpr();
+    const element = `${name}[(${index.code}) & 1]`;
+    const slot = (env: Env) => Number((index.eval(env) as bigint) & 1n);
+    const methods = struct.methods.filter(
+      (method) => method.returnType.name === type.name,
+    );
+    if (methods.length > 0 && this.chance(0.4)) {
+      const method = this.pick(methods);
+      const arg = guard(this.expr(INT, depth - 1, false));
+      return {
+        type,
+        code: `${element}.${method.name}(${arg.code})`,
+        constant: false,
+        reads: union(index.reads, union(arg.reads, new Set([name]))),
+        eval: (env) => {
+          const base = `${name}[${slot(env)}]`;
+          return convert(
+            method.body.eval(
+              this.receiverEnv(env, base, struct, arg.eval(env)),
+            ),
+            type,
+          );
+        },
+      };
+    }
+    const fields = struct.fields.flatMap((field, position) =>
+      field.kind === "int" ? [position] : [],
+    );
+    if (fields.length === 0) return undefined;
+    const field = this.pick(fields);
+    return {
+      type,
+      code: `cast<${type.name}>(${element}.f${field})`,
+      constant: false,
+      reads: union(index.reads, new Set([name])),
+      eval: (env) => convert(env.get(`${name}[${slot(env)}].f${field}`)!, type),
+    };
+  }
+
+  /** The expression forms over main's operator, option and struct locals. */
+  private localFeatureExpr(type: IntType, depth: number): Expr | undefined {
+    switch (this.int(0, 3)) {
+      case 0:
+        return this.operators && this.operators.locals.length > 0
+          ? this.operatorRead(type, depth)
+          : undefined;
+      case 1:
+        return this.boundCall(type, depth);
+      case 2:
+        return this.options.length > 0 ? this.optionMatch(type) : undefined;
+      default:
+        return this.structArrayRead(type, depth);
+    }
+  }
+
+  /** `(p, q) = (q, p)` or `(p, q) = (e1, e2)`, right side evaluated first. */
+  private tupleAssignment(): Stmt | undefined {
+    const places = this.scope.filter(
+      (place) => !place.array && !place.readonly,
+    );
+    if (places.length < 2) return undefined;
+    const first = this.pick(places);
+    const others = places.filter((place) => place.key !== first.key);
+    if (others.length === 0) return undefined;
+    const sameType = others.filter(
+      (place) => place.type.name === first.type.name,
+    );
+    if (sameType.length > 0 && this.chance(0.5)) {
+      const second = this.pick(sameType);
+      return {
+        code: (indent) =>
+          `${indent}(${first.code}, ${second.code}) = (${second.code}, ${first.code});`,
+        exec: (env) => {
+          const value = env.get(first.key)!;
+          env.set(first.key, env.get(second.key)!);
+          env.set(second.key, value);
+          return undefined;
+        },
+      };
+    }
+    const second = this.pick(others);
+    const left = guard(this.expr(first.type, 2, false));
+    const right = guard(this.expr(second.type, 2, false));
+    return {
+      code: (indent) =>
+        `${indent}(${first.code}, ${second.code}) = (${left.code}, ${right.code});`,
+      exec: (env) => {
+        const a = convert(left.eval(env), first.type);
+        const b = convert(right.eval(env), second.type);
+        env.set(first.key, a);
+        env.set(second.key, b);
+        return undefined;
+      },
+    };
+  }
+
+  /** `q = value;` or `q[i] = v;` on an operator struct local. */
+  private operatorStatement(): Stmt | undefined {
+    const ops = this.operators;
+    if (!ops || ops.locals.length === 0) return undefined;
+    const target = this.pick(ops.locals);
+    if (this.chance(0.3)) {
+      const index = this.indexExpr();
+      const value = guard(this.expr(ops.b, 2, false));
+      return {
+        code: (indent) => `${indent}${target}[${index.code}] = ${value.code};`,
+        exec: (env) => {
+          const i = convert(index.eval(env), ops.b) as bigint;
+          const v = convert(value.eval(env), ops.b) as bigint;
+          env.set(`${target}.b`, wrap(v - i, ops.b));
+          return undefined;
+        },
+      };
+    }
+    const value = this.operatorValue(2);
+    return {
+      code: (indent) => `${indent}${target} = ${value.code};`,
+      exec: (env) => {
+        const [a, b] = value.eval(env);
+        env.set(`${target}.a`, a);
+        env.set(`${target}.b`, b);
+        return undefined;
+      },
+    };
+  }
+
+  /** Writes to arrays of structs, whole elements or through a method. */
+  private structArrayStatement(): Stmt | undefined {
+    if (this.structArrays.length === 0) return undefined;
+    const array = this.pick(this.structArrays);
+    const { name, struct } = array;
+    const index = this.indexExpr();
+    const element = `${name}[(${index.code}) & 1]`;
+    const slot = (env: Env) => Number((index.eval(env) as bigint) & 1n);
+    const storeFields = (env: Env, values: Value[]) => {
+      const base = `${name}[${slot(env)}]`;
+      values.forEach((value, field) => env.set(`${base}.f${field}`, value));
+    };
+    if (struct.mutators.length > 0 && this.chance(0.4)) {
+      const mutator = this.pick(struct.mutators);
+      const arg = guard(this.expr(INT, 2, false));
+      return {
+        code: (indent) => `${indent}${element}.${mutator.name}(${arg.code});`,
+        exec: (env) => {
+          const base = `${name}[${slot(env)}]`;
+          const type = struct.fields[mutator.field]!;
+          env.set(
+            `${base}.f${mutator.field}`,
+            convert(
+              mutator.body.eval(
+                this.receiverEnv(env, base, struct, arg.eval(env)),
+              ),
+              type,
+            ),
+          );
+          return undefined;
+        },
+      };
+    }
+    if (struct.maker && this.chance(0.5)) {
+      const maker = struct.maker;
+      const arg = guard(this.expr(INT, 2, false));
+      return {
+        code: (indent) => `${indent}${element} = ${maker.name}(${arg.code});`,
+        exec: (env) => {
+          storeFields(env, this.makeValues(struct, arg.eval(env), env));
+          return undefined;
+        },
+      };
+    }
+    const instances = this.instances.filter(
+      (instance) => instance.struct === struct,
+    );
+    const source = this.pick(instances);
+    return {
+      code: (indent) => `${indent}${element} = ${source.name};`,
+      exec: (env) => {
+        storeFields(
+          env,
+          struct.fields.map((_, field) => env.get(`${source.name}.f${field}`)!),
+        );
+        return undefined;
+      },
+    };
+  }
+
+  /** `sK.fN = e;` through a `*S` pointing into an array of structs. */
+  private elementPointerStatement(): Stmt | undefined {
+    if (this.elementPointers.length === 0) return undefined;
+    const { name, target, struct } = this.pick(this.elementPointers);
+    const field = this.int(0, struct.fields.length - 1);
+    const type = struct.fields[field]!;
+    const value = guard(this.expr(type, 2, false));
+    return {
+      code: (indent) => `${indent}${name}.f${field} = ${value.code};`,
+      exec: (env) => {
+        env.set(`${target}.f${field}`, convert(value.eval(env), type));
+        return undefined;
+      },
+    };
+  }
+
+  /** `buK(arg);`: a bound mutator changing the struct it borrowed. */
+  private boundMutatorStatement(): Stmt | undefined {
+    if (this.boundMutators.length === 0) return undefined;
+    const bound = this.pick(this.boundMutators);
+    const arg = guard(this.expr(INT, 2, false));
+    return {
+      code: (indent) => `${indent}${bound.name}(${arg.code});`,
+      exec: (env) => {
+        this.runBoundMutator(bound, arg.eval(env), env);
+        return undefined;
+      },
+    };
+  }
+
+  private runBoundMutator(bound: BoundMutator, d: Value, env: Env): void {
+    const { instance, mutator } = bound;
+    const type = instance.struct.fields[mutator.field]!;
+    env.set(
+      `${instance.name}.f${mutator.field}`,
+      convert(
+        mutator.body.eval(
+          this.receiverEnv(env, instance.name, instance.struct, d),
+        ),
+        type,
+      ),
+    );
+  }
+
+  private localFeatureStatement(): Stmt | undefined {
+    switch (this.int(0, 5)) {
+      case 0:
+        return this.tupleAssignment();
+      case 1:
+        return this.operatorStatement();
+      case 2:
+        return this.structArrayStatement();
+      case 3:
+        return this.elementPointerStatement();
+      case 4:
+        return this.boundMutatorStatement();
+      default: {
+        if (this.options.length === 0) return undefined;
+        const local = this.pick(this.options);
+        const value = this.optionValue(local.type);
+        return {
+          code: (indent) => `${indent}${local.name} = ${value.code};`,
+          exec: (env) => {
+            env.set(local.name, value.eval(env));
+            return undefined;
+          },
+        };
+      }
+    }
+  }
+
+  /** The source of a random string and its UTF-8 bytes. */
+  private stringConstant(): { literal: string; bytes: number[] } {
+    const pieces = Array.from({ length: this.int(1, 12) }, () =>
+      this.pick(STRING_PIECES),
+    );
+    return {
+      literal: `"${pieces.map((piece) => piece[0]).join("")}"`,
+      bytes: [
+        ...new TextEncoder().encode(pieces.map((piece) => piece[1]).join("")),
+      ],
+    };
+  }
+
+  /** Definition of the struct whose operators are methods. */
+  private operatorDefinition(): string {
+    const name = `Q${this.fresh("")}`;
+    const a = this.intType();
+    const b = this.intType();
+    this.operators = { name, a, b, locals: [] };
+    const self = (field: string, other: string, op: string) =>
+      `this.${field} ${op} ${other}.${field}`;
+    const pair = (x: string, y: string) => `${name} { a: ${x}, b: ${y} }`;
+    const addReceiver = this.chance(0.5) ? `*${name}` : name;
+    const subReceiver = this.chance(0.5) ? `*${name}` : name;
+    return [
+      `struct ${name} {`,
+      `    a: ${a.name},`,
+      `    b: ${b.name},`,
+      `    frame __add__(this: ${addReceiver}, o: *${name}) ret ${name} {\n        return ${pair(self("a", "o", "+"), self("b", "o", "+"))};\n    }`,
+      `    frame __sub__(this: ${subReceiver}, o: ${name}) ret ${name} {\n        return ${pair(self("a", "o", "-"), self("b", "o", "-"))};\n    }`,
+      `    frame __mul__(this: *${name}, k: int) ret ${name} {\n        return ${pair(`this.a * cast<${a.name}>(k)`, `this.b * cast<${b.name}>(k)`)};\n    }`,
+      `    frame __neg__(this: *${name}) ret ${name} {\n        return ${pair("-this.a", "-this.b")};\n    }`,
+      `    frame __eq__(this: *${name}, o: *${name}) ret bool {\n        return this.a == o.a && this.b == o.b;\n    }`,
+      `    frame __ne__(this: *${name}, o: *${name}) ret bool {\n        return this.a != o.a || this.b != o.b;\n    }`,
+      `    frame __get__(this: *${name}, i: int) ret ${b.name} {\n        return this.b + cast<${b.name}>(i);\n    }`,
+      `    frame __set__(this: *${name}, i: int, v: ${b.name}) {\n        this.b = v - cast<${b.name}>(i);\n    }`,
+      `}`,
+    ].join("\n");
+  }
+
+  /** `tag`, value and key of an `Opt<T>` local, each from its own `match`. */
+  private printOption(
+    local: { name: string; type: IntType },
+    env: Env,
+    output: string[],
+  ): string[] {
+    const name = `Opt<${local.type.name}>`;
+    const option = env.get(local.name) as EnumValue;
+    const arms = (some: string, none: string, pair: string) =>
+      `(match (${local.name}) { ${name}.Some(x) => ${some}, ${name}.None => ${none}, ${name}.Pair(x, n) => ${pair} })`;
+    const asLong = (code: string) => `cast<long>(${code})`;
+    const tag = `(match (${local.name}) { ${name}.Some(_x) => cast<int>(0), ${name}.None => cast<int>(1), ${name}.Pair(_x, _n) => cast<int>(2) })`;
+    return [
+      this.printValue(
+        `${local.name}_tag`,
+        tag,
+        INT,
+        BigInt(option.tag),
+        output,
+      ),
+    ].concat(
+      this.printValue(
+        `${local.name}_v`,
+        arms(asLong("x"), asLong("0"), asLong("x") + " + " + asLong("n")),
+        LONG,
+        option.tag === 1
+          ? 0n
+          : wrap(
+              (convert(option.payload[0]!, LONG) as bigint) +
+                (option.tag === 2 ? (option.payload[1] as bigint) : 0n),
+              LONG,
+            ),
+        output,
+      ),
+    );
+  }
+
   // ---------------------------------------------------------- program ----
 
   build(): GeneratedProgram {
@@ -2637,6 +3366,8 @@ class ProgramBuilder {
     const output: string[] = [];
     this.out = output;
     const printedLambdas: LambdaDef[] = [];
+    // Local strings must be read: printed as their length-independent bytes.
+    const printedStrings: { name: string; bytes: number[] }[] = [];
     // Pointer locals that must be used: printed through a call.
     const printedCalls: string[] = [];
     // `*Parent` pointers to parents, printed through `is *Child`.
@@ -2707,6 +3438,21 @@ class ProgramBuilder {
     }
 
     if (this.chance(0.5)) lines.push(this.hierarchyDefinition());
+
+    if (this.chance(0.5)) lines.push(this.operatorDefinition());
+    const hasOption = this.chance(0.5);
+    if (hasOption) {
+      lines.push(
+        "enum Opt<T> { Some(T), None, Pair(T, int) }",
+        "frame mkOpt<T>(v: T, k: int) ret Opt<T> {\n    if (k == 0) {\n        return Opt<T>.None;\n    }\n    if (k == 1) {\n        return Opt<T>.Some(v);\n    }\n    return Opt<T>.Pair(v, k);\n}",
+      );
+    }
+    for (let index = this.int(0, 1); index > 0; index--) {
+      const name = this.fresh("gstr");
+      const { literal, bytes } = this.stringConstant();
+      lines.push(`global ${name}: string = ${literal};`);
+      this.strings.push({ name, bytes, global: true });
+    }
 
     // Generic code paths: an identity function and a generic struct.
     lines.push("frame gid<T>(x: T) ret T {\n    return x;\n}");
@@ -2915,6 +3661,137 @@ class ProgramBuilder {
           env.set(`${copy}.f${field}`, env.get(`${name}.f${field}`)!),
         );
         addInstance(copy, struct);
+      }
+    }
+    if (this.operators) {
+      const ops = this.operators;
+      for (let index = this.int(2, 3); index > 0; index--) {
+        const name = this.fresh("q");
+        const a = guard(this.expr(ops.a, 2, false));
+        const b = guard(this.expr(ops.b, 2, false));
+        decls.push(
+          `    local ${name}: ${ops.name} = ${ops.name} { a: ${a.code}, b: ${b.code} };`,
+        );
+        env.set(`${name}.a`, convert(a.eval(env), ops.a));
+        env.set(`${name}.b`, convert(b.eval(env), ops.b));
+        for (const [field, type] of [
+          ["a", ops.a],
+          ["b", ops.b],
+        ] as const) {
+          const key = `${name}.${field}`;
+          const place = { type, code: key, key };
+          this.scope.push(place);
+          printed.push(place);
+        }
+        ops.locals.push(name);
+      }
+    }
+    if (hasOption) {
+      for (let index = this.int(1, 2); index > 0; index--) {
+        const type = this.intType();
+        const name = this.fresh("ok");
+        const value = this.optionValue(type);
+        decls.push(`    local ${name}: Opt<${type.name}> = ${value.code};`);
+        env.set(name, value.eval(env));
+        this.options.push({ name, type });
+      }
+    }
+    for (let index = this.int(0, 2); index > 0; index--) {
+      const name = this.fresh("str");
+      const { literal, bytes } = this.stringConstant();
+      decls.push(`    local ${name}: string = ${literal};`);
+      printedStrings.push({ name, bytes });
+      this.strings.push({ name, bytes, global: false });
+    }
+    for (const struct of this.structs) {
+      if (!this.chance(0.4)) continue;
+      const name = this.fresh("sa");
+      const elements = [0, 1].map(() =>
+        struct.fields.map((type) => guard(this.expr(type, 2, false))),
+      );
+      const literals = elements.map(
+        (inits) =>
+          `${struct.name} { ${inits.map((init, field) => `f${field}: ${init.code}`).join(", ")} }`,
+      );
+      decls.push(
+        `    local ${name}: ${struct.name}[2] = [${literals.join(", ")}];`,
+      );
+      elements.forEach((inits, slot) =>
+        inits.forEach((init, field) =>
+          env.set(
+            `${name}[${slot}].f${field}`,
+            convert(init.eval(env), struct.fields[field]!),
+          ),
+        ),
+      );
+      const addStructArray = (local: string) => {
+        for (const slot of [0, 1]) {
+          struct.fields.forEach((type, field) => {
+            const key = `${local}[${slot}].f${field}`;
+            const place = { type, code: key, key };
+            this.scope.push(place);
+            printed.push(place);
+          });
+        }
+        this.structArrays.push({ name: local, struct });
+      };
+      addStructArray(name);
+      if (this.chance(0.5)) {
+        // A copied array holds its own elements (value semantics).
+        const copy = this.fresh("sa");
+        decls.push(`    local ${copy}: ${struct.name}[2] = ${name};`);
+        for (const slot of [0, 1]) {
+          struct.fields.forEach((_, field) =>
+            env.set(
+              `${copy}[${slot}].f${field}`,
+              env.get(`${name}[${slot}].f${field}`)!,
+            ),
+          );
+        }
+        addStructArray(copy);
+      }
+      if (this.chance(0.5)) {
+        const pointer = this.fresh("sp");
+        const slot = this.int(0, 1);
+        decls.push(
+          `    local ${pointer}: *${struct.name} = &${name}[${slot}];`,
+        );
+        this.elementPointers.push({
+          name: pointer,
+          target: `${name}[${slot}]`,
+          struct,
+        });
+        struct.fields.forEach((type, field) =>
+          printed.push({
+            type,
+            code: `${pointer}.f${field}`,
+            key: `${name}[${slot}].f${field}`,
+          }),
+        );
+      }
+    }
+    for (const instance of this.instances) {
+      const { methods, mutators } = instance.struct;
+      if (methods.length > 0 && this.chance(0.4)) {
+        const method = this.pick(methods);
+        const name = this.fresh("bm");
+        decls.push(
+          `    local ${name}: Lambda<${method.returnType.name}>(int) = ${instance.name}.${method.name};`,
+        );
+        this.boundMethods.push({ name, instance, method });
+      }
+      if (mutators.length > 0 && this.chance(0.3)) {
+        const mutator = this.pick(mutators);
+        const name = this.fresh("bu");
+        decls.push(
+          `    local ${name}: Lambda<void>(int) = ${instance.name}.${mutator.name};`,
+        );
+        const bound = { name, instance, mutator };
+        this.boundMutators.push(bound);
+        // Called once here, so the local is used even if no statement is.
+        const arg = guard(this.expr(INT, 2, false));
+        decls.push(`    ${name}(${arg.code});`);
+        this.runBoundMutator(bound, arg.eval(env), env);
       }
     }
     if (this.structs.length > 0 && this.chance(0.5)) {
@@ -3272,6 +4149,30 @@ class ProgramBuilder {
         );
       }),
       ...this.enumLocals.flatMap((local) => this.printEnum(local, env, output)),
+      ...this.options.flatMap((local) => this.printOption(local, env, output)),
+      ...printedStrings.map(({ name, bytes }) =>
+        this.printValue(
+          `${name}_0`,
+          `cast<int>(${name}[0])`,
+          INT,
+          BigInt.asIntN(8, BigInt(bytes[0] ?? 0)),
+          output,
+        ),
+      ),
+      ...this.boundMethods.map(({ name, instance, method }) =>
+        this.printValue(
+          `${name}_end`,
+          `${name}(1)`,
+          method.returnType,
+          convert(
+            method.body.eval(
+              this.receiverEnv(env, instance.name, instance.struct, 1n),
+            ),
+            method.returnType,
+          ),
+          output,
+        ),
+      ),
       ...printedTyped.map((pointer) =>
         this.printValue(
           `${pointer}_is`,

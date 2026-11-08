@@ -241,6 +241,27 @@ frame main() ret int {
 });
 
 describe("language specification: pattern matching", () => {
+  // spec: R-MATCH-2
+  test("a name starting with an underscore binds in a pattern", () => {
+    expectCorrectnessSuite([
+      {
+        name: "underscore-pattern-binding",
+        validateLlvm: true,
+        source: `extern printf(fmt: string, ...);
+enum E { A(int), B }
+frame main() ret int {
+  local e: E = E.A(3);
+  printf("%d\\n", match (e) { E.A(_x) => 1, E.B => 2 });
+  printf("%d\\n", match (e) { E.A(_value) => _value + 1, E.B => 2 });
+  printf("%d\\n", match (5) { _n if _n > 9 => 1, _other => _other * 2 });
+  return 0;
+}
+`,
+        expectedStdout: "1\n4\n10\n",
+      },
+    ]);
+  });
+
   // spec: R-MATCH-1, R-MATCH-2, R-MATCH-4
   test("literal, binding, tuple, enum, and block-arm patterns", () => {
     expectCorrectnessSuite([

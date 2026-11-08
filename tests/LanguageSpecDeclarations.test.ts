@@ -9,6 +9,30 @@ import { expectCheckDiagnostics } from "./helpers/languageSpec";
 // Executable checks for LANGUAGE_SPEC.md sections 5 through 7.2.
 
 describe("language specification: declarations", () => {
+  // spec: R-DECL-6
+  test("tuple assignment targets may be parenthesized", () => {
+    expectCorrectnessSuite([
+      {
+        name: "parenthesized-tuple-targets",
+        validateLlvm: true,
+        source: `extern printf(fmt: string, ...);
+struct S { x: int, }
+frame main() ret int {
+  local v: int = 1;
+  local p: *int = &v;
+  local s: S = S { x: 2 };
+  local w: int = 3;
+  ((*p), (s.x)) = (s.x, *p);
+  (((w)), *p) = (*p + 10, w);
+  printf("%d %d %d\\n", v, s.x, w);
+  return 0;
+}
+`,
+        expectedStdout: "3 1 12\n",
+      },
+    ]);
+  });
+
   // spec: R-DECL-2, R-DECL-3, R-DECL-4, R-DECL-5, R-DECL-6, R-DECL-8, R-DECL-9, R-DECL-10
   test("variables, aliases, destructuring, constants, and scopes", () => {
     expectCorrectnessSuite([
