@@ -14,6 +14,7 @@ import {
   formatOptionalWasmRuntimeSkipMessage,
   formatRequiredWasmLinkerError,
   getWasmLinkerCandidates,
+  supportsWasmExceptions,
 } from "../cli/WasmToolchain";
 import {
   WASM_FREESTANDING_EXAMPLES,
@@ -60,6 +61,9 @@ const REQUIRE_WASM_LINKER = /^(1|true)$/i.test(
 
 const standaloneWasmLinker = findWasmLinker();
 const wasmIt = standaloneWasmLinker ? it : it.skip;
+// Exceptions need clang 19 or newer; older clang keeps trapping on `throw`.
+const wasmExceptionsIt =
+  standaloneWasmLinker && supportsWasmExceptions() ? it : it.skip;
 
 async function compileWasmSource(
   source: string,
@@ -686,6 +690,96 @@ frame main() ret int {
       expect(host.stderr()).toBe("");
     },
   );
+
+  wasmExceptionsIt("catches exceptions across frames with defers", async () => {
+    const host = createHostImports();
+    const exports = await compileWasmSource(
+      `
+extern printf(fmt: string, ...) ret int;
+
+struct Err {
+    code: int,
+}
+
+frame thrower(x: int) ret int {
+    defer printf("unwind %d\\n", x);
+    if (x > 2) {
+        throw Err { code: x * 10 };
+    }
+    return x;
+}
+
+frame relay(x: int) ret int {
+    try {
+        return thrower(x);
+    } catch (e: long) {
+        return cast<int>(e);
+    }
+}
+
+frame main() ret int {
+    local kept: int = 1;
+    try {
+        kept = relay(1) + 4;
+        kept = relay(3);
+    } catch (e: Err) {
+        printf("caught %d kept %d\\n", e.code, kept);
+    }
+    try {
+        throw 7;
+    } catch (e: int) {
+        return e - 7;
+    }
+    return 1;
+}
+`,
+      { wasmRuntime: "host", imports: host.imports },
+    );
+    host.attach(exports);
+
+    expect(getMain(exports)(0, 0)).toBe(0);
+    expect(host.stdout()).toBe("unwind 1\nunwind 3\ncaught 30 kept 5\n");
+  });
+
+  wasmExceptionsIt("catches checked runtime errors inside a try", async () => {
+    const host = createHostImports();
+    const exports = await compileWasmSource(
+      `
+extern printf(fmt: string, ...) ret int;
+
+struct P {
+    x: int,
+}
+
+frame main() ret int {
+    local zero: int = 0;
+    local a: int[2] = [1, 2];
+    try {
+        printf("%d\\n", a[zero + 5]);
+    } catch (e: IndexOutOfBoundsError) {
+        printf("index\\n");
+    }
+    try {
+        local p: *P = cast<*P>(nullptr);
+        printf("%d\\n", p.x);
+    } catch (e: NullAccessError) {
+        printf("null\\n");
+    }
+    try {
+        printf("%d\\n", 10 / zero);
+    } catch (e: DivisionByZeroError) {
+        printf("division\\n");
+    }
+    return 0;
+}
+`,
+      { wasmRuntime: "host", imports: host.imports },
+    );
+    host.attach(exports);
+
+    expect(getMain(exports)(0, 0)).toBe(0);
+    expect(host.stdout()).toBe("index\nnull\ndivision\n");
+  });
 
   // Hosted printf reads `%i`, `%u` and 64-bit `%l`/`%ll` conversions; it
   // used to print them literally without consuming their arguments.

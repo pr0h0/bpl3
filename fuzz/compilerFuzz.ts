@@ -9,7 +9,7 @@ import {
 } from "fs";
 import { tmpdir } from "os";
 import { join, resolve } from "path";
-import { findWasmLinker } from "../cli/WasmToolchain";
+import { findWasmLinker, supportsWasmExceptions } from "../cli/WasmToolchain";
 import { CodeGenerator } from "../compiler/backend/CodeGenerator";
 import { CompilerError } from "../compiler/common/CompilerError";
 import { lexWithGrammar } from "../compiler/frontend/GrammarLexer";
@@ -652,7 +652,11 @@ export function runBplOraclePipeline(
         mismatch: { o0, o3, expectedStdout },
       };
     }
-    if (source.startsWith(WASM_MARKER)) {
+    // Before clang 19, `throw` traps on WebAssembly by design.
+    if (
+      source.startsWith(WASM_MARKER) &&
+      (supportsWasmExceptions() || !source.includes("try {"))
+    ) {
       const wasm = runBplHostedWasm(sourcePath, dir);
       if (wasm === "no-linker") return { ok: true, stage: "codegen" };
       if (wrong(wasm)) {

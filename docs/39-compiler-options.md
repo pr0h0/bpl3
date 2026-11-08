@@ -1642,10 +1642,14 @@ provided. Hosted defaults match target components, so substring-only components
 such as `notwasi` or `notemscripten` stay freestanding unless
 `--wasm-runtime host` is explicit.
 
-Exceptions do not work on WebAssembly yet: the Wasm runtimes have no
-`setjmp`/`longjmp`, so a `try` block runs normally but a `throw` (or a checked
-runtime error inside a handler) stops the module with an `unreachable` trap
-instead of reaching a `catch` clause.
+`try`/`catch`, `throw` and `defer` during unwinding work on WebAssembly, and
+a checked runtime error (null access, index out of bounds, division by zero)
+inside a `try` is thrown like on native targets. They use WebAssembly
+exception handling (clang's `-fwasm-exceptions -mllvm -wasm-enable-sjlj`), so
+the module needs a host with that feature, and building needs clang 19 or
+newer. With older clang a `try` block runs normally, but a `throw` stops the
+module with an `unreachable` trap, and a checked runtime error reports and
+traps.
 
 Programs that depend on full operating-system APIs such as files, sockets,
 process calls, or platform-specific inline assembly still need a richer
