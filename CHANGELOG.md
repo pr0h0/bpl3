@@ -19,7 +19,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   not match, catch-all clauses, rethrows from a catch body, and exceptions
   that pass through a function running a `defer` or one that rethrows them
   as another type, and struct values thrown and caught by type. It also
-  generates struct-returning functions, calls through `Func` locals, C-style
+  generates struct-returning functions, calls through `Func` locals,
+  overloaded functions, `++`/`--` inside expressions, struct equality,
+  arrays passed by value and through slices, pointer arithmetic, chained
+  assignment, C-style
   and infinite loops, `switch` on integers, enum values and strings with
   arms ending in `fallthrough`, and integer `match` expressions with
   negative literal and guarded arms.

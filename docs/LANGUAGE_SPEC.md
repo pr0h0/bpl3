@@ -724,9 +724,11 @@ try {
   values compare field by field with `==` and `!=`.
 - **[R-EXPR-5]** The assignment operators are `=`, `+=`, `-=`, `*=`, `/=`,
   `%=`, `&=`, `|=`, and `^=`. Assignment is a right-associative expression, so
-  `x = y = 7` assigns both. The target must be a variable, member, index,
-  pointer dereference, or tuple of those, optionally parenthesized
-  (`(*p) = 1`); otherwise it is rejected with `BPL_ASSIGNMENT_TARGET_INVALID`.
+  `x = y = 7` assigns both. Its value is the target's new value, in the
+  target's type: with `y: u8` and `v: int` holding 300, `x = y = v` leaves 44
+  in both. The target must be a variable, member, index, pointer dereference,
+  or tuple of those, optionally parenthesized (`(*p) = 1`); otherwise it is
+  rejected with `BPL_ASSIGNMENT_TARGET_INVALID`.
 - **[R-EXPR-6]** Prefix and postfix `++` and `--` apply to integer and
   floating-point variables, members, elements, and dereferenced pointers. The
   prefix form yields the updated value and the postfix form yields the previous

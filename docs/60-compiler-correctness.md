@@ -424,7 +424,9 @@ Each campaign iteration picks one input lane:
   exceptions),
   inheritance with virtual dispatch (direct, through `*Parent`, and on a sliced
   copy), tuples returned and destructured, pointers and pointer-writing
-  helpers, arrays, enums with payloads and `match`, generic functions and
+  helpers, arrays (copied when passed by value, written through slices,
+  read with pointer arithmetic), struct `==`/`!=`, chained assignment,
+  enums with payloads and `match`, generic functions and
   structs, capturing lambdas, recursion, while, C-style and infinite loops
   with `break`/`continue` and `defer`, `switch` on integers, enum values
   and strings with `fallthrough`, integer `match` with negative literals and
@@ -432,7 +434,10 @@ Each campaign iteration picks one input lane:
   or from a called function, through intermediate functions that run a
   `defer` or rethrow as another type (including typed clauses that do not
   match and rethrows from a catch body), calls through `Func` pointer
-  locals, mixed-width integer arithmetic, and `double`/`f32` arithmetic, conversions and comparisons (printed as IEEE bit patterns). They
+  locals, overloaded functions selected by argument type, `++`/`--` inside
+  expressions (on counters nothing else reads, so their final values show
+  how often short-circuit operands, ternary branches, `match` arms and
+  guards, and `switch` subjects ran), mixed-width integer arithmetic, and `double`/`f32` arithmetic, conversions and comparisons (printed as IEEE bit patterns). They
   are valid by construction, so each one must type-check, produce IR that
   passes the LLVM verifier, and survive a formatter round trip (same meaning,
   idempotent output). A rejection or a formatter defect is reported as a crash.
