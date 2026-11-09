@@ -287,4 +287,43 @@ frame main() ret int {
       },
     ]);
   });
+
+  // spec: R-CONV-8
+  test("an integer constant converts to no pointer or array", () => {
+    expectCheckDiagnostics([
+      ...[
+        ["array", "int[2]"],
+        ["nested-array", "int[2][2]"],
+        ["slice", "int[]"],
+        ["pointer", "*int"],
+      ].flatMap(([name, type]) => [
+        {
+          name: `assign-${name}`,
+          source: `frame main() { local x: ${type}; x = 5; x; }`,
+          code: "BPL_ASSIGNMENT_TYPE_MISMATCH",
+        },
+        {
+          name: `return-${name}`,
+          source: `frame f() ret ${type} { return 5; } frame main() { f(); }`,
+          code: "BPL_RETURN_TYPE_MISMATCH",
+        },
+      ]),
+      {
+        name: "assign-zero-array",
+        source: "frame main() { local x: int[2]; x = 0; x; }",
+        code: "BPL_ASSIGNMENT_TYPE_MISMATCH",
+      },
+      {
+        name: "return-zero-pointer",
+        source: "frame f() ret *int { return 0; } frame main() { f(); }",
+        code: "BPL_RETURN_TYPE_MISMATCH",
+      },
+      {
+        name: "assign-field-of-generic",
+        source:
+          "struct C<T> { val: int[2][2], t: T, } frame main() { local c: C<int>; c.val = 10; c; }",
+        code: "BPL_ASSIGNMENT_TYPE_MISMATCH",
+      },
+    ]);
+  });
 });
