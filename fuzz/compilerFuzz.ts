@@ -27,6 +27,7 @@ import {
   generateModuleProgram,
   readFuzzModules,
 } from "./moduleProgramGenerator";
+import { generateStdlibProgram } from "./stdlibProgramGenerator";
 import {
   findNonDirectoryPathComponent,
   findSymlinkedPathComponent,
@@ -635,7 +636,7 @@ export function runBplOraclePipeline(
   // Imports cannot resolve in-process, so companion modules are only built
   // by the CLI below; each file still has to survive the formatter.
   const modules = readFuzzModules(source);
-  if (modules.size === 0) {
+  if (modules.size === 0 && !/^import /m.test(source)) {
     const inProcess = runGeneratedPipeline(source, filePath);
     if (!inProcess.ok) return inProcess;
   } else {
@@ -1358,12 +1359,14 @@ export function generateFuzzInput(
   let source: string;
 
   if (kind === "generated" || kind === "oracle") {
-    source =
-      options.oracleOnly && iteration % 5 === 4
-        ? generateModuleProgram(createSeededRandom(mixSeed(seed, iteration)), {
-            wasm: options.wasm,
-          }).source
-        : generateOracleSource(seed, iteration, { wasm: options.wasm });
+    const rng = createSeededRandom(mixSeed(seed, iteration));
+    if (options.oracleOnly && iteration % 5 === 4) {
+      source = generateModuleProgram(rng, { wasm: options.wasm }).source;
+    } else if (options.oracleOnly && iteration % 5 === 2) {
+      source = generateStdlibProgram(rng).source;
+    } else {
+      source = generateOracleSource(seed, iteration, { wasm: options.wasm });
+    }
   } else if (kind === "differential") {
     source = generateDifferentialRuntimeSource(seed, Math.floor(iteration / 4));
   } else if (kind === "structured") {

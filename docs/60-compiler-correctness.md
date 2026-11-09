@@ -463,7 +463,9 @@ Each campaign iteration picks one input lane:
   iteration is a multi-file program from `fuzz/moduleProgramGenerator.ts`: a
   diamond of modules sharing globals, with private names repeated across
   modules. Its companion files are `# fuzz-module:` comments in the main source,
-  so a saved failure stays one replayable file.
+  so a saved failure stays one replayable file. Another fifth comes from
+  `fuzz/stdlibProgramGenerator.ts`, which checks strings, collections, `BigInt`,
+  `Rational`, `Parse` and the codecs against exact JavaScript models.
   `--oracle-only` (or `FUZZ_ORACLE_ONLY=1`) makes every iteration an oracle
   program, for a local campaign aimed at miscompiles:
   `bun run fuzz -- --oracle-only --iterations 2000 --seeds 0x1,0x2`.
