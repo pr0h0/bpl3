@@ -19,7 +19,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   arrays, global structs, two-parameter and nested generics, `Func` fields,
   closures returned from closures, spec dispatch through pointers, three-level
   inheritance, nested enums, arrays of tuples, slices, closure arrays, heap
-  lists, automatic destructors and implicit `new` constructors.
+  lists, automatic destructors and implicit `new` constructors. Every fifth
+  `--oracle-only` iteration is a multi-file program: a diamond of modules
+  sharing globals, with private names repeated across modules and every import
+  form.
 - An extern of a known C function that returns `int` (`printf`, `puts`,
   `putchar`, `fprintf`, `dprintf`, `sprintf`, `snprintf`, `scanf`, `sscanf`)
   has return type `int` when the declaration omits it (R-EXTERN-8).

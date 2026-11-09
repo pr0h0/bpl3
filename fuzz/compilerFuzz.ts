@@ -24,6 +24,10 @@ import {
   readExpectedStdout,
 } from "./programGenerator";
 import {
+  generateModuleProgram,
+  readFuzzModules,
+} from "./moduleProgramGenerator";
+import {
   findNonDirectoryPathComponent,
   findSymlinkedPathComponent,
 } from "../compiler/common/PathSafety";
@@ -628,14 +632,34 @@ export function runBplOraclePipeline(
   source: string,
   filePath: string,
 ): PipelineOutcome {
-  const inProcess = runGeneratedPipeline(source, filePath);
-  if (!inProcess.ok) return inProcess;
+  // Imports cannot resolve in-process, so companion modules are only built
+  // by the CLI below; each file still has to survive the formatter.
+  const modules = readFuzzModules(source);
+  if (modules.size === 0) {
+    const inProcess = runGeneratedPipeline(source, filePath);
+    if (!inProcess.ok) return inProcess;
+  } else {
+    for (const [name, text] of [...modules, [filePath, source] as const]) {
+      const message = checkFormatterRoundTrip(text, name);
+      if (message) {
+        return {
+          ok: false,
+          stage: "parser",
+          crash: new Error(message),
+          message,
+        };
+      }
+    }
+  }
 
   const expectedStdout = readExpectedStdout(source);
   const dir = mkdtempSync(join(tmpdir(), "bpl-fuzz-oracle-"));
   const sourcePath = join(dir, "main.bpl");
   try {
     writeFileSync(sourcePath, source);
+    for (const [name, text] of modules) {
+      writeFileSync(join(dir, name), text);
+    }
     const o0 = runBplCommand(sourcePath, dir, 0);
     const o3 = runBplCommand(sourcePath, dir, 3);
     const wrong = (result: DifferentialCommandResult) =>
@@ -1334,7 +1358,12 @@ export function generateFuzzInput(
   let source: string;
 
   if (kind === "generated" || kind === "oracle") {
-    source = generateOracleSource(seed, iteration, { wasm: options.wasm });
+    source =
+      options.oracleOnly && iteration % 5 === 4
+        ? generateModuleProgram(createSeededRandom(mixSeed(seed, iteration)), {
+            wasm: options.wasm,
+          }).source
+        : generateOracleSource(seed, iteration, { wasm: options.wasm });
   } else if (kind === "differential") {
     source = generateDifferentialRuntimeSource(seed, Math.floor(iteration / 4));
   } else if (kind === "structured") {
