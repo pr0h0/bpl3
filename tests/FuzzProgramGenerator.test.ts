@@ -25,7 +25,7 @@ describe("generated fuzz programs", () => {
 
   test("cover the language features they are meant to exercise", () => {
     const sources = Array.from(
-      { length: 120 },
+      { length: 300 },
       (_, seed) => generateOracleProgram(createSeededRandom(seed)).source,
     ).join("\n");
     for (const feature of [
@@ -142,6 +142,13 @@ describe("generated fuzz programs", () => {
       /\blf\d+\[\(.*\) & 1\]\(/,
       /local \(\(nt\d+: /,
       /sumFree\(mkList\(/,
+      /@\[auto_destroy\]/,
+      /local _r\d+: Rs\d+ = Rs\d+ \{ id: /,
+      /local _r\d+: Rs\d+ = mkRs\d+\(/,
+      /local _o\d+: Own\d+ = Own\d+ \{ a: Rs\d+ \{ id: /,
+      /local _a\d+: Rs\d+\[2\] = \[/,
+      /\bguardRs\d+\(/,
+      /local cn\d+: Cn\d+;/,
     ]) {
       expect(sources).toMatch(feature);
     }
