@@ -128,6 +128,20 @@ describe("generated fuzz programs", () => {
       /^\s+h\d+\.f = h[fg]\d+;/m,
       /\bcur\d+\(.*\)\(/,
       /\badd\d+\(/,
+      /local vo\d+: \*V\d+ = &/,
+      /\bvoa\d+\[\(.*\) & 1\]\.val\(/,
+      /struct ZC\d+: ZB\d+ \{/,
+      /\bzp\d+ is \*ZC\d+/,
+      /^\s+zp\d+ = &zo\d+;/m,
+      /X \{ i: In\d+\.Q \{ a: x, b: y \}, n: nn \}/,
+      /\bdg\d+\(no\d+\)/,
+      /\bhd\d+\.arr\[/,
+      /\bta\d+\[\(.*\) & 1\]\) \{ \(tx/,
+      /^\s+vw\d+\[/m,
+      /\bsv\d+\(sa\d+, /,
+      /\blf\d+\[\(.*\) & 1\]\(/,
+      /local \(\(nt\d+: /,
+      /sumFree\(mkList\(/,
     ]) {
       expect(sources).toMatch(feature);
     }

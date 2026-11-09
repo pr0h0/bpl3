@@ -231,6 +231,36 @@ interface Curried {
   bound: bigint;
 }
 
+/** `struct ZA`, `ZB: ZA` and `ZC: ZB`, and a `*ZA` retargeted among them. */
+interface ThreeLevel {
+  type: IntType;
+  names: readonly [string, string, string];
+  locals: string[];
+  pointer: string;
+  /** Set once the pointer is declared; its initializers cannot use it. */
+  ready?: boolean;
+}
+
+/** `In { P(T), Q { a, b }, R }` and `Out { W(In), X { i, n }, Y }`. */
+interface NestedEnums {
+  inner: string;
+  outer: string;
+  innerDigest: string;
+  outerDigest: string;
+  type: IntType;
+  locals: string[];
+  holders: string[];
+  holderName: string;
+}
+
+/** `Lambda<T>(T)[2]`: `x + captured` and `x ^ constant`, by slot tag. */
+interface LambdaArray {
+  name: string;
+  type: IntType;
+  captured: bigint;
+  constant: bigint;
+}
+
 interface BoundMutator {
   name: string;
   instance: Instance;
@@ -443,6 +473,8 @@ class ProgramBuilder {
         byValue: string;
         slice: string;
         pointer: string;
+        /** `vwK: T[]`, a slice local over the array. */
+        view?: string;
       }
     | undefined;
   /**
@@ -470,7 +502,12 @@ class ProgramBuilder {
     global: boolean;
   }[] = [];
   /** `saK: S[2]` locals in main. */
-  private readonly structArrays: { name: string; struct: StructDef }[] = [];
+  private readonly structArrays: {
+    name: string;
+    struct: StructDef;
+    /** `svK(xs: S[], d)` copying one element over the other. */
+    slice?: string;
+  }[] = [];
   /** `spK: *S` locals pointing at an element of an array of structs. */
   private readonly elementPointers: {
     name: string;
@@ -496,6 +533,17 @@ class ProgramBuilder {
   private readonly nestedBoxes: { name: string; type: IntType }[] = [];
   private readonly holders: FuncHolder[] = [];
   private readonly curried: Curried[] = [];
+  /** `*V` pointers, or `*V[2]` arrays, to structs implementing the spec. */
+  private readonly specObjects: { name: string; targets: Instance[] }[] = [];
+  private threeLevel: ThreeLevel | undefined;
+  private nestedEnums: NestedEnums | undefined;
+  private readonly tupleArrays: {
+    name: string;
+    first: IntType;
+    second: IntType;
+  }[] = [];
+  private readonly lambdaArrays: LambdaArray[] = [];
+  private hasHeapList = false;
 
   constructor(
     private readonly rng: () => number,
@@ -3101,7 +3149,21 @@ class ProgramBuilder {
 
   /** The expression forms over main's operator, option and struct locals. */
   private localFeatureExpr(type: IntType, depth: number): Expr | undefined {
-    switch (this.int(0, 8)) {
+    switch (this.int(0, 15)) {
+      case 9:
+        return this.specObjectRead(type, depth);
+      case 10:
+        return this.threeLevelRead(type, depth);
+      case 11:
+        return this.nestedEnumRead(type);
+      case 12:
+        return this.tupleArrayRead(type);
+      case 13:
+        return this.sliceViewRead(type);
+      case 14:
+        return this.lambdaArrayRead(type, depth);
+      case 15:
+        return this.heapListRead(type, depth);
       case 4:
         return this.gridRead(type, depth);
       case 5:
@@ -3301,7 +3363,11 @@ class ProgramBuilder {
   }
 
   private localFeatureStatement(): Stmt | undefined {
-    switch (this.int(0, 7)) {
+    switch (this.int(0, 9)) {
+      case 8:
+        return this.nestedEnumStatement();
+      case 9:
+        return this.dispatchStatement();
       case 6:
         return this.gridStatement();
       case 7:
@@ -3617,6 +3683,429 @@ class ProgramBuilder {
     };
   }
 
+  // ----------------------------------- dispatch, nested enums and heap ----
+
+  /** `voK.val(d)` through a `*V`, or `voaK[i & 1].val(d)` through an array. */
+  private specObjectRead(type: IntType, depth: number): Expr | undefined {
+    if (this.specObjects.length === 0) return undefined;
+    const object = this.pick(this.specObjects);
+    const index = object.targets.length > 1 ? this.indexExpr() : undefined;
+    const arg = guard(this.expr(INT, depth - 1, false));
+    const receiver = index
+      ? `${object.name}[(${index.code}) & 1]`
+      : object.name;
+    return {
+      type,
+      code: `cast<${type.name}>(${receiver}.val(${arg.code}))`,
+      constant: false,
+      reads: union(
+        index?.reads ?? new Set(),
+        union(arg.reads, new Set([object.name])),
+      ),
+      eval: (env) => {
+        const target =
+          object.targets[index ? Number((index.eval(env) as bigint) & 1n) : 0]!;
+        return convert(
+          target.struct.specVal!.eval(
+            this.receiverEnv(env, target.name, target.struct, arg.eval(env)),
+          ),
+          type,
+        );
+      },
+    };
+  }
+
+  /** The object a `*ZA` pointer currently refers to. */
+  private zTarget(z: ThreeLevel, env: Env): number {
+    return Number(env.get(`${z.pointer}.dyn`) as bigint);
+  }
+
+  /** `who()`, `val(d)` or `is *ZC` through the pointer's dynamic type. */
+  private threeLevelRead(type: IntType, depth: number): Expr | undefined {
+    const z = this.threeLevel;
+    if (!z?.ready) return undefined;
+    const form = this.int(0, 2);
+    if (form === 0) {
+      return {
+        type,
+        code: `cast<${type.name}>(${z.pointer}.who())`,
+        constant: false,
+        reads: new Set([z.pointer]),
+        eval: (env) => convert(BigInt(this.zTarget(z, env) + 1), type),
+      };
+    }
+    if (form === 1) {
+      return {
+        type,
+        code: `cast<${type.name}>(${z.pointer} is *${z.names[2]})`,
+        constant: false,
+        reads: new Set([z.pointer]),
+        eval: (env) => convert(this.zTarget(z, env) === 2, type),
+      };
+    }
+    const arg = guard(this.expr(INT, depth - 1, false));
+    return {
+      type,
+      code: `cast<${type.name}>(${z.pointer}.val(${arg.code}))`,
+      constant: false,
+      reads: union(arg.reads, new Set([z.pointer])),
+      eval: (env) => {
+        const object = z.locals[this.zTarget(z, env)]!;
+        const d = convert(convert(arg.eval(env), INT), z.type) as bigint;
+        const x = env.get(`${object}.x`) as bigint;
+        return convert(
+          this.zTarget(z, env) === 0
+            ? wrap(x + d, z.type)
+            : wrap(x * (env.get(`${object}.y`) as bigint) + d, z.type),
+          type,
+        );
+      },
+    };
+  }
+
+  /** A value of the inner enum: `I.P(e)`, `I.Q { a, b }` or `I.R`. */
+  private innerEnumValue(nested: NestedEnums): {
+    code: string;
+    eval(env: Env): EnumValue;
+  } {
+    const u8 = INT_TYPES[1]!;
+    switch (this.int(0, 2)) {
+      case 0: {
+        const value = guard(this.expr(nested.type, 1, false));
+        return {
+          code: `${nested.inner}.P(${value.code})`,
+          eval: (env) => ({
+            tag: 0,
+            payload: [convert(value.eval(env), nested.type)],
+          }),
+        };
+      }
+      case 1: {
+        const a = guard(this.expr(u8, 1, false));
+        const b = guard(this.expr(LONG, 1, false));
+        return {
+          code: `${nested.inner}.Q { a: ${a.code}, b: ${b.code} }`,
+          eval: (env) => ({
+            tag: 1,
+            payload: [convert(a.eval(env), u8), convert(b.eval(env), LONG)],
+          }),
+        };
+      }
+      default:
+        return {
+          code: `${nested.inner}.R`,
+          eval: () => ({ tag: 2, payload: [] }),
+        };
+    }
+  }
+
+  private outerEnumValue(nested: NestedEnums): {
+    code: string;
+    eval(env: Env): EnumValue;
+  } {
+    const form = this.int(0, 2);
+    if (form === 2) {
+      return {
+        code: `${nested.outer}.Y`,
+        eval: () => ({ tag: 2, payload: [] }),
+      };
+    }
+    const inner = this.innerEnumValue(nested);
+    if (form === 0) {
+      return {
+        code: `${nested.outer}.W(${inner.code})`,
+        eval: (env) => ({ tag: 0, payload: [inner.eval(env)] }),
+      };
+    }
+    const count = guard(this.expr(INT, 1, false));
+    return {
+      code: `${nested.outer}.X { i: ${inner.code}, n: ${count.code} }`,
+      eval: (env) => ({
+        tag: 1,
+        payload: [inner.eval(env), convert(count.eval(env), INT)],
+      }),
+    };
+  }
+
+  private innerDigest(value: EnumValue): bigint {
+    if (value.tag === 2) return 7n;
+    if (value.tag === 0) return convert(value.payload[0]!, LONG) as bigint;
+    return wrap(
+      (value.payload[0] as bigint) + (value.payload[1] as bigint) * 3n,
+      LONG,
+    );
+  }
+
+  private outerDigest(value: EnumValue): bigint {
+    if (value.tag === 2) return -1n;
+    const inner = this.innerDigest(value.payload[0] as EnumValue);
+    return value.tag === 0
+      ? wrap(inner * 2n + 1n, LONG)
+      : wrap(inner * 3n + (value.payload[1] as bigint), LONG);
+  }
+
+  /** `dgK(ok)` or `diK(h.arr[i & 1])`, matching through nested patterns. */
+  private nestedEnumRead(type: IntType): Expr | undefined {
+    const nested = this.nestedEnums;
+    if (!nested) return undefined;
+    if (nested.holders.length > 0 && this.chance(0.4)) {
+      const holder = this.pick(nested.holders);
+      const index = this.indexExpr();
+      return {
+        type,
+        code: `cast<${type.name}>(${nested.innerDigest}(${holder}.arr[(${index.code}) & 1]))`,
+        constant: false,
+        reads: union(index.reads, new Set([holder])),
+        eval: (env) => {
+          const slot = (index.eval(env) as bigint) & 1n;
+          return convert(
+            this.innerDigest(env.get(`${holder}.arr[${slot}]`) as EnumValue),
+            type,
+          );
+        },
+      };
+    }
+    if (nested.locals.length === 0) return undefined;
+    const local = this.pick(nested.locals);
+    return {
+      type,
+      code: `cast<${type.name}>(${nested.outerDigest}(${local}))`,
+      constant: false,
+      reads: new Set([local]),
+      eval: (env) =>
+        convert(this.outerDigest(env.get(local) as EnumValue), type),
+    };
+  }
+
+  private nestedEnumStatement(): Stmt | undefined {
+    const nested = this.nestedEnums;
+    if (!nested) return undefined;
+    if (nested.holders.length > 0 && this.chance(0.5)) {
+      const holder = this.pick(nested.holders);
+      if (this.chance(0.5)) {
+        const index = this.indexExpr();
+        return {
+          code: (indent) =>
+            `${indent}${holder}.arr[(${index.code}) & 1] = ${holder}.e;`,
+          exec: (env) => {
+            const slot = (index.eval(env) as bigint) & 1n;
+            env.set(`${holder}.arr[${slot}]`, env.get(`${holder}.e`)!);
+            return undefined;
+          },
+        };
+      }
+      const value = this.innerEnumValue(nested);
+      return {
+        code: (indent) => `${indent}${holder}.e = ${value.code};`,
+        exec: (env) => {
+          env.set(`${holder}.e`, value.eval(env));
+          return undefined;
+        },
+      };
+    }
+    if (nested.locals.length === 0) return undefined;
+    const local = this.pick(nested.locals);
+    const value = this.outerEnumValue(nested);
+    return {
+      code: (indent) => `${indent}${local} = ${value.code};`,
+      exec: (env) => {
+        env.set(local, value.eval(env));
+        return undefined;
+      },
+    };
+  }
+
+  /** `(match (taK[i & 1]) { (x, y) => ... })` on an array of tuples. */
+  private tupleArrayRead(type: IntType): Expr | undefined {
+    if (this.tupleArrays.length === 0) return undefined;
+    const array = this.pick(this.tupleArrays);
+    const index = this.indexExpr();
+    const x = this.fresh("tx");
+    const y = this.fresh("ty");
+    const t = type.name;
+    return {
+      type,
+      code: `(match (${array.name}[(${index.code}) & 1]) { (${x}, ${y}) => cast<${t}>(${x}) ^ cast<${t}>(${y}) })`,
+      constant: false,
+      reads: union(index.reads, new Set([array.name])),
+      eval: (env) => {
+        const slot = (index.eval(env) as bigint) & 1n;
+        return wrap(
+          (convert(env.get(`${array.name}[${slot}].0`)!, type) as bigint) ^
+            (convert(env.get(`${array.name}[${slot}].1`)!, type) as bigint),
+          type,
+        );
+      },
+    };
+  }
+
+  /** `vwK[i & 3]`: a slice over main's array, reading its storage. */
+  private sliceViewRead(type: IntType): Expr | undefined {
+    const array = this.mainArray;
+    if (!array?.view) return undefined;
+    const view = array.view;
+    const index = this.indexExpr();
+    return {
+      type,
+      code: `cast<${type.name}>(${view}[(${index.code}) & 3])`,
+      constant: false,
+      reads: union(index.reads, new Set([view])),
+      eval: (env) => {
+        const slot = (index.eval(env) as bigint) & 3n;
+        return convert(env.get(`${array.name}[${slot}]`)!, type);
+      },
+    };
+  }
+
+  /** The value of a slot of a `Lambda` array for argument `x`. */
+  private lambdaArrayCall(
+    array: LambdaArray,
+    slot: bigint,
+    x: bigint,
+    env: Env,
+  ): bigint {
+    const first = env.get(`${array.name}[${slot}]`) === 0n;
+    return wrap(first ? x + array.captured : x ^ array.constant, array.type);
+  }
+
+  /** `lfK[i & 1](arg)`: a closure called straight from an array element. */
+  private lambdaArrayRead(type: IntType, depth: number): Expr | undefined {
+    if (this.lambdaArrays.length === 0) return undefined;
+    const array = this.pick(this.lambdaArrays);
+    const index = this.indexExpr();
+    const arg = guard(this.expr(array.type, depth - 1, false));
+    return {
+      type,
+      code: `cast<${type.name}>(${array.name}[(${index.code}) & 1](${arg.code}))`,
+      constant: false,
+      reads: union(index.reads, union(arg.reads, new Set([array.name]))),
+      eval: (env) => {
+        const slot = (index.eval(env) as bigint) & 1n;
+        const x = convert(arg.eval(env), array.type) as bigint;
+        return convert(this.lambdaArrayCall(array, slot, x, env), type);
+      },
+    };
+  }
+
+  /** `sumFree(mkList(a & 7, b))`: builds, walks and frees a heap list. */
+  private heapListRead(type: IntType, depth: number): Expr | undefined {
+    if (!this.hasHeapList) return undefined;
+    const count = guard(this.expr(INT, depth - 1, false));
+    const seed = guard(this.expr(INT, depth - 1, false));
+    return {
+      type,
+      code: `cast<${type.name}>(sumFree(mkList((${count.code}) & 7, ${seed.code})))`,
+      constant: false,
+      reads: union(count.reads, seed.reads),
+      eval: (env) => {
+        const n = (count.eval(env) as bigint) & 7n;
+        const start = convert(seed.eval(env), INT) as bigint;
+        let sum = 0n;
+        for (let i = n - 1n; i >= 0n; i--) {
+          sum = wrap(sum * 10n + wrap(i * 3n + start, INT), INT);
+        }
+        return convert(sum, type);
+      },
+    };
+  }
+
+  /** Writes through a slice, tuple element, closure slot or `*ZA`. */
+  private dispatchStatement(): Stmt | undefined {
+    switch (this.int(0, 4)) {
+      case 0: {
+        if (this.tupleArrays.length === 0) return undefined;
+        const array = this.pick(this.tupleArrays);
+        const index = this.indexExpr();
+        const left = guard(this.expr(array.first, 2, false));
+        const right = guard(this.expr(array.second, 2, false));
+        return {
+          code: (indent) =>
+            `${indent}${array.name}[(${index.code}) & 1] = (${left.code}, ${right.code});`,
+          exec: (env) => {
+            const slot = (index.eval(env) as bigint) & 1n;
+            const a = convert(left.eval(env), array.first);
+            const b = convert(right.eval(env), array.second);
+            env.set(`${array.name}[${slot}].0`, a);
+            env.set(`${array.name}[${slot}].1`, b);
+            return undefined;
+          },
+        };
+      }
+      case 1: {
+        const array = this.mainArray;
+        if (!array?.view) return undefined;
+        const view = array.view;
+        const index = this.indexExpr();
+        const value = guard(this.expr(array.type, 2, false));
+        return {
+          code: (indent) =>
+            `${indent}${view}[(${index.code}) & 3] = ${value.code};`,
+          exec: (env) => {
+            const slot = (index.eval(env) as bigint) & 3n;
+            env.set(
+              `${array.name}[${slot}]`,
+              convert(value.eval(env), array.type),
+            );
+            return undefined;
+          },
+        };
+      }
+      case 2: {
+        const candidates = this.structArrays.filter((entry) => entry.slice);
+        if (candidates.length === 0) return undefined;
+        const array = this.pick(candidates);
+        const arg = guard(this.expr(INT, 2, false));
+        return {
+          code: (indent) =>
+            `${indent}${array.slice}(${array.name}, ${arg.code});`,
+          exec: (env) => {
+            const d = convert(arg.eval(env), INT) as bigint;
+            const to = d & 1n;
+            const from = wrap(d + 1n, INT) & 1n;
+            array.struct.fields.forEach((_, field) =>
+              env.set(
+                `${array.name}[${to}].f${field}`,
+                env.get(`${array.name}[${from}].f${field}`)!,
+              ),
+            );
+            return undefined;
+          },
+        };
+      }
+      case 3: {
+        if (this.lambdaArrays.length === 0) return undefined;
+        const array = this.pick(this.lambdaArrays);
+        const to = this.indexExpr();
+        const from = this.indexExpr();
+        return {
+          code: (indent) =>
+            `${indent}${array.name}[(${to.code}) & 1] = ${array.name}[(${from.code}) & 1];`,
+          exec: (env) => {
+            const target = (to.eval(env) as bigint) & 1n;
+            const source = (from.eval(env) as bigint) & 1n;
+            env.set(
+              `${array.name}[${target}]`,
+              env.get(`${array.name}[${source}]`)!,
+            );
+            return undefined;
+          },
+        };
+      }
+      default: {
+        const z = this.threeLevel;
+        if (!z?.ready) return undefined;
+        const target = this.int(0, 2);
+        return {
+          code: (indent) => `${indent}${z.pointer} = &${z.locals[target]!};`,
+          exec: (env) => {
+            env.set(`${z.pointer}.dyn`, BigInt(target));
+            return undefined;
+          },
+        };
+      }
+    }
+  }
+
   // ---------------------------------------------------------- program ----
 
   build(): GeneratedProgram {
@@ -3630,6 +4119,7 @@ class ProgramBuilder {
     const printedLambdas: LambdaDef[] = [];
     // Local strings must be read: printed as their length-independent bytes.
     const printedStrings: { name: string; bytes: number[] }[] = [];
+    const printedSpecObjects: { name: string; instance: Instance }[] = [];
     // Pointer locals that must be used: printed through a call.
     const printedCalls: string[] = [];
     // `*Parent` pointers to parents, printed through `is *Child`.
@@ -3714,6 +4204,74 @@ class ProgramBuilder {
       const { literal, bytes } = this.stringConstant();
       lines.push(`global ${name}: string = ${literal};`);
       this.strings.push({ name, bytes, global: true });
+    }
+
+    if (this.chance(0.5)) {
+      this.hasHeapList = true;
+      lines.push(
+        "extern malloc(n: ulong) ret *void;",
+        "extern free(p: *void);",
+        "struct Nd {\n    v: int,\n    next: *Nd,\n}",
+        "frame mkList(n: int, seed: int) ret *Nd {\n    local head: *Nd = null;\n    local i: int = 0;\n    loop (i < n) {\n        local node: *Nd = cast<*Nd>(malloc(sizeof(Nd)));\n        node.v = i * 3 + seed;\n        node.next = head;\n        head = node;\n        i = i + 1;\n    }\n    return head;\n}",
+        "frame sumFree(start: *Nd) ret int {\n    local head: *Nd = start;\n    local sum: int = 0;\n    loop (head != null) {\n        sum = sum * 10 + head.v;\n        local next: *Nd = head.next;\n        free(cast<*void>(head));\n        head = next;\n    }\n    return sum;\n}",
+      );
+    }
+    if (this.chance(0.6)) {
+      const type = this.intType();
+      const k = this.fresh("");
+      const inner = `In${k}`;
+      const outer = `Out${k}`;
+      const innerDigest = `di${k}`;
+      const outerDigest = `dg${k}`;
+      const longOf = (code: string) => `cast<long>(${code})`;
+      const patterns: [string, string][] = [
+        [`${inner}.P(v)`, longOf("v")],
+        [`${inner}.Q { a: x, b: y }`, `${longOf("x")} + y * cast<long>(3)`],
+        [`${inner}.R`, "cast<long>(7)"],
+      ];
+      lines.push(
+        `enum ${inner} { P(${type.name}), Q { a: u8, b: long }, R }`,
+        `enum ${outer} { W(${inner}), X { i: ${inner}, n: int }, Y }`,
+        `frame ${innerDigest}(e: ${inner}) ret long {\n    return match (e) { ${patterns.map(([pattern, value]) => `${pattern} => ${value}`).join(", ")} };\n}`,
+        `frame ${outerDigest}(o: ${outer}) ret long {\n    return match (o) { ${patterns
+          .map(
+            ([pattern, value]) =>
+              `${outer}.W(${pattern}) => (${value}) * cast<long>(2) + cast<long>(1), ${outer}.X { i: ${pattern}, n: nn } => (${value}) * cast<long>(3) + cast<long>(nn)`,
+          )
+          .join(", ")}, ${outer}.Y => cast<long>(-1) };\n}`,
+      );
+      this.nestedEnums = {
+        inner,
+        outer,
+        innerDigest,
+        outerDigest,
+        type,
+        locals: [],
+        holders: [],
+        holderName: `Hd${k}`,
+      };
+      lines.push(`struct Hd${k} {\n    e: ${inner},\n    arr: ${inner}[2],\n}`);
+    }
+    if (this.chance(0.5)) {
+      const type = this.intType();
+      const t = type.name;
+      const k = this.fresh("");
+      const names = [`ZA${k}`, `ZB${k}`, `ZC${k}`] as const;
+      const who = (self: string, value: number) =>
+        `    frame who(this: *${self}) ret int {\n        return ${value};\n    }`;
+      const val = (self: string, body: string) =>
+        `    frame val(this: *${self}, d: int) ret ${t} {\n        return ${body} + cast<${t}>(d);\n    }`;
+      lines.push(
+        `struct ${names[0]} {\n    x: ${t},\n${who(names[0], 1)}\n${val(names[0], "this.x")}\n}`,
+        `struct ${names[1]}: ${names[0]} {\n    y: ${t},\n${who(names[1], 2)}\n${val(names[1], "this.x * this.y")}\n}`,
+        `struct ${names[2]}: ${names[1]} {\n    z: ${t},\n${who(names[2], 3)}\n}`,
+      );
+      this.threeLevel = {
+        type,
+        names,
+        locals: [],
+        pointer: this.fresh("zp"),
+      };
     }
 
     lines.push(
@@ -3928,6 +4486,152 @@ class ProgramBuilder {
         );
         addInstance(copy, struct);
       }
+    }
+    if (this.spec) {
+      const spec = this.spec.name;
+      const objects: { name: string; instance: Instance }[] = [];
+      for (const instance of this.instances) {
+        if (!instance.struct.specVal || !this.chance(0.5)) continue;
+        const name = this.fresh("vo");
+        decls.push(`    local ${name}: *${spec} = &${instance.name};`);
+        objects.push({ name, instance });
+        this.specObjects.push({ name, targets: [instance] });
+      }
+      if (objects.length >= 2) {
+        const first = this.pick(objects);
+        const second = this.pick(objects);
+        const name = this.fresh("voa");
+        decls.push(
+          `    local ${name}: *${spec}[2] = [${first.name}, ${second.name}];`,
+        );
+        this.specObjects.push({
+          name,
+          targets: [first.instance, second.instance],
+        });
+        printedSpecObjects.push({
+          name: `${name}[1]`,
+          instance: second.instance,
+        });
+      }
+      // A pointer that is never called would be an unused local.
+      for (const { name, instance } of objects) {
+        printedSpecObjects.push({ name, instance });
+      }
+    }
+    if (this.threeLevel) {
+      const z = this.threeLevel;
+      const fields = ["x", "y", "z"];
+      z.names.forEach((structName, level) => {
+        const local = this.fresh("zo");
+        const inits = fields
+          .slice(0, level + 1)
+          .map(() => guard(this.expr(z.type, 2, false)));
+        decls.push(
+          `    local ${local}: ${structName} = ${structName} { ${inits.map((init, field) => `${fields[field]}: ${init.code}`).join(", ")} };`,
+        );
+        inits.forEach((init, field) => {
+          const key = `${local}.${fields[field]}`;
+          env.set(key, convert(init.eval(env), z.type));
+          const place = { type: z.type, code: key, key };
+          this.scope.push(place);
+          printed.push(place);
+        });
+        z.locals.push(local);
+      });
+      const target = this.int(0, 2);
+      decls.push(
+        `    local ${z.pointer}: *${z.names[0]} = &${z.locals[target]!};`,
+      );
+      env.set(`${z.pointer}.dyn`, BigInt(target));
+      z.ready = true;
+    }
+    if (this.nestedEnums) {
+      const nested = this.nestedEnums;
+      for (let index = this.int(1, 2); index > 0; index--) {
+        const name = this.fresh("no");
+        const value = this.outerEnumValue(nested);
+        decls.push(`    local ${name}: ${nested.outer} = ${value.code};`);
+        env.set(name, value.eval(env));
+        nested.locals.push(name);
+      }
+      const holder = this.fresh("hd");
+      const e = this.innerEnumValue(nested);
+      const items = [this.innerEnumValue(nested), this.innerEnumValue(nested)];
+      decls.push(
+        `    local ${holder}: ${nested.holderName} = ${nested.holderName} { e: ${e.code}, arr: [${items.map((item) => item.code).join(", ")}] };`,
+      );
+      env.set(`${holder}.e`, e.eval(env));
+      items.forEach((item, slot) =>
+        env.set(`${holder}.arr[${slot}]`, item.eval(env)),
+      );
+      nested.holders.push(holder);
+    }
+    if (this.chance(0.5)) {
+      const first = this.intType();
+      const second = this.intType();
+      const name = this.fresh("ta");
+      const values = [0, 1].map(() => [
+        guard(this.expr(first, 2, false)),
+        guard(this.expr(second, 2, false)),
+      ]);
+      decls.push(
+        `    local ${name}: (${first.name}, ${second.name})[2] = [${values.map(([a, b]) => `(${a!.code}, ${b!.code})`).join(", ")}];`,
+      );
+      values.forEach(([a, b], slot) => {
+        env.set(`${name}[${slot}].0`, convert(a!.eval(env), first));
+        env.set(`${name}[${slot}].1`, convert(b!.eval(env), second));
+      });
+      this.tupleArrays.push({ name, first, second });
+    }
+    if (this.chance(0.5)) {
+      const type = this.intType();
+      const name = this.fresh("ntf");
+      const a = this.fresh("nt");
+      const b = this.fresh("nt");
+      const c = this.fresh("nt");
+      const t = type.name;
+      functionsAfterMain.push(
+        `frame ${name}(x: ${t}) ret ((${t}, u8), long) {\n    return ((x, cast<u8>(x)), cast<long>(x) + cast<long>(1));\n}`,
+      );
+      const arg = guard(this.expr(type, 2, false));
+      decls.push(
+        `    local ((${a}: ${t}, ${b}: u8), ${c}: long) = ${name}(${arg.code});`,
+      );
+      const x = convert(arg.eval(env), type);
+      const u8 = INT_TYPES[1]!;
+      for (const [local, localType, value] of [
+        [a, type, x],
+        [b, u8, convert(x, u8)],
+        [c, LONG, wrap((convert(x, LONG) as bigint) + 1n, LONG)],
+      ] as const) {
+        env.set(local, value);
+        const place = { type: localType, code: local, key: local };
+        this.scope.push(place);
+        printed.push(place);
+      }
+    }
+    if (this.chance(0.5)) {
+      const type = this.intType();
+      const t = type.name;
+      const name = this.fresh("lf");
+      const captured = this.fresh("lc");
+      const init = guard(this.expr(type, 2, false));
+      const constant = BigInt(this.int(1, 90));
+      const a = this.fresh("la");
+      const b = this.fresh("lb");
+      decls.push(
+        `    local ${captured}: ${t} = ${init.code};`,
+        `    local ${name}: Lambda<${t}>(${t})[2] = [|${a}: ${t}| ret ${t} { return ${a} + ${captured}; }, |${b}: ${t}| ret ${t} { return ${b} ^ cast<${t}>(${constant}); }];`,
+      );
+      const capturedValue = convert(init.eval(env), type) as bigint;
+      env.set(`${name}[0]`, 0n);
+      env.set(`${name}[1]`, 1n);
+      this.lambdaArrays.push({
+        name,
+        type,
+        captured: capturedValue,
+        constant: convert(constant, type) as bigint,
+      });
     }
     for (const struct of this.structs) {
       if (!this.chance(0.3)) continue;
@@ -4152,6 +4856,10 @@ class ProgramBuilder {
     for (const struct of this.structs) {
       if (!this.chance(0.4)) continue;
       const name = this.fresh("sa");
+      const slice = this.fresh("sv");
+      functionsAfterMain.push(
+        `frame ${slice}(xs: ${struct.name}[], d: int) {\n    xs[d & 1] = xs[(d + 1) & 1];\n}`,
+      );
       const elements = [0, 1].map(() =>
         struct.fields.map((type) => guard(this.expr(type, 2, false))),
       );
@@ -4179,7 +4887,7 @@ class ProgramBuilder {
             printed.push(place);
           });
         }
-        this.structArrays.push({ name: local, struct });
+        this.structArrays.push({ name: local, struct, slice });
       };
       addStructArray(name);
       if (this.chance(0.5)) {
@@ -4360,6 +5068,12 @@ class ProgramBuilder {
       this.mainArray = { name, type, byValue, slice, pointer };
       // Used at least once, and checked: reads element 1 through `pointer`.
       printed.push({ type, code: `*(${pointer} + 1)`, key: `${name}[1]` });
+      if (this.chance(0.6)) {
+        const view = this.fresh("vw");
+        decls.push(`    local ${view}: ${type.name}[] = ${name};`);
+        this.mainArray.view = view;
+        printed.push({ type, code: `${view}[2]`, key: `${name}[2]` });
+      }
     }
     if (this.hierarchy) {
       const h = this.hierarchy;
@@ -4603,6 +5317,82 @@ class ProgramBuilder {
           INT,
           BigInt.asIntN(8, BigInt(bytes[0] ?? 0)),
           output,
+        ),
+      ),
+      ...printedSpecObjects.map(({ name, instance }) =>
+        this.printValue(
+          `${name.replace(/\W/g, "_")}_end`,
+          `${name}.val(1)`,
+          LONG,
+          convert(
+            instance.struct.specVal!.eval(
+              this.receiverEnv(env, instance.name, instance.struct, 1n),
+            ),
+            LONG,
+          ),
+          output,
+        ),
+      ),
+      ...(this.threeLevel
+        ? [
+            this.printValue(
+              `${this.threeLevel.pointer}_who`,
+              `${this.threeLevel.pointer}.who()`,
+              INT,
+              BigInt(this.zTarget(this.threeLevel, env) + 1),
+              output,
+            ),
+          ]
+        : []),
+      ...(this.nestedEnums
+        ? [
+            ...this.nestedEnums.locals.map((local) =>
+              this.printValue(
+                local,
+                `${this.nestedEnums!.outerDigest}(${local})`,
+                LONG,
+                this.outerDigest(env.get(local) as EnumValue),
+                output,
+              ),
+            ),
+            ...this.nestedEnums.holders.flatMap((holder) =>
+              ["e", "arr[0]", "arr[1]"].map((slot) =>
+                this.printValue(
+                  `${holder}_${slot.replace(/\W/g, "_")}`,
+                  `${this.nestedEnums!.innerDigest}(${holder}.${slot})`,
+                  LONG,
+                  this.innerDigest(env.get(`${holder}.${slot}`) as EnumValue),
+                  output,
+                ),
+              ),
+            ),
+          ]
+        : []),
+      ...this.tupleArrays.flatMap((array) =>
+        [0, 1].flatMap((slot) =>
+          [
+            ["0", array.first, "(x, _y)", "x"],
+            ["1", array.second, "(_x, y)", "y"],
+          ].map(([field, type, pattern, value]) =>
+            this.printValue(
+              `${array.name}_${slot}_${field as string}`,
+              `(match (${array.name}[${slot}]) { ${pattern as string} => ${value as string} })`,
+              type as IntType,
+              env.get(`${array.name}[${slot}].${field as string}`)!,
+              output,
+            ),
+          ),
+        ),
+      ),
+      ...this.lambdaArrays.flatMap((array) =>
+        [0n, 1n].map((slot) =>
+          this.printValue(
+            `${array.name}_${slot}`,
+            `${array.name}[${slot}](cast<${array.type.name}>(1))`,
+            array.type,
+            this.lambdaArrayCall(array, slot, 1n, env),
+            output,
+          ),
         ),
       ),
       ...this.holders.map((holder) =>
