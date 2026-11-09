@@ -1705,6 +1705,8 @@ export class CodeGenerator extends StatementGenerator {
           llvmType === "float" ? "float" : "double",
         );
       case "bool":
+        // A `bool` constant may initialize an integer global.
+        if (llvmType !== "i1") return value.value ? "1" : "0";
         return value.value ? "true" : "false";
       case "literal":
         return this.generateLiteral(value.expr);

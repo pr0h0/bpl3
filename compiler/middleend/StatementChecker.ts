@@ -30,6 +30,7 @@ import {
   SWITCH_VALUE_TYPE_MISMATCH_CODE,
   TUPLE_DESTRUCTURE_TARGET_INVALID_CODE,
   VARIABLE_REDECLARATION_CODE,
+  EXCEPTION_TYPE_UNSUPPORTED_CODE,
   VARIABLE_TYPE_ANNOTATION_MISSING_CODE,
   VOID_TYPE_INVALID_CODE,
 } from "./TypeCheckerBase";
@@ -963,6 +964,7 @@ export function checkTry(this: CheckerContext, stmt: AST.TryStmt): void {
       if (clause.variable && clause.type) {
         this.ensureKnownType(clause.type);
         const caughtType = this.resolveType(clause.type);
+        rejectUnsupportedExceptionType(this, caughtType, clause.type.location);
         this.defineSymbol(clause.variable, "Variable", caughtType, clause);
       }
       checkBlock.call(this, clause.body);
@@ -975,8 +977,27 @@ export function checkTry(this: CheckerContext, stmt: AST.TryStmt): void {
 /**
  * Check a throw statement
  */
+/** Exceptions carry scalars, pointers and structs; not arrays or tuples. */
+function rejectUnsupportedExceptionType(
+  context: CheckerContext,
+  type: AST.TypeNode | undefined,
+  location: AST.ASTNode["location"],
+): void {
+  if (!type) return;
+  const dimensions = (type as { arrayDimensions?: unknown[] }).arrayDimensions;
+  if ((dimensions?.length ?? 0) > 0 || type.kind === "TupleType") {
+    throw new CompilerError(
+      `A value of type ${context.formatDiagnosticType(type)} cannot be thrown or caught`,
+      "Wrap the array or tuple in a struct and throw that.",
+      location,
+      EXCEPTION_TYPE_UNSUPPORTED_CODE,
+    );
+  }
+}
+
 export function checkThrow(this: CheckerContext, stmt: AST.ThrowStmt): void {
   const type = this.checkExpression(stmt.expression);
+  rejectUnsupportedExceptionType(this, type, stmt.expression.location);
   // Throwing a local hands the value over; anything else copies it.
   if (!isOwnershipTransfer(this, stmt.expression)) {
     this.rejectOwningCopy(
@@ -1515,8 +1536,12 @@ export function checkVariableDecl(
           : this.getIntegerConstantValue(decl.initializer);
         if (constVal !== undefined) {
           if (
+            // `= 0` zero-initializes any type. Any other integer constant
+            // initializes only a number (R-CONV-8).
             constVal === 0n ||
-            this.isIntegerTypeCompatible(constVal, resolvedDecl)
+            (TypeUtils.isNumericType(resolvedDecl) &&
+              (resolvedDecl as AST.BasicTypeNode).name !== "string" &&
+              this.isIntegerTypeCompatible(constVal, resolvedDecl))
           ) {
             // Annotate the literal for codegen
             if (
