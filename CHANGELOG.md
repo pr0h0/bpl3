@@ -18,8 +18,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   raw bytes and UTF-8 text. It also covers type aliases, constant locals, `T[2][2]`
   arrays, global structs, two-parameter and nested generics, `Func` fields,
   closures returned from closures, spec dispatch through pointers, three-level
-  inheritance, nested enums, arrays of tuples, slices, closure arrays and heap
-  lists.
+  inheritance, nested enums, arrays of tuples, slices, closure arrays, heap
+  lists, automatic destructors and implicit `new` constructors.
 - An extern of a known C function that returns `int` (`printf`, `puts`,
   `putchar`, `fprintf`, `dprintf`, `sprintf`, `snprintf`, `scanf`, `sscanf`)
   has return type `int` when the declaration omits it (R-EXTERN-8).

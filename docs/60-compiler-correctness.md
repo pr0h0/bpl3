@@ -458,7 +458,8 @@ Each campaign iteration picks one input lane:
   generic enum, arrays of structs, byte reads of UTF-8 strings, type aliases,
   `T[2][2]` arrays, global structs, nested generics, `Func` fields, closures
   returned from closures, spec dispatch through pointers, three-level
-  inheritance, nested enums, arrays of tuples, slices and heap lists.
+  inheritance, nested enums, arrays of tuples, slices, heap lists, automatic
+  destructors and implicit `new` constructors.
   `--oracle-only` (or `FUZZ_ORACLE_ONLY=1`) makes every iteration an oracle
   program, for a local campaign aimed at miscompiles:
   `bun run fuzz -- --oracle-only --iterations 2000 --seeds 0x1,0x2`.

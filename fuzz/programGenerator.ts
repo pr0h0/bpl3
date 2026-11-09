@@ -261,6 +261,16 @@ interface LambdaArray {
   constant: bigint;
 }
 
+/** `Rs` prints its id when destroyed; `Own` holds two and destroys itself first. */
+interface Resources {
+  rs: string;
+  own: string;
+  make: string;
+  guarded: string;
+  rsLabel: string;
+  ownLabel: string;
+}
+
 interface BoundMutator {
   name: string;
   instance: Instance;
@@ -544,6 +554,8 @@ class ProgramBuilder {
   }[] = [];
   private readonly lambdaArrays: LambdaArray[] = [];
   private hasHeapList = false;
+  /** `@[auto_destroy]` structs; see `resourceStatement`. */
+  private resources: Resources | undefined;
 
   constructor(
     private readonly rng: () => number,
@@ -1804,6 +1816,10 @@ class ProgramBuilder {
   private statement(depth: number): Stmt {
     if (this.loopDepth > 0 && this.chance(0.08)) return this.jump();
     if (this.loopDepth > 0 && this.chance(0.05)) return this.deferStatement();
+    if (this.resources && this.loopDepth > 0 && this.chance(0.08)) {
+      const resource = this.resourceStatement();
+      if (resource) return resource;
+    }
     if (
       depth > 0 &&
       this.tryDepth < 2 &&
@@ -3149,7 +3165,9 @@ class ProgramBuilder {
 
   /** The expression forms over main's operator, option and struct locals. */
   private localFeatureExpr(type: IntType, depth: number): Expr | undefined {
-    switch (this.int(0, 15)) {
+    switch (this.int(0, 16)) {
+      case 16:
+        return this.guardedCall(type, depth);
       case 9:
         return this.specObjectRead(type, depth);
       case 10:
@@ -4106,6 +4124,117 @@ class ProgramBuilder {
     }
   }
 
+  /** Output of a destroyed `Rs`. */
+  private destroyRs(id: bigint): void {
+    this.out.push(`${this.resources!.rsLabel}=${id}`);
+  }
+
+  /**
+   * A local that owns a destructor. The destructor runs at block exit, in
+   * reverse order with `defer`, so the oracle treats it as one.
+   *
+   * Not generated where a `throw` could leave its scope: a throw from a
+   * callee skips automatic destructors (a limit documented in
+   * docs/21-constructors-destructors.md), and on a direct throw they run
+   * before `defer` blocks instead of interleaving with them.
+   */
+  private resourceStatement(): Stmt | undefined {
+    if (this.tryDepth > 0) return undefined;
+    const r = this.resources!;
+    const arg = () => guard(this.expr(INT, 2, false));
+    const id = (expr: Expr, env: Env) => convert(expr.eval(env), INT) as bigint;
+    switch (this.int(0, 3)) {
+      case 0: {
+        const value = arg();
+        const name = this.fresh("_r");
+        return {
+          code: (indent) =>
+            `${indent}local ${name}: ${r.rs} = ${r.rs} { id: ${value.code} };`,
+          exec: () => undefined,
+          defer: (env) => {
+            const captured = id(value, env);
+            return () => this.destroyRs(captured);
+          },
+        };
+      }
+      case 1: {
+        const value = arg();
+        const name = this.fresh("_r");
+        return {
+          code: (indent) =>
+            `${indent}local ${name}: ${r.rs} = ${r.make}(${value.code});`,
+          exec: () => undefined,
+          defer: (env) => {
+            const captured = id(value, env);
+            return () => this.destroyRs(captured);
+          },
+        };
+      }
+      case 2: {
+        const [a, b, tag] = [arg(), arg(), arg()];
+        const name = this.fresh("_o");
+        return {
+          code: (indent) =>
+            `${indent}local ${name}: ${r.own} = ${r.own} { a: ${r.rs} { id: ${a.code} }, b: ${r.rs} { id: ${b.code} }, tag: ${tag.code} };`,
+          exec: () => undefined,
+          defer: (env) => {
+            const first = id(a, env);
+            const second = id(b, env);
+            const label = id(tag, env);
+            return () => {
+              this.out.push(`${r.ownLabel}=${label},${first},${second}`);
+              this.destroyRs(second);
+              this.destroyRs(first);
+            };
+          },
+        };
+      }
+      default: {
+        const [a, b] = [arg(), arg()];
+        const name = this.fresh("_a");
+        return {
+          code: (indent) =>
+            `${indent}local ${name}: ${r.rs}[2] = [${r.rs} { id: ${a.code} }, ${r.rs} { id: ${b.code} }];`,
+          exec: () => undefined,
+          defer: (env) => {
+            const first = id(a, env);
+            const second = id(b, env);
+            return () => {
+              this.destroyRs(second);
+              this.destroyRs(first);
+            };
+          },
+        };
+      }
+    }
+  }
+
+  /** `guardK(x)`: returns with destructors and a `defer` still to run. */
+  private guardedCall(type: IntType, depth: number): Expr | undefined {
+    const r = this.resources;
+    if (!r) return undefined;
+    const arg = guard(this.expr(INT, depth - 1, false));
+    return {
+      type,
+      code: `cast<${type.name}>(${r.guarded}(${arg.code}))`,
+      constant: false,
+      reads: arg.reads,
+      eval: (env) => {
+        const x = convert(arg.eval(env), INT) as bigint;
+        if ((x & 1n) === 0n) {
+          // The return value is computed before anything is destroyed.
+          this.destroyRs(wrap(x + 1n, INT));
+          this.out.push(`${r.rsLabel}_df=${x}`);
+          this.destroyRs(x);
+          return convert(wrap(x * 2n, INT), type);
+        }
+        this.out.push(`${r.rsLabel}_df=${x}`);
+        this.destroyRs(x);
+        return convert(wrap(x + 1n, INT), type);
+      },
+    };
+  }
+
   // ---------------------------------------------------------- program ----
 
   build(): GeneratedProgram {
@@ -4120,6 +4249,11 @@ class ProgramBuilder {
     // Local strings must be read: printed as their length-independent bytes.
     const printedStrings: { name: string; bytes: number[] }[] = [];
     const printedSpecObjects: { name: string; instance: Instance }[] = [];
+    const implicitlyConstructed: {
+      name: string;
+      structName: string;
+      value: bigint;
+    }[] = [];
     // Pointer locals that must be used: printed through a call.
     const printedCalls: string[] = [];
     // `*Parent` pointers to parents, printed through `is *Child`.
@@ -4206,6 +4340,35 @@ class ProgramBuilder {
       this.strings.push({ name, bytes, global: true });
     }
 
+    if (this.chance(0.6)) {
+      const k = this.fresh("");
+      const rs = `Rs${k}`;
+      const own = `Own${k}`;
+      this.resources = {
+        rs,
+        own,
+        make: `mkRs${k}`,
+        guarded: `guardRs${k}`,
+        rsLabel: `rs${k}`,
+        ownLabel: `own${k}`,
+      };
+      const r = this.resources;
+      lines.push(
+        `struct ${rs} {\n    id: int,\n    @[auto_destroy]\n    frame destroy(this: *${rs}) {\n        printf("${r.rsLabel}=%d\\n", this.id);\n    }\n}`,
+        `struct ${own} {\n    a: ${rs},\n    b: ${rs},\n    tag: int,\n    @[auto_destroy]\n    frame destroy(this: *${own}) {\n        printf("${r.ownLabel}=%d,%d,%d\\n", this.tag, this.a.id, this.b.id);\n    }\n}`,
+        `frame ${r.make}(x: int) ret ${rs} {\n    return ${rs} { id: x };\n}`,
+        `frame ${r.guarded}(x: int) ret int {\n    local _r: ${rs} = ${rs} { id: x };\n    defer printf("${r.rsLabel}_df=%d\\n", x);\n    if ((x & 1) == 0) {\n        local _s: ${rs} = ${rs} { id: x + 1 };\n        return x * 2;\n    }\n    return x + 1;\n}`,
+      );
+    }
+    if (this.chance(0.5)) {
+      const k = this.fresh("");
+      const value = BigInt(this.int(1, 90));
+      const name = this.fresh("cn");
+      lines.push(
+        `struct Cn${k} {\n    v: int,\n    frame new(this: *Cn${k}) {\n        this.v = ${value};\n    }\n}`,
+      );
+      implicitlyConstructed.push({ name, structName: `Cn${k}`, value });
+    }
     if (this.chance(0.5)) {
       this.hasHeapList = true;
       lines.push(
@@ -4517,6 +4680,14 @@ class ProgramBuilder {
       for (const { name, instance } of objects) {
         printedSpecObjects.push({ name, instance });
       }
+    }
+    for (const { name, structName, value } of implicitlyConstructed) {
+      decls.push(`    local ${name}: ${structName};`);
+      const key = `${name}.v`;
+      env.set(key, value);
+      const place = { type: INT, code: key, key };
+      this.scope.push(place);
+      printed.push(place);
     }
     if (this.threeLevel) {
       const z = this.threeLevel;
