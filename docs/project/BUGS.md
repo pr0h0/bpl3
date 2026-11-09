@@ -1331,6 +1331,39 @@ before that struct's definition. LLVM rejects the function type at that point.
 **Resolution**: all type definitions are emitted before other declarations.
 `tests/TypeMutationRegressions.test.ts`.
 
+### BUG-507: An integer constant initialized a pointer, string, array or struct
+
+**Status**: Fixed · **Priority**: P2
+
+Found by the fuzzer's type mutations (2026-11-09). `local p: *int = 5;`,
+`local s: string = 7;` and `local a: int[2] = 1;` passed the checker, against
+R-CONV-8, and produced invalid IR.
+
+**Resolution**: a non-zero integer constant initializes only a number. `= 0`
+remains the zero-initializer for every type.
+`tests/TypeMutationRegressions.test.ts`.
+
+### BUG-509: Arrays and tuples could be thrown or caught
+
+**Status**: Fixed · **Priority**: P3
+
+Found by the fuzzer's type mutations (2026-11-09). `catch (e: int[])`, a tuple
+clause and `throw array;` passed the checker and failed in code generation with
+`Unsupported cast`: the exception value is held in a 64-bit slot.
+
+**Resolution**: `BPL_EXCEPTION_TYPE_UNSUPPORTED`, documented in R-EXC-1.
+`tests/TypeMutationRegressions.test.ts`.
+
+### BUG-508: A `bool` constant could not initialize an integer global
+
+**Status**: Fixed · **Priority**: P3
+
+Found by the fuzzer's type mutations (2026-11-09). `global g: i8 = !true;` is
+accepted, as `local g: i8 = !true;` is, but was emitted as `i8 false`.
+
+**Resolution**: the constant is written as `0` or `1`.
+`tests/TypeMutationRegressions.test.ts`.
+
 ## Developer experience fixes (2026-10-28)
 
 - **Fixed:** Installing required `init.sh` (sudo link into `/usr/bin`, edits to

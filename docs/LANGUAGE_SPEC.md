@@ -699,7 +699,8 @@ frame processFile(path: string) {
 
 ### Error Handling
 
-- **[R-EXC-1]** `throw expression;` throws a value of any type, such as an
+- **[R-EXC-1]** `throw expression;` throws a value of any type except an array
+  or tuple (`BPL_EXCEPTION_TYPE_UNSUPPORTED`), such as an
   integer, `bool`, floating-point value, string, or struct.
 - **[R-EXC-2]** A `try` block is followed by one or more `catch` clauses.
   `catch (name: Type)` handles a thrown value whose type is exactly `Type`; a

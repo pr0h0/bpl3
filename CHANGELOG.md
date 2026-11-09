@@ -78,6 +78,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   (BUG-505).
 - A method taking a later-declared struct with a vtable by value no longer
   fails to build (BUG-506).
+- A non-zero integer constant no longer initializes a pointer, string, array
+  or struct (BUG-507). An integer global can take a constant `bool` expression
+  (BUG-508). Throwing or catching an array or tuple is a compile error
+  (`BPL_EXCEPTION_TYPE_UNSUPPORTED`, BUG-509).
 
 - A method call on a zero-initialized global struct, or on a struct element of
   an array field, no longer crashes on a null vtable pointer (BUG-491).

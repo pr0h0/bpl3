@@ -185,6 +185,59 @@ frame main() ret int {
     ]);
   });
 
+  // spec: R-CONV-8
+  test("an integer constant initializes only a number", () => {
+    expectCheckDiagnostics(
+      [
+        ["pointer", "*int", "5"],
+        ["string", "string", "7"],
+        ["array", "int[2]", "1"],
+      ].map(([name, type, value]) => ({
+        name: `integer-constant-${name}`,
+        source: `frame main() { local v: ${type} = ${value}; v; }`,
+        message: "cannot assign",
+      })),
+    );
+    expectCorrectnessSuite([
+      {
+        name: "bool-constant-integer-global",
+        validateLlvm: true,
+        source: `extern printf(fmt: string, ...);
+global off: i8 = !true;
+global on: i16 = !false;
+frame main() ret int {
+    printf("%d %d\\n", cast<int>(off), cast<int>(on));
+    return 0;
+}
+`,
+        expectedStdout: "0 1\n",
+      },
+    ]);
+  });
+
+  // spec: R-EXC-1
+  test("arrays and tuples cannot be thrown or caught", () => {
+    expectCheckDiagnostics([
+      {
+        name: "catch-slice",
+        source: "frame main() { try { throw 1; } catch (e: int[]) { e; } }",
+        code: "BPL_EXCEPTION_TYPE_UNSUPPORTED",
+      },
+      {
+        name: "catch-tuple",
+        source:
+          "frame main() { try { throw 1; } catch (e: (int, bool)) { e; } }",
+        code: "BPL_EXCEPTION_TYPE_UNSUPPORTED",
+      },
+      {
+        name: "throw-array",
+        source:
+          "frame main() { local a: int[2] = [1, 2]; try { throw a; } catch (e: int) { e; } }",
+        code: "BPL_EXCEPTION_TYPE_UNSUPPORTED",
+      },
+    ]);
+  });
+
   // spec: R-EXPR-1
   test("arithmetic needs numbers, not arrays", () => {
     const array = "local a: int[2] = [1, 2];";
