@@ -238,6 +238,22 @@ frame main() ret int {
     ]);
   });
 
+  // spec: R-STRUCT-1
+  test("bpl check reports what a build reports", () => {
+    expectCheckDiagnostics([
+      {
+        name: "primitive-field",
+        source: "frame main() ret int { local x: int = 5; return x.value; }",
+        code: "BPL_MEMBER_NOT_FOUND",
+      },
+      {
+        name: "main-return-type",
+        source: 'frame main() ret string { return "x"; }',
+        message: "Invalid return type for 'main'",
+      },
+    ]);
+  });
+
   // spec: R-EXPR-1
   test("arithmetic needs numbers, not arrays", () => {
     const array = "local a: int[2] = [1, 2];";
