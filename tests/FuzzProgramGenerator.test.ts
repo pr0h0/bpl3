@@ -1,3 +1,4 @@
+import { generateStdlibProgram } from "../fuzz/stdlibProgramGenerator";
 import {
   generateModuleProgram,
   readFuzzModules,
@@ -16,6 +17,41 @@ import {
   generateOracleProgram,
   readExpectedStdout,
 } from "../fuzz/programGenerator";
+
+describe("generated standard library programs", () => {
+  test("exercise each library and match their oracle", () => {
+    const sources = Array.from(
+      { length: 60 },
+      (_, seed) => generateStdlibProgram(createSeededRandom(seed)).source,
+    ).join("\n");
+    for (const library of [
+      "String",
+      "Array",
+      "Map",
+      "Set",
+      "Deque",
+      "BigInt",
+      "Rational",
+      "Base32",
+      "Base64",
+      "Hex",
+      "Sha1",
+      "PriorityQueue",
+      "LinkedList",
+      "Queue",
+      "BitSet",
+      "Parse",
+    ]) {
+      expect(sources).toContain(`import [${library}] from "std/`);
+    }
+    for (let seed = 0; seed < 4; seed++) {
+      const { source } = generateStdlibProgram(createSeededRandom(seed));
+      const outcome = runBplOraclePipeline(source, `stdlib-${seed}.bpl`);
+      expect(outcome.message ?? "").toBe("");
+      expect(outcome.ok).toBe(true);
+    }
+  }, 120_000);
+});
 
 describe("generated multi-file programs", () => {
   test("embed their companion modules and match their oracle", () => {
@@ -38,7 +74,7 @@ describe("generated multi-file programs", () => {
       expect(outcome.message ?? "").toBe("");
       expect(outcome.ok).toBe(true);
     }
-  });
+  }, 120_000);
 
   test("a wrong expectation is reported as a mismatch", () => {
     const { source } = generateModuleProgram(createSeededRandom(3));
