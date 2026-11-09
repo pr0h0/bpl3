@@ -28,6 +28,7 @@ import {
   readFuzzModules,
 } from "./moduleProgramGenerator";
 import { generateStdlibProgram } from "./stdlibProgramGenerator";
+import { mutateProgramTypes } from "./typeMutation";
 import {
   findNonDirectoryPathComponent,
   findSymlinkedPathComponent,
@@ -137,6 +138,8 @@ const TYPES = [
 
 export type FuzzStage = "lexer" | "parser" | "typecheck" | "codegen";
 export type FuzzInputKind =
+  /** A valid program with damaged types: must be rejected or must compile. */
+  | "typeMutated"
   | "structured"
   | "mutated"
   | "tokens"
@@ -622,6 +625,25 @@ export function runGeneratedPipeline(
     };
   }
   return outcome;
+}
+
+/**
+ * A damaged program must be rejected before code generation, or compile to
+ * valid IR. The backend assumes the checker has validated what it receives.
+ */
+function runTypeMutatedPipeline(
+  source: string,
+  filePath: string,
+): PipelineOutcome {
+  const outcome = runCompilerPipeline(source, filePath, {
+    skipImportResolution: true,
+    verifyIr: true,
+  });
+  if (outcome.ok || outcome.stage !== "codegen" || !outcome.expectedError) {
+    return outcome;
+  }
+  const message = `the checker accepted a program code generation rejects: ${outcome.message ?? ""}`;
+  return { ok: false, stage: "codegen", crash: new Error(message), message };
 }
 
 /**
@@ -1364,6 +1386,9 @@ export function generateFuzzInput(
       source = generateModuleProgram(rng, { wasm: options.wasm }).source;
     } else if (options.oracleOnly && iteration % 5 === 2) {
       source = generateStdlibProgram(rng).source;
+    } else if (options.oracleOnly && iteration % 5 === 1) {
+      kind = "typeMutated";
+      source = mutateProgramTypes(generateOracleProgram(rng).source, rng);
     } else {
       source = generateOracleSource(seed, iteration, { wasm: options.wasm });
     }
@@ -2267,6 +2292,9 @@ function defaultFuzzRunner(
   }
   if (input.kind === "oracle") {
     return runBplOraclePipeline(source, filePath);
+  }
+  if (input.kind === "typeMutated") {
+    return runTypeMutatedPipeline(source, filePath);
   }
   if (input.kind === "generated") {
     return runGeneratedPipeline(source, filePath);

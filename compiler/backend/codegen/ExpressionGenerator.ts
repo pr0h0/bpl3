@@ -1628,7 +1628,11 @@ export abstract class ExpressionGenerator extends UnaryExpressionGenerator {
       if (valExpr) {
         let fieldTypeNode = valExpr.resolvedType!;
         if (baseStructDef) {
-          const fieldDef = this.getStructFieldByName(baseStructDef, fieldName);
+          const fieldDef =
+            this.getStructFieldByName(baseStructDef, fieldName) ??
+            this.getAllStructFields(baseStructDef).find(
+              (field) => field.name === fieldName,
+            );
           if (fieldDef) {
             fieldTypeNode = genericContextMap
               ? this.substituteType(fieldDef.type, genericContextMap)

@@ -43,6 +43,7 @@ import {
   resolveQualifiedTypeSymbol,
   VOID_TYPE_INVALID_CODE,
   VARIADIC_METHOD_UNSUPPORTED_CODE,
+  METHOD_RECEIVER_TYPE_MISMATCH_CODE,
 } from "./TypeCheckerBase";
 import { KNOWN_TYPES, TypeUtils } from "./TypeUtils";
 import {
@@ -1074,14 +1075,17 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
       // This is crucial for match expressions on 'this' to find the EnumDecl
       const resolvedThisType = this.resolveType(thisType);
 
-      this.defineSymbol(
-        "this",
-        "Parameter",
-        resolvedThisType,
-        decl,
-        undefined,
-        true, // 'this' is const
-      );
+      // A static method has no receiver, so `this` must not resolve in it.
+      if (decl.params[0]?.name === "this") {
+        this.defineSymbol(
+          "this",
+          "Parameter",
+          resolvedThisType,
+          decl,
+          undefined,
+          true, // 'this' is const
+        );
+      }
     }
 
     // Check for duplicate generic parameter names
@@ -1405,6 +1409,66 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
         }
       }
     }
+  }
+
+  /**
+   * `make().x = 1` writes to a value that is gone after the statement. A field
+   * or element reached through a pointer or slice is real storage.
+   */
+  private rejectTemporaryAssignmentTarget(target: AST.Expression): void {
+    let current = target;
+    while (current.kind === "Member" || current.kind === "Index") {
+      if (current.kind === "Index" && current.operatorOverload) return;
+      let base = (current as AST.MemberExpr | AST.IndexExpr).object;
+      while (base.kind === "Group") {
+        base = (base as AST.GroupExpr).expression;
+      }
+      // A pointer or slice refers to storage that outlives the expression.
+      const baseType = base.resolvedType as
+        | { pointerDepth?: number; arrayDimensions?: (number | null)[] }
+        | undefined;
+      if (
+        (baseType?.pointerDepth ?? 0) > 0 ||
+        baseType?.arrayDimensions?.includes(null)
+      ) {
+        return;
+      }
+      current = base;
+    }
+    if (current !== target && current.kind === "Call") {
+      throw new CompilerError(
+        "Cannot assign to part of a temporary value",
+        "Store the value in a local first, then assign to its field or element.",
+        target.location,
+        ASSIGNMENT_TARGET_INVALID_CODE,
+      );
+    }
+  }
+
+  /** A `this` parameter must be the struct itself or a pointer to it. */
+  private checkMethodReceiver(
+    decl: AST.StructDecl,
+    method: AST.FunctionDecl,
+  ): void {
+    const receiver = method.params[0];
+    if (receiver?.name !== "this") return;
+    const type = this.resolveType(receiver.type, false);
+    if (
+      type.kind === "BasicType" &&
+      type.pointerDepth <= 1 &&
+      type.arrayDimensions.length === 0 &&
+      (type.name === decl.name || type.name === "Self")
+    ) {
+      return;
+    }
+    this.errors.push(
+      new CompilerError(
+        `Receiver of method '${method.name}' must be '${decl.name}' or '*${decl.name}', got '${this.formatDiagnosticType(type)}'`,
+        `Declare it as 'this: *${decl.name}', or rename the parameter to make the method static.`,
+        receiver.type.location,
+        METHOD_RECEIVER_TYPE_MISMATCH_CODE,
+      ),
+    );
   }
 
   /**
@@ -2012,6 +2076,7 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
           declaration: member,
         };
         member.resolvedType = functionType;
+        this.checkMethodReceiver(decl, member);
         this.checkMethodOverrideSignature(decl, member);
 
         // Validate destructor signature
@@ -2585,6 +2650,12 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
       expr.assignee,
       expr.assignee.kind === "Index" && expr.operator.type === TokenType.Equal,
     );
+
+    for (const target of expr.assignee.kind === "TupleLiteral"
+      ? (expr.assignee as AST.TupleLiteralExpr).elements
+      : [expr.assignee]) {
+      this.rejectTemporaryAssignmentTarget(target);
+    }
 
     // Check const correctness
     this.checkIsMutable(expr.assignee);
@@ -3576,6 +3647,10 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
    */
   private patternEnumDecl(type: AST.TypeNode): AST.EnumDecl | undefined {
     if (type.kind !== "BasicType") return undefined;
+    // An enum pattern does not match an array of, or pointer to, that enum.
+    if (type.pointerDepth > 0 || type.arrayDimensions.length > 0) {
+      return undefined;
+    }
     if (type.resolvedDeclaration?.kind === "EnumDecl") {
       return type.resolvedDeclaration;
     }

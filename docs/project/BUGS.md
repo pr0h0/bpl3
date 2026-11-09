@@ -1183,6 +1183,154 @@ not from the compiler or the generated program.
 **Resolution**: the oracle pipeline reports a cleanup failure as a warning and
 continues. The cause inside Bun is unknown.
 
+### BUG-493: A type name is accepted as a value
+
+**Status**: Fixed · **Priority**: P2
+
+Found by the fuzzer's type mutations (2026-11-09). `local x: long = long;`
+passed the checker, because a builtin or `type` alias name resolves to a symbol
+holding that type, and code generation then loaded an undefined `%long_ptr`.
+
+**Resolution**: such a name is a type in expressions, as a struct name already
+was, so a value use is an ordinary type mismatch. `sizeof(long)` still works.
+`tests/TypeMutationRegressions.test.ts`.
+
+### BUG-494: `~` is accepted on an array of integers
+
+**Status**: Fixed · **Priority**: P3
+
+Found by the fuzzer's type mutations (2026-11-09). The integer check looked at
+the element type only, so `~values` produced invalid IR.
+
+**Resolution**: the operand of `~` must not be an array.
+`tests/TypeMutationRegressions.test.ts`.
+
+### BUG-495: A method's `this` parameter can have any type
+
+**Status**: Fixed · **Priority**: P3
+
+Found by the fuzzer's type mutations (2026-11-09). `frame m(this: int[2])`
+inside a struct passed the checker and produced invalid IR for its receiver.
+
+**Resolution**: a `this` parameter must be the struct or a pointer to it
+(`BPL_METHOD_RECEIVER_TYPE_MISMATCH`, R-STRUCT-2).
+`tests/TypeMutationRegressions.test.ts`.
+
+### BUG-496: A struct literal does not convert values of inherited fields
+
+**Status**: Fixed · **Priority**: P1
+
+Found by the fuzzer's type mutations (2026-11-09). In `C { x: 1 }`, with `x` a
+`long` inherited from a parent, the value stayed `i32` and the build failed with
+invalid IR. Field conversion looked only at fields the struct itself declares.
+
+**Resolution**: inherited fields are found the same way as declared ones.
+`tests/TypeMutationRegressions.test.ts`.
+
+### BUG-497: A struct literal could set a field twice
+
+**Status**: Fixed · **Priority**: P3
+
+`S { x: 1, x: 2 }` compiled and kept the first value.
+
+**Resolution**: `BPL_STRUCT_LITERAL_FIELD_DUPLICATE` (R-STRUCT-3).
+`tests/TypeMutationRegressions.test.ts`.
+
+### BUG-498: Temporaries and overloaded elements reached code generation as targets
+
+**Status**: Fixed · **Priority**: P3
+
+`make().x = 1`, `(v, make().x) = ...` and `q[0]--` on an overloaded index failed
+in code generation with messages that have no diagnostic code.
+
+**Resolution**: the checker reports `BPL_ASSIGNMENT_TARGET_INVALID`. A field
+reached through a returned pointer stays assignable.
+`tests/TypeMutationRegressions.test.ts`.
+
+### BUG-499: Binary arithmetic is accepted on arrays of integers
+
+**Status**: Fixed · **Priority**: P2
+
+`a + a`, `a & 1` and `a << 1` on a fixed array produced invalid IR, because the
+integer check looked at the element type only (BUG-494).
+
+**Resolution**: `TypeUtils.isIntegerType` rejects arrays.
+`tests/TypeMutationRegressions.test.ts`.
+
+### BUG-500: Non-tuple values can be destructured
+
+**Status**: Fixed · **Priority**: P3
+
+`local (a: int, b: int) = f;`, with `f` a function, and `= 5;` passed the checker;
+the first produced invalid IR.
+
+**Resolution**: `BPL_TUPLE_DESTRUCTURE_TARGET_INVALID` (R-DECL-5).
+`tests/TypeMutationRegressions.test.ts`.
+
+### BUG-501: An uninstantiated generic function can be used as a value
+
+**Status**: Open · **Priority**: P4
+
+`frame h<U>(x: int) ret int { ... }` followed by
+`local f: Func<int>(int) = h;` passes the checker when `U` does not appear in
+the signature, and the build fails with an undefined function. Generic functions
+whose signature uses the parameter are already rejected. The fuzzer's call
+mutations avoid declarations to keep this from hiding other failures.
+
+### BUG-502: A static method could use `this`
+
+**Status**: Fixed · **Priority**: P2
+
+Found by the fuzzer's type mutations (2026-11-09). `this` was defined in every
+method's scope, so `frame u() ret int { return this.x; }` passed the checker and
+produced invalid IR.
+
+**Resolution**: `this` resolves only in a method that declares it.
+`tests/TypeMutationRegressions.test.ts`.
+
+### BUG-503: `<` compiled on structs that declare no ordering
+
+**Status**: Fixed · **Priority**: P2
+
+Found by the fuzzer's type mutations (2026-11-09). Ordering two structs or arrays
+without a `__lt__` method produced an `icmp` on an aggregate.
+
+**Resolution**: `BPL_COMPARISON_TYPE_MISMATCH`.
+`tests/TypeMutationRegressions.test.ts`.
+
+### BUG-504: `*array` passed the checker
+
+**Status**: Fixed · **Priority**: P3
+
+Found by the fuzzer's type mutations (2026-11-09). The checker gave `*a` the
+element type of an array or slice, but code generation has no such operation and
+produced invalid IR.
+
+**Resolution**: only pointers can be dereferenced; use `a[0]`.
+`BPL_DEREFERENCE_TARGET_INVALID`. `tests/TypeMutationRegressions.test.ts`.
+
+### BUG-505: An enum pattern matched an array of that enum
+
+**Status**: Fixed · **Priority**: P3
+
+Found by the fuzzer's type mutations (2026-11-09). A nested pattern such as
+`O.X { i: I.P(v) }` was accepted for a field of type `I[2]` and produced invalid
+IR.
+
+**Resolution**: a nested enum pattern needs a plain enum value.
+`tests/TypeMutationRegressions.test.ts`.
+
+### BUG-506: A vtable could name a struct before its definition
+
+**Status**: Fixed · **Priority**: P2
+
+Found by the fuzzer's type mutations (2026-11-09). A method taking a later-declared
+struct with a vtable by value appeared in the earlier struct's vtable constant
+before that struct's definition. LLVM rejects the function type at that point.
+
+**Resolution**: all type definitions are emitted before other declarations.
+`tests/TypeMutationRegressions.test.ts`.
+
 ## Developer experience fixes (2026-10-28)
 
 - **Fixed:** Installing required `init.sh` (sudo link into `/usr/bin`, edits to

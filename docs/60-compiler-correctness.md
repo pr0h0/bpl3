@@ -465,7 +465,10 @@ Each campaign iteration picks one input lane:
   modules. Its companion files are `# fuzz-module:` comments in the main source,
   so a saved failure stays one replayable file. Another fifth comes from
   `fuzz/stdlibProgramGenerator.ts`, which checks strings, collections, `BigInt`,
-  `Rational`, `Parse` and the codecs against exact JavaScript models.
+  `Rational`, `Parse` and the codecs against exact JavaScript models. A further
+  fifth comes from `fuzz/typeMutation.ts`, which damages valid programs: the
+  checker must reject the result, or it must compile to valid IR, so an error
+  from code generation is a bug.
   `--oracle-only` (or `FUZZ_ORACLE_ONLY=1`) makes every iteration an oracle
   program, for a local campaign aimed at miscompiles:
   `bun run fuzz -- --oracle-only --iterations 2000 --seeds 0x1,0x2`.

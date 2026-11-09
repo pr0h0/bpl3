@@ -23,7 +23,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   `--oracle-only` iteration is a multi-file program: a diamond of modules
   sharing globals, with private names repeated across modules and every import
   form. Another fifth exercises the standard library against exact models:
-  JavaScript collections, arbitrary-precision integers and Node's codecs.
+  JavaScript collections, arbitrary-precision integers and Node's codecs. A
+  further fifth damages a valid program's types, operators and call shapes: the
+  checker must reject the result or the backend must compile it.
 - An extern of a known C function that returns `int` (`printf`, `puts`,
   `putchar`, `fprintf`, `dprintf`, `sprintf`, `snprintf`, `scanf`, `sscanf`)
   has return type `int` when the declaration omits it (R-EXTERN-8).
@@ -60,6 +62,22 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   programs against their expected output, for local miscompile hunts.
 
 ### Fixed
+
+- A type name used as a value, `~` on an array, and a method whose `this` has
+  an unrelated type are compile errors instead of invalid IR (BUG-493, BUG-494,
+  BUG-495). The last reports `BPL_METHOD_RECEIVER_TYPE_MISMATCH`.
+- A struct literal converts values of inherited fields, instead of producing
+  invalid IR for `C { x: 1 }` with `x` an inherited `long` (BUG-496).
+- These are now compile errors: setting a struct literal field twice
+  (`BPL_STRUCT_LITERAL_FIELD_DUPLICATE`, BUG-497), assigning to part of a
+  temporary and `++`/`--` through overloaded indexing (BUG-498), arithmetic on
+  arrays (BUG-499), and destructuring a non-tuple (BUG-500).
+- More misuse is now a compile error rather than invalid IR: `this` in a static
+  method (BUG-502), ordering structs or arrays without `__lt__` (BUG-503),
+  `*array` (BUG-504; use `a[0]`), and an enum pattern on an array of that enum
+  (BUG-505).
+- A method taking a later-declared struct with a vtable by value no longer
+  fails to build (BUG-506).
 
 - A method call on a zero-initialized global struct, or on a struct element of
   an array field, no longer crashes on a null vtable pointer (BUG-491).

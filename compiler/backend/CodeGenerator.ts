@@ -516,6 +516,15 @@ export class CodeGenerator extends StatementGenerator {
       }
     }
 
+    // Type definitions come first: LLVM rejects a function type naming a
+    // struct that is defined only later, as a vtable constant can.
+    const isTypeDefinition = (line: string) =>
+      line.startsWith("%struct.") || line.startsWith("%enum.");
+    this.declarationsOutput = [
+      ...this.declarationsOutput.filter(isTypeDefinition),
+      ...this.declarationsOutput.filter((line) => !isTypeDefinition(line)),
+    ];
+
     const cExports = getCExportFunctions(program);
     const linkerGlobals = new Set<string>();
     if (cExports.length > 0) {
