@@ -186,11 +186,9 @@ export class DocumentationGenerator {
   /** Flatten nested destructuring so export selection follows individual bindings. */
   private globalBindingNames(global: AST.VariableDecl): string[] {
     if (typeof global.name === "string") return [global.name];
-    const flatten = (targets: AST.DestructuringPattern[]): string[] =>
-      targets.flatMap((target) =>
-        Array.isArray(target) ? flatten(target) : [target.name],
-      );
-    return flatten(global.name);
+    return AST.flattenDestructuringPattern(global.name).map(
+      (target) => target.name,
+    );
   }
 
   /** Render only the selected global bindings while retaining declaration documentation. */

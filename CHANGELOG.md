@@ -86,6 +86,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   (BUG-510) and an invalid `main` signature (BUG-511).
 - An integer constant no longer assigns or returns as a pointer, array or slice
   (BUG-512); `p = 5` on a `*int` used to compile. Use `nullptr` or a `cast`.
+- Language server: completion works in functions with a nested destructuring
+  (BUG-513), hover and related requests no longer overflow the stack on a
+  `match` over a member (BUG-514), and rename updates references in `throw`
+  (BUG-515), every overload of a function, and a spec's implementations
+  (BUG-517).
 
 - A method call on a zero-initialized global struct, or on a struct element of
   an array field, no longer crashes on a null vtable pointer (BUG-491).

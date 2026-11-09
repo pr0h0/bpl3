@@ -432,11 +432,20 @@ export interface DestructuringTarget {
 /** Recursive type for nested destructuring patterns */
 export type DestructuringPattern = DestructuringTarget | DestructuringPattern[];
 
+/** The targets of a destructuring pattern, in source order. */
+export function flattenDestructuringPattern(
+  pattern: DestructuringPattern,
+): DestructuringTarget[] {
+  return Array.isArray(pattern)
+    ? pattern.flatMap(flattenDestructuringPattern)
+    : [pattern];
+}
+
 export interface VariableDecl extends ASTNode {
   kind: "VariableDecl";
   isGlobal: boolean;
   isConst: boolean;
-  name: string | DestructuringTarget[]; // Simple name or destructuring
+  name: string | DestructuringPattern[]; // Simple name or (possibly nested) destructuring
   typeAnnotation?: TypeNode;
   initializer?: Expression;
 }

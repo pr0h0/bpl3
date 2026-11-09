@@ -1354,6 +1354,66 @@ clause and `throw array;` passed the checker and failed in code generation with
 **Resolution**: `BPL_EXCEPTION_TYPE_UNSUPPORTED`, documented in R-EXC-1.
 `tests/TypeMutationRegressions.test.ts`.
 
+### BUG-513: Completion failed in functions with a nested destructuring
+
+**Status**: Fixed · **Priority**: P2
+
+Found by running the language services over generated programs (2026-11-09).
+`local ((a: int, b: int), c: int) = ...` stores a nested list, but
+`VariableDecl.name` was typed as flat, so the completion handler read `name` from
+an array, the sort threw, and the handler returned no completions at all. The
+linter's scope tracking declared `undefined` for the same reason.
+
+**Resolution**: the type states the nesting and both use a shared flattener.
+`vscode-ext/src/test/languageServerFuzzRegressions.test.ts`.
+
+### BUG-514: Hover recursed forever on a `match` over a member
+
+**Status**: Fixed · **Priority**: P2
+
+Found with BUG-513. Looking for a pattern binding resolved the scrutinee of every
+`match` it passed, and resolving `s.f` looks up `s`, which looks for a pattern
+binding again. Hover, definition, completion and signature help overflowed the
+stack in any function holding such a `match`.
+
+**Resolution**: a scrutinee is resolved only for the arm that holds the
+reference. Containment also compares columns, so a `match` on one line does not
+contain its own scrutinee.
+`vscode-ext/src/test/languageServerFuzzRegressions.test.ts`.
+
+### BUG-515: Rename missed references in `throw`
+
+**Status**: Fixed · **Priority**: P2
+
+Found with BUG-513. The rename walker had no case for `throw`, so renaming a
+local left the old name in `throw x;` and the program no longer compiled.
+
+**Resolution**: the walker visits the thrown expression.
+`vscode-ext/src/test/languageServerFuzzRegressions.test.ts`.
+
+### BUG-517: Rename broke overloads and spec implementations
+
+**Status**: Fixed · **Priority**: P2
+
+Found with BUG-513. Renaming an overloaded function changed one declaration and
+every call, so calls bound to another overload silently selected a different
+function or failed to compile; starting from another overload did nothing.
+Renaming a spec method left the implementing structs' methods under the old name
+and renamed every `.name(` in the file by text, including calls on unrelated
+structs.
+
+**Resolution**: overloads are renamed together. A spec method's references come
+from the AST: its implementations, and calls on anything but a struct that does
+not implement it.
+`vscode-ext/src/test/languageServerFuzzRegressions.test.ts`.
+
+### BUG-516: Rename does not update operands in inline `asm`
+
+**Status**: Open · **Priority**: P4
+
+An `asm` block's text is one string in the AST, so `(a)` in `mov eax, (a)` is not
+seen by rename, which leaves the operand under the old name.
+
 ### BUG-512: An integer constant was accepted as a pointer or array
 
 **Status**: Fixed · **Priority**: P2

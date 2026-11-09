@@ -1264,19 +1264,7 @@ export function checkVariableDecl(
   }
   if (Array.isArray(decl.name)) {
     // Destructuring - enforce explicit type annotations
-    const flattenTargets = (targets: any[]): AST.DestructuringTarget[] => {
-      const result: AST.DestructuringTarget[] = [];
-      for (const target of targets) {
-        if (Array.isArray(target)) {
-          result.push(...flattenTargets(target));
-        } else {
-          result.push(target);
-        }
-      }
-      return result;
-    };
-
-    const targets = flattenTargets(decl.name);
+    const targets = AST.flattenDestructuringPattern(decl.name);
 
     const defineDestructuredTarget = (
       target: AST.DestructuringTarget,
