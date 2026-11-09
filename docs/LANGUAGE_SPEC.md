@@ -322,11 +322,13 @@ type IntArr = int[];
 - **[R-DECL-5]** `local (a: A, b: B) = expression;` declares one binding per
   tuple element. Each named binding requires an explicit type, and `_`
   discards an element. Tuple types have at least two elements; `(int)` is a
-  parenthesized `int`.
+  parenthesized `int`. The initializer must be a tuple
+  (`BPL_TUPLE_DESTRUCTURE_TARGET_INVALID`).
 - **[R-DECL-6]** Tuple assignment `(x, y) = (y, x);` assigns to existing
   bindings after evaluating the whole right-hand side, so it swaps values.
   Each target is a variable, member, element or dereference, and may be
-  parenthesized.
+  parenthesized. A field or element of a temporary, such as `make().x`, is not
+  a target (`BPL_ASSIGNMENT_TARGET_INVALID`), for `=` and for tuple assignment.
 
 ```bpl
 local (a: int, b: bool) = getTuple();
@@ -451,8 +453,10 @@ frame identity<T>(val: T) ret T {
   There are no visibility modifiers; all members are accessible.
 - **[R-STRUCT-2]** A method whose first parameter is `this: *S` or `this: S`
   is an instance method called as `value.method(...)`. A method without `this`
-  is static and is called as `S.method(...)`.
-- **[R-STRUCT-3]** A struct literal `S { field: value, ... }` must initialize
+  is static and is called as `S.method(...)`. A `this` parameter of any other
+  type is rejected (`BPL_METHOD_RECEIVER_TYPE_MISMATCH`).
+- **[R-STRUCT-3]** A struct literal sets each field at most once
+  (`BPL_STRUCT_LITERAL_FIELD_DUPLICATE`). `S { field: value, ... }` must initialize
   every field declared directly in `S`; missing fields are rejected with
   `BPL_STRUCT_LITERAL_FIELD_MISSING` and unknown fields with
   `BPL_STRUCT_LITERAL_FIELD_UNKNOWN`. Inherited fields may be omitted and are

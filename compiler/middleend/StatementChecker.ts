@@ -1379,6 +1379,14 @@ export function checkVariableDecl(
         this.checkIntegerConstantRange(decl.initializer, destinationType);
       }
     } else {
+      if (initType) {
+        throw new CompilerError(
+          `Cannot destructure a value of type ${this.formatDiagnosticType(initType)}`,
+          "Destructuring needs a tuple, such as the result of a call returning one.",
+          decl.initializer!.location,
+          TUPLE_DESTRUCTURE_TARGET_INVALID_CODE,
+        );
+      }
       for (const target of targets) {
         const finalType = target.type || initType;
         defineDestructuredTarget(target, finalType);

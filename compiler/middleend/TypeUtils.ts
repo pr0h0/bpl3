@@ -190,7 +190,7 @@ export class TypeUtils {
    */
   static isIntegerType(type: AST.TypeNode): boolean {
     if (type.kind !== "BasicType") return false;
-    if (type.pointerDepth > 0) return false;
+    if (type.pointerDepth > 0 || type.arrayDimensions.length > 0) return false;
     return INTEGER_TYPES.includes(type.name);
   }
 

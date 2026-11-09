@@ -52,6 +52,7 @@ import {
   SIZEOF_VOID_INVALID_CODE,
   STRUCT_LITERAL_FIELD_MISSING_CODE,
   STRUCT_LITERAL_FIELD_TYPE_MISMATCH_CODE,
+  STRUCT_LITERAL_FIELD_DUPLICATE_CODE,
   STRUCT_LITERAL_FIELD_UNKNOWN_CODE,
   STRUCT_LITERAL_UNKNOWN_STRUCT_CODE,
   SYMBOL_NOT_FOUND_CODE,
@@ -516,7 +517,7 @@ export function checkIdentifier(
       location: expr.location,
     } as any;
   }
-  if (symbol.kind === "Enum") {
+  if (symbol.kind === "Enum" || symbol.kind === "TypeAlias") {
     return {
       kind: "MetaType",
       type: {
@@ -766,6 +767,27 @@ export function checkBinary(
         expr.location,
         COMPARISON_TYPE_MISMATCH_CODE,
       );
+    }
+    if (op !== TokenType.EqualEqual && op !== TokenType.BangEqual) {
+      for (const operand of [leftType, rightType]) {
+        const symbol =
+          operand.kind === "BasicType"
+            ? this.currentScope.resolve(operand.name)
+            : undefined;
+        if (
+          operand.kind !== "BasicType" ||
+          operand.arrayDimensions.length > 0 ||
+          (operand.pointerDepth === 0 &&
+            (symbol?.kind === "Struct" || symbol?.kind === "Enum"))
+        ) {
+          throw new CompilerError(
+            `Cannot order values of type ${this.formatDiagnosticType(operand)}`,
+            "Ordering works on numbers and pointers; a struct can declare '__lt__' and the other comparison methods.",
+            expr.location,
+            COMPARISON_TYPE_MISMATCH_CODE,
+          );
+        }
+      }
     }
     return {
       kind: "BasicType",
@@ -1053,15 +1075,6 @@ export function checkUnary(
           pointerDepth: operandType.pointerDepth - 1,
         };
       }
-      if (operandType.arrayDimensions.length > 0) {
-        // Dereferencing array gives element type
-        if (!operandType)
-          typeCheckerLog.debug("operandType is undefined in Star check 2");
-        return {
-          ...operandType,
-          arrayDimensions: operandType.arrayDimensions.slice(1),
-        };
-      }
     }
 
     throw new CompilerError(
@@ -1144,6 +1157,14 @@ export function checkUnary(
       throw new CompilerError(
         `Operator '${expr.operator.lexeme}' requires an assignable operand`,
         "Increment and decrement apply to a variable, member, array element, or pointer dereference.",
+        operand.location,
+        ASSIGNMENT_TARGET_INVALID_CODE,
+      );
+    }
+    if (operand.kind === "Index" && operand.operatorOverload) {
+      throw new CompilerError(
+        `Operator '${expr.operator.lexeme}' through overloaded indexing is not supported`,
+        "Read the element, change it and assign it back with '[]='.",
         operand.location,
         ASSIGNMENT_TARGET_INVALID_CODE,
       );
@@ -1350,7 +1371,17 @@ export function checkStructLiteral(
     }
   }
 
+  const seenFields = new Set<string>();
   for (const field of expr.fields) {
+    if (seenFields.has(field.name)) {
+      throw new CompilerError(
+        `Field '${field.name}' is set more than once`,
+        "Give each field one value in a struct literal.",
+        field.value.location,
+        STRUCT_LITERAL_FIELD_DUPLICATE_CODE,
+      );
+    }
+    seenFields.add(field.name);
     const memberResult = this.resolveStructField(decl, field.name);
     if (!memberResult) {
       throw new CompilerError(
@@ -1744,11 +1775,16 @@ export function checkSizeof(
     targetType = this.checkExpression(target as AST.Expression);
   }
 
+  // `sizeof(void)` reaches here as the type name `void`.
+  const sized =
+    targetType?.kind === "MetaType"
+      ? (targetType as AST.MetaType).type
+      : targetType;
   if (
-    targetType &&
-    targetType.kind === "BasicType" &&
-    targetType.name === "void" &&
-    targetType.pointerDepth === 0
+    sized &&
+    sized.kind === "BasicType" &&
+    sized.name === "void" &&
+    sized.pointerDepth === 0
   ) {
     throw new CompilerError(
       "Cannot take size of void",

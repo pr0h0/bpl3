@@ -1,3 +1,4 @@
+import { mutateProgramTypes } from "../fuzz/typeMutation";
 import { generateStdlibProgram } from "../fuzz/stdlibProgramGenerator";
 import {
   generateModuleProgram,
@@ -17,6 +18,21 @@ import {
   generateOracleProgram,
   readExpectedStdout,
 } from "../fuzz/programGenerator";
+
+describe("type-mutated programs", () => {
+  test("change the program and are classified", () => {
+    const { source } = generateOracleProgram(createSeededRandom(11));
+    const damaged = mutateProgramTypes(source, createSeededRandom(12));
+    expect(damaged).not.toBe(source);
+    expect(damaged).not.toContain("# fuzz-expect:");
+    const kinds = Array.from(
+      { length: 10 },
+      (_, iteration) =>
+        generateFuzzInput(1, iteration, { oracleOnly: true }).kind,
+    );
+    expect(kinds).toContain("typeMutated");
+  });
+});
 
 describe("generated standard library programs", () => {
   test("exercise each library and match their oracle", () => {
