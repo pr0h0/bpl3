@@ -359,6 +359,13 @@ export class TypeUtils {
   ): boolean {
     const resolvedTarget = resolveType(targetType);
     if (resolvedTarget.kind !== "BasicType") return false;
+    // `name` is the element type: `*int`, `int[2]` and `int[]` are not integers.
+    if (
+      resolvedTarget.pointerDepth > 0 ||
+      resolvedTarget.arrayDimensions.length > 0
+    ) {
+      return false;
+    }
 
     // Check if target is integer type
     if (!INTEGER_TYPES.includes(resolvedTarget.name)) return false;

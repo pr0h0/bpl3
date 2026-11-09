@@ -1105,7 +1105,8 @@ export function checkMember(
         resolvedStruct,
         expr.property,
       );
-      if (directField) {
+      // A primitive borrows only its wrapper's methods, not its fields.
+      if (directField && effectiveObjectType === objectType) {
         let resultType = this.resolveType(directField.type);
         if (effectiveObjectType.isConst && resultType.kind === "BasicType") {
           resultType = { ...resultType, isConst: true };
@@ -1126,7 +1127,11 @@ export function checkMember(
       const { members, genericMap } = memberContext;
       const member = members[0];
 
-      if (member && member.kind === "StructField") {
+      if (
+        member &&
+        member.kind === "StructField" &&
+        effectiveObjectType === objectType
+      ) {
         const fieldType = this.resolveType(
           member.resolvedType ?? (member as AST.StructField).type,
         );

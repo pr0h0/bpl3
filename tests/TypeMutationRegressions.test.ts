@@ -238,6 +238,22 @@ frame main() ret int {
     ]);
   });
 
+  // spec: R-STRUCT-1
+  test("bpl check reports what a build reports", () => {
+    expectCheckDiagnostics([
+      {
+        name: "primitive-field",
+        source: "frame main() ret int { local x: int = 5; return x.value; }",
+        code: "BPL_MEMBER_NOT_FOUND",
+      },
+      {
+        name: "main-return-type",
+        source: 'frame main() ret string { return "x"; }',
+        message: "Invalid return type for 'main'",
+      },
+    ]);
+  });
+
   // spec: R-EXPR-1
   test("arithmetic needs numbers, not arrays", () => {
     const array = "local a: int[2] = [1, 2];";
@@ -268,6 +284,45 @@ frame main() ret int {
         source:
           "frame main() { local a: int[2] = [1, 2]; local b: int[2] = ~a; b; }",
         code: "BPL_BITWISE_NOT_OPERAND_TYPE_MISMATCH",
+      },
+    ]);
+  });
+
+  // spec: R-CONV-8
+  test("an integer constant converts to no pointer or array", () => {
+    expectCheckDiagnostics([
+      ...[
+        ["array", "int[2]"],
+        ["nested-array", "int[2][2]"],
+        ["slice", "int[]"],
+        ["pointer", "*int"],
+      ].flatMap(([name, type]) => [
+        {
+          name: `assign-${name}`,
+          source: `frame main() { local x: ${type}; x = 5; x; }`,
+          code: "BPL_ASSIGNMENT_TYPE_MISMATCH",
+        },
+        {
+          name: `return-${name}`,
+          source: `frame f() ret ${type} { return 5; } frame main() { f(); }`,
+          code: "BPL_RETURN_TYPE_MISMATCH",
+        },
+      ]),
+      {
+        name: "assign-zero-array",
+        source: "frame main() { local x: int[2]; x = 0; x; }",
+        code: "BPL_ASSIGNMENT_TYPE_MISMATCH",
+      },
+      {
+        name: "return-zero-pointer",
+        source: "frame f() ret *int { return 0; } frame main() { f(); }",
+        code: "BPL_RETURN_TYPE_MISMATCH",
+      },
+      {
+        name: "assign-field-of-generic",
+        source:
+          "struct C<T> { val: int[2][2], t: T, } frame main() { local c: C<int>; c.val = 10; c; }",
+        code: "BPL_ASSIGNMENT_TYPE_MISMATCH",
       },
     ]);
   });

@@ -82,6 +82,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   or struct (BUG-507). An integer global can take a constant `bool` expression
   (BUG-508). Throwing or catching an array or tuple is a compile error
   (`BPL_EXCEPTION_TYPE_UNSUPPORTED`, BUG-509).
+- `bpl check` now reports what a build reports for a field access on a primitive
+  (BUG-510) and an invalid `main` signature (BUG-511).
+- An integer constant no longer assigns or returns as a pointer, array or slice
+  (BUG-512); `p = 5` on a `*int` used to compile. Use `nullptr` or a `cast`.
 
 - A method call on a zero-initialized global struct, or on a struct element of
   an array field, no longer crashes on a null vtable pointer (BUG-491).

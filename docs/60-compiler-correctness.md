@@ -465,7 +465,10 @@ Each campaign iteration picks one input lane:
   modules. Its companion files are `# fuzz-module:` comments in the main source,
   so a saved failure stays one replayable file. Another fifth comes from
   `fuzz/stdlibProgramGenerator.ts`, which checks strings, collections, `BigInt`,
-  `Rational`, `Parse` and the codecs against exact JavaScript models. A further
+  `Rational`, `Parse`, dates, paths, URLs, UTF-8, regular expressions, JSON
+  (including `JSON.stringify<T>`, `JSON.parse<T>` and `TypeInfo` on random
+  structs), the codecs and the SHA-2 and HMAC hashes against exact JavaScript
+  and Node models. A further
   fifth comes from `fuzz/typeMutation.ts`, which damages valid programs: the
   checker must reject the result, or it must compile to valid IR, so an error
   from code generation is a bug.

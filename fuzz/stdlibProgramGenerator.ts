@@ -1,14 +1,17 @@
 /**
  * Random programs that exercise the standard library against exact models:
- * JavaScript strings, arrays, maps and sets, arbitrary-precision BigInt, and
- * Node's base64, hex and SHA-1. Each block of operations prints what it
+ * JavaScript strings, arrays, maps, sets, dates, JSON and regular expressions,
+ * arbitrary-precision BigInt, and Node's codecs, hashes and POSIX paths. Each block of operations prints what it
  * observes, so the first differing line names the failing operation.
  */
-import { createHash } from "crypto";
+import { createHash, createHmac } from "crypto";
+import { posix } from "path";
 
 import { EXPECT_MARKER, type GeneratedProgram } from "./programGenerator";
 
 interface Block {
+  /** Top-level declarations the block's code uses. */
+  declarations?: string[];
   imports: string[];
   code: string[];
   output: string[];
@@ -895,6 +898,1096 @@ export function generateStdlibProgram(rng: () => number): GeneratedProgram {
     return result.padEnd(Math.ceil(result.length / 8) * 8, "=");
   };
 
+  const literal = (value: string) =>
+    `"${value.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`;
+
+  /** Prints each line a value is expected to produce, under one label. */
+  const expectLines = (output: string[], label: string, value: string) => {
+    value.split("\n").forEach((line, index) => {
+      output.push(index === 0 ? `${label}=${line}` : line);
+    });
+  };
+
+  const hashBlock = (): Block => {
+    const code: string[] = [];
+    const output: string[] = [];
+    // Message lengths around each padding and block boundary of the hashes.
+    const sized = (length: number) =>
+      Array.from({ length }, () => "abcXYZ019 -_".charAt(int(0, 11))).join("");
+    const edge = () =>
+      pick([0, 1, 55, 56, 57, 63, 64, 65, 111, 112, 113, 127, 128, 129, 250]);
+    const algorithms = [
+      ["sha256", "Sha256", 32],
+      ["sha384", "Sha384", 48],
+      ["sha512", "Sha512", 64],
+    ] as const;
+    const printDigest = (buffer: string, size: number) => {
+      code.push(
+        `loop (local i: int = 0; i < ${size}; i = i + 1) { printf("%02x", cast<int>(${buffer}[i])); }`,
+        `printf("\\n");`,
+      );
+    };
+    for (let index = int(2, 4); index > 0; index--) {
+      const [algorithm, type, size] = pick(algorithms);
+      const message = sized(edge());
+      code.push(
+        `printf("${algorithm}=%s\\n", ${type}.hex(${literal(message)}));`,
+      );
+      output.push(
+        `${algorithm}=${createHash(algorithm).update(message).digest("hex")}`,
+      );
+
+      // The same digest whatever the update boundaries are.
+      const state = fresh("h");
+      const digest = fresh("d");
+      code.push(`local ${state}: ${type} = ${type}.new();`);
+      let rest = message;
+      while (rest.length > 0) {
+        const piece = rest.slice(0, int(1, 70));
+        rest = rest.slice(piece.length);
+        code.push(
+          `${state}.update(cast<*u8>(${literal(piece)}), ${piece.length});`,
+        );
+      }
+      code.push(
+        `local ${digest}: u8[${size}];`,
+        `${state}.finish(&${digest}[0]);`,
+      );
+      printDigest(digest, size);
+      output.push(createHash(algorithm).update(message).digest("hex"));
+    }
+    const key = sized(pick([1, 20, 63, 64, 65, 127, 128, 129, 200]));
+    const message = sized(edge());
+    code.push(
+      `printf("hmac=%s\\n", Hmac.hex(${literal(key)}, ${literal(message)}));`,
+      `printf("hmac512=%s\\n", HmacSha512.hex(${literal(key)}, ${literal(message)}));`,
+    );
+    const hmac = (algorithm: string) =>
+      createHmac(algorithm, key).update(message).digest("hex");
+    output.push(`hmac=${hmac("sha256")}`, `hmac512=${hmac("sha512")}`);
+    const mac = fresh("d");
+    code.push(
+      `local ${mac}: u8[20];`,
+      `HmacSha1.digest(cast<*u8>(${literal(key)}), ${key.length}, cast<*u8>(${literal(message)}), ${message.length}, &${mac}[0]);`,
+    );
+    printDigest(mac, 20);
+    output.push(hmac("sha1"));
+    return {
+      imports: [
+        'import [Sha256] from "std/sha256.bpl";',
+        'import [Sha384] from "std/sha384.bpl";',
+        'import [Sha512] from "std/sha512.bpl";',
+        'import [Hmac], [HmacSha512], [HmacSha1] from "std/hmac.bpl";',
+      ],
+      code,
+      output,
+    };
+  };
+
+  const pathBlock = (): Block => {
+    const code: string[] = [];
+    const output: string[] = [];
+    const part = () =>
+      pick(["a", "bc", "d.txt", ".hid", "e.tar.gz", "f.", "..", "."]);
+    const path = (absolute: boolean, parts = int(1, 5)) =>
+      (absolute ? "/" : "") +
+      Array.from({ length: parts }, part).join("/") +
+      (int(0, 3) === 0 ? "/" : "");
+    const show = (label: string, expr: string, expected: string) => {
+      const name = fresh("p");
+      code.push(
+        `local ${name}: String = ${expr};`,
+        `printf("${label}=[%s]\\n", ${name}.data);`,
+      );
+      output.push(`${label}=[${expected}]`);
+    };
+    for (let index = int(3, 8); index > 0; index--) {
+      const value = path(int(0, 1) === 0);
+      const quoted = literal(value);
+      show("dir", `Path.dirname(${quoted})`, posix.dirname(value));
+      show("base", `Path.basename(${quoted})`, posix.basename(value));
+      show("ext", `Path.extname(${quoted})`, posix.extname(value));
+      show(
+        "norm",
+        `Path.normalize(${quoted})`,
+        // Unlike Node, the canonical form has no trailing slash.
+        posix.normalize(value).replace(/(?<=.)\/$/, ""),
+      );
+      code.push(`printf("abs=%d\\n", cast<int>(Path.isAbsolute(${quoted})));`);
+      output.push(`abs=${Number(posix.isAbsolute(value))}`);
+      const from = path(true);
+      const to = path(true);
+      show(
+        "rel",
+        `Path.relative(${literal(from)}, ${literal(to)})`,
+        posix.relative(from, to),
+      );
+    }
+    return {
+      imports: [
+        'import [Path] from "std/path.bpl";',
+        'import [String] from "std/string.bpl";',
+      ],
+      code,
+      output,
+    };
+  };
+
+  const urlBlock = (): Block => {
+    const code: string[] = [];
+    const output: string[] = [];
+    const encode = (value: string, plus: boolean) =>
+      [...Buffer.from(value)]
+        .map((byte) => {
+          const char = String.fromCharCode(byte);
+          if (/[A-Za-z0-9\-_.~]/.test(char)) return char;
+          if (plus && byte === 32) return "+";
+          return `%${byte.toString(16).toUpperCase().padStart(2, "0")}`;
+        })
+        .join("");
+    for (let index = int(2, 6); index > 0; index--) {
+      const value = text("aZ09-_.~!*'() %+/&=é€", 24);
+      const quoted = literal(value);
+      const component = encode(value, false);
+      const form = encode(value, true);
+      code.push(
+        `printf("enc=%s\\n", Url.encodeComponent(${quoted}));`,
+        `printf("form=%s\\n", Url.encodeForm(${quoted}));`,
+        `printf("dec=%s\\n", Url.decode(${literal(component)}));`,
+        `printf("defo=%s\\n", Url.decodeForm(${literal(form)}));`,
+      );
+      output.push(
+        `enc=${component}`,
+        `form=${form}`,
+        `dec=${value}`,
+        `defo=${value}`,
+      );
+    }
+    return {
+      imports: ['import [Url] from "std/url.bpl";'],
+      code,
+      output,
+    };
+  };
+
+  const utf8Block = (): Block => {
+    const code: string[] = [];
+    const output: string[] = [];
+    const say = (label: string, expr: string, value: number) => {
+      code.push(`printf("${label}=%d\\n", cast<int>(${expr}));`);
+      output.push(`${label}=${value}`);
+    };
+    for (let index = int(2, 5); index > 0; index--) {
+      const points = Array.from({ length: int(0, 10) }, () =>
+        pick([
+          int(1, 0x7f),
+          int(0x80, 0x7ff),
+          int(0x800, 0xd7ff),
+          int(0xe000, 0xffff),
+          int(0x10000, 0x10ffff),
+        ]),
+      ).filter((point) => point !== 34 && point !== 92 && point >= 32);
+      const value = String.fromCodePoint(...points);
+      const quoted = literal(value);
+      const bytes = Buffer.byteLength(value);
+      say("bytes", `UTF8.byteLength(${quoted})`, bytes);
+      say("count", `UTF8.codepointCount(${quoted})`, points.length);
+      say("valid", `UTF8.isValid(${quoted})`, 1);
+      say(
+        "ascii",
+        `UTF8.isAsciiString(${quoted})`,
+        Number(points.every((point) => point < 0x80)),
+      );
+      const list = fresh("u");
+      code.push(`local ${list}: Array<u32> = UTF8.toCodepoints(${quoted});`);
+      say("n", `${list}.len()`, points.length);
+      let at = 0;
+      points.forEach((point, position) => {
+        say("cp", `${list}.get(${position})`, point);
+        say("at", `UTF8.decodeCodepoint(${quoted}, ${at})`, point);
+        at += Buffer.byteLength(String.fromCodePoint(point));
+      });
+      for (const point of points) {
+        const buffer = fresh("b");
+        const written = fresh("w");
+        const encoded = Buffer.from(String.fromCodePoint(point));
+        code.push(
+          `local ${buffer}: u8[5];`,
+          `local ${written}: int = UTF8.encodeCodepoint(cast<u32>(${point}), &${buffer}[0]);`,
+          `printf("enc=%d:", ${written});`,
+          `loop (local i: int = 0; i < ${written}; i = i + 1) { printf("%02x", cast<int>(${buffer}[i])); }`,
+          `printf("\\n");`,
+        );
+        output.push(`enc=${encoded.length}:${encoded.toString("hex")}`);
+      }
+    }
+    // Byte sequences near every rule of well-formed UTF-8.
+    const decoder = new TextDecoder("utf-8", { fatal: true });
+    for (let index = int(4, 12); index > 0; index--) {
+      const bytes = Array.from({ length: int(1, 6) }, () =>
+        pick([
+          int(0x41, 0x5a),
+          int(0x80, 0xbf),
+          0xa0,
+          0x8f,
+          0x90,
+          int(0xc0, 0xc2),
+          int(0xc3, 0xdf),
+          0xe0,
+          0xed,
+          0xef,
+          0xf0,
+          0xf4,
+          0xf5,
+          0xff,
+        ]),
+      );
+      const source = bytes
+        .map((byte) => `\\x${byte.toString(16).padStart(2, "0")}`)
+        .join("");
+      let valid = 1;
+      try {
+        decoder.decode(Buffer.from(bytes));
+      } catch {
+        valid = 0;
+      }
+      say("raw", `UTF8.isValid("${source}")`, valid);
+    }
+    return {
+      imports: [
+        'import [UTF8] from "std/utf8.bpl";',
+        'import [Array] from "std/array.bpl";',
+      ],
+      code,
+      output,
+    };
+  };
+
+  const jsonBlock = (): Block => {
+    const code: string[] = [];
+    const output: string[] = [];
+    const scalar = (): unknown =>
+      pick([
+        () => int(-999, 999),
+        () => true,
+        () => false,
+        () => null,
+        () => text('ab {}[],:"\\/', 8),
+      ])();
+    const value = (depth: number): unknown => {
+      const shape = depth <= 0 ? 0 : int(0, 3);
+      if (shape === 1) {
+        return Array.from({ length: int(0, 4) }, () => value(depth - 1));
+      }
+      if (shape === 2) {
+        const object: Record<string, unknown> = {};
+        for (let index = int(0, 4); index > 0; index--) {
+          object[`k${text("abc", 2)}`] = value(depth - 1);
+        }
+        return object;
+      }
+      return scalar();
+    };
+    const gap = () => pick(["", "", " ", "\\t", "  "]);
+    // JSON source text with arbitrary insignificant whitespace.
+    const spaced = (item: unknown): string => {
+      if (Array.isArray(item)) {
+        return `[${gap()}${item.map((entry) => `${gap()}${spaced(entry)}${gap()}`).join(",")}${gap()}]`;
+      }
+      if (item !== null && typeof item === "object") {
+        const fields = Object.entries(item).map(
+          ([key, entry]) =>
+            `${gap()}${JSON.stringify(key)}${gap()}:${gap()}${spaced(entry)}${gap()}`,
+        );
+        return `{${gap()}${fields.join(",")}${gap()}}`;
+      }
+      return JSON.stringify(item);
+    };
+    // The text goes straight into a string literal; `\t` above already is one.
+    const quote = (source: string) =>
+      `"${source.replace(/\\(?!t)/g, "\\\\").replace(/"/g, '\\"')}"`;
+    for (let index = int(2, 5); index > 0; index--) {
+      const item = value(3);
+      const source = quote(spaced(item));
+      const indent = int(1, 4);
+      code.push(
+        `printf("min=%s\\n", JSON.minify(${source}));`,
+        `printf("pretty=%s\\n", JSON.pretty(${source}, ${indent}));`,
+      );
+      output.push(`min=${JSON.stringify(item)}`);
+      expectLines(output, "pretty", JSON.stringify(item, null, indent));
+    }
+    return { imports: ['import [JSON] from "std/json.bpl";'], code, output };
+  };
+
+  const regexBlock = (): Block => {
+    const code: string[] = [];
+    const output: string[] = [];
+    const atom = (depth: number): string =>
+      pick([
+        () => pick(["a", "b", "c", "1"]),
+        () => ".",
+        () => "\\d",
+        () => pick(["[ab]", "[^a]", "[a-c]", "[0-9b]"]),
+        () => (depth > 0 ? `(${alternation(depth - 1)})` : "a"),
+      ])();
+    const repeated = (depth: number): string =>
+      atom(depth) +
+      pick([
+        "",
+        "",
+        "",
+        "*",
+        "+",
+        "?",
+        `{${int(0, 2)}}`,
+        `{${int(0, 1)},${int(1, 3)}}`,
+      ]);
+    const sequence = (depth: number): string =>
+      Array.from({ length: int(1, 3) }, () => repeated(depth)).join("");
+    const alternation = (depth: number): string =>
+      Array.from({ length: int(1, 2) }, () => sequence(depth)).join("|");
+    for (let index = int(2, 5); index > 0; index--) {
+      const pattern = alternation(2);
+      const full = new RegExp(`^(?:${pattern})$`, "s");
+      const name = fresh("r");
+      code.push(`local ${name}: Regex = Regex.compile(${literal(pattern)});`);
+      for (let round = int(2, 5); round > 0; round--) {
+        const subject = text("abc1", 10);
+        // Leftmost match, then the longest at that position.
+        const find = (begin: number): [number, number] | undefined => {
+          for (let start = begin; start <= subject.length; start++) {
+            for (let end = subject.length; end >= start; end--) {
+              if (full.test(subject.slice(start, end))) return [start, end];
+            }
+          }
+          return undefined;
+        };
+        const matches: [number, number][] = [];
+        for (let at = 0; at <= subject.length;) {
+          const found = find(at);
+          if (!found) break;
+          matches.push(found);
+          at = found[0] === found[1] ? found[1] + 1 : found[1];
+        }
+        let replaced = "";
+        let first = "";
+        let copied = 0;
+        matches.forEach(([start, end], position) => {
+          replaced += `${subject.slice(copied, start)}#`;
+          copied = end;
+          if (start === end && start < subject.length) {
+            replaced += subject[start];
+            copied = start + 1;
+          }
+          if (position === 0) {
+            first = `${replaced}${subject.slice(copied)}`;
+          }
+        });
+        replaced += subject.slice(copied);
+        const pieces: string[] = [];
+        let previous = 0;
+        for (const [start, end] of matches) {
+          pieces.push(subject.slice(previous, start));
+          previous = end;
+        }
+        pieces.push(subject.slice(previous));
+        const quoted = literal(subject);
+        const list = fresh("q");
+        code.push(
+          `printf("full=%d\\n", cast<int>(${name}.matches(${quoted})));`,
+          `printf("some=%d\\n", cast<int>(${name}.contains(${quoted})));`,
+          `printf("count=%ld\\n", ${name}.countMatches(${quoted}));`,
+          `printf("all=%s\\n", ${name}.replaceAll(${quoted}, "#"));`,
+          `printf("one=%s\\n", ${name}.replaceFirst(${quoted}, "#"));`,
+          `local ${list}: Array<string> = ${name}.split(${quoted});`,
+          `printf("n=%d\\n", ${list}.len());`,
+          `loop (local i: int = 0; i < ${list}.len(); i = i + 1) { printf("[%s]", ${list}.get(i)); }`,
+          `printf("\\n");`,
+        );
+        output.push(
+          `full=${Number(full.test(subject))}`,
+          `some=${Number(matches.length > 0)}`,
+          `count=${matches.length}`,
+          `all=${replaced}`,
+          `one=${matches.length > 0 ? first : subject}`,
+          `n=${pieces.length}`,
+          pieces.map((piece) => `[${piece}]`).join(""),
+        );
+      }
+      code.push(`${name}.destroy();`);
+    }
+    return {
+      imports: [
+        'import [Regex] from "std/regex.bpl";',
+        'import [Array] from "std/array.bpl";',
+      ],
+      code,
+      output,
+    };
+  };
+
+  const dateBlock = (): Block => {
+    const code: string[] = [];
+    const output: string[] = [];
+    const DAY = 86400000;
+    const lastDay = (year: number, month: number) =>
+      new Date(Date.UTC(year, month, 0)).getUTCDate();
+    const iso = (ms: number) => new Date(ms).toISOString().slice(0, 10);
+    const random = () => {
+      const year = int(1900, 2100);
+      const month = int(1, 12);
+      const day = pick([
+        1,
+        28,
+        lastDay(year, month),
+        int(1, lastDay(year, month)),
+      ]);
+      return { year, month, day, ms: Date.UTC(year, month - 1, day) };
+    };
+    const shift = (
+      from: { year: number; month: number; day: number },
+      months: number,
+    ) => {
+      const total = from.year * 12 + from.month - 1 + months;
+      const year = Math.floor(total / 12);
+      const month = total - year * 12 + 1;
+      return iso(
+        Date.UTC(year, month - 1, Math.min(from.day, lastDay(year, month))),
+      );
+    };
+    const isoWeek = (ms: number) => {
+      const weekday = (new Date(ms).getUTCDay() + 6) % 7;
+      const thursday = new Date(ms + (3 - weekday) * DAY);
+      const start = Date.UTC(thursday.getUTCFullYear(), 0, 1);
+      return Math.floor((thursday.getTime() - start) / (7 * DAY)) + 1;
+    };
+    const say = (label: string, expr: string, value: number) => {
+      code.push(`printf("${label}=%ld\\n", cast<long>(${expr}));`);
+      output.push(`${label}=${value}`);
+    };
+    for (let index = int(3, 8); index > 0; index--) {
+      const date = random();
+      const other = random();
+      const a = fresh("d");
+      const b = fresh("d");
+      code.push(
+        `local ${a}: Date = Date.new(${date.year}, ${date.month}, ${date.day});`,
+        `local ${b}: Date = Date.new(${other.year}, ${other.month}, ${other.day});`,
+        `printf("fmt=%s\\n", ${a}.format());`,
+      );
+      output.push(`fmt=${iso(date.ms)}`);
+      const startOfYear = Date.UTC(date.year, 0, 1);
+      say("ts", `${a}.toTimestamp()`, date.ms / 1000);
+      say("doy", `${a}.dayOfYear()`, (date.ms - startOfYear) / DAY + 1);
+      say("dow", `${a}.dayOfWeek()`, new Date(date.ms).getUTCDay());
+      say("week", `${a}.weekOfYear()`, isoWeek(date.ms));
+      say("dim", `${a}.daysInMonth()`, lastDay(date.year, date.month));
+      say("leap", `${a}.isLeapYear()`, Number(lastDay(date.year, 2) === 29));
+      say("diff", `${a}.diffDays(&${b})`, (date.ms - other.ms) / DAY);
+      say("cmp", `${a}.compare(&${b})`, Math.sign(date.ms - other.ms));
+      const moved = [
+        ["add", "addDays", int(-40000, 40000), 0],
+        ["mon", "addMonths", int(-600, 600), 1],
+        ["yr", "addYears", int(-50, 50), 12],
+      ] as const;
+      for (const [label, method, amount, unit] of moved) {
+        const result = fresh("d");
+        code.push(
+          `local ${result}: Date = ${a}.${method}(${amount});`,
+          `printf("${label}=%s\\n", ${result}.format());`,
+        );
+        output.push(
+          `${label}=${unit === 0 ? iso(date.ms + amount * DAY) : shift(date, amount * unit)}`,
+        );
+      }
+      const back = fresh("d");
+      code.push(
+        `local ${back}: Date = Date.fromTimestamp(${date.ms / 1000 + int(0, 86399)});`,
+        `printf("from=%s\\n", ${back}.format());`,
+      );
+      output.push(`from=${iso(date.ms)}`);
+      // Parsing accepts exactly the dates that exist.
+      const year = int(1900, 2100);
+      const month = int(1, 13);
+      const day = int(1, 31);
+      const textual = `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+      const parsed = fresh("d");
+      code.push(`local ${parsed}: Date = Date.new(1, 1, 1);`);
+      say(
+        "parse",
+        `Date.tryParse("${textual}", &${parsed})`,
+        Number(month <= 12 && day <= lastDay(year, month)),
+      );
+      code.push(`${parsed}.isValid();`);
+    }
+    return { imports: ['import [Date] from "std/date.bpl";'], code, output };
+  };
+
+  const algorithmBlock = (): Block => {
+    const code: string[] = [];
+    const output: string[] = [];
+    const items = Array.from({ length: int(1, 14) }, () => int(-9, 9));
+    const fill = (name: string, values: number[]) => {
+      code.push(`local ${name}: Array<int> = Array<int>.new(${int(1, 4)});`);
+      for (const value of values) code.push(`${name}.push(${value});`);
+    };
+    const show = (label: string, name: string, values: number[]) => {
+      code.push(
+        `printf("${label}=");`,
+        `loop (local i: int = 0; i < ${name}.len(); i = i + 1) { printf("%d,", ${name}.get(i)); }`,
+        `printf("\\n");`,
+      );
+      output.push(`${label}=${values.map((value) => `${value},`).join("")}`);
+    };
+    const say = (label: string, expr: string, value: number) => {
+      code.push(`printf("${label}=%ld\\n", cast<long>(${expr}));`);
+      output.push(`${label}=${value}`);
+    };
+    const ascending = [...items].sort((a, b) => a - b);
+    const a = fresh("a");
+    fill(a, items);
+    say(
+      "sum",
+      `Algorithm.sum(&${a})`,
+      items.reduce((x, y) => x + y, 0),
+    );
+    say("min", `Algorithm.min(&${a})`, ascending[0]!);
+    say("max", `Algorithm.max(&${a})`, ascending.at(-1)!);
+    const needle = int(-9, 9);
+    say(
+      "count",
+      `Algorithm.count(&${a}, ${needle})`,
+      items.filter((value) => value === needle).length,
+    );
+    say(
+      "sorted",
+      `Algorithm.isSorted(&${a})`,
+      Number(items.every((value, i) => i === 0 || items[i - 1]! <= value)),
+    );
+    const distinct = fresh("a");
+    code.push(`local ${distinct}: Array<int> = Algorithm.unique(&${a});`);
+    const uniqueItems = [...new Set(items)];
+    show("unique", distinct, uniqueItems);
+    const merged = fresh("a");
+    code.push(
+      `local ${merged}: Array<int> = Algorithm.merge(&${a}, &${distinct});`,
+    );
+    show("merge", merged, [...items, ...uniqueItems]);
+    say(
+      "eq",
+      `Algorithm.equals(&${a}, &${distinct})`,
+      Number(items.length === uniqueItems.length),
+    );
+    code.push(`Algorithm.reverse(&${a});`);
+    show("rev", a, [...items].reverse());
+    const sort = pick([
+      [".sortAsc", ascending],
+      [".quickSort", ascending],
+      [".sortDesc", [...ascending].reverse()],
+    ] as const);
+    code.push(`Algorithm${sort[0]}(&${a});`);
+    show("sort", a, [...sort[1]]);
+    const sortedUnique = [...new Set(ascending)];
+    const b = fresh("a");
+    fill(b, sortedUnique);
+    for (const target of [-10, 10, ...sortedUnique]) {
+      say(
+        "bs",
+        `Algorithm.binarySearch(&${b}, ${target})`,
+        sortedUnique.indexOf(target),
+      );
+    }
+
+    // Population statistics of the same data, read through a raw array.
+    const data = fresh("v");
+    code.push(`local ${data}: int[${items.length}] = [${items.join(", ")}];`);
+    const float = (label: string, method: string, value: number) => {
+      code.push(
+        `printf("${label}=%.6f\\n", Stats.${method}(&${data}[0], ${items.length}));`,
+      );
+      output.push(`${label}=${value.toFixed(6)}`);
+    };
+    const mean = items.reduce((x, y) => x + y, 0) / items.length;
+    const variance =
+      items.reduce((x, y) => x + (y - mean) * (y - mean), 0) / items.length;
+    float("mean", "mean", mean);
+    float("var", "variance", variance);
+    float("sd", "stddev", Math.sqrt(variance));
+    const middle = Math.floor(items.length / 2);
+    float(
+      "med",
+      "median",
+      items.length % 2 === 1
+        ? ascending[middle]!
+        : (ascending[middle - 1]! + ascending[middle]!) / 2,
+    );
+    const occurrences = (value: number) =>
+      items.filter((other) => other === value).length;
+    // `median` above sorted the data in place, and the first mode found wins.
+    const mode = ascending.reduce(
+      (best, value) => (occurrences(value) > occurrences(best) ? value : best),
+      ascending[0]!,
+    );
+    say("mode", `Stats.mode(&${data}[0], ${items.length})`, mode);
+    say(
+      "range",
+      `Stats.range(&${data}[0], ${items.length})`,
+      ascending.at(-1)! - ascending[0]!,
+    );
+
+    // A stack against an array model.
+    const stack = fresh("st");
+    code.push(`local ${stack}: Stack<int> = Stack<int>.new(${int(0, 3)});`);
+    const model: number[] = [];
+    for (let index = int(10, 40); index > 0; index--) {
+      switch (int(0, 3)) {
+        case 0: {
+          code.push(`printf("pop=%d\\n", ${optionValue(`${stack}.pop()`)});`);
+          output.push(`pop=${model.pop() ?? NONE}`);
+          break;
+        }
+        case 1:
+          code.push(`printf("top=%d\\n", ${optionValue(`${stack}.peek()`)});`);
+          output.push(`top=${model.at(-1) ?? NONE}`);
+          break;
+        default: {
+          const value = int(-50, 50);
+          code.push(`${stack}.push(${value});`);
+          model.push(value);
+        }
+      }
+    }
+    say("size", `${stack}.size()`, model.length);
+    say("empty", `${stack}.isEmpty()`, Number(model.length === 0));
+    return {
+      imports: [
+        'import [Algorithm] from "std/algorithm.bpl";',
+        'import [Array] from "std/array.bpl";',
+        'import [Option] from "std/option.bpl";',
+        'import [Stack] from "std/stack.bpl";',
+        'import [Stats] from "std/stats.bpl";',
+      ],
+      code,
+      output,
+    };
+  };
+
+  const textToolsBlock = (): Block => {
+    const code: string[] = [];
+    const output: string[] = [];
+    const say = (label: string, expr: string, value: number) => {
+      code.push(`printf("${label}=%d\\n", cast<int>(${expr}));`);
+      output.push(`${label}=${value}`);
+    };
+    const showOwned = (label: string, expr: string, value: string) => {
+      const name = fresh("s");
+      code.push(
+        `local ${name}: String = ${expr};`,
+        `printf("${label}=[%s]\\n", ${name}.data);`,
+      );
+      output.push(`${label}=[${value}]`);
+    };
+    for (let index = int(2, 5); index > 0; index--) {
+      const value = text("ab  c", 14);
+      const part = text("ab", 2);
+      const quoted = literal(value);
+      say(
+        "starts",
+        `StringUtils.startsWith(${quoted}, "${part}")`,
+        Number(value.startsWith(part)),
+      );
+      say(
+        "ends",
+        `StringUtils.endsWith(${quoted}, "${part}")`,
+        Number(value.endsWith(part)),
+      );
+      say("find", `StringUtils.find(${quoted}, 'b')`, value.indexOf("b"));
+      const from = int(0, value.length);
+      if (part.length > 0) {
+        say(
+          "search",
+          `StringUtils.findString(${quoted}, "${part}", ${from})`,
+          value.indexOf(part, from),
+        );
+        const replacement = text("xy", 3);
+        showOwned(
+          "repl",
+          `StringUtils.replace(${quoted}, "${part}", "${replacement}")`,
+          value.split(part).join(replacement),
+        );
+      }
+      showOwned(
+        "trim",
+        `StringUtils.trim(${quoted})`,
+        value.replace(/^ +| +$/g, ""),
+      );
+      showOwned(
+        "swap",
+        `StringUtils.replaceChar(${quoted}, 'a', 'z')`,
+        value.replaceAll("a", "z"),
+      );
+    }
+    const list = fresh("j");
+    const parts = Array.from({ length: int(0, 5) }, () => text("ab", 3));
+    code.push(`local ${list}: Array<string> = Array<string>.new(1);`);
+    for (const part of parts) code.push(`${list}.push("${part}");`);
+    code.push(`printf("join=%s\\n", StringUtils.join(&${list}, "--"));`);
+    output.push(`join=${parts.join("--")}`);
+
+    const builder = fresh("sb");
+    code.push(
+      `local ${builder}: StringBuilder = StringBuilder.new(${int(1, 8)});`,
+    );
+    let built = "";
+    for (let index = int(5, 30); index > 0; index--) {
+      switch (int(0, 5)) {
+        case 0: {
+          const piece = text("ab c", 40);
+          code.push(`${builder}.append("${piece}");`);
+          built += piece;
+          break;
+        }
+        case 1: {
+          const code_ = int(97, 122);
+          code.push(`${builder}.appendChar(cast<char>(${code_}));`);
+          built += String.fromCharCode(code_);
+          break;
+        }
+        case 2: {
+          const value = pick([0, -1, 2147483647, -2147483648, int(-999, 999)]);
+          code.push(
+            `${builder}.appendInt(${value === -2147483648 ? "cast<int>(-2147483648)" : value});`,
+          );
+          built += String(value);
+          break;
+        }
+        case 3: {
+          const value = pick([5000000000, -5000000000, int(-999, 999)]);
+          code.push(`${builder}.appendLong(cast<long>(${value}));`);
+          built += String(value);
+          break;
+        }
+        case 4: {
+          const value = int(0, 1) === 0;
+          code.push(`${builder}.appendBool(${value});`);
+          built += String(value);
+          break;
+        }
+        default: {
+          // Eighths need three places, so no digit is an exact rounding tie
+          // (`toFixed` and C's `%f` round those differently).
+          const value = int(-5000, 5000) / 8;
+          const decimals = int(3, 6);
+          code.push(
+            `${builder}.appendFixed(${value.toFixed(3)}, ${decimals});`,
+          );
+          built += value.toFixed(decimals);
+        }
+      }
+      if (int(0, 14) === 0) {
+        code.push(`${builder}.clear();`);
+        built = "";
+      }
+    }
+    say("len", `${builder}.len()`, Buffer.byteLength(built));
+    code.push(`printf("built=[%s]\\n", ${builder}.toString());`);
+    output.push(`built=[${built}]`);
+    code.push(`${builder}.destroy();`);
+
+    for (const [method, test] of [
+      ["isDigit", /[0-9]/],
+      ["isHexDigit", /[0-9a-fA-F]/],
+      ["isAlpha", /[a-zA-Z]/],
+      ["isAlphaNumeric", /[a-zA-Z0-9]/],
+      ["isWhitespace", /[ \t\r\n]/],
+    ] as const) {
+      const byte = int(1, 127);
+      say(
+        method,
+        `CharUtils.${method}(cast<char>(${byte}))`,
+        Number(test.test(String.fromCharCode(byte))),
+      );
+    }
+    const byte = int(1, 127);
+    const letter = String.fromCharCode(byte);
+    say(
+      "lower",
+      `CharUtils.toLower(cast<char>(${byte}))`,
+      /[A-Z]/.test(letter) ? byte + 32 : byte,
+    );
+    say(
+      "upper",
+      `CharUtils.toUpper(cast<char>(${byte}))`,
+      /[a-z]/.test(letter) ? byte - 32 : byte,
+    );
+    return {
+      imports: [
+        'import [StringUtils] from "std/string_utils.bpl";',
+        'import [StringBuilder] from "std/string_builder.bpl";',
+        'import [CharUtils] from "std/char_utils.bpl";',
+        'import [String] from "std/string.bpl";',
+        'import [Array] from "std/array.bpl";',
+      ],
+      code,
+      output,
+    };
+  };
+
+  /** A struct value with its expected JSON text and C layout. */
+  interface Reflected {
+    type: string;
+    expr: string;
+    json: string;
+    /** Undefined when the type's size is not modelled (`Array<int>`). */
+    size?: number;
+    align: number;
+  }
+
+  const reflectionBlock = (): Block => {
+    const declarations: string[] = [];
+    const code: string[] = [];
+    const output: string[] = [];
+    const integer = (type: string, size: number, values: string[]) => {
+      const value = pick(values);
+      return { type, expr: value, json: value, size, align: size };
+    };
+    const small = () => String(int(-99, 99));
+    const stringField = (): Reflected => {
+      const value = text('ab "\\\n\t/é', 8);
+      const expr = value
+        .replace(/\\/g, "\\\\")
+        .replace(/"/g, '\\"')
+        .replace(/\n/g, "\\n")
+        .replace(/\t/g, "\\t");
+      return {
+        type: "string",
+        expr: `"${expr}"`,
+        json: JSON.stringify(value),
+        size: 8,
+        align: 8,
+      };
+    };
+    const scalar = (): Reflected =>
+      pick([
+        () => integer("int", 4, ["-2147483648", "2147483647", small()]),
+        () =>
+          integer("long", 8, [
+            "9223372036854775807",
+            "-9223372036854775807",
+            small(),
+          ]),
+        () => integer("i8", 1, ["-128", "127", small()]),
+        () => integer("i16", 2, ["-32768", "32767", small()]),
+        () => integer("u8", 1, ["0", "255", String(int(0, 99))]),
+        () => integer("u16", 2, ["0", "65535", String(int(0, 99))]),
+        () => integer("u32", 4, ["0", "4294967295", String(int(0, 99))]),
+        () =>
+          integer("ulong", 8, [
+            "0",
+            "18446744073709551615",
+            String(int(0, 99)),
+          ]),
+        () => {
+          const value = String(int(0, 1) === 0);
+          return { type: "bool", expr: value, json: value, size: 1, align: 1 };
+        },
+        () => {
+          const value = (int(-800, 800) * 2 + 1) / 16;
+          return {
+            type: "double",
+            expr: String(value),
+            json: String(value),
+            size: 8,
+            align: 8,
+          };
+        },
+        stringField,
+      ])();
+    const field = (depth: number): Reflected => {
+      switch (int(0, 8)) {
+        case 0:
+          return depth > 0 ? structure(depth - 1) : scalar();
+        case 1: {
+          const length = int(1, 3);
+          const values = Array.from({ length }, small);
+          return {
+            type: `int[${length}]`,
+            expr: `[${values.join(", ")}]`,
+            json: `[${values.join(", ")}]`,
+            size: 4 * length,
+            align: 4,
+          };
+        }
+        case 2: {
+          if (int(0, 1) === 0) {
+            return {
+              type: "*int",
+              expr: "nullptr",
+              json: "null",
+              size: 8,
+              align: 8,
+            };
+          }
+          const name = fresh("target");
+          const value = small();
+          code.push(`local ${name}: int = ${value};`);
+          return {
+            type: "*int",
+            expr: `&${name}`,
+            json: value,
+            size: 8,
+            align: 8,
+          };
+        }
+        case 3: {
+          const name = fresh("list");
+          const values = Array.from({ length: int(0, 3) }, small);
+          code.push(`local ${name}: Array<int> = Array<int>.new(1);`);
+          for (const value of values) code.push(`${name}.push(${value});`);
+          return {
+            type: "Array<int>",
+            expr: name,
+            json: `[${values.join(", ")}]`,
+            align: 8,
+          };
+        }
+        default:
+          return scalar();
+      }
+    };
+    const layouts: {
+      name: string;
+      fields: string[];
+      offsets: (number | undefined)[];
+      size?: number;
+      method: boolean;
+      json: string;
+      expr: string;
+      entries: string[];
+    }[] = [];
+    function structure(depth: number): Reflected {
+      const name = fresh("Reflected");
+      const method = int(0, 3) === 0;
+      const members = Array.from({ length: int(1, 6) }, () => field(depth));
+      const names = members.map((_, index) => `f${index}`);
+      let offset: number | undefined = method ? 8 : 0;
+      let align = method ? 8 : 1;
+      const offsets = members.map((member) => {
+        align = Math.max(align, member.align);
+        if (offset === undefined) return undefined;
+        const at = Math.ceil(offset / member.align) * member.align;
+        offset = member.size === undefined ? undefined : at + member.size;
+        return at;
+      });
+      const size =
+        offset === undefined ? undefined : Math.ceil(offset / align) * align;
+      declarations.push(
+        [
+          `struct ${name} {`,
+          ...members.map((member, index) => `    f${index}: ${member.type},`),
+          ...(method
+            ? [`    frame tag(this: *${name}) ret int { return 7; }`]
+            : []),
+          "}",
+        ].join("\n"),
+      );
+      const entries = members.map(
+        (member, index) => `"f${index}": ${member.json}`,
+      );
+      const json = `{${entries.join(", ")}}`;
+      const expr = `${name} { ${members
+        .map((member, index) => `f${index}: ${member.expr}`)
+        .join(", ")} }`;
+      layouts.push({
+        name,
+        fields: names,
+        offsets,
+        size,
+        method,
+        json,
+        expr,
+        entries,
+      });
+      return { type: name, expr, json, size, align };
+    }
+
+    structure(int(0, 2));
+    const root = layouts.at(-1)!;
+    const value = fresh("v");
+    code.push(
+      `local ${value}: ${root.name} = ${root.expr};`,
+      `local ${value}j: String = JSON.stringify<${root.name}>(&${value});`,
+      `printf("json=%s\\n", ${value}j.toString());`,
+      `${value}j.destroy();`,
+    );
+    output.push(`json=${root.json}`);
+
+    // The same object in another key order, with keys the struct lacks.
+    const shuffled = [...root.entries];
+    for (let index = shuffled.length - 1; index > 0; index--) {
+      const other = int(0, index);
+      [shuffled[index], shuffled[other]] = [shuffled[other]!, shuffled[index]!];
+    }
+    shuffled.splice(
+      int(0, shuffled.length),
+      0,
+      `"unknown": ${pick(['[1, {"a": "}"}]', '{"b": []}', "null", '"]"'])}`,
+    );
+    const parsed = fresh("p");
+    code.push(
+      `local ${parsed}: *${root.name} = JSON.parse<${root.name}>(${literal(`{${shuffled.join(", ")}}`)});`,
+      `if (${parsed} == nullptr) { printf("back=null\\n"); } else {`,
+      `    local ${parsed}j: String = JSON.stringify<${root.name}>(${parsed});`,
+      `    printf("back=%s\\n", ${parsed}j.toString());`,
+      `    ${parsed}j.destroy();`,
+      ...(root.method ? [`    printf("tag=%d\\n", ${parsed}.tag());`] : []),
+      `    JSON.free<${root.name}>(${parsed});`,
+      "}",
+    );
+    output.push(`back=${root.json}`);
+    if (root.method) output.push("tag=7");
+
+    // Reflection metadata agrees with the C layout and with the compiler.
+    for (const layout of layouts) {
+      const info = fresh("info");
+      code.push(
+        `local ${info}: *TypeInfo = typeof<${layout.name}>();`,
+        `printf("type=%s %d %d\\n", ${info}.name, ${info}.num_fields, cast<int>(${info}.kind));`,
+        `printf("same=%d\\n", cast<int>(${info}.size == cast<ulong>(sizeof(${layout.name}))));`,
+      );
+      output.push(`type=${layout.name} ${layout.fields.length} 1`, "same=1");
+      if (layout.size !== undefined) {
+        code.push(`printf("size=%d\\n", cast<int>(${info}.size));`);
+        output.push(`size=${layout.size}`);
+      }
+      layout.fields.forEach((field, index) => {
+        code.push(
+          `printf("${field}=%s %d\\n", ${info}.fields[${index}].name, cast<int>(${info}.fields[${index}].offset == cast<ulong>(offsetof(${layout.name}, ${field}))));`,
+        );
+        output.push(`${field}=${field} 1`);
+        const at = layout.offsets[index];
+        if (at !== undefined) {
+          code.push(
+            `printf("at=%d\\n", cast<int>(offsetof(${layout.name}, ${field})));`,
+          );
+          output.push(`at=${at}`);
+        }
+      });
+    }
+    return {
+      declarations,
+      imports: [
+        'import [JSON] from "std/json.bpl";',
+        'import [String] from "std/string.bpl";',
+        'import [Array] from "std/array.bpl";',
+        'import [TypeInfo] from "std/reflection.bpl";',
+      ],
+      code,
+      output,
+    };
+  };
+
   const blocks = [
     stringBlock,
     arrayBlock,
@@ -908,11 +2001,22 @@ export function generateStdlibProgram(rng: () => number): GeneratedProgram {
     listBlock,
     bitsBlock,
     parseBlock,
+    hashBlock,
+    pathBlock,
+    urlBlock,
+    utf8Block,
+    jsonBlock,
+    regexBlock,
+    dateBlock,
+    algorithmBlock,
+    textToolsBlock,
+    reflectionBlock,
   ];
   const chosen = Array.from({ length: int(2, 5) }, () => pick(blocks)());
   const lines = [
     "extern printf(fmt: string, ...);",
     ...new Set(chosen.flatMap((block) => block.imports)),
+    ...chosen.flatMap((block) => block.declarations ?? []),
     "frame main() ret int {",
     ...chosen.flatMap((block) => [
       "    {",

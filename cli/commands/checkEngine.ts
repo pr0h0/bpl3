@@ -29,7 +29,12 @@ export function checkSource(
     collectAllErrors: true,
   });
   typeChecker.setCurrentModulePath(filePath);
-  typeChecker.checkProgram(ast);
+  // A file declaring `main` is held to the same signature rules as a build.
+  const hasMain = ast.statements.some(
+    (statement) =>
+      statement.kind === "FunctionDecl" && statement.name === "main",
+  );
+  typeChecker.checkProgram(ast, undefined, { isEntryPoint: hasMain });
   return {
     errors: typeChecker.getErrors(),
     warnings: warningsForFile(typeChecker.getWarnings(), filePath),

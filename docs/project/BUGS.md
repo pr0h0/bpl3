@@ -1354,6 +1354,42 @@ clause and `throw array;` passed the checker and failed in code generation with
 **Resolution**: `BPL_EXCEPTION_TYPE_UNSUPPORTED`, documented in R-EXC-1.
 `tests/TypeMutationRegressions.test.ts`.
 
+### BUG-512: An integer constant was accepted as a pointer or array
+
+**Status**: Fixed · **Priority**: P2
+
+Found by mutating the example programs through the CLI (2026-11-09). The check
+that a constant fits an integer type read only the element name of the target,
+so `*int`, `int[2]` and `int[]` counted as `int`. `p = 5` on a pointer compiled
+and stored the address 5, against R-CONV-8. `v = 5` on an array, and `return 5`
+from a function returning a pointer, array or slice, passed the checker and
+failed in code generation or in `clang`.
+
+**Resolution**: only a scalar integer type takes an integer constant. `return 0`
+from such a function is now rejected too; a declaration's `= 0` still
+zero-initializes. `tests/TypeMutationRegressions.test.ts`.
+
+### BUG-510: `bpl check` accepted fields of a primitive's wrapper struct
+
+**Status**: Fixed · **Priority**: P2
+
+Found by mutating the example programs through the CLI (2026-11-09). `x.value`
+on an `int` passed `bpl check` and failed only in a build, because the member
+lookup borrowed the `Int` wrapper struct for methods and also found its field.
+
+**Resolution**: a primitive reaches only the wrapper's methods.
+`tests/TypeMutationRegressions.test.ts`.
+
+### BUG-511: `bpl check` did not validate `main`
+
+**Status**: Fixed · **Priority**: P3
+
+Found with BUG-510. `frame main() ret string` passed `bpl check` and failed only
+in a build, because the check command never ran entry point validation.
+
+**Resolution**: a checked file that declares `main` gets the same signature
+rules as a build. `tests/TypeMutationRegressions.test.ts`.
+
 ### BUG-508: A `bool` constant could not initialize an integer global
 
 **Status**: Fixed · **Priority**: P3
