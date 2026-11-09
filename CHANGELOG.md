@@ -16,8 +16,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   assignment and swaps, methods bound to lambdas including value receivers,
   a generic enum, arrays of structs, and byte reads of strings holding escapes,
   raw bytes and UTF-8 text. It also covers type aliases, constant locals, `T[2][2]`
-  arrays, global structs, two-parameter and nested generics, `Func` fields and
-  closures returned from closures.
+  arrays, global structs, two-parameter and nested generics, `Func` fields,
+  closures returned from closures, spec dispatch through pointers, three-level
+  inheritance, nested enums, arrays of tuples, slices, closure arrays and heap
+  lists.
 - An extern of a known C function that returns `int` (`printf`, `puts`,
   `putchar`, `fprintf`, `dprintf`, `sprintf`, `snprintf`, `scanf`, `sscanf`)
   has return type `int` when the declaration omits it (R-EXTERN-8).
