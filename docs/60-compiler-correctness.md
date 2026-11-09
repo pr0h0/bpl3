@@ -459,7 +459,11 @@ Each campaign iteration picks one input lane:
   `T[2][2]` arrays, global structs, nested generics, `Func` fields, closures
   returned from closures, spec dispatch through pointers, three-level
   inheritance, nested enums, arrays of tuples, slices, heap lists, automatic
-  destructors and implicit `new` constructors.
+  destructors and implicit `new` constructors. Every fifth `--oracle-only`
+  iteration is a multi-file program from `fuzz/moduleProgramGenerator.ts`: a
+  diamond of modules sharing globals, with private names repeated across
+  modules. Its companion files are `# fuzz-module:` comments in the main source,
+  so a saved failure stays one replayable file.
   `--oracle-only` (or `FUZZ_ORACLE_ONLY=1`) makes every iteration an oracle
   program, for a local campaign aimed at miscompiles:
   `bun run fuzz -- --oracle-only --iterations 2000 --seeds 0x1,0x2`.

@@ -1,3 +1,7 @@
+import {
+  generateModuleProgram,
+  readFuzzModules,
+} from "../fuzz/moduleProgramGenerator";
 import { describe, expect, test } from "bun:test";
 import {
   createSeededRandom,
@@ -12,6 +16,39 @@ import {
   generateOracleProgram,
   readExpectedStdout,
 } from "../fuzz/programGenerator";
+
+describe("generated multi-file programs", () => {
+  test("embed their companion modules and match their oracle", () => {
+    const program = generateModuleProgram(createSeededRandom(7));
+    expect([...readFuzzModules(program.source).keys()]).toEqual([
+      "base.bpl",
+      "left.bpl",
+      "right.bpl",
+    ]);
+    for (const feature of [
+      /import \* as base from "\.\/base\.bpl";/,
+      /import pickOne as leftPick from "\.\/left\.bpl";/,
+      /viaHelper as reexported from "\.\/right\.bpl";/,
+    ]) {
+      expect(program.source).toMatch(feature);
+    }
+    for (let seed = 0; seed < 4; seed++) {
+      const { source } = generateModuleProgram(createSeededRandom(seed));
+      const outcome = runBplOraclePipeline(source, `modules-${seed}.bpl`);
+      expect(outcome.message ?? "").toBe("");
+      expect(outcome.ok).toBe(true);
+    }
+  });
+
+  test("a wrong expectation is reported as a mismatch", () => {
+    const { source } = generateModuleProgram(createSeededRandom(3));
+    const outcome = runBplOraclePipeline(
+      source.replace("# fuzz-expect: ", "# fuzz-expect: wrong "),
+      "modules-tampered.bpl",
+    );
+    expect(outcome.ok).toBe(false);
+  });
+});
 
 describe("generated fuzz programs", () => {
   test("are deterministic and carry their expected output", () => {
