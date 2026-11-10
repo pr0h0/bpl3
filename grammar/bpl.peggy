@@ -232,8 +232,40 @@
     return { kind: "Extern", name, params, isVariadic, returnType, location: loc };
   }
 
-  function asmBlock(content, loc, flavor, clobbers) {
-    return { kind: "Asm", content, flavor, clobbers, location: loc };
+  // Operands are found with the pattern the checker and code generator use:
+  // (name), (&name), (=name), optionally followed by `: "constraint"`.
+  function asmOperands(content, start) {
+    const operands = [];
+    const pattern = /\((=?)(&?)(\w+)(?::\s*"([^"]+)")?\)/g;
+    let match;
+    let line = start.startLine;
+    let column = start.startColumn;
+    let scanned = 0;
+    while ((match = pattern.exec(content)) !== null) {
+      const at = match.index + 1 + match[1].length + match[2].length;
+      for (; scanned < at; scanned++) {
+        const c = content[scanned];
+        if (c === "\n" || (c === "\r" && content[scanned + 1] !== "\n")) {
+          line++;
+          column = 1;
+        } else {
+          column++;
+        }
+      }
+      operands.push(identifier(match[3], {
+        file: start.file,
+        startLine: line,
+        startColumn: column,
+        endLine: line,
+        endColumn: column + match[3].length,
+      }));
+    }
+    return operands;
+  }
+
+  function asmBlock(content, loc, flavor, clobbers, start) {
+    const operands = start ? asmOperands(content, start) : [];
+    return { kind: "Asm", content, flavor, clobbers, operands, location: loc };
   }
 
   function tryStmt(tryBlock, catchClauses, loc) {
@@ -925,9 +957,12 @@ ExternParameterList
     }
 
 AsmBlock
-  = K_asm _ flavor:("(" _ s:StringLiteral _ ")" { return s.value; })? _ "{" content:AsmContent clobbers:AsmClobbers? "}" {
-      return asmBlock(content, location(), flavor || undefined, clobbers || undefined);
+  = K_asm _ flavor:("(" _ s:StringLiteral _ ")" { return s.value; })? _ "{" start:AsmStart content:AsmContent clobbers:AsmClobbers? "}" {
+      return asmBlock(content, location(), flavor || undefined, clobbers || undefined, start);
     }
+
+AsmStart
+  = "" { return location(); }
 
 AsmClobbers
   = _ "[" _ head:AsmString tail:(_ "," _ AsmString)* _ "]" _ {

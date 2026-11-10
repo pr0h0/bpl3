@@ -1,3 +1,4 @@
+import { findInstantiationCycle } from "./InstantiationCycles";
 import {
   isConstantArrayStorage,
   isTemporaryArrayElement,
@@ -46,6 +47,7 @@ import {
   VOID_TYPE_INVALID_CODE,
   VARIADIC_METHOD_UNSUPPORTED_CODE,
   METHOD_RECEIVER_TYPE_MISMATCH_CODE,
+  UNUSED_VARIABLE_CODE,
 } from "./TypeCheckerBase";
 import { KNOWN_TYPES, TypeUtils } from "./TypeUtils";
 import {
@@ -410,6 +412,7 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
       "UShort",
       "UInt",
       "ULong",
+      "Float32",
     ];
 
     for (const name of symbolsToExport) {
@@ -511,6 +514,9 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
     validateModuleExports(program, moduleScope, (error) =>
       this.addError(error),
     );
+
+    const instantiationCycle = findInstantiationCycle(program.statements);
+    if (instantiationCycle) this.addError(instantiationCycle);
 
     // A struct gains a vtable when any struct in the program inherits from
     // it, so by-value externs are checked again once every struct is known.
@@ -1303,6 +1309,7 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
         `Unused variable '${symbol.name}'`,
         "Variable is declared but never used.",
         symbol.declaration.location,
+        UNUSED_VARIABLE_CODE,
       );
       if (this.collectAllErrors) {
         this.errors.push(error);
@@ -2834,6 +2841,8 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
     // Check const correctness
     this.checkIsMutable(expr.assignee);
 
+    if (targetType && expr.operator.type === TokenType.Equal)
+      this.noteValueTarget(expr.value, targetType);
     const initialValueType = this.checkExpression(expr.value);
     const valueType =
       targetType && expr.operator.type === TokenType.Equal
@@ -3183,6 +3192,7 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
   private checkGenericInstantiation(
     expr: AST.GenericInstantiationExpr,
   ): AST.TypeNode | undefined {
+    this.instantiatedGenericReferences.add(expr.base);
     const baseType = this.checkExpression(expr.base);
     if (!baseType) return undefined;
     for (const argument of expr.genericArgs) this.ensureKnownType(argument);

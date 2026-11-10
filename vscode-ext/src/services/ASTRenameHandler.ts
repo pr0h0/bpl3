@@ -2257,6 +2257,9 @@ export class ASTRenameHandler {
       case "Block":
         (node as AST.BlockStmt).statements.forEach(callback);
         break;
+      case "Asm":
+        (node as AST.AsmBlockStmt).operands?.forEach(callback);
+        break;
       case "ExpressionStmt":
         const exprStmt = node as AST.ExpressionStmt;
         callback(exprStmt.expression);

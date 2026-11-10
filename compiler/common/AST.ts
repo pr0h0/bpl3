@@ -623,6 +623,8 @@ export interface AsmBlockStmt extends ASTNode {
   content: string;
   flavor?: string;
   clobbers?: string[];
+  /** The variables named by operands such as `(a)` and `(=out)`, in order. */
+  operands?: IdentifierExpr[];
   /**
    * Set by the checker for operands naming a global: its linker name, type
    * and constness, keyed by the name as written.
@@ -649,6 +651,16 @@ export interface CatchClause extends ASTNode {
 export interface RuntimeDeferCleanupStmt extends ASTNode {
   kind: "RuntimeDeferCleanup";
   ctxVal: string; // The register holding the context pointer
+}
+
+/**
+ * Pops the defer node that lets a throw from a called function destroy an
+ * `@[auto_destroy]` local. The node is a stack slot of the frame, so it is
+ * unlinked but not freed.
+ */
+export interface UnwindNodePopStmt extends ASTNode {
+  kind: "UnwindNodePop";
+  node: string;
 }
 
 export interface AutoDestroyStmt extends ASTNode {

@@ -241,6 +241,175 @@ export abstract class StatementGenerator extends AsmGenerator {
     address: string,
     declaredType: AST.TypeNode | undefined,
     location: AST.ASTNode["location"],
+  ): void {
+    const scope = this.scopeStack[this.scopeStack.length - 1];
+    if (!scope) return;
+    const before = scope.deferred.length;
+    this.registerAutoDestroyEntries(name, address, declaredType, location);
+    if (scope.deferred.length === before) return;
+    this.registerUnwindNode(address, declaredType!, location);
+  }
+
+  /** Thunks that destroy a local of one type during unwinding, by name. */
+  private unwindThunks = new Map<string, string>();
+  protected pendingUnwindThunks: {
+    name: string;
+    type: AST.TypeNode;
+    llvmType: string;
+    typeMap: Map<string, AST.TypeNode>;
+    location: AST.ASTNode["location"];
+  }[] = [];
+  private unwindNoopEmitted = false;
+
+  /**
+   * A throw in a called function cannot see this frame's static cleanup, so
+   * each owning local also gets a defer node on the runtime stack, like
+   * `defer`. Its callback is a thunk that destroys the local in place. The
+   * node lives in this frame's entry block; normal exits pop it before the
+   * static cleanup runs, and the unwinder skips freeing it (flag 1).
+   */
+  private registerUnwindNode(
+    address: string,
+    declaredType: AST.TypeNode,
+    location: AST.ASTNode["location"],
+  ): void {
+    const typeNode = this.concreteAutoDestroyType(declaredType)!;
+    const llvmType = this.resolveType(typeNode);
+    let thunk = this.unwindThunks.get(llvmType);
+    if (!thunk) {
+      thunk = `__bpl_unwind_destroy.${this.unwindThunks.size}.${llvmType.replace(/[^A-Za-z0-9_.]/g, "_")}`;
+      this.unwindThunks.set(llvmType, thunk);
+      this.pendingUnwindThunks.push({
+        name: thunk,
+        type: typeNode,
+        llvmType,
+        typeMap: new Map(this.currentTypeMap),
+        location,
+      });
+    }
+    const node = this.allocateStackSlot("%struct.DeferNode", "unwind_node");
+    const field = (index: number) => {
+      const pointer = this.newRegister();
+      this.emit(
+        `  ${pointer} = getelementptr inbounds %struct.DeferNode, %struct.DeferNode* ${node}, i32 0, i32 ${index}`,
+      );
+      return pointer;
+    };
+    this.emit(
+      `  store i8* bitcast (void (i8*)* @${thunk} to i8*), i8** ${field(0)}`,
+    );
+    const context = this.newRegister();
+    this.emit(`  ${context} = bitcast ${llvmType}* ${address} to i8*`);
+    this.emit(`  store i8* ${context}, i8** ${field(1)}`);
+    const top = this.newRegister();
+    this.emit(
+      `  ${top} = load %struct.DeferNode*, %struct.DeferNode** @defer_top`,
+    );
+    this.emit(
+      `  store %struct.DeferNode* ${top}, %struct.DeferNode** ${field(2)}`,
+    );
+    this.emit(`  store i64 1, i64* ${field(3)}`);
+    this.emit(
+      `  store %struct.DeferNode* ${node}, %struct.DeferNode** @defer_top`,
+    );
+    this.scopeStack[this.scopeStack.length - 1]!.deferred.push({
+      kind: "UnwindNodePop",
+      node,
+      location,
+    } as unknown as AST.Statement);
+  }
+
+  protected generateUnwindNodePop(stmt: AST.UnwindNodePopStmt): void {
+    const nextPointer = this.newRegister();
+    this.emit(
+      `  ${nextPointer} = getelementptr inbounds %struct.DeferNode, %struct.DeferNode* ${stmt.node}, i32 0, i32 2`,
+    );
+    const next = this.newRegister();
+    this.emit(
+      `  ${next} = load %struct.DeferNode*, %struct.DeferNode** ${nextPointer}`,
+    );
+    this.emit(
+      `  store %struct.DeferNode* ${next}, %struct.DeferNode** @defer_top`,
+    );
+  }
+
+  /** Keeps a node on the stack but makes the unwinder's call do nothing. */
+  private disableUnwindNode(node: string): void {
+    if (!this.unwindNoopEmitted) {
+      this.unwindNoopEmitted = true;
+      this.emitDeclaration(
+        "define internal void @__bpl_unwind_noop(i8* %ctx) {\nentry:\n  ret void\n}",
+      );
+    }
+    const funcPointer = this.newRegister();
+    this.emit(
+      `  ${funcPointer} = getelementptr inbounds %struct.DeferNode, %struct.DeferNode* ${node}, i32 0, i32 0`,
+    );
+    this.emit(
+      `  store i8* bitcast (void (i8*)* @__bpl_unwind_noop to i8*), i8** ${funcPointer}`,
+    );
+  }
+
+  /** Emits the thunks requested by `registerUnwindNode`. */
+  protected generatePendingUnwindThunks(): void {
+    while (this.pendingUnwindThunks.length > 0) {
+      const thunk = this.pendingUnwindThunks.shift()!;
+      const saved = {
+        registerCount: this.registerCount,
+        labelCount: this.labelCount,
+        stackAllocCount: this.stackAllocCount,
+        stackAllocations: this.currentFunctionStackAllocations,
+        typeMap: this.currentTypeMap,
+        scopeStack: this.scopeStack,
+        subprogram: this.currentSubprogramId,
+        handler: this.currentFunctionHasExceptionHandler,
+      };
+      try {
+        this.registerCount = 0;
+        this.labelCount = 0;
+        this.stackAllocCount = 0;
+        this.currentFunctionStackAllocations = [];
+        this.currentFunctionHasExceptionHandler = false;
+        this.currentTypeMap = thunk.typeMap;
+        this.currentSubprogramId = -1;
+        this.scopeStack = [{ deferred: [], isLoop: false, isFunction: true }];
+        this.emit(`define internal void @${thunk.name}(i8* %ctx) {`);
+        this.emit("entry:");
+        const allocationIndex = this.output.length;
+        this.emit("");
+        const address = this.newRegister();
+        this.emit(`  ${address} = bitcast i8* %ctx to ${thunk.llvmType}*`);
+        this.registerAutoDestroyEntries(
+          "unwind",
+          address,
+          thunk.type,
+          thunk.location,
+        );
+        this.emitDeferredStatements(this.scopeStack[0]!.deferred);
+        this.emit("  ret void");
+        this.output[allocationIndex] =
+          this.currentFunctionStackAllocations.join("\n");
+        this.emit("}");
+        this.emit("");
+      } finally {
+        this.registerCount = saved.registerCount;
+        this.labelCount = saved.labelCount;
+        this.stackAllocCount = saved.stackAllocCount;
+        this.currentFunctionStackAllocations = saved.stackAllocations;
+        this.currentTypeMap = saved.typeMap;
+        this.scopeStack = saved.scopeStack;
+        this.currentSubprogramId = saved.subprogram;
+        this.currentFunctionHasExceptionHandler = saved.handler;
+      }
+    }
+  }
+
+  /** Registers the destructors of a value and of everything it owns. */
+  private registerAutoDestroyEntries(
+    name: string,
+    address: string,
+    declaredType: AST.TypeNode | undefined,
+    location: AST.ASTNode["location"],
     ownerAddress: string = address,
   ): void {
     const typeNode = this.concreteAutoDestroyType(declaredType);
@@ -272,7 +441,7 @@ export abstract class StatementGenerator extends AsmGenerator {
         this.emit(
           `  ${elementAddress} = getelementptr inbounds ${tupleType}, ${tupleType}* ${address}, i32 0, i32 ${index}`,
         );
-        this.registerAutoDestroy(
+        this.registerAutoDestroyEntries(
           `${name}.${index}`,
           elementAddress,
           elementType,
@@ -299,7 +468,7 @@ export abstract class StatementGenerator extends AsmGenerator {
           this.emit(
             `  ${fieldAddress} = getelementptr inbounds ${structType}, ${structType}* ${address}, i32 0, i32 ${index + (hasVTable ? 1 : 0)}`,
           );
-          this.registerAutoDestroy(
+          this.registerAutoDestroyEntries(
             `${name}.${field.name}`,
             fieldAddress,
             fieldType,
@@ -361,7 +530,7 @@ export abstract class StatementGenerator extends AsmGenerator {
       this.emit(
         `  ${elementAddress} = getelementptr inbounds ${arrayType}, ${arrayType}* ${address}, i32 0, i32 ${index}`,
       );
-      this.registerAutoDestroy(
+      this.registerAutoDestroyEntries(
         `${name}[${index}]`,
         elementAddress,
         elementType,
@@ -1707,6 +1876,14 @@ export abstract class StatementGenerator extends AsmGenerator {
       const deferred = this.scopeStack[i]!.deferred;
       for (let j = deferred.length - 1; j >= 0; j--) {
         const statement = deferred[j]!;
+        // The local is destroyed (or moved) here, so its unwind node must
+        // not destroy it again; the unwinder still unlinks it.
+        if ((statement.kind as string) === "UnwindNodePop") {
+          this.disableUnwindNode(
+            (statement as unknown as AST.UnwindNodePopStmt).node,
+          );
+          continue;
+        }
         if (statement.kind !== "AutoDestroy") continue;
         if ((statement as AST.AutoDestroyStmt).ownerAddress === movedAddress) {
           continue;
@@ -1805,6 +1982,9 @@ export abstract class StatementGenerator extends AsmGenerator {
         break;
       case "AutoDestroy":
         this.generateAutoDestroy(stmt as AST.AutoDestroyStmt);
+        break;
+      case "UnwindNodePop":
+        this.generateUnwindNodePop(stmt as unknown as AST.UnwindNodePopStmt);
         break;
       case "LambdaCall":
         this.generateLambdaCall(stmt as any);
