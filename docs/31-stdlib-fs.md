@@ -234,3 +234,62 @@ frame main() ret int {
 
 The example leaves `notes.txt` in the working directory. Open success alone is
 not a guarantee that all data reached persistent storage.
+
+## Higher-level helpers (`std/files.bpl`)
+
+`Files` adds native-only helpers on top of `FS`. Paths returned in Strings or
+arrays are owned by the caller (`StringUtils.destroyAll(&paths)`).
+
+| Function                                  | Behaviour                                                             |
+| ----------------------------------------- | --------------------------------------------------------------------- |
+| `isFile`, `isDir`, `isSymlink`            | Type checks; false when the path cannot be inspected                  |
+| `fileSize(path)`                          | Size in bytes, or -1                                                  |
+| `readLines(path)`                         | Lines split on LF, CRLF or CR; throws `IOError` when unreadable       |
+| `writeLines(path, &lines)`, `touch(path)` | Write lines with `\n`; create an empty file if missing                |
+| `walk(root)`, `walkFiles(root)`           | Depth-first, sorted, paths joined onto `root`; links are not followed |
+| `copyTree(source, target)`                | Copies files and directories recursively                              |
+| `removeAll(path)`                         | Removes a file, link or tree; true when nothing remains               |
+| `tempFile(prefix)`, `tempDir(prefix)`     | Create in `$TMPDIR` or `/tmp` with a random suffix                    |
+| `cwd()`, `chdir(path)`                    | Working directory                                                     |
+
+## Buffered I/O (`std/bufio.bpl`)
+
+`BufferedReader` (`open(path)`, `stdin()`, `fromFd(fd)`) reads lines of any
+length with `readLine` (LF or CRLF removed; `None` at the end), bytes with
+`readByte`/`peekByte`/`readBytes`, delimited chunks with `readUntil`, and the
+remainder with `readAll`. `BufferedWriter` (`create`, `append`, `stdout`,
+`stderr`, `fromFd`) collects `write`, `writeLine`, `writeByte`, `writeBytes`
+and `writeLong` output in a 64 KiB buffer. `flush` writes it, and `close`
+flushes, frees the buffer and closes files it opened; both return false after
+a write error. Writers on stdout and stderr flush C stdio first, so their
+output stays ordered with `printf`.
+
+```bpl
+import [BufferedWriter], [BufferedReader] from "std/bufio.bpl";
+import [Files] from "std/files.bpl";
+import [String] from "std/string.bpl";
+import [Option] from "std/option.bpl";
+extern printf(fmt: string, ...);
+
+frame main() ret int {
+    local path: String = Files.tempFile("bufio-");
+    local writer: BufferedWriter = BufferedWriter.create(path.data);
+    writer.writeLine("first");
+    writer.writeLine("second");
+    writer.close();
+    local reader: BufferedReader = BufferedReader.open(path.data);
+    loop {
+        local line: Option<String> = reader.readLine();
+        if (line.isNone()) {
+            break;
+        }
+        local text: String = line.unwrap();
+        printf("%s\n", text.cstr());
+        text.destroy();
+    }
+    reader.close();
+    Files.removeAll(path.data);
+    path.destroy();
+    return 0;
+}
+```

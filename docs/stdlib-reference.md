@@ -2,7 +2,7 @@
 
 Generated from parsed library declarations with `bun run docs:stdlib`. Do not edit by hand.
 
-This index covers all 91 BPL modules under `lib/`, including memory and low-level modules.
+This index covers all 93 BPL modules under `lib/`, including memory and low-level modules.
 It lists explicit exports and declarations defined in each source file. Re-exported symbols
 are listed under exports; their definitions are in the originating modules. Inherited members
 are not repeated. An exported type's declared members include implementation helpers and fields;
@@ -29,6 +29,7 @@ platform has been validated. C/POSIX extern declarations retain their native ABI
 - [std/binary.bpl](../lib/binary.bpl)
 - [std/bits.bpl](../lib/bits.bpl)
 - [std/bitset.bpl](../lib/bitset.bpl)
+- [std/bufio.bpl](../lib/bufio.bpl)
 - [std/c.bpl](../lib/c.bpl)
 - [std/c_runtime.bpl](../lib/c_runtime.bpl)
 - [std/char_utils.bpl](../lib/char_utils.bpl)
@@ -43,6 +44,7 @@ platform has been validated. C/POSIX extern declarations retain their native ABI
 - [std/entropy.bpl](../lib/entropy.bpl)
 - [std/env.bpl](../lib/env.bpl)
 - [std/errors.bpl](../lib/errors.bpl)
+- [std/files.bpl](../lib/files.bpl)
 - [std/fmt.bpl](../lib/fmt.bpl)
 - [std/fs.bpl](../lib/fs.bpl)
 - [std/graph.bpl](../lib/graph.bpl)
@@ -682,6 +684,65 @@ frame orWith(this: *BitSet, other: *BitSet)
 frame xorWith(this: *BitSet, other: *BitSet)
 frame equals(this: *BitSet, other: *BitSet) ret bool
 frame clone(this: *BitSet) ret BitSet
+```
+
+## std/bufio.bpl
+
+[Source](../lib/bufio.bpl)
+
+Exports:
+
+```bpl
+export [BufferedReader];
+export [BufferedWriter];
+```
+
+### BufferedReader
+
+```bpl
+struct BufferedReader
+fd: int
+stream: *void
+buffer: *u8
+start: int
+end: int
+eof: bool
+frame _make(fd: int, stream: *void) ret BufferedReader
+frame fromFd(fd: int) ret BufferedReader
+frame stdin() ret BufferedReader
+frame open(path: string) ret BufferedReader
+frame _fill(this: *BufferedReader) ret bool
+frame readByte(this: *BufferedReader) ret int
+frame peekByte(this: *BufferedReader) ret int
+frame readUntil(this: *BufferedReader, delimiter: u8) ret Option<String>
+frame readLine(this: *BufferedReader) ret Option<String>
+frame readBytes(this: *BufferedReader, data: *u8, length: int) ret int
+frame readAll(this: *BufferedReader) ret String
+frame close(this: *BufferedReader)
+```
+
+### BufferedWriter
+
+```bpl
+struct BufferedWriter
+fd: int
+stream: *void
+buffer: *u8
+length: int
+failed: bool
+frame _make(fd: int, stream: *void) ret BufferedWriter
+frame fromFd(fd: int) ret BufferedWriter
+frame stdout() ret BufferedWriter
+frame stderr() ret BufferedWriter
+frame create(path: string) ret BufferedWriter
+frame append(path: string) ret BufferedWriter
+frame flush(this: *BufferedWriter) ret bool
+frame writeBytes(this: *BufferedWriter, data: *u8, length: int) ret bool
+frame write(this: *BufferedWriter, text: string) ret bool
+frame writeLine(this: *BufferedWriter, text: string) ret bool
+frame writeByte(this: *BufferedWriter, value: u8) ret bool
+frame writeLong(this: *BufferedWriter, value: long) ret bool
+frame close(this: *BufferedWriter) ret bool
 ```
 
 ## std/c.bpl
@@ -1358,6 +1419,39 @@ struct DivisionByZeroError: Error
 
 ```bpl
 struct StackOverflowError: Error
+```
+
+## std/files.bpl
+
+[Source](../lib/files.bpl)
+
+Exports:
+
+```bpl
+export [Files];
+```
+
+### Files
+
+```bpl
+struct Files
+frame isFile(path: string) ret bool
+frame isDir(path: string) ret bool
+frame isSymlink(path: string) ret bool
+frame fileSize(path: string) ret long
+frame readLines(path: string) ret Array<String>
+frame writeLines(path: string, lines: *Array<String>) ret bool
+frame touch(path: string) ret bool
+frame walk(root: string) ret Array<String>
+frame _walkInto(directory: string, out: *Array<String>)
+frame _compare(a: string, b: string) ret int
+frame walkFiles(root: string) ret Array<String>
+frame removeAll(path: string) ret bool
+frame copyTree(source: string, target: string) ret bool
+frame tempFile(prefix: string) ret String
+frame tempDir(prefix: string) ret String
+frame cwd() ret String
+frame chdir(path: string) ret bool
 ```
 
 ## std/fmt.bpl
