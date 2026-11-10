@@ -201,4 +201,15 @@ box_qp.capped_w0 = 0.300000
 box_qp.capped_w2 = 0.100000
 == qql
 == store
-selftest: 648 passed, 0 failed
+== ledger
+ledger.sim_positions = 51
+== auction
+== exec_algos
+exec_algos.twap = -11.8093
+exec_algos.vwap = -13.8041
+exec_algos.pov = -29.2200
+== market_maker
+market_maker.maker_fills = 374
+market_maker.maker_pnl = -610.3890
+market_maker.maker_spread_bps = 4.0008
+selftest: 688 passed, 0 failed

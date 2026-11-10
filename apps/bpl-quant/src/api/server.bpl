@@ -20,6 +20,7 @@ import garchHandler, arimaHandler, stationarityHandler, kalmanHandler, pairHandl
 import lpHandler, constrainedPortfolioHandler from "./handlers_optim.bpl";
 import queryHandler, queryCsvHandler from "./handlers_query.bpl";
 import storeStatsHandler, storeFlushHandler, storeSaveBarsHandler, storeLoadBarsHandler, storeTradesHandler from "./handlers_store.bpl";
+import accountsHandler, accountHandler, auctionHandler, algoHandler, makerHandler from "./handlers_micro.bpl";
 import symbolsHandler, createSymbolHandler, submitOrderHandler, getOrderHandler, cancelOrderHandler, replaceOrderHandler, bookHandler, quoteHandler, tradesHandler, tradesCsvHandler, simulateHandler, engineStatsHandler, endOfDayHandler, validateBookHandler from "./handlers_market.bpl";
 
 export runServer;
@@ -249,6 +250,11 @@ frame registerRoutes() {
     route(HttpMethod.GET, "/store/trades", storeTradesHandler, "persisted trades from every worker (?symbol=&limit=)");
     route(HttpMethod.POST, "/store/bars/:symbol/save", storeSaveBarsHandler, "persist a symbol's bars");
     route(HttpMethod.POST, "/store/bars/:symbol/load", storeLoadBarsHandler, "replace a symbol's bars from the database");
+    route(HttpMethod.GET, "/accounts", accountsHandler, "per-account exposure and P&L from the trade tape (FIFO lots)");
+    route(HttpMethod.GET, "/accounts/:name", accountHandler, "positions of one account");
+    route(HttpMethod.POST, "/auction", auctionHandler, "uncross a call auction {reference, orders:[{side, price, qty}]}");
+    route(HttpMethod.GET, "/algo/:symbol", algoHandler, "TWAP/VWAP/POV execution on a scratch book (?kind=&qty=&slices=)");
+    route(HttpMethod.GET, "/maker/:symbol", makerHandler, "Avellaneda-Stoikov market maker simulation (?gamma=&sigma=&kappa=)");
     api_router.useNotFound(notFound);
 }
 
