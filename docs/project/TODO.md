@@ -111,7 +111,8 @@ all related enhancements or platform support are complete.
 - [x] Leveled logging in `lib/log.bpl`: a minimum level (also from
       `BPL_LOG_LEVEL`), level prefixes, UTC timestamps, and standard output or
       standard error.
-      Structured formatters and other output targets remain open.
+      Structured JSON-lines/logfmt output lives in the bundled `bpl-log`
+      package; other output targets (files with rotation, syslog) remain open.
 - [x] Explicit arena/page/pool/stack allocators in `lib/memory/`, including arena
       reset/reuse (`tests/StdlibArenaReset.test.ts`). Allocation remains manual;
       compiler-enforced regions and ownership are not implemented.
@@ -127,7 +128,8 @@ all related enhancements or platform support are complete.
 - [x] Bundled general-purpose packages: dynamic JSON values (`bpl-json`), JSON
       Schema 2020-12 subset validation (`bpl-json-schema`), HS256/HS512 JWTs
       (`bpl-jwt`), an LRU/TTL cache (`bpl-cache`), Prometheus metrics
-      (`bpl-metrics`) and safe Markdown rendering (`bpl-markdown`). Remote
+      (`bpl-metrics`), safe Markdown rendering (`bpl-markdown`) and structured
+      logging (`bpl-log`). Remote
       JSON Schema references, asymmetric JWT algorithms, reference-style
       Markdown links and cross-process caches remain open.
 - [x] Local package init/pack/install/list, manifest validation, cache checks,

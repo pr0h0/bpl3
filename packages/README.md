@@ -29,6 +29,7 @@ packages/package-name -o packages/package-name` before distributing them.
 | [bpl-cache](bpl-cache/README.md)                   | In-memory LRU cache with TTLs, byte budget and compute-on-miss      | None                                 |
 | [bpl-metrics](bpl-metrics/README.md)               | Prometheus counters, gauges and histograms for a /metrics route     | None                                 |
 | [bpl-markdown](bpl-markdown/README.md)             | Safe Markdown to HTML (CommonMark/GFM subset, escaped raw HTML)     | None                                 |
+| [bpl-log](bpl-log/README.md)                       | Structured JSON-lines/logfmt logging with context and redaction     | None                                 |
 
 Start with the [college task board](../examples/college_web/README.md). Handler
 signatures follow the familiar Express/Gin pattern: `frame handler(req:

@@ -1,0 +1,10 @@
+{
+  "name": "bpl-log",
+  "version": "0.1.0",
+  "description": "Structured JSON-lines and logfmt logging with context fields and redaction",
+  "main": "index.bpl",
+  "license": "MIT",
+  "dependencies": {
+    "bpl-json": "file:../bpl-json/bpl-json-0.1.0.tgz"
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "name": "bpl-log",
+  "version": "0.1.0",
+  "archiveFile": "bpl-log-0.1.0.tgz",
+  "archiveSha256": "682b78fac9f5e3186dcc58bd033eed5569428ee3ab8c899653c06eaf4d30fd13",
+  "packageHash": "6d71d1253adbb4a8e4edeea90bc16cd9609e463792a3e4054ecef20b7c90144c",
+  "sizeBytes": 5534,
+  "createdAt": "2026-11-10T12:57:34.300Z",
+  "manifest": {
+    "name": "bpl-log",
+    "version": "0.1.0",
+    "description": "Structured JSON-lines and logfmt logging with context fields and redaction",
+    "main": "index.bpl",
+    "license": "MIT",
+    "dependencies": {
+      "bpl-json": "file:../bpl-json/bpl-json-0.1.0.tgz"
+    }
+  }
+}
