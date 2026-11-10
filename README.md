@@ -933,7 +933,7 @@ The [`examples/`](examples/) directory contains 450+ working examples and regres
 - `recursive_algorithms/` - Recursion examples
 
 For a large program, see [`apps/bpl-quant`](apps/bpl-quant/README.md): a
-~31k-line market-data and analytics server (matching engine, indicators,
+~32k-line market-data and analytics server (matching engine, indicators,
 option pricing, risk, a strategy language and a SQL dialect behind a JSON API)
 with benchmarks and compile-time measurements.
 

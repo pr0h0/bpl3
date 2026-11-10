@@ -226,4 +226,15 @@ credit.merton_pd = 0.05295421
 credit.vasicek_999 = 0.079348
 == fx
 fx.gk_call = 0.02652012
-selftest: 728 passed, 0 failed
+== csv_reader
+== option_book
+option_book.book_value = 49.797230
+option_book.book_delta = 405.055964
+option_book.book_gamma = -44.146680
+option_book.book_vega = -1.565272
+option_book.worst_pnl = -180.803549
+option_book.worst_spot = -0.2000
+option_book.all_expired_pnl = 0.202770
+== sobol
+sobol.qmc_error = -0.00348799
+selftest: 754 passed, 0 failed

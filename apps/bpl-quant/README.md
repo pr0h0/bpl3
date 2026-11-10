@@ -3,8 +3,8 @@
 A market-data and analytics server written in BPL: an order-matching engine,
 a time-series store with technical indicators, option pricing, fixed income,
 portfolio risk, two small query/scripting languages and a JSON REST API with
-109 routes. It is a showcase and a stress test for the compiler: about 31,000
-lines of BPL in 92 modules, plus the bundled web packages.
+112 routes. It is a showcase and a stress test for the compiler: about 32,000
+lines of BPL in 96 modules, plus the bundled web packages.
 
 Everything numeric is deterministic: generators are seeded, and the self-test
 output is byte-identical at -O0 and -O2.
@@ -17,7 +17,7 @@ repository root:
 ```bash
 bun index.ts build apps/bpl-quant/src/main.bpl -O 2 --clang-flag=-l:libsqlite3.so.0 -o apps/bpl-quant/out/bpl-quant
 cd apps/bpl-quant
-./out/bpl-quant selftest                 # 728 deterministic checks, exit 1 on failure
+./out/bpl-quant selftest                 # 754 deterministic checks, exit 1 on failure
 ./out/bpl-quant bench 1                  # timed compute kernels
 ./out/bpl-quant serve 8080 4             # API on 127.0.0.1:8080 with 4 process workers
 ./out/bpl-quant loadgen 8080 8000 8 mixed

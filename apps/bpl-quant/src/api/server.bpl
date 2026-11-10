@@ -22,6 +22,7 @@ import queryHandler, queryCsvHandler from "./handlers_query.bpl";
 import storeStatsHandler, storeFlushHandler, storeSaveBarsHandler, storeLoadBarsHandler, storeTradesHandler from "./handlers_store.bpl";
 import accountsHandler, accountHandler, auctionHandler, algoHandler, makerHandler from "./handlers_micro.bpl";
 import pcaHandler, factorHandler, clusterHandler, directionHandler, bootstrapHandler, cdsHandler, mertonHandler, portfolioLossHandler, fxHandler from "./handlers_ml.bpl";
+import importBarsHandler, bookScenarioHandler, qmcHandler from "./handlers_scenario.bpl";
 import symbolsHandler, createSymbolHandler, submitOrderHandler, getOrderHandler, cancelOrderHandler, replaceOrderHandler, bookHandler, quoteHandler, tradesHandler, tradesCsvHandler, simulateHandler, engineStatsHandler, endOfDayHandler, validateBookHandler from "./handlers_market.bpl";
 
 export runServer;
@@ -265,6 +266,9 @@ frame registerRoutes() {
     route(HttpMethod.GET, "/credit/merton", mertonHandler, "Merton structural model (?equity=&equity_vol=&debt=)");
     route(HttpMethod.GET, "/credit/portfolio", portfolioLossHandler, "Vasicek one-factor portfolio loss quantiles (?pd=&rho=&lgd=)");
     route(HttpMethod.GET, "/fx", fxHandler, "FX forward and Garman-Kohlhagen options (?spot=&rd=&rf=&vol=)");
+    route(HttpMethod.POST, "/bars/:symbol/import", importBarsHandler, "replace bars from a CSV body (time, open, high, low, close[, volume])");
+    route(HttpMethod.POST, "/risk/book", bookScenarioHandler, "option book Greeks and spot/vol scenario grid {underlyings, positions}");
+    route(HttpMethod.GET, "/price/qmc", qmcHandler, "Sobol quasi-Monte Carlo European price (?points=)");
     api_router.useNotFound(notFound);
 }
 

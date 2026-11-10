@@ -21,6 +21,7 @@ import runSqlTests from "./selftest/sql_tests.bpl";
 import runStoreTests from "./selftest/store_tests.bpl";
 import runMicroTests from "./selftest/micro_tests.bpl";
 import runMlTests from "./selftest/ml_tests.bpl";
+import runScenarioTests from "./selftest/scenario_tests.bpl";
 import [Text] from "./core/text.bpl";
 import [Env] from "std/env.bpl";
 import runServer, defaultConfig from "./api/server.bpl";
@@ -52,6 +53,7 @@ frame runSelftest() ret int {
     runStoreTests(&c);
     runMicroTests(&c);
     runMlTests(&c);
+    runScenarioTests(&c);
     return c.summary() == 0 ? 0 : 1;
 }
 
