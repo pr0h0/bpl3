@@ -395,7 +395,10 @@ printf("%d", x); # Prints 10
   operand of a binary operator is evaluated before the right operand.
 - **[R-FN-7]** Functions may be overloaded by parameter count or types. Two
   declarations that differ only in their return type are rejected with
-  `BPL_SYMBOL_ALREADY_DEFINED`.
+  `BPL_SYMBOL_ALREADY_DEFINED`. An overloaded name used as a value means the
+  overload whose signature the destination declares: a typed local, an
+  assignment, a struct field, a return value, or an argument of a function
+  that is not itself overloaded (`local f: Func<string>(long) = describe;`).
 
 <!-- bpl-doc: run=spec-methods -->
 
@@ -431,6 +434,13 @@ frame main() ret int {
   applies to generic declarations, types, calls, literals and standalone generic
   references. `f<T>` is a generic reference; `a < b` uses comparison syntax.
   Whitespace and comments inside `<...>` and after its closing `>` are allowed.
+  A generic function used as a value needs explicit type arguments
+  (`local f: Func<int>(int) = twice<int>;`); the bare name is rejected with
+  `BPL_GENERIC_ARITY_MISMATCH`. A generic function that calls itself, directly
+  or through other generic functions, with a type argument built from its own
+  type parameter (`grow<Box<T>>` inside `grow<T>`) would need infinitely many
+  instantiations and is rejected with `BPL_TYPE_RECURSION_CYCLE`. Generic
+  methods are not covered by this check; the build stops them instead.
 - **[R-FN-9]** A constrained type parameter `<T: Spec>` accepts only types that
   implement `Spec`, whether the spec is listed directly, after a parent struct,
   or on a parent struct. Inside the function, the spec's methods are called on
@@ -542,7 +552,9 @@ arguments; tuple, callable, pointer and array types cannot be spec parents.
 - **[R-SPEC-4]** A `*Spec` value holds the data pointer and the implementation's
   method table, and calls through it dispatch dynamically. A pointer to an
   implementing struct converts to `*Spec` in arguments, local initializers and
-  assignments, local array elements, and explicit `cast<*Spec>`. The method
+  assignments, local array elements, array literals stored into a `*Spec` array
+  (`local items: *Shape[2] = [&circle, &square];`, whose elements need not
+  share one struct type), and explicit `cast<*Spec>`. The method
   table is built in the frame performing the conversion, so `*Spec` cannot be a
   return type, a global type, or a struct field type, also inside a tuple or as
   a generic argument (`ret (*Spec, int)`, `ret Box<*Spec>`); those are rejected
@@ -665,9 +677,10 @@ loop (;;) {
   On an integer subject a case value must fit the subject's type
   (`BPL_INTEGER_LITERAL_OVERFLOW`), and a character label is its code, so
   `case 'a':` and `case 97:` are duplicates. Duplicate case values are
-  rejected. Strings compare by content, and a null string matches no case.
+  rejected with `BPL_SWITCH_CASE_DUPLICATE`. Strings compare by content, and a null string matches no case.
 - **[R-CTRL-8]** Every `case` or `default` body, braced or not, must end with `break`,
-  `continue`, `return`, `throw`, or `fallthrough`. Control never falls into
+  `continue`, `return`, `throw`, or `fallthrough`
+  (`BPL_SWITCH_CASE_TERMINATOR_MISSING`). Control never falls into
   the next case implicitly; `fallthrough;` continues with the next case body,
   so the last body (`default`, or the last case without one) cannot use it
   (`BPL_FALLTHROUGH_OUTSIDE_SWITCH`).
@@ -939,7 +952,9 @@ import * as std from "std";
 - **[R-ASM-1]** `asm { ... }` or `asm("flavor") { ... }` embeds assembly in a
   function body. The flavors are `llvm` (the default), `raw` (an alias of
   `llvm`), `intel`, `x86` (an alias of `intel`), and `att`. Other flavors are
-  rejected.
+  rejected with `BPL_ASM_FLAVOR_UNKNOWN`. An operand naming no variable is
+  `BPL_SYMBOL_NOT_FOUND`, reported at the operand; editor rename and
+  references treat operands like other uses of the variable.
 - **[R-ASM-2]** In the `llvm` flavor, each non-empty line, optionally written
   as a quoted string, is emitted as an LLVM IR instruction. `(name)` is
   replaced by the storage pointer of a scalar local, by the value of a

@@ -42,6 +42,13 @@ function formatSymbolKind(kind: SymbolKind): string {
 
 export const SYMBOL_ALREADY_DEFINED_CODE = "BPL_SYMBOL_ALREADY_DEFINED";
 export const TYPE_RECURSION_CYCLE_CODE = "BPL_TYPE_RECURSION_CYCLE";
+export const UNUSED_VARIABLE_CODE = "BPL_UNUSED_VARIABLE";
+export const SWITCH_CASE_DUPLICATE_CODE = "BPL_SWITCH_CASE_DUPLICATE";
+export const SWITCH_CASE_TERMINATOR_MISSING_CODE =
+  "BPL_SWITCH_CASE_TERMINATOR_MISSING";
+export const ASM_FLAVOR_UNKNOWN_CODE = "BPL_ASM_FLAVOR_UNKNOWN";
+export const INCREMENT_OPERAND_TYPE_MISMATCH_CODE =
+  "BPL_INCREMENT_OPERAND_TYPE_MISMATCH";
 export const GENERIC_ARITY_MISMATCH_CODE = "BPL_GENERIC_ARITY_MISMATCH";
 export const TYPE_NOT_FOUND_CODE = "BPL_TYPE_NOT_FOUND";
 export const SPEC_POINTER_ESCAPES_CODE = "BPL_SPEC_POINTER_ESCAPES";
@@ -652,6 +659,59 @@ export abstract class TypeCheckerBase {
   public currentFunctionReturnType: AST.TypeNode | undefined;
   /** Value-producing match block returns, excluding independent lambda bodies. */
   public matchYieldValues = new WeakMap<AST.BlockStmt, AST.Expression[]>();
+  /** Element types for array literals stored into arrays of spec pointers. */
+  public specArrayLiteralTargets = new WeakMap<
+    AST.ArrayLiteralExpr,
+    AST.BasicTypeNode
+  >();
+
+  /** Generic function names that a call or `<...>` instantiates. */
+  public instantiatedGenericReferences = new WeakSet<AST.Expression>();
+  /** Declared function types for identifiers naming overloaded functions. */
+  public functionValueTargets = new WeakMap<
+    AST.IdentifierExpr,
+    AST.FunctionTypeNode | AST.LambdaTypeNode
+  >();
+
+  /**
+   * Before `value` is checked against a declared `target`, record what the
+   * target tells the value: an array literal converts each element to a
+   * `*Spec` element type, so its elements may point at different structs
+   * (R-SPEC-4), and an overloaded function name picks the overload whose
+   * signature the target names (R-FN-6).
+   */
+  public noteValueTarget(value: AST.Expression, target: AST.TypeNode): void {
+    while (value.kind === "Group") value = value.expression;
+    if (value.kind === "Identifier") {
+      const resolvedTarget = this.resolveType(target);
+      if (
+        resolvedTarget.kind === "FunctionType" ||
+        resolvedTarget.kind === "LambdaType"
+      )
+        this.functionValueTargets.set(value, resolvedTarget);
+      return;
+    }
+    if (value.kind !== "ArrayLiteral") return;
+    const resolved = this.resolveType(target);
+    if (
+      resolved.kind !== "BasicType" ||
+      resolved.arrayDimensions.length === 0 ||
+      (resolved.arrayDimensions[0] !== null &&
+        resolved.arrayDimensions[0] !== value.elements.length)
+    )
+      return;
+    const element: AST.BasicTypeNode = {
+      ...resolved,
+      arrayDimensions: resolved.arrayDimensions.slice(1),
+      location: value.location,
+    };
+    if (element.arrayDimensions.length > 0) {
+      for (const inner of value.elements) this.noteValueTarget(inner, element);
+      return;
+    }
+    if (this.isSpecPointerType(element))
+      this.specArrayLiteralTargets.set(value, element);
+  }
   public modules: Map<string, SymbolTable> = new Map();
   public skipImportResolution: boolean;
   public preLoadedModules: Map<string, AST.Program> = new Map();

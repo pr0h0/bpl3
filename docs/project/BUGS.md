@@ -1080,7 +1080,7 @@ spacing next to a removed import goes with it. `tests/LintFixImports.test.ts`.
 
 ### BUG-530: Some diagnostics have no error code
 
-**Status**: Open · **Priority**: P4
+**Status**: Fixed · **Priority**: P4
 
 No `BPL_*` code on: `++`/`--` on `bool`, pointer or string operands, `Unused
 variable`, `Duplicate case value`, the switch terminator errors, asm `Unknown
@@ -1088,6 +1088,8 @@ asm flavor` and `Undefined variable` (also reported at the `asm` keyword rather
 than the operand), `Module has no exported member` on namespace access, and
 `Circular dependency detected`. A new code also needs the CLI registry shim, CI
 triage patterns and the error-code documentation, so these are one change.
+
+**Resolution**: new codes `BPL_INCREMENT_OPERAND_TYPE_MISMATCH`, `BPL_UNUSED_VARIABLE`, `BPL_SWITCH_CASE_DUPLICATE`, `BPL_SWITCH_CASE_TERMINATOR_MISSING`, `BPL_ASM_FLAVOR_UNKNOWN` and `BPL_IMPORT_CYCLE`; an undefined asm operand is `BPL_SYMBOL_NOT_FOUND` at the operand, and a missing module member is `BPL_MEMBER_NOT_FOUND`. Like the other recent checker codes they are not part of the `--json` code inventory. tests/OpenAuditBugs.test.ts.
 
 ### BUG-531: `JSON` serialized `f32` fields as `null`
 
@@ -1215,19 +1217,23 @@ constraints, which the examples use, are documented in R-FN-9. `tests/Conformanc
 
 ### BUG-543: Array literals of spec pointers are rejected
 
-**Status**: Open · **Priority**: P3
+**Status**: Fixed · **Priority**: P3
 
 `local arr: *Drawable[2] = [&c, &s];` is `BPL_ARRAY_LITERAL_TYPE_MISMATCH`,
 though R-SPEC-4 allows the conversion for array elements; assigning the
 elements one by one works.
 
+**Resolution**: a declaration, assignment, struct field or single-candidate call argument whose type is an array of `*Spec` tells the array literal its element type before the literal is checked, so each element converts on its own. tests/OpenAuditBugs.test.ts.
+
 ### BUG-544: An overloaded function cannot be used as a value
 
-**Status**: Open · **Priority**: P3
+**Status**: Fixed · **Priority**: P3
 
 `local f: Func<string>(long) = ov;` with `ov(int)` and `ov(long)` takes the
 first overload and reports a type mismatch, instead of choosing the overload
 the expected type names.
+
+**Resolution**: the same destination hint picks the overload whose parameter and return types match exactly, for typed locals, assignments, struct fields, returns and arguments of a function that is not overloaded. tests/OpenAuditBugs.test.ts.
 
 ### BUG-545: A child struct could reuse an inherited member's name
 
@@ -1259,12 +1265,14 @@ literals evaluate left to right.
 
 ### BUG-548: Minor declaration diagnostics
 
-**Status**: Open · **Priority**: P4
+**Status**: Fixed · **Priority**: P4
 
 `local x;` and `global B;` report "Unexpected syntax" rather than
 `BPL_VARIABLE_TYPE_ANNOTATION_MISSING`; `frame ret(...)` gets no reserved-word
 message; `${f32Value}` reports a missing `toString` member; infinite generic
 recursion passes `bpl check` and fails only when building.
+
+**Resolution**: parser recovery reports `local x;` and `global B;` as `BPL_VARIABLE_TYPE_ANNOTATION_MISSING` at the name and a reserved word naming a declaration at the word; `f32` has a `Float32` primitive wrapper with `toString`, so `${value}` works; growing generic recursion is rejected by `bpl check` with `BPL_TYPE_RECURSION_CYCLE` (generic methods are not covered yet). tests/OpenAuditBugs.test.ts.
 
 ## Generated-program fuzzer findings (2026-10-29)
 
@@ -1591,13 +1599,15 @@ the first produced invalid IR.
 
 ### BUG-501: An uninstantiated generic function can be used as a value
 
-**Status**: Open · **Priority**: P4
+**Status**: Fixed · **Priority**: P4
 
 `frame h<U>(x: int) ret int { ... }` followed by
 `local f: Func<int>(int) = h;` passes the checker when `U` does not appear in
 the signature, and the build fails with an undefined function. Generic functions
 whose signature uses the parameter are already rejected. The fuzzer's call
 mutations avoid declarations to keep this from hiding other failures.
+
+**Resolution**: a generic function used as a value without type arguments is rejected with `BPL_GENERIC_ARITY_MISMATCH` (R-FN-8); `h<long>` is accepted and instantiated. Calls and `name<...>` instantiations are the only bare uses. tests/OpenAuditBugs.test.ts.
 
 ### BUG-502: A static method could use `this`
 
@@ -1731,10 +1741,12 @@ not implement it.
 
 ### BUG-516: Rename does not update operands in inline `asm`
 
-**Status**: Open · **Priority**: P4
+**Status**: Fixed · **Priority**: P4
 
 An `asm` block's text is one string in the AST, so `(a)` in `mov eax, (a)` is not
 seen by rename, which leaves the operand under the old name.
+
+**Resolution**: the parser records each operand as an identifier with its own location (`AsmBlockStmt.operands`), the checker binds it to the declaration, and rename and references visit it. vscode-ext/src/test/asmOperandRename.test.ts.
 
 ### BUG-512: An integer constant was accepted as a pointer or array
 
@@ -6114,7 +6126,7 @@ Locals of a `try` block were also left undestroyed when a throw inside the block
 
 **Resolution**: A throw now destroys the live `@[auto_destroy]` locals of its own frame before transferring control, from the innermost scope out to the nearest enclosing `try` in that frame, or to the function scope when the frame has no handler. Only locals declared before the throw are registered, so an uninitialized local is never destroyed, and a local moved into the thrown value is skipped. Covered by tests/RAIIAutoDestroy.test.ts (throw after acquiring, throw inside a `try`, moved throw, and a throw from a loop body) at O0/O3.
 
-**Remaining gap**: a frame between the throwing function and the handler that has no `try` of its own is skipped entirely by `longjmp`, so its locals are still not destroyed. Fixing that requires registering destructors in the runtime unwind list like `defer`, which currently allocates a node per entry. Destructor and `defer` ordering also differs on the throw path: destructors of the throwing frame run first, then the unwinder runs defer entries.
+**Remaining gap**: destructor and `defer` ordering differs in the frame that executes `throw`: its destructors run first, then the unwinder runs defer entries. The gap for frames between the thrower and the handler was closed on 2026-11-10 (see "Open: automatic destructors across throwing callees").
 
 ### BUG-352: Namespace-qualified types resolve to another module's type of the same name
 
@@ -8005,13 +8017,23 @@ The cost was documented in `docs/34-stdlib-algorithms.md`, so the weakness was k
   Callback exceptions must preserve their original value. Sanitizer validation
   is running for normal and exceptional parser paths.
 
-## Open: automatic destructors across throwing callees (2026-10-16)
+## Fixed: automatic destructors across throwing callees (2026-10-16)
 
 - The same parser reproduction still leaked when guarded solely by an
   @[auto_destroy] local: destructors are emitted on direct throw statements,
   but a throw in a callee unwinds past the caller without that static cleanup.
   Runtime defer runs across frames and is used for parser ownership. General
   automatic-destructor unwinding across function calls needs a compiler fix.
+- **Resolution (2026-11-10)**: each owning local now also pushes a node on the
+  runtime defer list. The node is a stack slot of its frame (a new fourth
+  `DeferNode` field marks it so the unwinder does not free it), and its
+  callback is a generated thunk that destroys the local in place, including
+  owned fields and array elements. Normal scope exits pop the node before the
+  static cleanup; a `throw` in the same frame destroys statically as before and
+  replaces the callback with a no-op, so nothing is destroyed twice and a local
+  moved into the thrown value is still skipped. The unused
+  `AddressExpressionGenerator.emitThrow` path, which also freed each defer
+  context a second time, was removed. Covered by tests/OpenAuditBugs.test.ts.
 
 ## Versioned portable package tree hashes (2026-10-16)
 

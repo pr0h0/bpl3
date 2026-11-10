@@ -227,6 +227,18 @@ export function checkCall(
 
     if (symbol && symbol.kind === "Function") {
       const candidates = [symbol, ...(symbol.overloads || [])];
+      // With one candidate, an array-literal argument may convert its
+      // elements to the parameter's spec-pointer element type.
+      const only = candidates.length === 1 ? symbol.type : undefined;
+      if (
+        only?.kind === "FunctionType" &&
+        !(symbol.declaration as AST.FunctionDecl | undefined)?.genericParams
+          ?.length
+      )
+        expr.args.forEach((arg, index) => {
+          const parameter = only.paramTypes[index];
+          if (parameter) this.noteValueTarget(arg, parameter);
+        });
       const argTypes = expr.args.map((arg) => this.checkExpression(arg));
 
       const match = this.resolveOverload(
@@ -302,6 +314,8 @@ export function checkCall(
   }
 
   if (expr.callee.kind === "Member") CALLEE_MEMBERS.add(expr.callee);
+  // A called generic function infers its type arguments from the call.
+  this.instantiatedGenericReferences.add(expr.callee);
   const calleeType = this.checkExpression(expr.callee);
   const argTypes = expr.args.map((arg) => this.checkExpression(arg));
 
@@ -884,6 +898,7 @@ export function checkMember(
         `Module has no exported member '${expr.property}'`,
         "Check the module's exports.",
         expr.location,
+        MEMBER_NOT_FOUND_CODE,
       );
     }
 

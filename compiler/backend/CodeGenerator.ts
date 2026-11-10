@@ -338,7 +338,7 @@ export class CodeGenerator extends StatementGenerator {
     // Exception Handling Primitives
     // Defer Node
     this.emitDeclaration(
-      `%struct.DeferNode = type { i8*, i8*, %struct.DeferNode* }`,
+      `%struct.DeferNode = type { i8*, i8*, %struct.DeferNode*, i64 }`,
     );
     this.emitDeclaration(
       `@defer_top = external ${runtimeStorage} %struct.DeferNode*`,
@@ -438,6 +438,7 @@ export class CodeGenerator extends StatementGenerator {
     do {
       while (
         this.pendingLambdas.length > 0 ||
+        this.pendingUnwindThunks.length > 0 ||
         this.pendingGenerations.length > 0
       ) {
         if (this.pendingGenerations.length > 0) {
@@ -458,6 +459,7 @@ export class CodeGenerator extends StatementGenerator {
           );
         }
         this.processPendingLambdas();
+        this.generatePendingUnwindThunks();
 
         // Process one batch of pending generations
         // We use a while loop here to process all currently pending generations

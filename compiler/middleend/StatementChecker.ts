@@ -17,6 +17,11 @@ import { CaptureAnalyzer } from "./CaptureAnalyzer";
 import { evaluateConstantInitializer } from "../common/ConstantInitializer";
 import {
   ASSIGNMENT_TARGET_CONSTANT_CODE,
+  SYMBOL_NOT_FOUND_CODE,
+  UNUSED_VARIABLE_CODE,
+  SWITCH_CASE_DUPLICATE_CODE,
+  SWITCH_CASE_TERMINATOR_MISSING_CODE,
+  ASM_FLAVOR_UNKNOWN_CODE,
   CAPTURED_VALUE_ASSIGNED_CODE,
   BREAK_OUTSIDE_CONTEXT_CODE,
   CONDITION_TYPE_MISMATCH_CODE,
@@ -668,6 +673,7 @@ export function checkBlock(
           `Unused variable '${symbol.name}'`,
           "Variable is declared but never used.",
           symbol.declaration.location,
+          UNUSED_VARIABLE_CODE,
         );
         if (this.collectAllErrors) {
           this.errors.push(error);
@@ -768,6 +774,7 @@ export function checkLoop(this: CheckerContext, stmt: AST.LoopStmt): void {
             `Unused variable '${symbol.name}'`,
             "Variable is declared but never used.",
             symbol.declaration.location,
+            UNUSED_VARIABLE_CODE,
           );
           if (this.collectAllErrors) {
             this.errors.push(error);
@@ -787,6 +794,7 @@ export function checkLoop(this: CheckerContext, stmt: AST.LoopStmt): void {
         `Unused variable '${symbol.name}'`,
         "Variable is declared but never used.",
         symbol.declaration.location,
+        UNUSED_VARIABLE_CODE,
       );
       if (this.collectAllErrors) {
         this.errors.push(error);
@@ -816,6 +824,12 @@ export function checkReturn(this: CheckerContext, stmt: AST.ReturnStmt): void {
     return;
   }
 
+  if (
+    stmt.value &&
+    this.currentFunctionReturnType &&
+    this.matchContext.length === 0
+  )
+    this.noteValueTarget(stmt.value, this.currentFunctionReturnType);
   let returnType = stmt.value
     ? this.checkExpression(stmt.value)
     : this.makeVoidType();
@@ -1195,6 +1209,7 @@ export function checkSwitch(this: CheckerContext, stmt: AST.SwitchStmt): void {
             `Duplicate case value '${writtenLabel ?? shownLabel}'`,
             "Switch cases must have unique values.",
             caseItem.value.location,
+            SWITCH_CASE_DUPLICATE_CODE,
           );
         }
         seenValues.add(valStr);
@@ -1207,6 +1222,7 @@ export function checkSwitch(this: CheckerContext, stmt: AST.SwitchStmt): void {
           "Switch case must end with a terminator",
           "Add 'break', 'return', 'throw', 'continue', or 'fallthrough' at the end of the case block.",
           caseItem.value.location,
+          SWITCH_CASE_TERMINATOR_MISSING_CODE,
         );
       }
     }
@@ -1218,6 +1234,7 @@ export function checkSwitch(this: CheckerContext, stmt: AST.SwitchStmt): void {
           "Default case must end with a terminator",
           "Add 'break', 'return', 'throw', or 'continue' at the end of the default block.",
           stmt.defaultCase.location,
+          SWITCH_CASE_TERMINATOR_MISSING_CODE,
         );
       }
     }
@@ -1512,6 +1529,7 @@ export function checkVariableDecl(
       this.matchContext.push({ expectedType: declaredType, inferredTypes: [] });
     }
     try {
+      if (declaredType) this.noteValueTarget(decl.initializer, declaredType);
       initType = this.checkExpression(decl.initializer);
       if (declaredType) {
         initType =
@@ -1817,6 +1835,7 @@ export function checkAsm(this: CheckerContext, stmt: AST.AsmBlockStmt): void {
       `Unknown asm flavor '${stmt.flavor}'`,
       'Use one of "llvm" (default), "raw", "intel", "x86", or "att".',
       stmt.location,
+      ASM_FLAVOR_UNKNOWN_CODE,
     );
   }
 
@@ -1824,16 +1843,23 @@ export function checkAsm(this: CheckerContext, stmt: AST.AsmBlockStmt): void {
   // (varName), (&varName), (=varName), and optional LLVM constraints.
   const regex = /\((=?)(&?)(\w+)(?::\s*"([^"]+)")?\)/g;
   let match;
+  let operandIndex = 0;
   while ((match = regex.exec(stmt.content)) !== null) {
     const varName = match[3]!;
+    const operand = stmt.operands?.[operandIndex++];
+    const operandLocation =
+      operand?.name === varName ? operand.location : stmt.location;
     const symbol = this.currentScope.resolve(varName);
     if (!symbol) {
       throw new CompilerError(
         `Undefined variable '${varName}' in asm block`,
         "Variables used in asm blocks must be defined in the current scope.",
-        stmt.location,
+        operandLocation,
+        SYMBOL_NOT_FOUND_CODE,
       );
     }
+    if (operand?.name === varName && symbol.declaration)
+      operand.resolvedDeclaration = symbol.declaration as any;
     const declaration = symbol.declaration as AST.VariableDecl;
     const isConst =
       symbol.isConst ||
@@ -1843,7 +1869,7 @@ export function checkAsm(this: CheckerContext, stmt: AST.AsmBlockStmt): void {
       throw new CompilerError(
         `Cannot assign to constant '${varName}'`,
         "Constants cannot be modified, including by an asm output operand.",
-        stmt.location,
+        operandLocation,
         ASSIGNMENT_TARGET_CONSTANT_CODE,
       );
     }

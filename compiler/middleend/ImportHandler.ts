@@ -18,6 +18,7 @@ import {
   IMPORT_STD_PATH_UNSAFE_HINT,
   isSafeStandardLibraryImportPath,
   ModuleResolver,
+  IMPORT_CYCLE_CODE,
 } from "./ModuleResolver";
 
 import {
@@ -309,6 +310,7 @@ export class ImportHandler {
           .join(" -> ")}`,
         "Refactor code to avoid circular imports.",
         location,
+        IMPORT_CYCLE_CODE,
       );
     }
 
@@ -442,6 +444,7 @@ export class ImportHandler {
         "UShort",
         "UInt",
         "ULong",
+        "Float32",
       ];
       for (const name of symbolsToExport) {
         const symbol = moduleScope.resolve(name);

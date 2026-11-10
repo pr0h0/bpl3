@@ -332,6 +332,39 @@ struct ULong {
     }
 }
 
+struct Float32: Comparable<Float32> {
+    value: f32,
+    frame toString(this: *Float32) ret String {
+        local buffer: char[64];
+        local buf: string = cast<string>(&buffer[0]);
+        local written: int = snprintf(buf, 64, "%f", cast<double>(this.value));
+        if ((written < 0) || (written >= 64)) {
+            throw "Primitive formatting failed";
+        }
+        return String.new(buf);
+    }
+
+    # Comparable implementation
+    frame __eq__(this: *Float32, other: *Float32) ret bool {
+        return this.value == other.value;
+    }
+    frame __ne__(this: *Float32, other: *Float32) ret bool {
+        return this.value != other.value;
+    }
+    frame __lt__(this: *Float32, other: *Float32) ret bool {
+        return this.value < other.value;
+    }
+    frame __gt__(this: *Float32, other: *Float32) ret bool {
+        return this.value > other.value;
+    }
+    frame __le__(this: *Float32, other: *Float32) ret bool {
+        return this.value <= other.value;
+    }
+    frame __ge__(this: *Float32, other: *Float32) ret bool {
+        return this.value >= other.value;
+    }
+}
+
 export [Int];
 export [Bool];
 export [Double];
@@ -342,3 +375,4 @@ export [Short];
 export [UShort];
 export [UInt];
 export [ULong];
+export [Float32];

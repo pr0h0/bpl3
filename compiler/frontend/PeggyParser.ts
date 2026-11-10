@@ -3,7 +3,7 @@ import type * as peggy from "peggy";
 import * as AST from "../common/AST";
 import { CompilerError, type SourceLocation } from "../common/CompilerError";
 import * as generatedParser from "./generated/BplParser.js";
-import { findReservedName } from "./ReservedWords";
+import { findReservedName, findUntypedVariable } from "./ReservedWords";
 import {
   isParserStackOverflow,
   syntaxDepthError,
@@ -138,7 +138,29 @@ function reservedNameError(
     (span.includes("{")
       ? findReservedName(source.slice(start, declarationEnd(source, start)))
       : undefined);
-  if (!found) return undefined;
+  if (!found) {
+    const untyped =
+      findUntypedVariable(span) ??
+      (span.includes("{")
+        ? findUntypedVariable(
+            source.slice(start, declarationEnd(source, start)),
+          )
+        : undefined);
+    if (!untyped) return undefined;
+    const at = positionOf(source, start + untyped.offset);
+    return new CompilerError(
+      `Missing type annotation for variable '${untyped.name}'`,
+      "Variables must have explicit type annotations. Add a type annotation like: local x: int = 1;",
+      {
+        file: location.file,
+        startLine: at.line,
+        startColumn: at.column,
+        endLine: at.line,
+        endColumn: at.column + untyped.name.length,
+      },
+      "BPL_VARIABLE_TYPE_ANNOTATION_MISSING",
+    );
+  }
   const from = positionOf(source, start + found.offset);
   return new CompilerError(
     `'${found.word}' is a reserved word and cannot be used as a name`,
