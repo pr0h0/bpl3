@@ -24,6 +24,7 @@ import accountsHandler, accountHandler, auctionHandler, algoHandler, makerHandle
 import pcaHandler, factorHandler, clusterHandler, directionHandler, bootstrapHandler, cdsHandler, mertonHandler, portfolioLossHandler, fxHandler from "./handlers_ml.bpl";
 import importBarsHandler, bookScenarioHandler, qmcHandler from "./handlers_scenario.bpl";
 import omsSubmitHandler, omsCancelHandler, omsReplaceHandler, omsOrdersHandler, omsPositionsHandler, omsBreachesHandler, omsGetLimitsHandler, omsSetLimitsHandler, omsKillHandler, omsReviveHandler, omsRestrictHandler, omsJournalHandler, omsSnapshotHandler, omsRecoverHandler, omsCompactHandler, omsStatsHandler from "./handlers_oms.bpl";
+import stressScenariosHandler, stressRunHandler, stressDemoHandler, brinsonHandler, linkHandler, rebalanceHandler, rebalanceSimulateHandler from "./handlers_portfolio.bpl";
 import fixParseHandler, fixOrderHandler, fixCancelHandler, fixLogHandler, feedReplayHandler, feedSampleHandler from "./handlers_proto.bpl";
 import symbolsHandler, createSymbolHandler, submitOrderHandler, getOrderHandler, cancelOrderHandler, replaceOrderHandler, bookHandler, quoteHandler, tradesHandler, tradesCsvHandler, simulateHandler, engineStatsHandler, endOfDayHandler, validateBookHandler from "./handlers_market.bpl";
 
@@ -298,6 +299,13 @@ frame registerOpsRoutes() {
     route(HttpMethod.POST, "/fix/cancel", fixCancelHandler, "send an OrderCancelRequest {orig_clordid, clordid}");
     route(HttpMethod.GET, "/fix/log", fixLogHandler, "FIX traffic of the desk session (?filter=&order=&offset=&limit=)");
     route(HttpMethod.GET, "/feed/replay", feedReplayHandler, "ITCH-style feed: publish, replay with packet loss, compare books (?events=&symbols=&drop_every=&packet_bytes=&seed=)");
+    route(HttpMethod.GET, "/stress/scenarios", stressScenariosHandler, "built-in historical stress scenarios");
+    route(HttpMethod.POST, "/stress/run", stressRunHandler, "stress a multi-asset book {underlyings, currencies, positions, scenario?, reverse_loss?} (?mc_paths=)");
+    route(HttpMethod.GET, "/stress/demo", stressDemoHandler, "stress a book of live symbols with a put and a bond ladder (?symbols=&mc_paths=)");
+    route(HttpMethod.POST, "/attribution/brinson", brinsonHandler, "Brinson-Fachler or BHB sector attribution {method, sectors:[{name, wp, wb, rp, rb}]}");
+    route(HttpMethod.POST, "/attribution/link", linkHandler, "Carino/Menchero multi-period linking {portfolio, benchmark, effects?, method}");
+    route(HttpMethod.POST, "/rebalance", rebalanceHandler, "whole-lot rebalance to targets with bands, min trade, turnover cap and costs");
+    route(HttpMethod.GET, "/rebalance/simulate", rebalanceSimulateHandler, "buy-and-hold vs calendar vs threshold rebalancing (?symbols=&weights=&period=&band=)");
     route(HttpMethod.GET, "/feed/sample", feedSampleHandler, "first packets of a generated feed, hex and decoded (?events=&packets=&seed=)");
 }
 

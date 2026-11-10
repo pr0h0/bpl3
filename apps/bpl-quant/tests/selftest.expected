@@ -272,4 +272,39 @@ journal.trades = 1514
 journal.torn_error = torn record
 journal.crc_error = CRC mismatch
 journal.snapshot_corrupt = snapshot CRC mismatch
-selftest: 893 passed, 0 failed
+== stress
+stress.book_value = 243094.3951
+stress.black_monday_1987 = -13720.86
+stress.lehman_2008 = -19926.75
+stress.covid_2020 = -17659.04
+stress.rates_2022 = -31596.10
+stress.taper_tantrum_2013 = -11904.82
+stress.dotcom_2000 = -20636.62
+stress.relief_rally = 12727.56
+stress.lehman_worst = SPX
+stress.lehman_equity = -25513.79
+stress.lehman_vol = 5307.12
+stress.lehman_credit = -3081.27
+stress.reverse_scale = 1.3423
+stress.mc_var99 = 11200.96
+stress.mc_es99 = 14326.89
+== brinson
+brinson.portfolio_return = 0.043050
+brinson.benchmark_return = 0.034000
+brinson.allocation = 0.003550
+brinson.selection = 0.002000
+brinson.interaction = 0.003500
+brinson.compounded_active = 0.00452382
+== rebalance
+rebalance.trade0 = 35
+rebalance.trade1 = 30
+rebalance.trade2 = 65
+rebalance.trade3 = -23
+rebalance.turnover = 0.249074
+rebalance.commission = 13.4500
+rebalance.monthly_rebalances = 23
+rebalance.threshold_rebalances = 7
+rebalance.monthly_turnover = 0.282197
+rebalance.threshold_turnover = 0.213799
+rebalance.buy_and_hold_return = 0.509182
+selftest: 937 passed, 0 failed
