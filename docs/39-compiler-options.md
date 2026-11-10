@@ -1379,6 +1379,7 @@ cores:
   memory is returned first. The compiler also collects garbage between its
   phases. On the same program, peak memory fell from about 1.1 GB (compiler
   and clang together) to about 650 MB (the compiler alone).
+  If the worker cannot start, the build compiles in process instead.
 
 | Variable                   | Effect                                                               |
 | -------------------------- | -------------------------------------------------------------------- |

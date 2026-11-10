@@ -1,4 +1,5 @@
 import { traceMemory } from "../compiler/common/MemoryTrace";
+import { isCompiledExecutable } from "../compiler/common/PathResolver";
 import type * as AST from "../compiler/common/AST";
 import { generateCExportHeader } from "../compiler/common/CExports";
 /**
@@ -251,7 +252,7 @@ function shouldCompileInWorker(
   options: CompileOptions,
 ): boolean {
   if (
-    typeof Worker === "undefined" ||
+    !workerConstructor() ||
     process.env.BPL_COMPILE_IN_PROCESS === "1" ||
     options.watch ||
     isVirtualSourceLabel(filePath) ||
@@ -300,6 +301,39 @@ function projectSourceBytesAtLeast(root: string, limit: number): boolean {
   return walk(root, 0);
 }
 
+/** The parts of a Bun Worker this file uses (no DOM types here). */
+interface CompileWorkerHandle {
+  postMessage(message: unknown): void;
+  terminate(): void;
+  addEventListener(
+    type: "message" | "error" | "close",
+    listener: (event: {
+      data?: unknown;
+      message?: string;
+      code?: number;
+    }) => void,
+  ): void;
+}
+
+type CompileWorkerConstructor = new (
+  specifier: string,
+  options?: { smol?: boolean },
+) => CompileWorkerHandle;
+
+function workerConstructor(): CompileWorkerConstructor | undefined {
+  return (globalThis as { Worker?: CompileWorkerConstructor }).Worker;
+}
+
+/**
+ * A compiled `bpl` bundles the worker as an entry point that is addressed
+ * by its path from the bundle root; from source it is a file beside this one.
+ */
+function compileWorkerSpecifier(): string {
+  return isCompiledExecutable()
+    ? "./cli/CompileWorker.ts"
+    : path.join(__dirname, "CompileWorker.ts");
+}
+
 interface CompileWorkerRequest {
   filePath: string;
   options: CompileOptions;
@@ -316,28 +350,27 @@ async function compileInWorker(
   options: CompileOptions,
   programArgs: string[] | undefined,
 ): Promise<DeferredBuild> {
-  const worker = new Worker(
-    new URL("./CompileWorker.ts", import.meta.url).href,
-    { smol: process.env.BPL_COMPILE_WORKER_SMOL === "1" } as WorkerOptions,
-  );
+  const WorkerClass = workerConstructor()!;
+  const worker = new WorkerClass(compileWorkerSpecifier());
   const outcome = await new Promise<
-    { build: DeferredBuild } | { exitCode: number }
+    { build: DeferredBuild } | { exitCode: number } | { failed: string }
   >((resolve) => {
     let settled = false;
-    worker.addEventListener("message", (event: MessageEvent) => {
+    worker.addEventListener("message", (event) => {
       settled = true;
       resolve({ build: (event.data as { build?: NativeBuildStep }).build });
     });
-    worker.addEventListener("error", (event: ErrorEvent) => {
+    // A worker that cannot start or throws outside the compile's own error
+    // handling falls back to compiling in this process.
+    worker.addEventListener("error", (event) => {
       if (settled) return;
       settled = true;
-      log.error(event.message || "Compilation worker failed");
-      resolve({ exitCode: 1 });
+      resolve({ failed: event.message || "Compilation worker failed" });
     });
-    worker.addEventListener("close", (event: Event) => {
+    worker.addEventListener("close", (event) => {
       if (settled) return;
       settled = true;
-      const code = (event as Event & { code?: number }).code;
+      const code = event.code;
       resolve({ exitCode: code === undefined || code === 0 ? 1 : code });
     });
     const request: CompileWorkerRequest = { filePath, options, programArgs };
@@ -345,6 +378,12 @@ async function compileInWorker(
   });
   worker.terminate();
   if ("exitCode" in outcome) process.exit(outcome.exitCode);
+  if ("failed" in outcome) {
+    if (options.verbose) {
+      log.warn(`Compiling in process: ${outcome.failed}`);
+    }
+    return compileFileForWorker({ filePath, options, programArgs });
+  }
   return outcome.build;
 }
 
