@@ -108,7 +108,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   method accessor benchmark went from 481 ms to 94 ms).
 - `bpl build` reports a parse error in an imported module at its own location
   instead of at the import (BUG-804).
-
+- Calling a lambda field inside a generic struct (BUG-600), a parameter named
+  `entry` (BUG-601), and a generic call whose type argument mentions a type
+  parameter named like the callee's own (`id<Wrap<T>>` inside `outer<T>`,
+  BUG-603) now compile correctly.
 - An `@[auto_destroy]` local is destroyed when a function it calls throws and
   a caller catches the exception. Each owning local registers a stack node on
   the runtime defer list, so this needs no allocation, and destructors in

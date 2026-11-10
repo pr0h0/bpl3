@@ -9,7 +9,7 @@ workarounds; library bugs record their fix.
 
 ### BUG-600: Calling a lambda field of a generic struct emits a call to a missing method
 
-**Status**: Open · **Priority**: P2
+**Status**: Fixed · **Priority**: P2
 
 Inside a generic struct, `this.step()` where `step` is a `Lambda` field is
 lowered as a method call `@Holder_i32_step`, which does not exist, so clang
@@ -30,15 +30,19 @@ frame main() ret int {
 
 **Workaround**: copy the field to a local first (`local f: Lambda<T>() = this.step; return f();`), as `Iter.next` in `lib/iter.bpl` does.
 
+**Resolution**: the field-call check resolves a generic receiver (`*Holder<T>`) to its instantiated layout name before looking for the field. tests/GenericCodegenFixes.test.ts.
+
 ### BUG-601: A parameter named `entry` produces invalid LLVM IR
 
-**Status**: Open · **Priority**: P2
+**Status**: Fixed · **Priority**: P2
 
 `frame f(entry: int) ret int { return entry; }` emits a value `%entry` and the
 function's `entry:` block, which clang rejects ("unable to create block named
 'entry'"). Other names that equal generated labels may collide as well.
 
 **Workaround**: `lib/thread.bpl` names its entry-point parameters `body`.
+
+**Resolution**: a parameter named `entry` gets the LLVM value `%param.entry`, so it no longer collides with the `entry:` block. Other generated labels carry a numeric suffix. tests/GenericCodegenFixes.test.ts.
 
 ### BUG-602: Methods returning a nested instantiation of their own struct recurse without end
 
@@ -69,9 +73,15 @@ frame main() ret int {
 **Workaround**: `iterEnumerate` and `iterChunks` in `lib/iter.bpl` are free
 functions instead of `Iter<T>` methods.
 
+**Analysis (2026-11-10)**: deferring the methods of generic instantiations is
+not enough, because every instantiation's vtable lists all of its methods, and
+the vtable references them. A fix needs method-table entries for unreferenced
+methods of instantiations without descendants to stay empty, with calls
+referencing their targets directly.
+
 ### BUG-603: Generic arguments that mention the caller's type parameter are substituted twice
 
-**Status**: Open · **Priority**: P1
+**Status**: Fixed · **Priority**: P1
 
 Inside a generic function with parameter `T`, calling another generic
 function whose own parameter is also named `T` with the argument `Wrap<T>`
@@ -98,6 +108,8 @@ frame main() ret int {
 
 **Workaround**: give the callee a type parameter name the callers do not use
 (`_iterLink<V>` in `lib/iter.bpl`).
+
+**Resolution**: for free and static generic calls, the call's type-argument map is applied to the callee's declared signature rather than to the checker's already-instantiated type, which substituted `T` a second time when the callee's parameter shared the caller's name. tests/GenericCodegenFixes.test.ts.
 
 ## bpl-quant application (2026-11-10)
 
