@@ -237,4 +237,26 @@ option_book.worst_spot = -0.2000
 option_book.all_expired_pnl = 0.202770
 == sobol
 sobol.qmc_error = -0.00348799
-selftest: 754 passed, 0 failed
+== wire
+wire.crc32_123456789 = 3421780262
+wire.hex = 78563412
+== fix_codec
+fix_codec.time = 20251110-16:00:00.123
+fix_codec.new_order = 8=FIX.4.4|9=97|35=D|49=CLIENT|56=EXCH|34=7|52=20251110-16:00:00.000|11=ord-1|55=ACME|54=1|38=100|40=2|44=101.25|10=116|
+fix_codec.bad_checksum_error = CheckSum mismatch
+fix_codec.bad_length_error = BodyLength mismatch
+fix_codec.unterminated_error = field not terminated
+== fix_session
+fix_session.logon = 8=FIX.4.4|9=65|35=A|49=CLIENT|56=EXCH|34=1|52=19700101-00:00:01.000|98=0|108=30|10=204|
+fix_session.timeout_reason = heartbeat timeout
+== fix_gateway
+fix_gateway.first_fill = 8=FIX.4.4|9=147|35=8|49=EXCH|56=CLIENT|34=3|52=19700101-00:00:02.000|37=3|11=c1|17=E2|150=F|39=1|55=ACME|54=1|38=400|44=101|151=100|14=300|6=100.5|31=100.5|32=300|10=218|
+== itch
+itch.packets = 1243
+itch.messages_total = 20622
+itch.bytes = 617772
+itch.adds = 7996
+itch.executions = 10761
+itch.deletes = 1860
+itch.dropped = 177
+selftest: 842 passed, 0 failed
