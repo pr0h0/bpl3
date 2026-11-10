@@ -10,7 +10,7 @@ target triple = "wasm32-unknown-unknown"
 %struct.Type = type { i8* }
 %struct._IO_FILE = type opaque
 %struct.Dl_info = type { i8*, i8*, i8*, i8* }
-%struct.DeferNode = type { i8*, i8*, %struct.DeferNode* }
+%struct.DeferNode = type { i8*, i8*, %struct.DeferNode*, i64 }
 %struct.ExceptionFrame = type { [32 x i64], %struct.ExceptionFrame*, %struct.DeferNode* }
 
 @__bpl_argc_value = weak global i32 0

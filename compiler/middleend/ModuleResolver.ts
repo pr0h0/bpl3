@@ -39,6 +39,7 @@ export const IMPORT_STD_PATH_UNSAFE_CODE = "BPL_IMPORT_STD_PATH_UNSAFE";
 export const IMPORT_STD_PATH_UNSAFE_HINT =
   "Use std/<path> or std\\<path> without empty, '.', or '..' path segments.";
 
+export const IMPORT_CYCLE_CODE = "BPL_IMPORT_CYCLE";
 export const MODULE_RESOLUTION_FAILURE_CODES = [
   MODULE_NOT_FOUND_CODE,
   MODULE_FILE_NOT_FOUND_CODE,
@@ -518,6 +519,7 @@ export class ModuleResolver {
           endLine: 0,
           endColumn: 0,
         },
+        IMPORT_CYCLE_CODE,
       );
     }
     visited.add(modulePath);
@@ -681,6 +683,7 @@ export class ModuleResolver {
             endLine: 1,
             endColumn: 1,
           },
+          IMPORT_CYCLE_CODE,
         );
       }
 

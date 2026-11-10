@@ -63,6 +63,7 @@ export const PRIMITIVE_STRUCT_MAP: Record<string, string> = {
   uint: "UInt",
   u64: "ULong",
   ulong: "ULong",
+  f32: "Float32",
 };
 
 /**

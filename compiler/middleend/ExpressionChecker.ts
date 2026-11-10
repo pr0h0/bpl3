@@ -32,6 +32,7 @@ import {
   ASSIGNMENT_TARGET_INVALID_CODE,
   ARITHMETIC_OPERAND_TYPE_MISMATCH_CODE,
   ARRAY_LITERAL_TYPE_MISMATCH_CODE,
+  INCREMENT_OPERAND_TYPE_MISMATCH_CODE,
   BINARY_OPERAND_TYPE_MISMATCH_CODE,
   BITWISE_OPERAND_TYPE_MISMATCH_CODE,
   BITWISE_NOT_OPERAND_TYPE_MISMATCH_CODE,
@@ -473,7 +474,44 @@ export function checkIdentifier(
   this: CheckerContext,
   expr: AST.IdentifierExpr,
 ): AST.TypeNode | undefined {
-  const symbol = this.currentScope.resolve(expr.name);
+  let symbol = this.currentScope.resolve(expr.name);
+  // An overloaded name used as a value means the overload whose signature
+  // the destination declares (R-FN-6).
+  const wanted = this.functionValueTargets.get(expr);
+  if (symbol?.kind === "Function" && symbol.overloads?.length && wanted) {
+    const chosen = [symbol, ...symbol.overloads].find((candidate) => {
+      if (candidate.type?.kind !== "FunctionType") return false;
+      const type = this.resolveType(candidate.type, false) as
+        AST.FunctionTypeNode | undefined;
+      return (
+        type?.kind === "FunctionType" &&
+        type.paramTypes.length === wanted.paramTypes.length &&
+        type.paramTypes.every((param, index) =>
+          this.areTypesExactMatch(param, wanted.paramTypes[index]!),
+        ) &&
+        this.areTypesExactMatch(type.returnType, wanted.returnType)
+      );
+    });
+    if (chosen) symbol = chosen;
+  }
+  const genericDeclaration =
+    symbol?.kind === "Function" && symbol.declaration?.kind === "FunctionDecl"
+      ? (symbol.declaration as AST.FunctionDecl)
+      : undefined;
+  if (
+    genericDeclaration?.genericParams?.length &&
+    !this.instantiatedGenericReferences.has(expr)
+  ) {
+    // Nothing would instantiate it, so there is no function to point at.
+    throw new CompilerError(
+      `Generic function '${expr.name}' needs type arguments to be used as a value`,
+      `Instantiate it explicitly, for example '${expr.name}<${genericDeclaration.genericParams
+        .map(() => "int")
+        .join(", ")}>'.`,
+      expr.location,
+      GENERIC_ARITY_MISMATCH_CODE,
+    );
+  }
   if (!symbol) {
     if (this.shouldSuppressUndefinedIdentifier(expr.name, expr.location)) {
       return undefined;
@@ -1176,6 +1214,7 @@ export function checkUnary(
         `Operator '${expr.operator.lexeme}' cannot be applied to type '${this.formatDiagnosticType(operandType)}'`,
         "Increment and decrement require an integer or floating-point operand. Use explicit arithmetic for pointers.",
         expr.location,
+        INCREMENT_OPERAND_TYPE_MISMATCH_CODE,
       );
     }
     this.checkIsMutable(operand);
@@ -1211,6 +1250,10 @@ export function checkArrayLiteral(
     );
   }
 
+  // A literal declared as an array of spec pointers converts each element
+  // (R-SPEC-4), so `[&circle, &square]` need not share one struct type.
+  const specElement = this.specArrayLiteralTargets.get(expr);
+
   const firstType = this.checkExpression(expr.elements[0]!);
   this.rejectOwningCopy(
     expr.elements[0]!,
@@ -1229,7 +1272,8 @@ export function checkArrayLiteral(
     if (
       firstType &&
       elemType &&
-      !this.areTypesCompatible(firstType, elemType)
+      !this.areTypesCompatible(firstType, elemType) &&
+      !(specElement && this.areTypesCompatible(specElement, elemType))
     ) {
       throw new CompilerError(
         `Array literal has inconsistent element types: ${this.formatDiagnosticType(
@@ -1240,6 +1284,20 @@ export function checkArrayLiteral(
         ARRAY_LITERAL_TYPE_MISMATCH_CODE,
       );
     }
+  }
+
+  if (
+    specElement &&
+    expr.elements.every(
+      (element) =>
+        element.resolvedType &&
+        this.areTypesCompatible(specElement, element.resolvedType),
+    )
+  ) {
+    return {
+      ...specElement,
+      arrayDimensions: [expr.elements.length, ...specElement.arrayDimensions],
+    };
   }
 
   if (
@@ -1396,6 +1454,7 @@ export function checkStructLiteral(
 
     const { type: memberType } = memberResult;
 
+    if (memberType) this.noteValueTarget(field.value, memberType);
     const valueType = this.checkExpression(field.value);
     this.rejectOwningCopy(
       field.value,

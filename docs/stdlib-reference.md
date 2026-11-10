@@ -2189,6 +2189,7 @@ export [Short];
 export [UShort];
 export [UInt];
 export [ULong];
+export [Float32];
 ```
 
 ### Int
@@ -2323,6 +2324,20 @@ frame leadingZeros(this: *ULong) ret ulong
 frame trailingZeros(this: *ULong) ret ulong
 frame byteSwap(this: *ULong) ret ulong
 frame reverseBits(this: *ULong) ret ulong
+```
+
+### Float32
+
+```bpl
+struct Float32: Comparable<Float32>
+value: f32
+frame toString(this: *Float32) ret String
+frame __eq__(this: *Float32, other: *Float32) ret bool
+frame __ne__(this: *Float32, other: *Float32) ret bool
+frame __lt__(this: *Float32, other: *Float32) ret bool
+frame __gt__(this: *Float32, other: *Float32) ret bool
+frame __le__(this: *Float32, other: *Float32) ret bool
+frame __ge__(this: *Float32, other: *Float32) ret bool
 ```
 
 ## std/priority_queue.bpl

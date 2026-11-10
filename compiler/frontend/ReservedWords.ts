@@ -58,6 +58,13 @@ const RESERVED_NAME = new RegExp(
   `(?:[(,|]\\s*(?:const\\s+)?|\\{\\s*(?!(?:default|case)\\b)|\\b(?:local|global)\\s+(?:const\\s+)?)(${WORDS})(?=\\s*(?::|=(?!=)))`,
 );
 
+// A reserved word naming a declaration: `frame ret(...)`, `struct if {`.
+const RESERVED_DECLARATION_NAME = new RegExp(
+  `\\b(?:frame|struct|spec|enum|type)\\s+(${WORDS})(?=\\s*[<({=:])`,
+);
+// A variable declared without a type: `local x;`, `global B = 1;`.
+const UNTYPED_VARIABLE =
+  /\b(?:local|global)\s+(?:const\s+)?([A-Za-z_]\w*)(?=\s*(?:;|=(?!=)))/;
 const ENUM_DECLARATION = /^\s*(?:export\s+)?enum\b/;
 const RESERVED_VARIANT = new RegExp(`[{,]\\s*(${WORDS})(?=\\s*[,({}])`);
 
@@ -113,10 +120,27 @@ export function findReservedName(
   // is followed by `,`, `(`, `{` or `}` is a variant name, not a statement.
   const match =
     RESERVED_NAME.exec(masked) ??
+    RESERVED_DECLARATION_NAME.exec(masked) ??
     (ENUM_DECLARATION.test(masked) ? RESERVED_VARIANT.exec(masked) : null);
   if (!match) return undefined;
   return {
     word: match[1]!,
+    offset: match.index + match[0].length - match[1]!.length,
+  };
+}
+
+/**
+ * The name, and its offset in `text`, of a variable declared without a type
+ * annotation in `text` (`local x;`), or undefined.
+ */
+export function findUntypedVariable(
+  text: string,
+): { name: string; offset: number } | undefined {
+  const masked = maskLiteralsAndComments(text);
+  const match = UNTYPED_VARIABLE.exec(masked);
+  if (!match || RESERVED_WORDS.includes(match[1]!)) return undefined;
+  return {
+    name: match[1]!,
     offset: match.index + match[0].length - match[1]!.length,
   };
 }

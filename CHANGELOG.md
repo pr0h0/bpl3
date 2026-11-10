@@ -72,6 +72,25 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Fixed
 
+- An `@[auto_destroy]` local is destroyed when a function it calls throws and
+  a caller catches the exception. Each owning local registers a stack node on
+  the runtime defer list, so this needs no allocation, and destructors in
+  intermediate frames interleave with their `defer` blocks.
+- `local items: *Shape[2] = [&circle, &square];` accepts elements of different
+  implementing structs (BUG-543), and an overloaded function used as a value
+  picks the overload the destination type names (BUG-544).
+- A bare generic function used as a value is `BPL_GENERIC_ARITY_MISMATCH`
+  instead of a link failure (BUG-501), and generic recursion with ever larger
+  type arguments is rejected by `bpl check` (`BPL_TYPE_RECURSION_CYCLE`).
+- `local x;` reports `BPL_VARIABLE_TYPE_ANNOTATION_MISSING`, `frame ret()`
+  reports the reserved word, and `${value}` works for `f32` through the new
+  `Float32` wrapper (BUG-548). Diagnostics that had no code now have one:
+  `BPL_INCREMENT_OPERAND_TYPE_MISMATCH`, `BPL_UNUSED_VARIABLE`,
+  `BPL_SWITCH_CASE_DUPLICATE`, `BPL_SWITCH_CASE_TERMINATOR_MISSING`,
+  `BPL_ASM_FLAVOR_UNKNOWN` and `BPL_IMPORT_CYCLE` (BUG-530).
+- Inline `asm` operands are found by rename and references, and an undefined
+  operand is reported where it is written (BUG-516).
+
 - Found by a language conformance audit (2026-11-10):
   - On an integer `switch`, a case value must fit the subject's type, and
     `case 'a':` duplicates `case 97:`; both used to pass `bpl check` and fail
