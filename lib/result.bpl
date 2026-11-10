@@ -70,6 +70,60 @@ enum Result<T, E> {
         };
     }
 
+    # `next(value)` for success, or the same error.
+    frame andThen<U>(this: Result<T, E>, next: Lambda<Result<U, E>>(T)) ret Result<U, E> {
+        return match (this) {
+            Result.Ok(val) => next(val),
+            Result.Err(err) => Result<U, E>.Err(err),
+        };
+    }
+
+    # The same success value, or `recover(error)`.
+    frame orElse<F>(this: Result<T, E>, recover: Lambda<Result<T, F>>(E)) ret Result<T, F> {
+        return match (this) {
+            Result.Ok(val) => Result<T, F>.Ok(val),
+            Result.Err(err) => recover(err),
+        };
+    }
+
+    # The success value, or `fallback(error)`.
+    frame unwrapOrElse(this: Result<T, E>, fallback: Lambda<T>(E)) ret T {
+        return match (this) {
+            Result.Ok(val) => val,
+            Result.Err(err) => fallback(err),
+        };
+    }
+
+    # `Some(error)` for an error, `None` for success.
+    frame err(this: Result<T, E>) ret Option<E> {
+        return match (this) {
+            Result.Ok(_) => Option<E>.None,
+            Result.Err(err) => Option<E>.Some(err),
+        };
+    }
+
+    frame isOkAnd(this: Result<T, E>, predicate: Lambda<bool>(T)) ret bool {
+        return match (this) {
+            Result.Ok(val) => predicate(val),
+            Result.Err(_) => false,
+        };
+    }
+
+    frame isErrAnd(this: Result<T, E>, predicate: Lambda<bool>(E)) ret bool {
+        return match (this) {
+            Result.Ok(_) => false,
+            Result.Err(err) => predicate(err),
+        };
+    }
+
+    # `transform(value)` for success, or `defaultValue`.
+    frame mapOr<U>(this: Result<T, E>, defaultValue: U, transform: Lambda<U>(T)) ret U {
+        return match (this) {
+            Result.Ok(val) => transform(val),
+            Result.Err(_) => defaultValue,
+        };
+    }
+
     frame unwrapErr(this: Result<T, E>) ret E {
         return match (this) {
             Result.Ok(_) => {

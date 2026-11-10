@@ -511,6 +511,15 @@ cover the common cases.
 - `res.map<U>(transform)` and `res.mapErr<F>(transform)` — transform the
   success value or the error, keeping the other side
 - `res.ok()` — `Some(value)` for success, `None` for an error
+- `opt.filter(predicate)`, `opt.or(other)`, `opt.orElse(fallback)`,
+  `opt.xor(other)`, `opt.isSomeAnd(predicate)`, `opt.isNoneOr(predicate)`,
+  `opt.mapOr<U>(default, transform)` and `opt.inspect(action)`; through a
+  pointer, `slot.take()` empties an option and `slot.replace(value)` stores a
+  new value, both returning the previous contents
+- `res.andThen<U>(next)` chains fallible steps, `res.orElse<F>(recover)` and
+  `res.unwrapOrElse(fallback)` handle errors, `res.err()` returns
+  `Some(error)`, and `res.isOkAnd`, `res.isErrAnd` and `res.mapOr<U>` test or
+  fold either side
 
 ```bpl
 import printf from "std/c.bpl";

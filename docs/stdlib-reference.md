@@ -2964,6 +2964,17 @@ frame unwrapOrElse(this: Option<T>, fallback: Lambda<T>()) ret T
 frame map<U>(this: Option<T>, transform: Lambda<U>(T)) ret Option<U>
 frame andThen<U>(this: Option<T>, next: Lambda<Option<U>>(T)) ret Option<U>
 frame unwrapOr(this: Option<T>, defaultValue: T) ret T
+frame filter(this: Option<T>, predicate: Lambda<bool>(T)) ret Option<T>
+frame filterValue(value: T, keep: bool) ret Option<T>
+frame or(this: Option<T>, other: Option<T>) ret Option<T>
+frame orElse(this: Option<T>, fallback: Lambda<Option<T>>()) ret Option<T>
+frame xor(this: Option<T>, other: Option<T>) ret Option<T>
+frame isSomeAnd(this: Option<T>, predicate: Lambda<bool>(T)) ret bool
+frame isNoneOr(this: Option<T>, predicate: Lambda<bool>(T)) ret bool
+frame mapOr<U>(this: Option<T>, defaultValue: U, transform: Lambda<U>(T)) ret U
+frame inspect(this: Option<T>, action: Lambda<void>(T)) ret Option<T>
+frame take(this: *Option<T>) ret Option<T>
+frame replace(this: *Option<T>, value: T) ret Option<T>
 frame __eq__(this: *Option<T>, other: *Option<T>) ret bool
 frame __ne__(this: *Option<T>, other: *Option<T>) ret bool
 frame clone(this: *Option<T>) ret Option<T>
@@ -3669,6 +3680,13 @@ frame map<U>(this: Result<T, E>, transform: Lambda<U>(T)) ret Result<U, E>
 frame mapErr<F>(this: Result<T, E>, transform: Lambda<F>(E)) ret Result<T, F>
 frame ok(this: Result<T, E>) ret Option<T>
 frame unwrapOr(this: Result<T, E>, defaultValue: T) ret T
+frame andThen<U>(this: Result<T, E>, next: Lambda<Result<U, E>>(T)) ret Result<U, E>
+frame orElse<F>(this: Result<T, E>, recover: Lambda<Result<T, F>>(E)) ret Result<T, F>
+frame unwrapOrElse(this: Result<T, E>, fallback: Lambda<T>(E)) ret T
+frame err(this: Result<T, E>) ret Option<E>
+frame isOkAnd(this: Result<T, E>, predicate: Lambda<bool>(T)) ret bool
+frame isErrAnd(this: Result<T, E>, predicate: Lambda<bool>(E)) ret bool
+frame mapOr<U>(this: Result<T, E>, defaultValue: U, transform: Lambda<U>(T)) ret U
 frame unwrapErr(this: Result<T, E>) ret E
 frame __eq__(this: *Result<T, E>, other: *Result<T, E>) ret bool
 frame __ne__(this: *Result<T, E>, other: *Result<T, E>) ret bool
