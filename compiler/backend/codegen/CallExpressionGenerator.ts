@@ -61,6 +61,13 @@ export abstract class CallExpressionGenerator extends BinaryExpressionGenerator 
     structType: AST.BasicTypeNode,
     specType: AST.BasicTypeNode,
   ): string;
+  protected abstract emitSpecFatPointer(
+    structPointer: string,
+    structPointerType: string,
+    structTypeNode: AST.BasicTypeNode,
+    specTypeNode: AST.BasicTypeNode,
+    specDecl: AST.SpecDecl,
+  ): string;
   protected abstract generateTupleLiteralForTarget(
     expr: AST.TupleLiteralExpr,
     targetTypeNode: AST.TupleTypeNode,
@@ -1596,47 +1603,15 @@ export abstract class CallExpressionGenerator extends BinaryExpressionGenerator 
               if (structDecl) {
                 // Generate fat pointer
                 const structType = { ...argType, pointerDepth: 0 };
-                const vtableName = this.getOrGenerateSpecVTable(
+                const srcVal = this.generateExpression(arg);
+                const pair = this.emitSpecFatPointer(
+                  srcVal,
+                  srcType,
                   structType,
                   targetTypeNode,
+                  specDecl,
                 );
-
-                // Allocate fat pointer on stack
-                const fatPtr = this.allocateStack(
-                  `fat_ptr_${this.labelCount++}`,
-                  "{ i8*, i8* }",
-                );
-
-                // Store data pointer (cast to i8*)
-                const dataPtrPtr = this.newRegister();
-                this.emit(
-                  `  ${dataPtrPtr} = getelementptr inbounds { i8*, i8* }, { i8*, i8* }* ${fatPtr}, i32 0, i32 0`,
-                );
-
-                const srcVal = this.generateExpression(arg); // This is the struct pointer
-                const srcVoidPtr = this.newRegister();
-                this.emit(
-                  `  ${srcVoidPtr} = bitcast ${srcType} ${srcVal} to i8*`,
-                );
-                this.emit(`  store i8* ${srcVoidPtr}, i8** ${dataPtrPtr}`);
-
-                // Store vtable pointer (cast to i8*)
-                const vtablePtrPtr = this.newRegister();
-                this.emit(
-                  `  ${vtablePtrPtr} = getelementptr inbounds { i8*, i8* }, { i8*, i8* }* ${fatPtr}, i32 0, i32 1`,
-                );
-
-                const vtableSize = this.getAllSpecMethods(specDecl).length;
-                const vtableType = `[${vtableSize} x i8*]`;
-                const vtableGlobal = `@${vtableName}`;
-
-                const vtableVoidPtr = this.newRegister();
-                this.emit(
-                  `  ${vtableVoidPtr} = bitcast ${vtableType}* ${vtableGlobal} to i8*`,
-                );
-                this.emit(`  store i8* ${vtableVoidPtr}, i8** ${vtablePtrPtr}`);
-
-                return `{ i8*, i8* }* ${fatPtr}`;
+                return `{ i8*, i8* } ${pair}`;
               }
             }
           }

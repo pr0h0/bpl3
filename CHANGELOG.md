@@ -8,6 +8,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Changed
 
+- **Breaking:** a `*Spec` holds its object pointer and method table by value
+  (16 bytes). It can be returned and stored in globals, struct fields, tuples
+  and generic containers; `BPL_SPEC_POINTER_ESCAPES` no longer exists. It
+  converts from `nullptr`, compares by object, converts to its first parent
+  spec, and supports `is`/`as` on the object's exact type (BUG-549, BUG-550).
+  It cannot be passed to `extern` functions.
+
 - **Breaking:** `\xHH` in a string literal is one raw byte, as in C and Go:
   `"\xF0"` is one byte, not the two-byte UTF-8 encoding of U+00F0, so strings
   can hold any byte sequence. `\uHHHH` still encodes the character as UTF-8.

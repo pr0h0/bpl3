@@ -124,7 +124,7 @@ export abstract class UnaryExpressionGenerator extends MatchExpressionGenerator 
   }
 
   /**
-   * Builds the `{ data, vtable }` value a spec-typed pointer holds. Every
+   * Builds the `{ data, vtable }` value a spec-typed pointer is. Every
    * conversion from a struct pointer to `*Spec` goes through here; a plain
    * bitcast would leave the vtable slot pointing at struct data.
    */
@@ -139,112 +139,24 @@ export abstract class UnaryExpressionGenerator extends MatchExpressionGenerator 
       structTypeNode,
       specTypeNode,
     );
-    const fatPtr = this.allocateStack(
-      `fat_ptr_${this.labelCount++}`,
-      "{ i8*, i8* }",
-    );
-
-    const dataPtrPtr = this.newRegister();
-    this.emit(
-      `  ${dataPtrPtr} = getelementptr inbounds { i8*, i8* }, { i8*, i8* }* ${fatPtr}, i32 0, i32 0`,
-    );
     const dataVoidPtr = this.newRegister();
     this.emit(
       `  ${dataVoidPtr} = bitcast ${structPointerType} ${structPointer} to i8*`,
-    );
-    this.emit(`  store i8* ${dataVoidPtr}, i8** ${dataPtrPtr}`);
-
-    const vtablePtrPtr = this.newRegister();
-    this.emit(
-      `  ${vtablePtrPtr} = getelementptr inbounds { i8*, i8* }, { i8*, i8* }* ${fatPtr}, i32 0, i32 1`,
     );
     const vtableType = `[${this.getAllSpecMethods(specDecl).length} x i8*]`;
     const vtableVoidPtr = this.newRegister();
     this.emit(
       `  ${vtableVoidPtr} = bitcast ${vtableType}* @${vtableName} to i8*`,
     );
-    this.emit(`  store i8* ${vtableVoidPtr}, i8** ${vtablePtrPtr}`);
-
-    return fatPtr;
-  }
-
-  /** The spec declaration a type node denotes, if it denotes one. */
-  /**
-   * Finds the declaration that implements a spec method for this struct,
-   * following the inheritance chain, and the mangled name of the struct that
-   * owns it. An inherited method's symbol belongs to the ancestor, not to the
-   * struct being converted.
-   */
-  protected findSpecMethodImplementation(
-    structDecl: AST.StructDecl,
-    structMangledName: string,
-    methodName: string,
-    bindings: Map<string, AST.TypeNode> = new Map(),
-  ):
-    | {
-        method: AST.FunctionDecl;
-        owner: string;
-        bindings: Map<string, AST.TypeNode>;
-      }
-    | undefined {
-    const declared = structDecl.members.find(
-      (member) =>
-        member.kind === "FunctionDecl" &&
-        (member as AST.FunctionDecl).name === methodName,
-    ) as AST.FunctionDecl | undefined;
-    if (declared) {
-      return { method: declared, owner: structMangledName, bindings };
-    }
-
-    for (const parent of structDecl.inheritanceList ?? []) {
-      if (parent.kind !== "BasicType") continue;
-      const parentDecl =
-        (parent.resolvedDeclaration as AST.StructDecl | undefined) ??
-        this.structMap.get(parent.name);
-      if (!parentDecl || parentDecl.kind !== "StructDecl") continue;
-
-      // The parent's own type parameters are bound to the arguments this
-      // child supplies, resolved through the bindings gathered so far, so a
-      // method inherited from `Base<T>` is emitted for the concrete `Base<int>`.
-      const parentArgs = (parent.genericArgs ?? []).map((arg) =>
-        bindings.size > 0 ? this.substituteType(arg, bindings) : arg,
-      );
-      const parentBindings = new Map<string, AST.TypeNode>();
-      (parentDecl.genericParams ?? []).forEach((param, index) => {
-        const arg = parentArgs[index];
-        if (arg) parentBindings.set(param.name, arg);
-      });
-
-      let parentMangled = parentDecl.name;
-      if (parentArgs.length > 0) {
-        const resolved = this.resolveMonomorphizedType(parentDecl, parentArgs);
-        parentMangled = resolved.startsWith("%struct.")
-          ? resolved.slice("%struct.".length)
-          : resolved;
-      }
-
-      const inherited = this.findSpecMethodImplementation(
-        parentDecl,
-        parentMangled,
-        methodName,
-        parentBindings,
-      );
-      if (inherited) return inherited;
-    }
-
-    return undefined;
-  }
-
-  protected getSpecDeclarationForType(
-    typeNode: AST.TypeNode,
-  ): AST.SpecDecl | undefined {
-    if (typeNode.kind !== "BasicType") return undefined;
-    const byName = this.specMap.get(typeNode.name);
-    if (byName) return byName;
-    if (typeNode.resolvedDeclaration?.kind === "SpecDecl") {
-      return typeNode.resolvedDeclaration as AST.SpecDecl;
-    }
-    return undefined;
+    const withData = this.newRegister();
+    this.emit(
+      `  ${withData} = insertvalue { i8*, i8* } undef, i8* ${dataVoidPtr}, 0`,
+    );
+    const pair = this.newRegister();
+    this.emit(
+      `  ${pair} = insertvalue { i8*, i8* } ${withData}, i8* ${vtableVoidPtr}, 1`,
+    );
+    return pair;
   }
 
   protected getAllSpecMethods(specDecl: AST.SpecDecl): AST.SpecMethod[] {
@@ -590,6 +502,41 @@ export abstract class UnaryExpressionGenerator extends MatchExpressionGenerator 
     ) {
       effectiveDest = (effectiveDest.resolvedDeclaration as AST.TypeAliasDecl)
         .type;
+    }
+
+    // `*Spec` is a `{ data, vtable }` pair. A null or untyped pointer becomes
+    // a pair without a method table, and converting a `*Spec` to a plain
+    // pointer takes its data pointer.
+    const specDest =
+      destType === "{ i8*, i8* }" && this.isSpecPointerType(effectiveDest);
+    const specSource =
+      srcType === "{ i8*, i8* }" && this.isSpecPointerType(effectiveSource);
+    if (specDest && srcType.endsWith("*") && !specSource) {
+      const isStructPointer =
+        effectiveSource.kind === "BasicType" &&
+        effectiveSource.pointerDepth === 1 &&
+        (this.structMap.has(effectiveSource.name) ||
+          effectiveSource.resolvedDeclaration?.kind === "StructDecl");
+      if (!isStructPointer) {
+        let data = val;
+        if (srcType !== "i8*") {
+          data = this.newRegister();
+          this.emit(`  ${data} = bitcast ${srcType} ${val} to i8*`);
+        }
+        const pair = this.newRegister();
+        this.emit(
+          `  ${pair} = insertvalue { i8*, i8* } zeroinitializer, i8* ${data}, 0`,
+        );
+        return pair;
+      }
+    }
+    if (specSource && destType.endsWith("*") && !specDest) {
+      const data = this.newRegister();
+      this.emit(`  ${data} = extractvalue { i8*, i8* } ${val}, 0`);
+      if (destType === "i8*") return data;
+      const cast = this.newRegister();
+      this.emit(`  ${cast} = bitcast i8* ${data} to ${destType}`);
+      return cast;
     }
 
     // Struct pointer to spec pointer: build the { data, vtable } value that

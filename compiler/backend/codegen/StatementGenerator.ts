@@ -1152,7 +1152,7 @@ export abstract class StatementGenerator extends AsmGenerator {
     parentStruct?: AST.StructDecl | AST.EnumDecl,
     captureInfo?: {
       name: string;
-      fields: { name: string; type: string; specPair?: boolean }[];
+      fields: { name: string; type: string }[];
       releaseOnEntry?: boolean;
     },
   ): AST.IfStmt | undefined {
@@ -3305,7 +3305,7 @@ export abstract class StatementGenerator extends AsmGenerator {
     parentStruct?: AST.StructDecl | AST.EnumDecl,
     captureInfo?: {
       name: string;
-      fields: { name: string; type: string; specPair?: boolean }[];
+      fields: { name: string; type: string }[];
       releaseOnEntry?: boolean;
     },
   ) {
@@ -3611,20 +3611,8 @@ export abstract class StatementGenerator extends AsmGenerator {
             `  ${val} = load ${field.type}, ${field.type}* ${fieldPtr}`,
           );
 
-          let alloca: string;
-          if (field.specPair) {
-            // The context holds the spec pointer's `{ data, vtable }` pair;
-            // the local points at a copy in this frame.
-            const pair = this.allocateStack(`${field.name}_pair`, field.type);
-            this.emit(`  store ${field.type} ${val}, ${field.type}* ${pair}`);
-            alloca = this.allocateStack(field.name, `${field.type}*`);
-            this.emit(
-              `  store ${field.type}* ${pair}, ${field.type}** ${alloca}`,
-            );
-          } else {
-            alloca = this.allocateStack(field.name, field.type);
-            this.emit(`  store ${field.type} ${val}, ${field.type}* ${alloca}`);
-          }
+          const alloca = this.allocateStack(field.name, field.type);
+          this.emit(`  store ${field.type} ${val}, ${field.type}* ${alloca}`);
 
           this.locals.add(field.name);
           this.localPointers.set(field.name, alloca);

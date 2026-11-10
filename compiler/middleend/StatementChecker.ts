@@ -1337,13 +1337,6 @@ export function checkVariableDecl(
   this: CheckerContext,
   decl: AST.VariableDecl,
 ): void {
-  if (decl.isGlobal && decl.typeAnnotation) {
-    this.rejectEscapingSpecPointer(
-      decl.typeAnnotation,
-      "a global variable type",
-      decl.location,
-    );
-  }
   if (Array.isArray(decl.name)) {
     // Destructuring - enforce explicit type annotations
     const targets = AST.flattenDestructuringPattern(decl.name);

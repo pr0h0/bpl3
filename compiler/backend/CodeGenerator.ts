@@ -1764,6 +1764,8 @@ export class CodeGenerator extends StatementGenerator {
         }
         init = this.formatGlobalConstant(value, type, decl);
       }
+      // `nullptr` for a `*Spec` global is a pair of null pointers.
+      if (init === "null" && !type.endsWith("*")) init = "zeroinitializer";
     } else if (
       type === "i64" ||
       type === "i32" ||
@@ -1837,7 +1839,7 @@ export class CodeGenerator extends StatementGenerator {
     let captureInfo:
       | {
           name: string;
-          fields: { name: string; type: string; specPair?: boolean }[];
+          fields: { name: string; type: string }[];
           releaseOnEntry?: boolean;
         }
       | undefined;
@@ -1853,12 +1855,9 @@ export class CodeGenerator extends StatementGenerator {
             : undefined) ||
             ("type" in decl ? decl.type : undefined) ||
             decl.resolvedType)!;
-          const specPair = this.isSpecPointerType(type);
-          const llvmType = this.resolveType(type);
           return {
             name: decl.name as string,
-            type: specPair ? llvmType.replace(/\*$/, "") : llvmType,
-            specPair,
+            type: this.resolveType(type),
           };
         }),
       };

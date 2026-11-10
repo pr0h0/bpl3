@@ -434,10 +434,12 @@ free(cast<*void>(p));
 ## Constructors and Destructors
 
 A pointer to a struct converts to a pointer to any spec it implements, and calls
-through that pointer dispatch to the struct's method. The method table is built
-where the conversion happens and lives in that frame, so a `*Spec` works as an
-argument, a local, or an element of a local array, but cannot be returned,
-stored in a global, or held in a struct field (`BPL_SPEC_POINTER_ESCAPES`).
+through that pointer dispatch to the struct's method. A `*Spec` holds the object
+pointer and the struct's method table by value, so it can be passed, returned,
+stored in globals, struct fields and arrays, and compared with `nullptr`, as
+long as the object it points at is still alive. `shape is Sq` and
+`shape as *Sq` check the object's exact type. A `*Spec` cannot be passed to an
+`extern` function; pass the struct pointer instead.
 
 ```bpl
 spec Shape { frame area(this: *Self) ret int; }
