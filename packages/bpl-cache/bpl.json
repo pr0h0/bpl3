@@ -1,0 +1,7 @@
+{
+  "name": "bpl-cache",
+  "version": "0.1.0",
+  "description": "In-memory LRU cache with per-entry TTL and a byte budget",
+  "main": "index.bpl",
+  "license": "MIT"
+}

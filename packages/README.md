@@ -26,6 +26,7 @@ packages/package-name -o packages/package-name` before distributing them.
 | [bpl-json](bpl-json/README.md)                     | Dynamic JSON values: strict parsing, editing, serialization         | None                                 |
 | [bpl-json-schema](bpl-json-schema/README.md)       | JSON Schema (2020-12 subset) validation with JSON Pointer errors    | None                                 |
 | [bpl-jwt](bpl-jwt/README.md)                       | HS256/HS512 JSON Web Tokens with pinned algorithms and claim checks | None                                 |
+| [bpl-cache](bpl-cache/README.md)                   | In-memory LRU cache with TTLs, byte budget and compute-on-miss      | None                                 |
 
 Start with the [college task board](../examples/college_web/README.md). Handler
 signatures follow the familiar Express/Gin pattern: `frame handler(req:
