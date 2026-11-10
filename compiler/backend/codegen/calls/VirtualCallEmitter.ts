@@ -4,6 +4,14 @@ import { PRIMITIVE_STRUCT_MAP } from "../../../middleend/BuiltinTypes";
 
 export interface VirtualCallHost {
   labelCount: number;
+  /**
+   * The constant vtable global of a struct that no struct inherits from, so
+   * its methods have one implementation and need not be read from the object.
+   */
+  staticVTableFor(
+    structName: string,
+    typeName?: string,
+  ): { global: string; type: string } | undefined;
   vtableLayouts: Map<string, string[]>;
   structMap: Map<string, AST.StructDecl>;
   generateExpression(expr: AST.Expression): string;
@@ -55,7 +63,17 @@ export function emitVirtualCall(
       structName,
     );
 
-  const methodVoidPtr = loadVTableMethod(host, objPtr, structType, methodIndex);
+  const staticVTable = host.staticVTableFor(
+    structName,
+    (memberExpr.object.resolvedType as AST.BasicTypeNode | undefined)?.name,
+  );
+  const methodVoidPtr = loadVTableMethod(
+    host,
+    objPtr,
+    structType,
+    methodIndex,
+    staticVTable,
+  );
 
   const {
     funcType: _funcType,
@@ -218,7 +236,20 @@ export function loadVTableMethod(
   objPtr: string,
   structType: string,
   methodIndex: number,
+  staticVTable?: { global: string; type: string },
 ): string {
+  // With no possible override the entry is read from the constant global,
+  // which LLVM folds to a direct (inlinable) call. The object's vtable word
+  // is not read, so storage from malloc works too (BUG-800, BUG-801).
+  if (staticVTable) {
+    const entry = host.newRegister();
+    host.emit(
+      `  ${entry} = getelementptr inbounds ${staticVTable.type}, ${staticVTable.type}* ${staticVTable.global}, i32 0, i32 ${methodIndex}`,
+    );
+    const method = host.newRegister();
+    host.emit(`  ${method} = load i8*, i8** ${entry}`);
+    return method;
+  }
   const vtablePtrPtr = host.newRegister();
   host.emit(
     `  ${vtablePtrPtr} = getelementptr ${structType.slice(

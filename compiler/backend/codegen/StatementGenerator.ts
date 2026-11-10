@@ -984,6 +984,18 @@ export abstract class StatementGenerator extends AsmGenerator {
     return this.ownsAutoDestroy(typeNode);
   }
 
+  /**
+   * From -O2 a trivial leaf function that only reads through pointers skips
+   * the stack-depth hooks, so accessors such as `return this.data[i];` can
+   * be inlined (BUG-801). A crash inside one then omits that innermost frame
+   * from the BPL stack trace; -O0 and -O1 keep it.
+   */
+  private optimizedPointerReadsElideStackHooks(): boolean {
+    return (
+      this.optimizationLevel >= 2 && this.canElideBoundedCallFreeStackHooks()
+    );
+  }
+
   private expressionBlocksStackHookElision(
     expr: AST.Expression | AST.TypeNode | undefined,
   ): boolean {
@@ -1010,7 +1022,8 @@ export abstract class StatementGenerator extends AsmGenerator {
         const unary = expr as AST.UnaryExpr;
         return (
           !!unary.operatorOverload ||
-          unary.operator.type === TokenType.Star ||
+          (unary.operator.type === TokenType.Star &&
+            !this.optimizedPointerReadsElideStackHooks()) ||
           this.expressionBlocksStackHookElision(unary.operand)
         );
       }
@@ -1020,11 +1033,23 @@ export abstract class StatementGenerator extends AsmGenerator {
         const objectType = member.object.resolvedType;
         return (
           objectType?.kind === "BasicType" &&
-          (objectType as AST.BasicTypeNode).pointerDepth > 0
+          (objectType as AST.BasicTypeNode).pointerDepth > 0 &&
+          !this.optimizedPointerReadsElideStackHooks()
         );
       }
       case "Index": {
-        return true;
+        // Indexing a raw pointer has no bounds check that could throw.
+        const index = expr as AST.IndexExpr;
+        const objectType = index.object.resolvedType;
+        return !(
+          this.optimizedPointerReadsElideStackHooks() &&
+          !index.operatorOverload &&
+          objectType?.kind === "BasicType" &&
+          objectType.pointerDepth > 0 &&
+          objectType.arrayDimensions.length === 0 &&
+          !this.expressionBlocksStackHookElision(index.object) &&
+          !this.expressionBlocksStackHookElision(index.index)
+        );
       }
       case "ArrayLiteral":
         return (expr as AST.ArrayLiteralExpr).elements.some((element) =>

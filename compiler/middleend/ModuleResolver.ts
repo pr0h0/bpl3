@@ -557,6 +557,18 @@ export class ModuleResolver {
           // Recursively load dependency
           this.loadModule(depPath, new Set(visited));
         } catch (error) {
+          // An error located inside another module (a parse or declaration
+          // error there) already says where it is; wrapping it would point
+          // at this import instead (BUG-804). Resolution failures, which
+          // have no position in that module, are reported at the import.
+          if (
+            error instanceof CompilerError &&
+            error.location?.file &&
+            error.location.file !== modulePath &&
+            error.location.startLine > 0
+          ) {
+            throw error;
+          }
           throw new CompilerError(
             `Failed to resolve import '${importStmt.source}': ${
               error instanceof Error ? error.message : String(error)

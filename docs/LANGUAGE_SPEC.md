@@ -484,7 +484,11 @@ frame identity<T>(val: T) ret T {
 - **[R-STRUCT-5]** A struct begins with a hidden vtable pointer when it
   declares methods, lists a parent struct or spec, or is the parent of another
   struct. Other structs have no hidden storage (`struct Plain { x: int, }` is 4
-  bytes).
+  bytes). A method call on a struct that no struct inherits from goes directly
+  to its one implementation and does not read the hidden pointer, so storage
+  from `malloc` works for such structs; a struct with descendants dispatches
+  through the pointer, which a struct literal, a declaration, or an `init`/`new`
+  method sets.
 - **[R-STRUCT-6]** A struct inherits from at most one parent struct, written
   first in the inheritance list: `struct Child : Parent, SpecA, SpecB`. Listing
   two parent structs, or a parent struct after a spec, is rejected.
