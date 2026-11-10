@@ -2,7 +2,7 @@
 
 Generated from parsed library declarations with `bun run docs:stdlib`. Do not edit by hand.
 
-This index covers all 84 BPL modules under `lib/`, including memory and low-level modules.
+This index covers all 90 BPL modules under `lib/`, including memory and low-level modules.
 It lists explicit exports and declarations defined in each source file. Re-exported symbols
 are listed under exports; their definitions are in the originating modules. Inherited members
 are not repeated. An exported type's declared members include implementation helpers and fields;
@@ -17,12 +17,14 @@ platform has been validated. C/POSIX extern declarations retain their native ABI
 ## Module index
 
 - [std/algorithm.bpl](../lib/algorithm.bpl)
+- [std/ansi.bpl](../lib/ansi.bpl)
 - [std/arg_parser.bpl](../lib/arg_parser.bpl)
 - [std/args.bpl](../lib/args.bpl)
 - [std/array.bpl](../lib/array.bpl)
 - [std/assert.bpl](../lib/assert.bpl)
 - [std/base32.bpl](../lib/base32.bpl)
 - [std/base64.bpl](../lib/base64.bpl)
+- [std/base85.bpl](../lib/base85.bpl)
 - [std/bigint.bpl](../lib/bigint.bpl)
 - [std/binary.bpl](../lib/binary.bpl)
 - [std/bits.bpl](../lib/bits.bpl)
@@ -32,6 +34,7 @@ platform has been validated. C/POSIX extern declarations retain their native ABI
 - [std/char_utils.bpl](../lib/char_utils.bpl)
 - [std/complex.bpl](../lib/complex.bpl)
 - [std/core_specs.bpl](../lib/core_specs.bpl)
+- [std/csv.bpl](../lib/csv.bpl)
 - [std/date.bpl](../lib/date.bpl)
 - [std/debug.bpl](../lib/debug.bpl)
 - [std/deque.bpl](../lib/deque.bpl)
@@ -45,6 +48,7 @@ platform has been validated. C/POSIX extern declarations retain their native ABI
 - [std/hash.bpl](../lib/hash.bpl)
 - [std/hex.bpl](../lib/hex.bpl)
 - [std/hmac.bpl](../lib/hmac.bpl)
+- [std/ini.bpl](../lib/ini.bpl)
 - [std/intrinsics.bpl](../lib/intrinsics.bpl)
 - [std/io.bpl](../lib/io.bpl)
 - [std/iter.bpl](../lib/iter.bpl)
@@ -77,6 +81,7 @@ platform has been validated. C/POSIX extern declarations retain their native ABI
 - [std/result.bpl](../lib/result.bpl)
 - [std/ring_buffer.bpl](../lib/ring_buffer.bpl)
 - [std/scope_stack.bpl](../lib/scope_stack.bpl)
+- [std/semver.bpl](../lib/semver.bpl)
 - [std/set.bpl](../lib/set.bpl)
 - [std/sha1.bpl](../lib/sha1.bpl)
 - [std/sha256.bpl](../lib/sha256.bpl)
@@ -89,6 +94,7 @@ platform has been validated. C/POSIX extern declarations retain their native ABI
 - [std/string_builder.bpl](../lib/string_builder.bpl)
 - [std/string_utils.bpl](../lib/string_utils.bpl)
 - [std/sync.bpl](../lib/sync.bpl)
+- [std/table.bpl](../lib/table.bpl)
 - [std/thread.bpl](../lib/thread.bpl)
 - [std/time.bpl](../lib/time.bpl)
 - [std/tree_map.bpl](../lib/tree_map.bpl)
@@ -146,6 +152,68 @@ frame rangeStep(start: int, end: int, step: int) ret Array<int>
 frame copy(src: *Array<int>, dest: *Array<int>)
 frame merge(a: *Array<int>, b: *Array<int>) ret Array<int>
 frame equals(a: *Array<int>, b: *Array<int>) ret bool
+```
+
+## std/ansi.bpl
+
+[Source](../lib/ansi.bpl)
+
+Exports:
+
+```bpl
+export [Ansi];
+```
+
+### Ansi
+
+```bpl
+struct Ansi
+frame reset() ret string
+frame bold() ret string
+frame dim() ret string
+frame italic() ret string
+frame underline() ret string
+frame blink() ret string
+frame inverse() ret string
+frame strikethrough() ret string
+frame black() ret string
+frame red() ret string
+frame green() ret string
+frame yellow() ret string
+frame blue() ret string
+frame magenta() ret string
+frame cyan() ret string
+frame white() ret string
+frame gray() ret string
+frame brightRed() ret string
+frame brightGreen() ret string
+frame brightYellow() ret string
+frame brightBlue() ret string
+frame brightMagenta() ret string
+frame brightCyan() ret string
+frame brightWhite() ret string
+frame bgBlack() ret string
+frame bgRed() ret string
+frame bgGreen() ret string
+frame bgYellow() ret string
+frame bgBlue() ret string
+frame bgMagenta() ret string
+frame bgCyan() ret string
+frame bgWhite() ret string
+frame clearScreen() ret string
+frame clearLine() ret string
+frame hideCursor() ret string
+frame showCursor() ret string
+frame color256(index: int) ret String
+frame background256(index: int) ret String
+frame rgb(red: int, green: int, blue: int) ret String
+frame backgroundRgb(red: int, green: int, blue: int) ret String
+frame moveTo(row: int, column: int) ret String
+frame paint(text: string, style: string) ret String
+frame paintIf(text: string, style: string, enabled: bool) ret String
+frame enabled() ret bool
+frame strip(text: string) ret String
+frame visibleWidth(text: string) ret int
 ```
 
 ## std/arg_parser.bpl
@@ -395,6 +463,31 @@ frame decodeUrl(input: string, output: *u8) ret int
 frame decodeUrlToString(input: string) ret string
 frame encodedLength(inputLen: int) ret int
 frame isValid(input: string) ret bool
+```
+
+## std/base85.bpl
+
+[Source](../lib/base85.bpl)
+
+Exports:
+
+```bpl
+export [Base85];
+```
+
+### Base85
+
+```bpl
+struct Base85
+frame encode(data: *u8, length: int) ret string
+frame encodeString(text: string) ret string
+frame scan(input: string, output: *u8, write: bool) ret int
+frame decode(input: string, output: *u8) ret int
+frame decodedLength(input: string) ret int
+frame decodeToString(input: string) ret string
+frame encodeZ85(data: *u8, length: int) ret string
+frame decodedLengthZ85(input: string) ret int
+frame decodeZ85(input: string, output: *u8) ret int
 ```
 
 ## std/bigint.bpl
@@ -847,6 +940,31 @@ frame destroy(this: *Self)
 ```bpl
 spec Cloneable<T>
 frame clone(this: *T) ret T
+```
+
+## std/csv.bpl
+
+[Source](../lib/csv.bpl)
+
+Exports:
+
+```bpl
+export [Csv];
+```
+
+### Csv
+
+```bpl
+struct Csv
+frame parse(text: string) ret Array<Array<String>>
+frame parseWith(text: string, delimiter: char) ret Array<Array<String>>
+frame _destroyRow(row: *Array<String>)
+frame destroyRows(rows: *Array<Array<String>>)
+frame needsQuoting(field: string, delimiter: char) ret bool
+frame appendField(out: *StringBuilder, field: string, delimiter: char)
+frame formatRow(fields: *Array<String>, delimiter: char) ret String
+frame formatStrings(fields: *Array<string>, delimiter: char) ret String
+frame format(rows: *Array<Array<String>>, delimiter: char) ret String
 ```
 
 ## std/date.bpl
@@ -1472,6 +1590,51 @@ frame new(key: *u8, keyLength: long) ret HmacSha1
 frame update(this: *HmacSha1, data: *u8, length: long)
 frame finish(this: *HmacSha1, mac: *u8)
 frame digest(key: *u8, keyLength: long, data: *u8, length: long, mac: *u8)
+```
+
+## std/ini.bpl
+
+[Source](../lib/ini.bpl)
+
+Exports:
+
+```bpl
+export [Ini];
+export [IniEntry];
+```
+
+### IniEntry
+
+```bpl
+struct IniEntry
+section: String
+key: String
+value: String
+```
+
+### Ini
+
+```bpl
+struct Ini
+entries: Array<IniEntry>
+sectionOrder: Array<String>
+frame new() ret Ini
+frame parse(text: string) ret Ini
+frame _noteSection(this: *Ini, section: string)
+frame _find(this: *Ini, section: string, key: string) ret int
+frame set(this: *Ini, section: string, key: string, value: string)
+frame get(this: *Ini, section: string, key: string) ret Option<string>
+frame getOr(this: *Ini, section: string, key: string, fallback: string) ret string
+frame has(this: *Ini, section: string, key: string) ret bool
+frame getInt(this: *Ini, section: string, key: string, fallback: long) ret long
+frame getBool(this: *Ini, section: string, key: string, fallback: bool) ret bool
+frame remove(this: *Ini, section: string, key: string) ret bool
+frame sections(this: *Ini) ret Array<string>
+frame keys(this: *Ini, section: string) ret Array<string>
+frame len(this: *Ini) ret int
+frame _appendSection(this: *Ini, out: *StringBuilder, section: string)
+frame toText(this: *Ini) ret String
+frame destroy(this: *Ini)
 ```
 
 ## std/intrinsics.bpl
@@ -3211,6 +3374,47 @@ frame lookup(this: *ScopeStack<T>, name: string) ret Option<T>
 frame isDefinedInCurrentScope(this: *ScopeStack<T>, name: string) ret bool
 ```
 
+## std/semver.bpl
+
+[Source](../lib/semver.bpl)
+
+Exports:
+
+```bpl
+export [SemVer];
+```
+
+### SemVer
+
+```bpl
+struct SemVer
+major: long
+minor: long
+patch: long
+prerelease: String
+build: String
+frame new(major: long, minor: long, patch: long) ret SemVer
+frame parse(text: string) ret Option<SemVer>
+frame isValid(text: string) ret bool
+frame destroy(this: *SemVer)
+frame isPrerelease(this: *SemVer) ret bool
+frame compare(this: *SemVer, other: *SemVer) ret int
+frame compareStrings(a: string, b: string) ret int
+frame toString(this: *SemVer) ret String
+frame bumpMajor(this: *SemVer) ret SemVer
+frame bumpMinor(this: *SemVer) ret SemVer
+frame bumpPatch(this: *SemVer) ret SemVer
+frame satisfies(this: *SemVer, range: string) ret bool
+frame satisfiesString(version: string, range: string) ret bool
+frame _satisfiesSet(this: *SemVer, range: string, start: long, end: long) ret bool
+frame _partial(range: string, start: long, end: long, parts: *long, prerelease: *String) ret int
+frame _compareParts(this: *SemVer, major: long, minor: long, patch: long, prerelease: string) ret int
+frame _sameTuple(this: *SemVer, parts: *long) ret bool
+frame _compareToken(this: *SemVer, range: string, start: long, end: long, operator: string, allowsPrerelease: *bool) ret bool
+frame _evaluate(this: *SemVer, op: string, parts: *long, given: int, pre: string) ret bool
+frame _hyphenHigh(this: *SemVer, range: string, start: long, end: long, allowsPrerelease: *bool) ret bool
+```
+
 ## std/set.bpl
 
 [Source](../lib/set.bpl)
@@ -3714,6 +3918,41 @@ frame trim(s: string) ret String
 frame replaceChar(s: string, target: char, repl: char) ret String
 frame findString(haystack: string, needle: string, start: int) ret int
 frame replace(s: string, oldStr: string, newStr: string) ret String
+frame contains(haystack: string, needle: string) ret bool
+frame indexOf(haystack: string, needle: string) ret int
+frame lastIndexOf(haystack: string, needle: string) ret int
+frame countOccurrences(haystack: string, needle: string) ret int
+frame compareIgnoreCase(a: string, b: string) ret int
+frame equalsIgnoreCase(a: string, b: string) ret bool
+frame isBlank(s: string) ret bool
+frame trimWhitespace(s: string) ret String
+frame trimStart(s: string) ret String
+frame trimEnd(s: string) ret String
+frame trimChars(s: string, chars: string) ret String
+frame removePrefix(s: string, prefix: string) ret String
+frame removeSuffix(s: string, suffix: string) ret String
+frame splitBy(s: string, separator: string) ret Array<String>
+frame splitWhitespace(s: string) ret Array<String>
+frame splitLines(s: string) ret Array<String>
+frame joinStrings(parts: *Array<String>, separator: string) ret String
+frame destroyAll(parts: *Array<String>)
+frame toLowerAscii(s: string) ret String
+frame toUpperAscii(s: string) ret String
+frame capitalize(s: string) ret String
+frame toTitleCase(s: string) ret String
+frame _words(s: string, separator: char, camel: bool, pascal: bool) ret String
+frame toSnakeCase(s: string) ret String
+frame toKebabCase(s: string) ret String
+frame toCamelCase(s: string) ret String
+frame toPascalCase(s: string) ret String
+frame padCenter(s: string, width: int, fill: char) ret String
+frame repeat(s: string, count: int) ret String
+frame truncate(s: string, width: int, ellipsis: string) ret String
+frame wordWrap(s: string, width: int) ret String
+frame editDistance(a: string, b: string) ret int
+frame commonPrefixLength(a: string, b: string) ret int
+frame escape(s: string) ret String
+frame unescape(s: string) ret String
 ```
 
 ## std/sync.bpl
@@ -3919,6 +4158,59 @@ frame capacity(this: *Channel<T>) ret int
 frame _push(this: *Channel<T>, value: T)
 frame _pop(this: *Channel<T>) ret T
 frame destroy(this: *Channel<T>)
+```
+
+## std/table.bpl
+
+[Source](../lib/table.bpl)
+
+Exports:
+
+```bpl
+export [Table];
+export TABLE_ALIGN_LEFT;
+export TABLE_ALIGN_RIGHT;
+export TABLE_ALIGN_CENTER;
+```
+
+```bpl
+global TABLE_ALIGN_LEFT: int = 0
+```
+
+```bpl
+global TABLE_ALIGN_RIGHT: int = 1
+```
+
+```bpl
+global TABLE_ALIGN_CENTER: int = 2
+```
+
+### Table
+
+```bpl
+struct Table
+header: Array<String>
+rows: Array<Array<String>>
+alignments: Array<int>
+padding: int
+frame new() ret Table
+frame setHeader(this: *Table, cells: *Array<string>)
+frame addRow(this: *Table, cells: *Array<string>)
+frame addStringRow(this: *Table, cells: *Array<String>)
+frame setAlignment(this: *Table, column: int, alignment: int)
+frame setPadding(this: *Table, padding: int)
+frame rowCount(this: *Table) ret int
+frame _columns(this: *Table) ret int
+frame _widths(this: *Table, columns: int) ret Array<int>
+frame _appendRepeated(out: *StringBuilder, text: string, count: int)
+frame _rule(this: *Table, out: *StringBuilder, widths: *Array<int>, fill: string, left: string, join: string, right: string)
+frame _row(this: *Table, out: *StringBuilder, cells: *Array<String>, widths: *Array<int>, style: *_TableStyle)
+frame _render(this: *Table, style: _TableStyle) ret String
+frame render(this: *Table) ret String
+frame renderAscii(this: *Table) ret String
+frame renderPlain(this: *Table) ret String
+frame _destroyCells(cells: *Array<String>)
+frame destroy(this: *Table)
 ```
 
 ## std/thread.bpl

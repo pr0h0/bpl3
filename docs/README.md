@@ -88,6 +88,7 @@ or historical results rather than guarantees about the current implementation.
 - [Threads and Synchronization](68-stdlib-concurrency.md) - Threads, atomics, locks and channels
 - [Lazy Iterators](69-stdlib-iterators.md) - Chainable `Iter<T>` adapters and consumers
 - [Hashing, Bits and Random](70-stdlib-hashing-bits-random.md) - Hashes, checksums, bit helpers and PRNGs
+- [Text Formats](71-stdlib-text-formats.md) - CSV, INI, semver, ANSI colours, tables and base85
 
 ### Advanced Topics
 

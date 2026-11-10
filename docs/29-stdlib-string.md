@@ -171,6 +171,36 @@ uses `String.new` and its allocation error.
 between the parts and returns a new C string the caller frees; a null part or
 separator counts as empty, and an empty array gives `""`.
 
+### More C-string helpers
+
+These `StringUtils` functions treat a null input as an empty string. Those
+returning `String` or `Array<String>` allocate; destroy the results
+(`StringUtils.destroyAll(&parts)` destroys an array of Strings and the array).
+
+| Function                                              | Result                                                              |
+| ----------------------------------------------------- | ------------------------------------------------------------------- |
+| `contains`, `indexOf`, `lastIndexOf`                  | Substring search (`""` matches at 0, or at the end for `last`)      |
+| `countOccurrences(text, needle)`                      | Non-overlapping matches of a non-empty needle                       |
+| `compareIgnoreCase`, `equalsIgnoreCase`               | ASCII case-insensitive comparison                                   |
+| `isBlank`                                             | Empty or only ASCII whitespace                                      |
+| `trimWhitespace`, `trimStart`, `trimEnd`              | Trim space, tab, CR, LF, VT and FF                                  |
+| `trimChars(text, chars)`                              | Trim any byte listed in `chars`                                     |
+| `removePrefix`, `removeSuffix`                        | Copy without the affix when present                                 |
+| `splitBy(text, separator)`                            | Split on a string, keeping empty fields                             |
+| `splitWhitespace`, `splitLines`                       | Split on whitespace runs, or on LF/CRLF/CR                          |
+| `joinStrings(&parts, separator)`                      | Join an `Array<String>`                                             |
+| `toLowerAscii`, `toUpperAscii`, `capitalize`          | ASCII case changes                                                  |
+| `toTitleCase`, `toSnakeCase`, `toKebabCase`           | Word-case conversions (`parseHTTPResponse` → `parse_http_response`) |
+| `toCamelCase`, `toPascalCase`                         | `hello_big-world` → `helloBigWorld` / `HelloBigWorld`               |
+| `padCenter(text, width, fill)`, `repeat(text, count)` | Centring (extra fill on the right) and repetition                   |
+| `truncate(text, width, ellipsis)`                     | At most `width` bytes, ending with `ellipsis` when cut              |
+| `wordWrap(text, width)`                               | Greedy wrap joined with `\n`; long words stay whole                 |
+| `editDistance`, `commonPrefixLength`                  | Levenshtein distance and shared prefix length in bytes              |
+| `escape`, `unescape`                                  | C-style escapes (`\n`, `\t`, `\r`, `\"`, `\\`, `\xHH`)              |
+
+Widths and lengths count bytes, not display columns. `unescape` throws on a
+malformed escape.
+
 ## StringBuilder appends
 
 Besides `append`, `appendChar`, `appendString` and `appendInt`, a
