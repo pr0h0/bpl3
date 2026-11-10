@@ -27,6 +27,7 @@ import omsSubmitHandler, omsCancelHandler, omsReplaceHandler, omsOrdersHandler, 
 import stressScenariosHandler, stressRunHandler, stressDemoHandler, brinsonHandler, linkHandler, rebalanceHandler, rebalanceSimulateHandler from "./handlers_portfolio.bpl";
 import columnarQueryHandler, columnarStatsHandler from "./handlers_columnar.bpl";
 import moreIndicatorHandler, moreIndicatorListHandler, performanceHandler, sampleTestsHandler from "./handlers_analytics.bpl";
+import scheduleHandler, impactHandler, shortfallHandler, surveillanceHandler from "./handlers_execution.bpl";
 import fixParseHandler, fixOrderHandler, fixCancelHandler, fixLogHandler, feedReplayHandler, feedSampleHandler from "./handlers_proto.bpl";
 import symbolsHandler, createSymbolHandler, submitOrderHandler, getOrderHandler, cancelOrderHandler, replaceOrderHandler, bookHandler, quoteHandler, tradesHandler, tradesCsvHandler, simulateHandler, engineStatsHandler, endOfDayHandler, validateBookHandler from "./handlers_market.bpl";
 
@@ -314,6 +315,10 @@ frame registerOpsRoutes() {
     route(HttpMethod.GET, "/indicators2/:symbol", moreIndicatorHandler, "zlema, alma, t3, tsi, kst, vortex, choppiness, supertrend, pivots, ... (?name=&period=&tail=&multiplier=)");
     route(HttpMethod.GET, "/stats/:symbol/performance", performanceHandler, "omega, calmar, kappa, probabilistic/deflated Sharpe, tail index, Cornish-Fisher VaR, normality tests, drawdown table");
     route(HttpMethod.POST, "/stats/tests", sampleTestsHandler, "two-sample KS, Mann-Whitney, Kendall tau and Anderson-Darling {a, b}");
+    route(HttpMethod.GET, "/tca/schedule", scheduleHandler, "Almgren-Chriss optimal liquidation and efficient frontier (?shares=&periods=&horizon=&sigma=&eta=&gamma=&epsilon=&lambda=)");
+    route(HttpMethod.GET, "/tca/impact", impactHandler, "square-root market impact (?qty=&adv=&daily_vol=&y=&minutes=)");
+    route(HttpMethod.POST, "/tca/shortfall", shortfallHandler, "implementation shortfall decomposition and benchmark slippage {side, target, decision, arrival, close, fills}");
+    route(HttpMethod.GET, "/oms/surveillance", surveillanceHandler, "spoofing, wash trades, order-to-trade, quote stuffing and marking-the-close alerts over the desk journal");
     route(HttpMethod.GET, "/feed/sample", feedSampleHandler, "first packets of a generated feed, hex and decoded (?events=&packets=&seed=)");
 }
 

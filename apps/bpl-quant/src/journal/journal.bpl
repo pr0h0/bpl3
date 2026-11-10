@@ -27,6 +27,7 @@ export [JournaledEngine];
 export [EngineSnapshot];
 export [RecoveryReport];
 export [JournalCodes];
+export [JournalEvent];
 
 global const REC_ADD_SYMBOL: int = 1;
 global const REC_SUBMIT: int = 2;
@@ -39,6 +40,18 @@ global const SNAPSHOT_MAGIC: long = 0x51534E50;
 global const SNAPSHOT_VERSION: int = 1;
 
 struct JournalCodes {
+    frame recSubmit() ret int {
+        return REC_SUBMIT;
+    }
+
+    frame recCancel() ret int {
+        return REC_CANCEL;
+    }
+
+    frame recReplace() ret int {
+        return REC_REPLACE;
+    }
+
     frame side(s: Side) ret int {
         return s == Side.Buy ? 0 : 1;
     }
@@ -268,6 +281,16 @@ struct Journal {
     }
 }
 
+struct JournalEvent {
+    record_type: int,
+    request: OrderRequest,
+    order_id: long,
+    price: long,
+    quantity: long,
+    report: ExecReport,
+    ok: bool,
+}
+
 struct RecoveryReport {
     snapshot_seq: long,
     replayed: long,
@@ -383,6 +406,19 @@ struct JournaledEngine {
 
     # Applies one decoded record to `e` without journaling it.
     frame apply(e: *Engine, record_type: int, r: *ByteReader) ret bool {
+        local ev: JournalEvent;
+        return JournaledEngine.applyEvent(e, record_type, r, &ev);
+    }
+
+    # Applies one record and describes it in `ev` (request, target order and
+    # the engine's report), for observers such as trade surveillance.
+    frame applyEvent(e: *Engine, record_type: int, r: *ByteReader, ev: *JournalEvent) ret bool {
+        ev.record_type = record_type;
+        ev.order_id = 0;
+        ev.price = 0;
+        ev.quantity = 0;
+        ev.report = Engine.emptyReport();
+        ev.ok = false;
         if (record_type == REC_ADD_SYMBOL) {
             local name: string = r.lstr(64);
             local ref: long = r.u64le();
@@ -428,7 +464,10 @@ struct JournaledEngine {
             }
             req.account = e.accountId(account);
             Text.release(account);
-            e.submit(&req);
+            ev.request = req;
+            ev.report = e.submit(&req);
+            ev.order_id = ev.report.order_id;
+            ev.ok = true;
             return true;
         }
         if (record_type == REC_CANCEL) {
@@ -436,7 +475,10 @@ struct JournaledEngine {
             if (!r.ok()) {
                 return false;
             }
-            e.cancel(id);
+            ev.order_id = id;
+            local o: *Order = e.findOrder(id);
+            ev.quantity = o == nullptr ? 0 : o.remaining;
+            ev.ok = e.cancel(id);
             return true;
         }
         if (record_type == REC_REPLACE) {
@@ -446,7 +488,11 @@ struct JournaledEngine {
             if (!r.ok()) {
                 return false;
             }
-            e.replace(id, price, qty);
+            ev.order_id = id;
+            ev.price = price;
+            ev.quantity = qty;
+            ev.report = e.replace(id, price, qty);
+            ev.ok = ev.report.status != OrderStatus.Rejected;
             return true;
         }
         if (record_type == REC_END_OF_DAY) {
@@ -457,6 +503,36 @@ struct JournaledEngine {
     }
 
     # Replays records with sequence > `after_seq` from `log` into `e`.
+    # Replays the whole log into `e`, calling `visit(seq, event)` after each
+    # record. Stops at the first invalid record; returns records applied.
+    frame walk(e: *Engine, log: *ByteBuf, visit: Lambda<void>(long, *JournalEvent)) ret long {
+        local pos: int = 0;
+        local applied: long = 0;
+        loop ((log.len - pos) >= 17) {
+            local lr: ByteReader = ByteReader.over(log.data + pos, 4);
+            local total: int = cast<int>(lr.u32le());
+            if ((total < 13) || ((log.len - pos - 4) < total)) {
+                break;
+            }
+            local body: *u8 = log.data + pos + 4;
+            local cr: ByteReader = ByteReader.over(body + (total - 4), 4);
+            if (Crc32.of(body, total - 4) != cr.u32le()) {
+                break;
+            }
+            local r: ByteReader = ByteReader.over(body, total - 4);
+            local record_type: int = r.u8();
+            local seq: long = r.u64le();
+            local ev: JournalEvent;
+            if (!JournaledEngine.applyEvent(e, record_type, &r, &ev)) {
+                break;
+            }
+            visit(seq, &ev);
+            applied = applied + 1;
+            pos = pos + 4 + total;
+        }
+        return applied;
+    }
+
     frame replay(e: *Engine, log: *ByteBuf, after_seq: long, report: *RecoveryReport) {
         local pos: int = 0;
         report.replayed = 0;

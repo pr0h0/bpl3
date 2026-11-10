@@ -358,4 +358,20 @@ stats2.hill_alpha = 3.2066
 stats2.cornish_fisher = 1.773650
 stats2.cf_var_normal_sample = 0.022159
 stats2.nw_slope = 1.864496
-selftest: 1035 passed, 0 failed
+== almgren_chriss
+almgren_chriss.twap_cost = 662500.00
+almgren_chriss.kappa = 0.607076
+almgren_chriss.first_trade = 458044.45
+almgren_chriss.sqrt_impact_bps = 50.5964
+== tca
+tca.total_bps = 25.4000
+tca.avg_price = 100.1875
+tca.vs_arrival_bps = 13.7431
+tca.vs_vwap_bps = -6.2344
+== surveillance
+surveillance.spoofing = spoofer
+surveillance.wash_trade = fund:beta
+surveillance.order_to_trade = hft
+surveillance.quote_stuffing = hft
+surveillance.marking_close = closer
+selftest: 1060 passed, 0 failed

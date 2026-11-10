@@ -27,6 +27,7 @@ import runOpsTests from "./selftest/ops_tests.bpl";
 import runPortfolioTests from "./selftest/portfolio_tests.bpl";
 import runDataTests from "./selftest/data_tests.bpl";
 import runAnalyticsTests from "./selftest/analytics_tests.bpl";
+import runExecutionTests from "./selftest/execution_tests.bpl";
 import [Text] from "./core/text.bpl";
 import [Env] from "std/env.bpl";
 import runServer, defaultConfig from "./api/server.bpl";
@@ -64,6 +65,7 @@ frame runSelftest() ret int {
     runPortfolioTests(&c);
     runDataTests(&c);
     runAnalyticsTests(&c);
+    runExecutionTests(&c);
     return c.summary() == 0 ? 0 : 1;
 }
 
