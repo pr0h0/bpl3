@@ -212,4 +212,18 @@ exec_algos.pov = -29.2200
 market_maker.maker_fills = 374
 market_maker.maker_pnl = -610.3890
 market_maker.maker_spread_bps = 4.0008
-selftest: 688 passed, 0 failed
+== pca
+== ols
+ols.f_stat = 6976.50
+== kmeans
+== logistic
+logistic.log_likelihood = -1469.133
+== bootstrap_kde
+== credit
+credit.risky_annuity = 4.407411
+credit.pd_5y = 0.089713
+credit.merton_pd = 0.05295421
+credit.vasicek_999 = 0.079348
+== fx
+fx.gk_call = 0.02652012
+selftest: 728 passed, 0 failed

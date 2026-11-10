@@ -20,6 +20,7 @@ import runOptimTests from "./selftest/optim_tests.bpl";
 import runSqlTests from "./selftest/sql_tests.bpl";
 import runStoreTests from "./selftest/store_tests.bpl";
 import runMicroTests from "./selftest/micro_tests.bpl";
+import runMlTests from "./selftest/ml_tests.bpl";
 import [Text] from "./core/text.bpl";
 import [Env] from "std/env.bpl";
 import runServer, defaultConfig from "./api/server.bpl";
@@ -50,6 +51,7 @@ frame runSelftest() ret int {
     runSqlTests(&c);
     runStoreTests(&c);
     runMicroTests(&c);
+    runMlTests(&c);
     return c.summary() == 0 ? 0 : 1;
 }
 

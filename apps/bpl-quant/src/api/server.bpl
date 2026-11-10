@@ -21,6 +21,7 @@ import lpHandler, constrainedPortfolioHandler from "./handlers_optim.bpl";
 import queryHandler, queryCsvHandler from "./handlers_query.bpl";
 import storeStatsHandler, storeFlushHandler, storeSaveBarsHandler, storeLoadBarsHandler, storeTradesHandler from "./handlers_store.bpl";
 import accountsHandler, accountHandler, auctionHandler, algoHandler, makerHandler from "./handlers_micro.bpl";
+import pcaHandler, factorHandler, clusterHandler, directionHandler, bootstrapHandler, cdsHandler, mertonHandler, portfolioLossHandler, fxHandler from "./handlers_ml.bpl";
 import symbolsHandler, createSymbolHandler, submitOrderHandler, getOrderHandler, cancelOrderHandler, replaceOrderHandler, bookHandler, quoteHandler, tradesHandler, tradesCsvHandler, simulateHandler, engineStatsHandler, endOfDayHandler, validateBookHandler from "./handlers_market.bpl";
 
 export runServer;
@@ -255,6 +256,15 @@ frame registerRoutes() {
     route(HttpMethod.POST, "/auction", auctionHandler, "uncross a call auction {reference, orders:[{side, price, qty}]}");
     route(HttpMethod.GET, "/algo/:symbol", algoHandler, "TWAP/VWAP/POV execution on a scratch book (?kind=&qty=&slices=)");
     route(HttpMethod.GET, "/maker/:symbol", makerHandler, "Avellaneda-Stoikov market maker simulation (?gamma=&sigma=&kappa=)");
+    route(HttpMethod.GET, "/ml/pca", pcaHandler, "principal components of returns (?symbols=)");
+    route(HttpMethod.GET, "/ml/factors", factorHandler, "time-series factor regression (?target=&factors=A,B)");
+    route(HttpMethod.GET, "/ml/clusters", clusterHandler, "k-means on return/volatility (?symbols=&k=)");
+    route(HttpMethod.GET, "/ml/:symbol/direction", directionHandler, "logistic model of next-bar direction (?lags=)");
+    route(HttpMethod.GET, "/ml/:symbol/bootstrap", bootstrapHandler, "bootstrap CI and KDE of returns (?statistic=&resamples=)");
+    route(HttpMethod.POST, "/credit/cds", cdsHandler, "bootstrap hazards from CDS spreads and value a contract");
+    route(HttpMethod.GET, "/credit/merton", mertonHandler, "Merton structural model (?equity=&equity_vol=&debt=)");
+    route(HttpMethod.GET, "/credit/portfolio", portfolioLossHandler, "Vasicek one-factor portfolio loss quantiles (?pd=&rho=&lgd=)");
+    route(HttpMethod.GET, "/fx", fxHandler, "FX forward and Garman-Kohlhagen options (?spot=&rd=&rf=&vol=)");
     api_router.useNotFound(notFound);
 }
 
