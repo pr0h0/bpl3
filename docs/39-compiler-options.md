@@ -1359,6 +1359,35 @@ execution to fail instead of hanging indefinitely. When unset, both commands
 preserve normal unbounded execution. `BPL_RUN_TIMEOUT_MS` invalid values fall
 back to running without a timeout.
 
+## Large Builds
+
+A native build of a large program is arranged to use less memory and all
+cores:
+
+- **Parallel code generation.** When the LLVM IR of a native build is at least
+  4 MB, it is split into one part per core (at most 8, about 2 MB each).
+  Clang compiles the parts in parallel and the linker joins them. Small
+  functions that a part calls are copied into it as internal functions, so
+  they can still be inlined; functions whose address is taken are never
+  copied, so function pointers compare as usual. Builds with `--dwarf`,
+  `--shared`, a WebAssembly target or LTO flags are compiled as one module.
+  On a 48,000-line program with four cores, this cut the `-O2` clang phase from
+  about 70 s to about 20 s; the executable was 3.2 MB instead of 2.9 MB.
+- **A separate heap for the compile phase.** A project with at least 256 KB
+  of `.bpl` sources under the entry file's directory is parsed, checked and
+  lowered to IR in a worker that ends before clang starts, so the compiler's
+  memory is returned first. The compiler also collects garbage between its
+  phases. On the same program, peak memory fell from about 1.1 GB (compiler
+  and clang together) to about 650 MB (the compiler alone).
+
+| Variable                   | Effect                                                               |
+| -------------------------- | -------------------------------------------------------------------- |
+| `BPL_SPLIT_IR=0`           | Always compile the IR as one module                                  |
+| `BPL_SPLIT_IR=force`       | Split any module the splitter supports, regardless of size (testing) |
+| `BPL_COMPILE_IN_WORKER=1`  | Compile in a worker whatever the project size                        |
+| `BPL_COMPILE_IN_PROCESS=1` | Never use the worker                                                 |
+| `BPL_TRACE_MEMORY=1`       | Print resident and heap size after each compiler phase to stderr     |
+
 ## Debug Information
 
 Generate DWARF debug information for debugging with gdb/lldb:

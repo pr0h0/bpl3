@@ -39,6 +39,8 @@ import {
   supportsWasmExceptions,
 } from "./WasmToolchain";
 import { resolveNativeRuntimeFiles } from "./NativeRuntimeFiles";
+import { splitLlvmModule } from "./IrSplitter";
+import * as os from "os";
 
 const log = new Logger("BinaryRunner");
 
@@ -169,6 +171,7 @@ export function compileToBinary(
   let tempExecPath: string;
   let clangArgs: string[];
   let sanitizedIR: string | undefined;
+  let splitDirectory: string | undefined;
   try {
     assertReadableCompileInput(irPath, "LLVM IR input");
     assertWritableFileOutputPath(execPath);
@@ -200,9 +203,23 @@ export function compileToBinary(
       }
       compileIR = sanitizedIR;
     }
-    clangArgs = buildClangArgs(compileIR, tempExecPath, options, hostDefaults);
+    const parallel = compileInParallelParts(compileIR, options, hostDefaults);
+    if (parallel && "error" in parallel) {
+      if (sanitizedIR) removeBestEffort(sanitizedIR);
+      return { success: false, error: parallel.error };
+    }
+    splitDirectory = parallel?.directory;
+    clangArgs = buildClangArgs(
+      compileIR,
+      tempExecPath,
+      options,
+      hostDefaults,
+      parallel ? parallel.objects : [compileIR],
+    );
   } catch (error) {
     if (sanitizedIR) removeBestEffort(sanitizedIR);
+    if (splitDirectory)
+      fs.rmSync(splitDirectory, { recursive: true, force: true });
     return {
       success: false,
       error: error instanceof Error ? error.message : String(error),
@@ -231,6 +248,8 @@ export function compileToBinary(
     });
   } finally {
     if (sanitizedIR) removeBestEffort(sanitizedIR);
+    if (splitDirectory)
+      fs.rmSync(splitDirectory, { recursive: true, force: true });
   }
 
   if (compileResult.status !== 0) {
@@ -392,11 +411,118 @@ export function compileBinaryAndRun(
 /**
  * Build clang command line arguments
  */
+/** IR below this size compiles quickly enough as one module. */
+const PARALLEL_SPLIT_MIN_IR_BYTES = 4 * 1024 * 1024;
+/** Roughly the IR each parallel part should hold. */
+const PARALLEL_SPLIT_PART_BYTES = 2 * 1024 * 1024;
+
+/**
+ * Compiles a large native module as several parts in parallel (see
+ * IrSplitter.ts) and returns their object files, or undefined to compile the
+ * module whole. `BPL_SPLIT_IR=0` disables it; `BPL_SPLIT_IR=force` splits
+ * any module that the splitter accepts, for testing.
+ */
+function compileInParallelParts(
+  irPath: string,
+  options: CompileOptions,
+  hostDefaults: HostDefaults,
+): { directory: string; objects: string[] } | { error: string } | undefined {
+  const mode = process.env.BPL_SPLIT_IR;
+  if (mode === "0") return undefined;
+  const target = options.target ?? hostDefaults.target;
+  const flags = normalizeArrayOption(options.clangFlag);
+  if (
+    process.platform === "win32" ||
+    isWasmTarget(target) ||
+    options.dwarf ||
+    options.shared ||
+    // A bare argument is an extra input (a C file or object) or the value of
+    // the previous flag; either way the parts must not receive it.
+    flags.some((flag) => !flag.startsWith("-")) ||
+    flags.some((flag) =>
+      /^-f(no-)?lto|^-flto|^-save-temps|^-S$|^-c$|^-E$/.test(flag),
+    )
+  )
+    return undefined;
+  const size = fs.statSync(irPath).size;
+  if (mode !== "force" && size < PARALLEL_SPLIT_MIN_IR_BYTES) return undefined;
+  const cpus =
+    typeof os.availableParallelism === "function"
+      ? os.availableParallelism()
+      : os.cpus().length;
+  const parts = Math.min(
+    8,
+    Math.max(cpus, mode === "force" ? 2 : 1),
+    mode === "force"
+      ? Math.max(2, cpus)
+      : Math.floor(size / PARALLEL_SPLIT_PART_BYTES),
+  );
+  if (parts < 2) return undefined;
+  const modules = splitLlvmModule(fs.readFileSync(irPath, "utf8"), parts);
+  if (!modules) return undefined;
+
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), "bpl-split-"));
+  const compileArgs = [
+    "-Wno-override-module",
+    "-Wno-unused-command-line-argument",
+  ];
+  if (options.O) compileArgs.push(`-O${options.O}`);
+  if (target) compileArgs.push("-target", target);
+  if (options.sysroot) compileArgs.push("--sysroot", options.sysroot);
+  if (options.cpu) compileArgs.push(`-mcpu=${options.cpu}`);
+  if (options.march) compileArgs.push(`-march=${options.march}`);
+  compileArgs.push(...flags.filter((flag) => !/^-l|^-L|^-Wl,/.test(flag)));
+  const quote = (value: string) => `'${value.replace(/'/g, "'\\''")}'`;
+  const driver = quote(getCompilerDriver(target));
+  const objects: string[] = [];
+  const commands: string[] = [];
+  modules.forEach((module, index) => {
+    const source = path.join(directory, `part${index}.ll`);
+    const object = path.join(directory, `part${index}.o`);
+    fs.writeFileSync(source, module);
+    objects.push(object);
+    commands.push(
+      `( ${driver} ${[...compileArgs, "-c", source, "-o", object].map(quote).join(" ")} > ${quote(`${object}.log`)} 2>&1; echo $? > ${quote(`${object}.status`)} ) &`,
+    );
+  });
+  const result = spawnSync("sh", ["-c", `${commands.join("\n")}\nwait`], {
+    stdio: "pipe",
+    timeout: getCompilerDriverTimeoutMs(),
+  });
+  const failures = objects.filter((object) => {
+    try {
+      return fs.readFileSync(`${object}.status`, "utf8").trim() !== "0";
+    } catch {
+      return true;
+    }
+  });
+  if (result.error || failures.length > 0) {
+    const logs = failures
+      .map((object) => {
+        try {
+          return fs.readFileSync(`${object}.log`, "utf8");
+        } catch {
+          return "";
+        }
+      })
+      .join("\n");
+    fs.rmSync(directory, { recursive: true, force: true });
+    return {
+      error: `Failed to compile LLVM IR with ${getCompilerDriver(target)}${logs || result.error ? `\n${logs || String(result.error)}` : ""}`,
+    };
+  }
+  if (options.verbose) {
+    log.info(`Compiled the module as ${parts} parallel parts`);
+  }
+  return { directory, objects };
+}
+
 function buildClangArgs(
   irPath: string,
   execPath: string,
   options: CompileOptions,
   hostDefaults: HostDefaults,
+  inputs: string[] = [irPath],
 ): string[] {
   const args: string[] = ["-Wno-override-module"];
   const target = options.target ?? hostDefaults.target;
@@ -543,7 +669,7 @@ function buildClangArgs(
     }
   }
 
-  args.push(irPath);
+  args.push(...inputs);
 
   // Libraries follow every input: a linker reads a static archive once, in
   // order, and takes only the members that earlier inputs need.

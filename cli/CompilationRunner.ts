@@ -1,3 +1,4 @@
+import { traceMemory } from "../compiler/common/MemoryTrace";
 import type * as AST from "../compiler/common/AST";
 import { generateCExportHeader } from "../compiler/common/CExports";
 /**
@@ -207,6 +208,16 @@ export async function processFileAsync(
   options: CompileOptions,
   programArgs?: string[],
 ): Promise<void> {
+  if (shouldCompileInWorker(filePath, options)) {
+    const build = await compileInWorker(filePath, options, programArgs);
+    try {
+      applyOptions(options);
+      runDeferredBuild(build, options);
+    } catch (e) {
+      handleCompilationError(e, options, filePath);
+    }
+    return;
+  }
   try {
     applyOptions(options);
 
@@ -225,6 +236,135 @@ export async function processFileAsync(
       throw e;
     }
     handleCompilationError(e, options, filePath);
+  }
+}
+
+/**
+ * A native build compiles to IR in a worker. Terminating the worker returns
+ * the parser's, checker's and code generator's memory to the system before
+ * clang runs; in one process, the few objects that survive a compile pin
+ * most of those pages, so the two peaks added up. `BPL_COMPILE_IN_PROCESS=1`
+ * keeps everything in one thread.
+ */
+function shouldCompileInWorker(
+  filePath: string,
+  options: CompileOptions,
+): boolean {
+  if (
+    typeof Worker === "undefined" ||
+    process.env.BPL_COMPILE_IN_PROCESS === "1" ||
+    options.watch ||
+    isVirtualSourceLabel(filePath) ||
+    !shouldCompileExecutable(options)
+  )
+    return false;
+  // Starting a worker costs about 150 ms, which only pays off for projects
+  // whose compile needs hundreds of megabytes.
+  return (
+    process.env.BPL_COMPILE_IN_WORKER === "1" ||
+    projectSourceBytesAtLeast(path.dirname(path.resolve(filePath)), 256 * 1024)
+  );
+}
+
+/**
+ * Whether the `.bpl` files under `root` (skipping hidden, dependency and
+ * build directories) total at least `limit` bytes. Stops early either way.
+ */
+function projectSourceBytesAtLeast(root: string, limit: number): boolean {
+  let total = 0;
+  let visited = 0;
+  const walk = (directory: string, depth: number): boolean => {
+    let entries: fs.Dirent[];
+    try {
+      entries = fs.readdirSync(directory, { withFileTypes: true });
+    } catch {
+      return false;
+    }
+    for (const entry of entries) {
+      if (++visited > 5000) return false;
+      if (entry.name.startsWith(".") || entry.name === "node_modules") continue;
+      const full = path.join(directory, entry.name);
+      if (entry.isDirectory()) {
+        if (depth < 6 && walk(full, depth + 1)) return true;
+      } else if (entry.isFile() && entry.name.endsWith(".bpl")) {
+        try {
+          total += fs.statSync(full).size;
+        } catch {
+          continue;
+        }
+        if (total >= limit) return true;
+      }
+    }
+    return false;
+  };
+  return walk(root, 0);
+}
+
+interface CompileWorkerRequest {
+  filePath: string;
+  options: CompileOptions;
+  programArgs: string[] | undefined;
+}
+
+/**
+ * Runs the compile phase of `filePath` in a worker and returns the build it
+ * describes. Diagnostics are printed by the worker; when it exits without a
+ * result, this process exits with the worker's status.
+ */
+async function compileInWorker(
+  filePath: string,
+  options: CompileOptions,
+  programArgs: string[] | undefined,
+): Promise<DeferredBuild> {
+  const worker = new Worker(
+    new URL("./CompileWorker.ts", import.meta.url).href,
+    { smol: process.env.BPL_COMPILE_WORKER_SMOL === "1" } as WorkerOptions,
+  );
+  const outcome = await new Promise<
+    { build: DeferredBuild } | { exitCode: number }
+  >((resolve) => {
+    let settled = false;
+    worker.addEventListener("message", (event: MessageEvent) => {
+      settled = true;
+      resolve({ build: (event.data as { build?: NativeBuildStep }).build });
+    });
+    worker.addEventListener("error", (event: ErrorEvent) => {
+      if (settled) return;
+      settled = true;
+      log.error(event.message || "Compilation worker failed");
+      resolve({ exitCode: 1 });
+    });
+    worker.addEventListener("close", (event: Event) => {
+      if (settled) return;
+      settled = true;
+      const code = (event as Event & { code?: number }).code;
+      resolve({ exitCode: code === undefined || code === 0 ? 1 : code });
+    });
+    const request: CompileWorkerRequest = { filePath, options, programArgs };
+    worker.postMessage(request);
+  });
+  worker.terminate();
+  if ("exitCode" in outcome) process.exit(outcome.exitCode);
+  return outcome.build;
+}
+
+/** The worker side of compileInWorker. */
+export async function compileFileForWorker(
+  request: CompileWorkerRequest,
+): Promise<DeferredBuild> {
+  const { filePath, options, programArgs } = request;
+  try {
+    applyOptions(options);
+    const content = readInputSourceFile(filePath);
+    return await compileToDeferredBuildAsync(
+      content,
+      filePath,
+      options,
+      programArgs,
+    );
+  } catch (e) {
+    handleCompilationError(e, options, filePath);
+    return undefined;
   }
 }
 
@@ -479,10 +619,46 @@ function processCodeInternal(
   // runtime check helpers that generated code calls.
   const hasImports = shouldResolveImportsForCompilation(options);
 
-  if (hasImports) {
-    compileWithModules(content, filePath, options, programArgs);
-  } else {
-    compileSingleFile(content, filePath, options, programArgs);
+  runDeferredBuild(
+    hasImports
+      ? compileWithModules(content, filePath, options, programArgs)
+      : compileSingleFile(content, filePath, options, programArgs),
+    options,
+  );
+}
+
+/**
+ * Builds the executable once the compiler's frames have returned. Clang runs
+ * for most of a large build; with the AST, checker and IR unreachable by then
+ * and collected, the runtime returns their pages to the system, so the
+ * compiler's memory and clang's do not add up.
+ */
+export type DeferredBuild = NativeBuildStep | undefined;
+
+/** The clang step of a build: paths and arguments only, never the IR. */
+export interface NativeBuildStep {
+  filePath: string;
+  outputPath: string;
+  programArgs: string[] | undefined;
+}
+
+export function runDeferredBuild(
+  build: DeferredBuild,
+  options: CompileOptions,
+): void {
+  if (!build) return;
+  (globalThis as { Bun?: { gc(force: boolean): void } }).Bun?.gc(true);
+  traceMemory("before clang");
+  const binaryResult: CompileBinaryAndRunResult = compileBinaryAndRun(
+    build.outputPath,
+    options,
+    build.programArgs,
+  );
+  if (shouldEmitBuildJsonReport(options)) {
+    emitBuildJsonSuccess(build.filePath, options, {
+      llvm: build.outputPath,
+      executable: binaryResult.compile.executablePath,
+    });
   }
 }
 
@@ -495,13 +671,22 @@ async function processCodeInternalAsync(
   options: CompileOptions,
   programArgs?: string[],
 ): Promise<void> {
-  const hasImports = shouldResolveImportsForCompilation(options);
+  runDeferredBuild(
+    await compileToDeferredBuildAsync(content, filePath, options, programArgs),
+    options,
+  );
+}
 
-  if (hasImports) {
-    await compileWithModulesAsync(content, filePath, options, programArgs);
-  } else {
-    compileSingleFile(content, filePath, options, programArgs);
-  }
+/** The async compile phase alone: writes the IR and describes the build. */
+export async function compileToDeferredBuildAsync(
+  content: string,
+  filePath: string,
+  options: CompileOptions,
+  programArgs?: string[],
+): Promise<DeferredBuild> {
+  return shouldResolveImportsForCompilation(options)
+    ? await compileWithModulesAsync(content, filePath, options, programArgs)
+    : compileSingleFile(content, filePath, options, programArgs);
 }
 
 export function needsNativeRuntimeObjects(options: CompileOptions): boolean {
@@ -610,7 +795,7 @@ function finishModuleCompilation(
   filePath: string,
   options: CompileOptions,
   programArgs?: string[],
-): void {
+): DeferredBuild {
   if (!result.success) {
     if (result.errors) {
       if (shouldEmitBuildJsonReport(options)) {
@@ -666,8 +851,14 @@ function finishModuleCompilation(
 
   // Write LLVM IR and optionally compile/run
   if (result.output) {
-    writeLlvmOutputAndMaybeBuild(filePath, options, result.output, programArgs);
+    return writeLlvmOutputAndMaybeBuild(
+      filePath,
+      options,
+      result.output,
+      programArgs,
+    );
   }
+  return undefined;
 }
 
 function compileWithModules(
@@ -675,12 +866,12 @@ function compileWithModules(
   filePath: string,
   options: CompileOptions,
   programArgs?: string[],
-): void {
+): DeferredBuild {
   const compiler = createModuleCompiler(filePath, options);
   const endCompilation = startPhaseTimer("Compilation", options);
   const result = compiler.compile(content);
   endCompilation();
-  finishModuleCompilation(result, filePath, options, programArgs);
+  return finishModuleCompilation(result, filePath, options, programArgs);
 }
 
 /**
@@ -691,12 +882,12 @@ async function compileWithModulesAsync(
   filePath: string,
   options: CompileOptions,
   programArgs?: string[],
-): Promise<void> {
+): Promise<DeferredBuild> {
   const compiler = createModuleCompiler(filePath, options);
   const endCompilation = startPhaseTimer("Compilation", options);
   const result = await compiler.compileAsync(content);
   endCompilation();
-  finishModuleCompilation(result, filePath, options, programArgs);
+  return finishModuleCompilation(result, filePath, options, programArgs);
 }
 
 /**
@@ -707,7 +898,7 @@ function compileSingleFile(
   filePath: string,
   options: CompileOptions,
   programArgs?: string[],
-): void {
+): DeferredBuild {
   // 1. Lexing
   const endLexing = startPhaseTimer("Lexing", options);
   let tokens: ReturnType<typeof lexWithGrammar> = [];
@@ -722,7 +913,7 @@ function compileSingleFile(
 
   if (options.emit === "tokens") {
     console.log(JSON.stringify(tokens, null, 2));
-    return;
+    return undefined;
   }
 
   // 2. Parsing
@@ -733,7 +924,7 @@ function compileSingleFile(
 
   if (options.emit === "ast") {
     console.log(JSON.stringify(ast, null, 2));
-    return;
+    return undefined;
   }
 
   if (options.emit === "formatted") {
@@ -746,7 +937,7 @@ function compileSingleFile(
     } else {
       process.stdout.write(formatted);
     }
-    return;
+    return undefined;
   }
 
   // 3. Type Checking
@@ -790,7 +981,7 @@ function compileSingleFile(
   endCodeGeneration();
 
   writeCHeader(ast, filePath, options);
-  writeLlvmOutputAndMaybeBuild(filePath, options, ir, programArgs);
+  return writeLlvmOutputAndMaybeBuild(filePath, options, ir, programArgs);
 }
 
 /**
@@ -940,10 +1131,10 @@ function writeLlvmOutputAndMaybeBuild(
   options: CompileOptions,
   ir: string,
   programArgs?: string[],
-): void {
+): DeferredBuild {
   if (isVirtualSourceLabel(filePath) && !options.output) {
     writeVirtualLlvmOutputAndMaybeBuild(filePath, options, ir, programArgs);
-    return;
+    return undefined;
   }
 
   const outputPath = getLlvmOutputPath(filePath, options);
@@ -967,17 +1158,13 @@ function writeLlvmOutputAndMaybeBuild(
     log.info(`LLVM IR written to ${outputPath}`);
   }
 
-  let binaryResult: CompileBinaryAndRunResult | undefined;
   if (shouldCompileExecutable(options)) {
-    binaryResult = compileBinaryAndRun(outputPath, options, programArgs);
+    return { filePath, outputPath, programArgs };
   }
-
   if (shouldEmitBuildJsonReport(options)) {
-    emitBuildJsonSuccess(filePath, options, {
-      llvm: outputPath,
-      executable: binaryResult?.compile.executablePath,
-    });
+    emitBuildJsonSuccess(filePath, options, { llvm: outputPath });
   }
+  return undefined;
 }
 
 function isVirtualSourceLabel(filePath: string): boolean {

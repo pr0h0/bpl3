@@ -8,6 +8,7 @@
  * 4. Linking: Link LLVM IR with object files
  */
 
+import { traceMemory } from "./common/MemoryTrace";
 import {
   getNativeRuntimeSupportObjectPath,
   irNeedsNativeRuntime,
@@ -417,6 +418,7 @@ export class Compiler {
         sourceCode,
       );
 
+      traceMemory(`parsed ${modules.length} modules`);
       if (this.options.verbose) {
         compilerLog.info(`Found ${modules.length} modules`);
         for (const mod of modules) {
@@ -535,6 +537,7 @@ export class Compiler {
         statements: combinedStatements,
         location: entryModule.ast.location, // Use entry module's location
       };
+      traceMemory("checked");
 
       if (this.options.verbose) {
         compilerLog.info("Generating code...");
@@ -554,6 +557,7 @@ export class Compiler {
       });
 
       const llvmIR = codeGenerator.generate(combinedAST, this.options.filePath);
+      traceMemory(`generated ${(llvmIR.length / 1048576).toFixed(0)} MB of IR`);
 
       return {
         success: true,

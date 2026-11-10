@@ -1,3 +1,4 @@
+import { traceMemory } from "../common/MemoryTrace";
 import {
   getCExportFunctions,
   C_EXPORT_CONFLICT_CODE,
@@ -471,6 +472,7 @@ export class CodeGenerator extends StatementGenerator {
         }
       }
     } while (this.emitReferencedDeferredMethods());
+    traceMemory(`emitted ${this.output.length} IR lines`);
 
     if (this.usedLlvmMemIntrinsics.has("memcpy")) {
       this.emitDeclaration(
@@ -575,6 +577,7 @@ export class CodeGenerator extends StatementGenerator {
       this.emitDeclaration("declare void @__bpl_install_signal_handlers()");
     }
     const generatedBody = this.joinCompactedLines(this.output);
+    traceMemory("joined the function bodies");
     const generatedBodyReferences =
       this.collectFinalPruningLlvmReferences(generatedBody);
     this.pruneUnusedInternalRuntimeDeclarations(generatedBodyReferences);
