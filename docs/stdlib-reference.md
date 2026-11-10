@@ -1570,6 +1570,157 @@ frame bpl_printf(fmt: string, args: *Any, args_count: int)
 Exports:
 
 ```bpl
+export [Iter];
+export [Peekable];
+export [Enumerated];
+export [Zipped];
+export iterEnumerate;
+export iterChunks;
+export iterRange;
+export iterRangeStep;
+export iterRangeOf;
+export iterCounter;
+export iterChars;
+export iterArray;
+export sumInt;
+export sumLong;
+export sumFloat;
+export minInt;
+export maxInt;
+```
+
+### Enumerated
+
+```bpl
+struct Enumerated<T>
+index: int
+value: T
+```
+
+### Zipped
+
+```bpl
+struct Zipped<A, B>
+first: A
+second: B
+```
+
+### Iter
+
+```bpl
+struct Iter<T>
+step: Lambda<Option<T>>()
+arena: *_IterArena
+frame fromFn(step: Lambda<Option<T>>()) ret Iter<T>
+frame fromIterator<I: Iterator<T>>(source: I) ret Iter<T>
+frame fromArray(array: *Array<T>) ret Iter<T>
+frame fromPointer(data: *T, count: int) ret Iter<T>
+frame empty() ret Iter<T>
+frame once(value: T) ret Iter<T>
+frame repeat(value: T) ret Iter<T>
+frame repeatN(value: T, count: int) ret Iter<T>
+frame successors(first: T, next: Lambda<Option<T>>(T)) ret Iter<T>
+frame next(this: *Iter<T>) ret Option<T>
+frame destroy(this: *Iter<T>)
+frame map<U>(this: *Iter<T>, transform: Lambda<U>(T)) ret Iter<U>
+frame filter(this: *Iter<T>, predicate: Lambda<bool>(T)) ret Iter<T>
+frame filterMap<U>(this: *Iter<T>, transform: Lambda<Option<U>>(T)) ret Iter<U>
+frame take(this: *Iter<T>, count: int) ret Iter<T>
+frame skip(this: *Iter<T>, count: int) ret Iter<T>
+frame takeWhile(this: *Iter<T>, predicate: Lambda<bool>(T)) ret Iter<T>
+frame skipWhile(this: *Iter<T>, predicate: Lambda<bool>(T)) ret Iter<T>
+frame stepBy(this: *Iter<T>, step: int) ret Iter<T>
+frame zip<U>(this: *Iter<T>, other: Iter<U>) ret Iter<Zipped<T, U>>
+frame chain(this: *Iter<T>, other: Iter<T>) ret Iter<T>
+frame inspect(this: *Iter<T>, action: Lambda<void>(T)) ret Iter<T>
+frame flatMap<U>(this: *Iter<T>, expand: Lambda<Iter<U>>(T)) ret Iter<U>
+frame scan<S>(this: *Iter<T>, initial: S, combine: Lambda<S>(S, T)) ret Iter<S>
+frame dedupBy(this: *Iter<T>, same: Lambda<bool>(T, T)) ret Iter<T>
+frame fuse(this: *Iter<T>) ret Iter<T>
+frame collect(this: *Iter<T>) ret Array<T>
+frame collectInto(this: *Iter<T>, target: *Array<T>)
+frame sortedBy(this: *Iter<T>, compare: Lambda<int>(T, T)) ret Array<T>
+frame count(this: *Iter<T>) ret int
+frame fold<U>(this: *Iter<T>, initial: U, combine: Lambda<U>(U, T)) ret U
+frame reduce(this: *Iter<T>, combine: Lambda<T>(T, T)) ret Option<T>
+frame forEach(this: *Iter<T>, action: Lambda<void>(T))
+frame any(this: *Iter<T>, predicate: Lambda<bool>(T)) ret bool
+frame all(this: *Iter<T>, predicate: Lambda<bool>(T)) ret bool
+frame find(this: *Iter<T>, predicate: Lambda<bool>(T)) ret Option<T>
+frame position(this: *Iter<T>, predicate: Lambda<bool>(T)) ret Option<int>
+frame last(this: *Iter<T>) ret Option<T>
+frame nth(this: *Iter<T>, index: int) ret Option<T>
+frame minBy(this: *Iter<T>, compare: Lambda<int>(T, T)) ret Option<T>
+frame maxBy(this: *Iter<T>, compare: Lambda<int>(T, T)) ret Option<T>
+frame partition(this: *Iter<T>, predicate: Lambda<bool>(T)) ret (Array<T>, Array<T>)
+frame advanceBy(this: *Iter<T>, count: int) ret int
+frame peekable(this: *Iter<T>) ret Peekable<T>
+```
+
+### Peekable
+
+```bpl
+struct Peekable<T>
+inner: Iter<T>
+peeked: Option<T>
+hasPeeked: bool
+frame new(inner: Iter<T>) ret Peekable<T>
+frame peek(this: *Peekable<T>) ret Option<T>
+frame next(this: *Peekable<T>) ret Option<T>
+frame nextIf(this: *Peekable<T>, predicate: Lambda<bool>(T)) ret Option<T>
+frame destroy(this: *Peekable<T>)
+```
+
+```bpl
+frame iterEnumerate<T>(source: Iter<T>) ret Iter<Enumerated<T>>
+```
+
+```bpl
+frame iterChunks<T>(source: Iter<T>, size: int) ret Iter<Array<T>>
+```
+
+```bpl
+frame iterRange(start: int, end: int) ret Iter<int>
+```
+
+```bpl
+frame iterRangeStep(start: int, end: int, step: int) ret Iter<int>
+```
+
+```bpl
+frame iterRangeOf(range: Range) ret Iter<int>
+```
+
+```bpl
+frame iterCounter(start: int) ret Iter<int>
+```
+
+```bpl
+frame iterChars(text: string) ret Iter<char>
+```
+
+```bpl
+frame iterArray<T>(array: *Array<T>) ret Iter<T>
+```
+
+```bpl
+frame sumInt(values: *Iter<int>) ret long
+```
+
+```bpl
+frame sumLong(values: *Iter<long>) ret long
+```
+
+```bpl
+frame sumFloat(values: *Iter<float>) ret float
+```
+
+```bpl
+frame minInt(values: *Iter<int>) ret Option<int>
+```
+
+```bpl
+frame maxInt(values: *Iter<int>) ret Option<int>
 ```
 
 ## std/iter_specs.bpl
@@ -3305,6 +3456,202 @@ frame replace(s: string, oldStr: string, newStr: string) ret String
 Exports:
 
 ```bpl
+export [AtomicInt];
+export [AtomicLong];
+export [AtomicBool];
+export [SpinLock];
+export [Mutex];
+export [RwLock];
+export [Condvar];
+export [Once];
+export [Semaphore];
+export [WaitGroup];
+export [Barrier];
+export [Channel];
+export fence;
+```
+
+```bpl
+frame fence()
+```
+
+### AtomicInt
+
+```bpl
+struct AtomicInt
+value: int
+frame new(initial: int) ret AtomicInt
+frame load(this: *AtomicInt) ret int
+frame store(this: *AtomicInt, value: int)
+frame swap(this: *AtomicInt, value: int) ret int
+frame fetchAdd(this: *AtomicInt, delta: int) ret int
+frame fetchSub(this: *AtomicInt, delta: int) ret int
+frame fetchAnd(this: *AtomicInt, mask: int) ret int
+frame fetchOr(this: *AtomicInt, mask: int) ret int
+frame fetchXor(this: *AtomicInt, mask: int) ret int
+frame fetchMax(this: *AtomicInt, value: int) ret int
+frame fetchMin(this: *AtomicInt, value: int) ret int
+frame compareExchange(this: *AtomicInt, expected: int, desired: int) ret int
+frame compareAndSet(this: *AtomicInt, expected: int, desired: int) ret bool
+frame increment(this: *AtomicInt) ret int
+frame decrement(this: *AtomicInt) ret int
+frame update(this: *AtomicInt, transform: Lambda<int>(int)) ret int
+```
+
+### AtomicLong
+
+```bpl
+struct AtomicLong
+value: long
+frame new(initial: long) ret AtomicLong
+frame load(this: *AtomicLong) ret long
+frame store(this: *AtomicLong, value: long)
+frame swap(this: *AtomicLong, value: long) ret long
+frame fetchAdd(this: *AtomicLong, delta: long) ret long
+frame fetchSub(this: *AtomicLong, delta: long) ret long
+frame fetchAnd(this: *AtomicLong, mask: long) ret long
+frame fetchOr(this: *AtomicLong, mask: long) ret long
+frame fetchXor(this: *AtomicLong, mask: long) ret long
+frame compareExchange(this: *AtomicLong, expected: long, desired: long) ret long
+frame compareAndSet(this: *AtomicLong, expected: long, desired: long) ret bool
+frame increment(this: *AtomicLong) ret long
+frame decrement(this: *AtomicLong) ret long
+```
+
+### AtomicBool
+
+```bpl
+struct AtomicBool
+cell: AtomicInt
+frame new(initial: bool) ret AtomicBool
+frame load(this: *AtomicBool) ret bool
+frame store(this: *AtomicBool, value: bool)
+frame swap(this: *AtomicBool, value: bool) ret bool
+frame compareAndSet(this: *AtomicBool, expected: bool, desired: bool) ret bool
+```
+
+### SpinLock
+
+```bpl
+struct SpinLock
+state: AtomicInt
+frame new() ret SpinLock
+frame lock(this: *SpinLock)
+frame tryLock(this: *SpinLock) ret bool
+frame unlock(this: *SpinLock)
+```
+
+### Mutex
+
+```bpl
+struct Mutex
+handle: *void
+frame new() ret Mutex
+frame lock(this: *Mutex)
+frame tryLock(this: *Mutex) ret bool
+frame unlock(this: *Mutex)
+frame withLock(this: *Mutex, action: Lambda<void>())
+frame destroy(this: *Mutex)
+```
+
+### RwLock
+
+```bpl
+struct RwLock
+handle: *void
+frame new() ret RwLock
+frame readLock(this: *RwLock)
+frame tryReadLock(this: *RwLock) ret bool
+frame writeLock(this: *RwLock)
+frame tryWriteLock(this: *RwLock) ret bool
+frame unlock(this: *RwLock)
+frame destroy(this: *RwLock)
+```
+
+### Condvar
+
+```bpl
+struct Condvar
+handle: *void
+frame new() ret Condvar
+frame wait(this: *Condvar, mutex: *Mutex)
+frame waitUntil(this: *Condvar, mutex: *Mutex, ready: Lambda<bool>())
+frame notifyOne(this: *Condvar)
+frame notifyAll(this: *Condvar)
+frame destroy(this: *Condvar)
+```
+
+### Once
+
+```bpl
+struct Once
+state: AtomicInt
+frame new() ret Once
+frame call(this: *Once, init: Lambda<void>())
+frame isCompleted(this: *Once) ret bool
+```
+
+### Semaphore
+
+```bpl
+struct Semaphore
+mutex: Mutex
+condvar: Condvar
+permits: *int
+frame new(permits: int) ret Semaphore
+frame acquire(this: *Semaphore)
+frame tryAcquire(this: *Semaphore) ret bool
+frame release(this: *Semaphore)
+frame available(this: *Semaphore) ret int
+frame destroy(this: *Semaphore)
+```
+
+### WaitGroup
+
+```bpl
+struct WaitGroup
+mutex: Mutex
+condvar: Condvar
+count: *int
+frame new() ret WaitGroup
+frame add(this: *WaitGroup, delta: int)
+frame done(this: *WaitGroup)
+frame wait(this: *WaitGroup)
+frame destroy(this: *WaitGroup)
+```
+
+### Barrier
+
+```bpl
+struct Barrier
+mutex: Mutex
+condvar: Condvar
+state: *_BarrierState
+frame new(parties: int) ret Barrier
+frame wait(this: *Barrier) ret bool
+frame destroy(this: *Barrier)
+```
+
+### Channel
+
+```bpl
+struct Channel<T>
+mutex: Mutex
+notEmpty: Condvar
+notFull: Condvar
+state: *_ChannelState<T>
+frame new(capacity: int) ret Channel<T>
+frame send(this: *Channel<T>, value: T) ret bool
+frame trySend(this: *Channel<T>, value: T) ret bool
+frame recv(this: *Channel<T>) ret Option<T>
+frame tryRecv(this: *Channel<T>) ret Option<T>
+frame close(this: *Channel<T>)
+frame isClosed(this: *Channel<T>) ret bool
+frame len(this: *Channel<T>) ret int
+frame capacity(this: *Channel<T>) ret int
+frame _push(this: *Channel<T>, value: T)
+frame _pop(this: *Channel<T>) ret T
+frame destroy(this: *Channel<T>)
 ```
 
 ## std/thread.bpl
@@ -3314,6 +3661,41 @@ Exports:
 Exports:
 
 ```bpl
+export [Thread];
+export [JoinHandle];
+```
+
+### Thread
+
+```bpl
+struct Thread
+handle: ulong
+state: *_ThreadState
+finished: bool
+frame spawn(body: Lambda<void>()) ret Thread
+frame spawnFunc(body: Func<void>()) ret Thread
+frame join(this: *Thread) ret bool
+frame panicked(this: *Thread) ret bool
+frame panicMessage(this: *Thread) ret string
+frame detach(this: *Thread)
+frame destroy(this: *Thread)
+frame id(this: *Thread) ret ulong
+frame currentId() ret ulong
+frame sleepMs(ms: long)
+frame sleepUs(us: long)
+frame yieldNow()
+frame hardwareConcurrency() ret int
+```
+
+### JoinHandle
+
+```bpl
+struct JoinHandle<T>
+thread: Thread
+slot: *_JoinSlot<T>
+frame spawn(work: Lambda<T>()) ret JoinHandle<T>
+frame join(this: *JoinHandle<T>) ret T
+frame id(this: *JoinHandle<T>) ret ulong
 ```
 
 ## std/time.bpl

@@ -2,6 +2,103 @@
 
 This file tracks bugs and edge cases found during comprehensive testing.
 
+## Standard library expansion (2026-11-10)
+
+Found while expanding `lib/`. Compiler bugs are open and have library
+workarounds; library bugs record their fix.
+
+### BUG-600: Calling a lambda field of a generic struct emits a call to a missing method
+
+**Status**: Open · **Priority**: P2
+
+Inside a generic struct, `this.step()` where `step` is a `Lambda` field is
+lowered as a method call `@Holder_i32_step`, which does not exist, so clang
+rejects the IR. Non-generic structs work.
+
+```bpl
+struct Holder<T> {
+    step: Lambda<T>(),
+    frame call(this: *Holder<T>) ret T {
+        return this.step();
+    }
+}
+frame main() ret int {
+    local h: Holder<int> = Holder<int> { step: || ret int { return 3; } };
+    return h.call();
+}
+```
+
+**Workaround**: copy the field to a local first (`local f: Lambda<T>() = this.step; return f();`), as `Iter.next` in `lib/iter.bpl` does.
+
+### BUG-601: A parameter named `entry` produces invalid LLVM IR
+
+**Status**: Open · **Priority**: P2
+
+`frame f(entry: int) ret int { return entry; }` emits a value `%entry` and the
+function's `entry:` block, which clang rejects ("unable to create block named
+'entry'"). Other names that equal generated labels may collide as well.
+
+**Workaround**: `lib/thread.bpl` names its entry-point parameters `body`.
+
+### BUG-602: Methods returning a nested instantiation of their own struct recurse without end
+
+**Status**: Open · **Priority**: P2
+
+Calling a method of `Box<T>` that returns `Box<Wrap<T>>` instantiates
+`Box<Wrap<int>>`, whose method in turn needs `Box<Wrap<Wrap<int>>>`, until
+"resolveType recursion limit". Methods are instantiated eagerly even when
+never called.
+
+```bpl
+struct Wrap<T> {
+    value: T,
+}
+struct Box<T> {
+    value: T,
+    frame wrap(this: *Box<T>) ret Box<Wrap<T>> {
+        return Box<Wrap<T>> { value: Wrap<T> { value: this.value } };
+    }
+}
+frame main() ret int {
+    local b: Box<int> = Box<int> { value: 1 };
+    local w: Box<Wrap<int>> = b.wrap();
+    return w.value.value - 1;
+}
+```
+
+**Workaround**: `iterEnumerate` and `iterChunks` in `lib/iter.bpl` are free
+functions instead of `Iter<T>` methods.
+
+### BUG-603: Generic arguments that mention the caller's type parameter are substituted twice
+
+**Status**: Open · **Priority**: P1
+
+Inside a generic function with parameter `T`, calling another generic
+function whose own parameter is also named `T` with the argument `Wrap<T>`
+substitutes `T` again, so the callee expects `Wrap<Wrap<int>>` ("Unsupported
+cast from { %struct.Wrap_i32 ... } to { %struct.Wrap_Wrap_i32 ... }").
+
+```bpl
+struct Wrap<T> {
+    value: T,
+}
+frame make<T>(producer: Lambda<T>()) ret T {
+    return producer();
+}
+frame outer<T>(value: T) ret Wrap<T> {
+    return make<Wrap<T>>(|| ret Wrap<T> {
+        return Wrap<T> { value: value };
+    });
+}
+frame main() ret int {
+    local w: Wrap<int> = outer<int>(0);
+    return w.value;
+}
+```
+
+**Workaround**: give the callee a type parameter name the callers do not use
+(`_iterLink<V>` in `lib/iter.bpl`).
+
 ## Open audit findings (2026-10-28)
 
 Found by a repository-wide audit. Each compiler item was reproduced with a probe

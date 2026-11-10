@@ -85,6 +85,8 @@ or historical results rather than guarantees about the current implementation.
 - [Reflection and JSON](55-reflection-and-json.md) - Generic JSON encoding through reflection
 - [View Engine](55-view-engine.md) - `bpl-templ` templates
 - [Runtime Library](66-runtime-library.md) - The native runtime the compiler links
+- [Threads and Synchronization](68-stdlib-concurrency.md) - Threads, atomics, locks and channels
+- [Lazy Iterators](69-stdlib-iterators.md) - Chainable `Iter<T>` adapters and consumers
 
 ### Advanced Topics
 

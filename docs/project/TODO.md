@@ -166,8 +166,9 @@ Concrete defects are tracked in [BUGS.md](BUGS.md) (BUG-423 onward).
 - [ ] [7] Structured logging, broader portable networking and OS
       APIs, cryptographic hashes beyond SHA-256, SHA-512, HMAC-SHA256 and
       HMAC-SHA512, regex captures, and compression/archiving.
-- [ ] [8] Async/await and native threading/synchronization. `lib/thread.bpl` and
-      `lib/sync.bpl` explicitly export no implementation; FFI interop is separate.
+- [ ] [8] Async/await. Native threads (`lib/thread.bpl`) and synchronization
+      (`lib/sync.bpl`: atomics, locks, condition variables, channels) are
+      implemented on pthreads; there is no async runtime or WebAssembly threading.
 - [ ] [8] Null-safe navigation/coalescing, BPL middle-end optimizations,
       compile-time function evaluation, and source-level code coverage.
 - [ ] [8] Compiler-enforced region lifetimes beyond the existing manual arenas.
