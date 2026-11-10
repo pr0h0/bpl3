@@ -9,6 +9,7 @@ import [Xoshiro] from "../core/prng.bpl";
 import [Side], [OrderType], [TimeInForce], [OrderStatus] from "./order.bpl";
 import [Engine], [OrderRequest], [ExecReport] from "./engine.bpl";
 import [LVec] from "../core/vec.bpl";
+import malloc, free, snprintf from "std/c.bpl";
 
 export [FlowSimulator];
 export [SimSummary];
@@ -77,6 +78,13 @@ struct FlowSimulator {
 
     # Runs `count` events against the engine and summarizes the outcome.
     frame run(this: *FlowSimulator, engine: *Engine, count: int) ret SimSummary {
+        # Simulated accounts get names so trades report a buyer and seller.
+        local ids: *int = cast<*int>(malloc(cast<long>(this.accounts) * sizeof(int)));
+        loop (local a: int = 0; a < this.accounts; a = a + 1) {
+            local name: char[16];
+            snprintf(cast<string>(&name[0]), 16, "sim%02d", a);
+            ids[a] = engine.accountId(cast<string>(&name[0]));
+        }
         local sum: SimSummary = SimSummary { orders: 0, cancels: 0, replaces: 0, trades: 0, volume: 0, rejected: 0, resting: 0, final_fair: 0.0 };
         loop (local i: int = 0; i < count; i = i + 1) {
             this.stepFair();
@@ -103,7 +111,7 @@ struct FlowSimulator {
             }
             local side: Side = this.rng.chance(0.5) ? Side.Buy : Side.Sell;
             local qty: long = cast<long>(this.rng.range(1, 50)) * 10;
-            local account: int = this.rng.range(0, this.accounts);
+            local account: int = ids[this.rng.range(0, this.accounts)];
             local req: OrderRequest = OrderRequest.limit(this.symbol, account, side, 0, qty);
             local v: float = this.rng.nextFloat();
             if (v < this.market_ratio) {
@@ -147,6 +155,7 @@ struct FlowSimulator {
                 i = i + 1;
             }
         }
+        free(cast<*void>(ids));
         sum.resting = cast<long>(this.live_ids.len);
         sum.final_fair = this.fair;
         return sum;

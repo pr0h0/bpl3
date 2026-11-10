@@ -13,6 +13,8 @@ import runMarketTests from "./selftest/market_tests.bpl";
 import runSeriesTests from "./selftest/series_tests.bpl";
 import runRiskTests from "./selftest/risk_tests.bpl";
 import [Text] from "./core/text.bpl";
+import runServer, defaultConfig from "./api/server.bpl";
+import [AppConfig] from "./api/state.bpl";
 
 frame usage() {
     printf("usage: bpl-quant <command> [options]\n");
@@ -40,6 +42,20 @@ frame main(argc: int, argv: *string) ret int {
     local cmd: string = argv[1];
     if (Text.equals(cmd, "selftest")) {
         return runSelftest();
+    }
+    if (Text.equals(cmd, "serve")) {
+        local config: AppConfig = defaultConfig();
+        if (argc > 2) {
+            config.port = Text.parseIntOr(argv[2], -1);
+        }
+        if (argc > 3) {
+            config.workers = Text.parseIntOr(argv[3], -1);
+        }
+        if ((config.port < 1) || (config.port > 65535) || (config.workers < 1) || (config.workers > 8)) {
+            printf("serve: port must be 1-65535 and workers 1-8\n");
+            return 2;
+        }
+        return runServer(config);
     }
     if (Text.equals(cmd, "help") || Text.equals(cmd, "--help")) {
         usage();

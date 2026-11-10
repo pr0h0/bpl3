@@ -90,7 +90,10 @@ struct MonteCarlo {
             local dn: float = s.spot * Math.exp(drift - (diffusion * z));
             acc.add(0.5 * (MonteCarlo.payoff(is_call, up, s.strike) + MonteCarlo.payoff(is_call, dn, s.strike)));
         }
-        return acc.result(Math.exp(-s.rate * s.expiry));
+        local res: McResult = acc.result(Math.exp(-s.rate * s.expiry));
+        # Each antithetic pair uses two paths.
+        res.paths = pairs * 2;
+        return res;
     }
 
     # European option with the terminal spot as a control variate.
