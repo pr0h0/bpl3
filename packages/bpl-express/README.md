@@ -4,7 +4,8 @@ A small Express-inspired HTTP framework. The current socket backend targets
 **Linux IPv4** and handles one connection at a time in `listen` mode. The optional process
 worker mode handles connections concurrently. It is suitable for local
 projects and small services; it does not provide an asynchronous event loop,
-TLS, HTTP/2, keep-alive, multipart parsing, or production load guarantees.
+HTTP/2, or production load guarantees. Keep-alive is opt-in and plain-HTTP
+only; multipart bodies are parsed by `bpl-web-middleware`.
 Use a reverse proxy for HTTPS and deployment controls.
 
 ```bpl
@@ -29,7 +30,19 @@ caller closes both descriptors. Accepted connections have five-second read/write
 (`app.timeout_seconds`) and a ten-second total request assembly deadline
 (`app.request_timeout_seconds`). Each deadline accepts 1–300 seconds. Requests are bounded
 to 16 KiB headers and 1 MiB bodies. Fragmented fixed-length and chunked requests are assembled; unsupported
-request transfer codings return 501. Every response closes the connection.
+request transfer codings return 501. By default every response closes the
+connection (`Connection: close`).
+
+`app.keepAlive(maxRequests, idleSeconds)` enables persistent plain-HTTP
+connections: up to `maxRequests` (2 to 10000) requests per connection, which
+closes after `idleSeconds` (1 to 300) without a new request. HTTP/1.1 clients
+keep the connection unless they send `Connection: close`; HTTP/1.0 clients
+must send `Connection: keep-alive`. Pipelined requests are answered in order.
+A kept connection waits in the pending set described below, so an idle
+client never blocks the sequential server or a worker. The connection closes
+after the last allowed request (announced with `Connection: close`), after an
+invalid request, a handler failure or a write failure. HTTPS connections and
+`serveConnection` still serve one request per connection.
 
 `listen`, `listenOn` and each worker keep up to 64 accepted connections in a
 pending set, so idle sockets such as browser preconnects and clients that

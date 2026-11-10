@@ -52,8 +52,9 @@ defers capture values. For a mutable owner, defer through a pointer to the live
 object (`local owner: *StringBuilder = &sb; defer owner.destroy();`) so cleanup
 observes buffer growth and changed fields.
 
-Current limits are material: the HTTP backend is Linux IPv4 without
-keep-alive, HTTP/2, or multipart uploads. Native HTTPS is available through
+Current limits are material: the HTTP backend is Linux IPv4 without HTTP/2;
+keep-alive is opt-in (`app.keepAlive`) and plain-HTTP only, and multipart
+uploads are buffered in memory within the request size limit. Native HTTPS is available through
 `listenTLS` / `listenTLSWorkers`; certificate provisioning and renewal remain external. `listen` is sequential; `listenWorkers`
 provides bounded process concurrency with private worker memory. The optional
 bpl-auth package supplies password/session/CSRF handling; application queries
