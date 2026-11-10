@@ -71,7 +71,8 @@ not establish parity with mature frameworks or guarantee a bug-free deployment.
 Run package regressions with:
 
 ```bash
-bun test tests/WebPackages.test.ts tests/WebAuthCrypto.test.ts tests/WebWorkerPool.test.ts tests/WebJsonInputLimits.test.ts tests/WebCSVPackage.test.ts tests/WebValidationPackage.test.ts tests/WebMiddlewarePackage.test.ts tests/WebSQLitePackage.test.ts tests/WebCollegeExample.test.ts tests/WebPackageCompilerRegressions.test.ts tests/PackageManifestSchema.test.ts
+bun test tests/WebPackages.test.ts tests/WebAuthCrypto.test.ts tests/WebWorkerPool.test.ts tests/WebJsonInputLimits.test.ts tests/WebCSVPackage.test.ts tests/WebValidationPackage.test.ts tests/WebMiddlewarePackage.test.ts tests/WebSQLitePackage.test.ts tests/WebCollegeExample.test.ts tests/WebPackageCompilerRegressions.test.ts tests/PackageManifestSchema.test.ts tests/WebCookies.test.ts tests/WebKeepAlive.test.ts tests/WebMultipart.test.ts
+bun test tests/JsonPackage.test.ts tests/JsonSchemaPackage.test.ts tests/JwtPackage.test.ts tests/CachePackage.test.ts tests/MetricsPackage.test.ts tests/MarkdownPackage.test.ts tests/LogPackage.test.ts tests/WebSocketPackage.test.ts tests/PackageEcosystem.test.ts
 ```
 
 Socket tests require Linux; SQLite tests skip when the runtime library is absent.

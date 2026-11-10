@@ -10,6 +10,9 @@ frame main() {
     v.required("title", "Homework").length("title", "Homework", 1, 120);
     local page: Option<int> = v.integer("page", "1", 1, 10000);
     # Check v.ok() before using the validated values.
+    if (v.ok() && page.isSome()) {
+        # page.unwrap() is the validated page number.
+    }
     v.destroy();
 }
 ```
