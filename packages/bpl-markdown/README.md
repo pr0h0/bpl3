@@ -41,8 +41,8 @@ a reference CommonMark/GFM renderer.
   tight, and GFM tables with column alignment and escaped `\|`.
 - Inline: emphasis and strong emphasis with `*` and `_` (intraword `_` stays
   literal), `~~strikethrough~~` (rendered as `<del>`), code spans with any
-  backtick run, links `[text](url "title")` including `<...>` destinations,
-  images `![alt](src "title")`, autolinks `<https://...>` and
+  backtick run, links `[text](https://example.org "title")` including `<...>` destinations,
+  images `![alt](https://example.org/a.png "title")`, autolinks `<https://...>` and
   `<user@example.org>`, backslash escapes, hard line breaks (two trailing
   spaces or a trailing backslash), and entity references, which are passed
   through unchanged.

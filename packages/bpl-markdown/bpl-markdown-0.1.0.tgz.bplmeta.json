@@ -3,10 +3,10 @@
   "name": "bpl-markdown",
   "version": "0.1.0",
   "archiveFile": "bpl-markdown-0.1.0.tgz",
-  "archiveSha256": "edf1cabaa7345b9ac3a4877cf1066d091c428a0ca9d3eaf7d8359908d9ac3a4c",
+  "archiveSha256": "3df3db460d600d7ce107e82098fd4ebb17945f12c2788e6fe81a03539957c899",
   "packageHash": "0c7d3c27b9d246c6f2189988ea5c68df146a282a0e39faae9b19dc0db90adbf9",
   "sizeBytes": 11386,
-  "createdAt": "2026-11-10T12:38:35.061Z",
+  "createdAt": "2026-11-10T13:17:43.835Z",
   "manifest": {
     "name": "bpl-markdown",
     "version": "0.1.0",
