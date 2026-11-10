@@ -30,6 +30,7 @@ import moreIndicatorHandler, moreIndicatorListHandler, performanceHandler, sampl
 import scheduleHandler, impactHandler, shortfallHandler, surveillanceHandler from "./handlers_execution.bpl";
 import strategyHandler, templatesHandler, regimeHandler, adjustHandler, liquidityHandler, spanHandler from "./handlers_structure.bpl";
 import wsFeedHandler from "./handlers_ws.bpl";
+import modelsHandler, immunizeHandler, pairsHandler, sizingHandler from "./handlers_models.bpl";
 import fixParseHandler, fixOrderHandler, fixCancelHandler, fixLogHandler, feedReplayHandler, feedSampleHandler from "./handlers_proto.bpl";
 import symbolsHandler, createSymbolHandler, submitOrderHandler, getOrderHandler, cancelOrderHandler, replaceOrderHandler, bookHandler, quoteHandler, tradesHandler, tradesCsvHandler, simulateHandler, engineStatsHandler, endOfDayHandler, validateBookHandler from "./handlers_market.bpl";
 
@@ -329,6 +330,10 @@ frame registerOpsRoutes() {
     route(HttpMethod.GET, "/liquidity/:symbol", liquidityHandler, "Amihud, Roll, Corwin-Schultz, VPIN and Kyle's lambda (?buckets=)");
     route(HttpMethod.POST, "/risk/span", spanHandler, "SPAN-style scenario margin with risk arrays and inter-commodity credits {products, options}");
     route(HttpMethod.GET, "/ws/feed", wsFeedHandler, "WebSocket push feed: JSON book/trade updates with subscribe/sim/snapshot commands, or ?format=itch for binary ITCH packets");
+    route(HttpMethod.GET, "/price/models", modelsHandler, "one contract priced by every model plug-in: Black-Scholes, Bachelier, CRR, Merton, Reiner-Rubinstein barrier (?barrier=&barrier_type=)");
+    route(HttpMethod.POST, "/rates/immunize", immunizeHandler, "PV- and duration-matched two-bond hedge of liabilities with Redington check {rate, liabilities, bonds}");
+    route(HttpMethod.GET, "/pairs/backtest", pairsHandler, "rolling-hedge pairs trading backtest (?a=&b=&window=&entry=&exit=&stop=&cost_bps=)");
+    route(HttpMethod.GET, "/sizing/:symbol", sizingHandler, "Kelly, volatility-target leverage and fixed-fractional size (?target_vol=&risk_fraction=&stop_pct=)");
     route(HttpMethod.GET, "/feed/sample", feedSampleHandler, "first packets of a generated feed, hex and decoded (?events=&packets=&seed=)");
 }
 

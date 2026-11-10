@@ -29,6 +29,7 @@ import runDataTests from "./selftest/data_tests.bpl";
 import runAnalyticsTests from "./selftest/analytics_tests.bpl";
 import runExecutionTests from "./selftest/execution_tests.bpl";
 import runStructureTests from "./selftest/structure_tests.bpl";
+import runModelsTests from "./selftest/models_tests.bpl";
 import [Text] from "./core/text.bpl";
 import [Env] from "std/env.bpl";
 import runServer, defaultConfig from "./api/server.bpl";
@@ -68,6 +69,7 @@ frame runSelftest() ret int {
     runAnalyticsTests(&c);
     runExecutionTests(&c);
     runStructureTests(&c);
+    runModelsTests(&c);
     return c.summary() == 0 ? 0 : 1;
 }
 

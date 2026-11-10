@@ -169,7 +169,7 @@ describe.skipIf(!hasSqlite)("bpl-quant", () => {
       try {
         await waitReady(base);
         const routes = await call("/routes");
-        expect(routes.body.count).toBeGreaterThanOrEqual(155);
+        expect(routes.body.count).toBeGreaterThanOrEqual(159);
 
         // Risk-checked journaled desk.
         const ask = await call(
@@ -319,6 +319,26 @@ describe.skipIf(!hasSqlite)("bpl-quant", () => {
           }),
         );
         expect(span.body.total_margin).toBeCloseTo(15000, 6);
+        const models = await call(
+          "/price/models?spot=100&strike=90&rate=0.08&dividend=0.04&vol=0.25&expiry=0.5&barrier=95&rebate=3",
+        );
+        expect(models.body.prices.barrier_down_out).toBeCloseTo(9.0246, 3);
+        const immunized = await call(
+          "/rates/immunize",
+          send("POST", {
+            liabilities: [{ time: 5, amount: 1000000 }],
+            bonds: [
+              { coupon: 0.03, maturity: 2 },
+              { coupon: 0.05, maturity: 10 },
+            ],
+          }),
+        );
+        expect(immunized.body.asset_duration).toBeCloseTo(5, 6);
+        expect(immunized.body.redington).toBe(true);
+        const pairs = await call("/pairs/backtest?a=ACME&b=GLOBEX");
+        expect(pairs.body.bars).toBe(260);
+        const sizing = await call("/sizing/HOOLI");
+        expect(sizing.body.fixed_fractional_shares).toBeGreaterThan(0);
         const performance = await call("/stats/GLOBEX/performance");
         expect(performance.body.drawdowns.length).toBeGreaterThan(0);
 

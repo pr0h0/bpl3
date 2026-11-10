@@ -221,6 +221,24 @@ imports `helper.bpl`).
 Suggested fix: make the build path attach the imported module's diagnostic
 (file and span) the way `check` does, keeping the import chain as context.
 
+### BUG-820: A parameter named `entry` produces invalid LLVM IR
+
+**Status**: Open · **Priority**: P2
+
+A frame parameter called `entry` is emitted as the SSA argument `%entry`, and
+every function's first basic block is also labelled `entry`, so clang rejects
+the module with `unable to create block named 'entry'` (at -O0 and -O2). The
+type checker accepts the program, so the failure only shows up as a clang
+error pointing into the generated `.ll` file. Locals named `entry` are fine
+because they get a `_ptr.N` suffix. Found in the app's position-sizing helper
+(`fixedFractional(equity, risk_fraction, entry, stop_price)`). Repro:
+`apps/bpl-quant/repros/bug820_param_named_entry.bpl` (expected output `7`).
+
+Suggested fix: give block labels a prefix that no parameter can take (for
+example `bpl.entry`), or suffix argument names like locals.
+
+**Workaround in the app**: the parameter is named `entry_price`.
+
 ## Open audit findings (2026-10-28)
 
 Found by a repository-wide audit. Each compiler item was reproduced with a probe

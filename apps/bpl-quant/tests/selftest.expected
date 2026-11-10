@@ -397,4 +397,25 @@ span_margin.total_futures = 41900.00
 span_margin.short_put_scan = 10292.73
 span_margin.short_put_worst = -2x extreme
 span_margin.put_spread_margin = 3883.27
-selftest: 1104 passed, 0 failed
+== pricing_models
+pricing_models.black_scholes = 10.450584
+pricing_models.bachelier = 10.276275
+pricing_models.crr_european = 10.448584
+pricing_models.crr_american = 10.448584
+pricing_models.merton_jump = 10.450584
+pricing_models.merton_otm_put = 1.306410
+pricing_models.barrier_down_out = 8.665472
+pricing_models.barrier_up_out = 1.176065
+== immunization
+immunization.liability_duration = 6.161311
+immunization.units_short = 11020.9493
+immunization.units_long = 8214.8576
+== pairs
+pairs.trades = 29
+pairs.total_return = 0.457470
+pairs.sharpe = 2.4815
+pairs.half_life = 4.8740
+== sizing
+sizing.kelly_fraction = 0.4098
+sizing.vol_target_leverage = 0.3181
+selftest: 1139 passed, 0 failed
