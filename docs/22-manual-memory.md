@@ -20,6 +20,10 @@ frame main() ret void {
 ## Best Practices
 
 - Always pair `malloc` with `free`.
+- A struct with methods starts with a hidden vtable pointer that `malloc` leaves
+  unset. Calls on a struct that nothing inherits from do not use it, but a
+  struct with descendants dispatches through it: initialize heap storage by
+  assigning a value (`*p = Shape { ... };`) or with an `init` method first.
 - Avoid double-freeing.
 - Initialize pointers to `nullptr` after freeing if they might be accessed again.
 
