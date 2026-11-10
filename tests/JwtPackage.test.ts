@@ -81,7 +81,7 @@ test("bpl-jwt verification pins the algorithm and checks registered claims", () 
     },
     SECRET,
   );
-  const [h, p, s] = good.split(".");
+  const [h = "", p = "", s = ""] = good.split(".");
   const flipped = `${h}.${p}.${s.slice(0, -2)}${s.slice(-2, -1) === "A" ? "B" : "A"}${s.slice(-1)}`;
   const cases: [string, string][] = [
     [good, ""],

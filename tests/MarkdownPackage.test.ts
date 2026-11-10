@@ -120,9 +120,9 @@ test("bpl-markdown stays fast and bounded on adversarial input", () => {
   const started = Date.now();
   const outputs = render(inputs);
   expect(Date.now() - started).toBeLessThan(60000);
-  expect(outputs[0].startsWith("<p>*a *a ")).toBe(true);
+  expect(outputs[0]!.startsWith("<p>*a *a ")).toBe(true);
   // Quotes and lists deeper than the nesting limit fall back to paragraphs.
-  expect(outputs[3].split("<blockquote>").length - 1).toBe(17);
-  expect(outputs[4].split("<ul>").length - 1).toBe(17);
+  expect(outputs[3]!.split("<blockquote>").length - 1).toBe(17);
+  expect(outputs[4]!.split("<ul>").length - 1).toBe(17);
   expect(outputs[7]).toBe("<hr />\n");
 }, 90000);

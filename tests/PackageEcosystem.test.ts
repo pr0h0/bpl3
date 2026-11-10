@@ -29,7 +29,7 @@ test("package README examples type-check", () => {
     for (const name of README_PACKAGES) {
       const text = readFileSync(resolve("packages", name, "README.md"), "utf8");
       const blocks = [...text.matchAll(/```bpl\n([\s\S]*?)```/g)]
-        .map((match) => match[1])
+        .map((match) => match[1] ?? "")
         .filter((block) => block.includes("frame main"));
       expect(blocks.length, `${name} has a runnable example`).toBeGreaterThan(
         0,

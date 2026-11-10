@@ -37,7 +37,7 @@ function frame(
   }
   if (!mask) return Buffer.concat([Buffer.from(head), payload]);
   const key = Buffer.from([0x12, 0x34, 0x56, 0x78]);
-  const masked = Buffer.from(payload.map((b, i) => b ^ key[i % 4]));
+  const masked = Buffer.from(payload.map((b, i) => b ^ key[i % 4]!));
   return Buffer.concat([Buffer.from(head), key, masked]);
 }
 
@@ -66,7 +66,7 @@ function raw(
       const parsed: { op: number; data: Buffer }[] = [];
       let at = end + 4;
       while (at + 2 <= data.length) {
-        let length = data[at + 1] & 0x7f;
+        let length = data[at + 1]! & 0x7f;
         let offset = at + 2;
         if (length === 126) {
           length = data.readUInt16BE(offset);
@@ -76,7 +76,7 @@ function raw(
           offset += 8;
         }
         parsed.push({
-          op: data[at] & 0x0f,
+          op: data[at]! & 0x0f,
           data: data.subarray(offset, offset + length),
         });
         at = offset + length;
