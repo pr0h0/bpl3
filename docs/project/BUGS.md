@@ -2,6 +2,128 @@
 
 This file tracks bugs and edge cases found during comprehensive testing.
 
+## bpl-quant application (2026-11-10)
+
+Found while writing `apps/bpl-quant`, a ~50k-line BPL application. Each item
+has a minimal reproduction under `apps/bpl-quant/repros/`. Priority scale as in
+the audit section below.
+
+### BUG-800: Method calls on malloc'd structs crash through a null vtable
+
+**Status**: Open · **Priority**: P2
+
+A struct that declares any method gets a hidden vtable word (R-STRUCT-5), and a
+call through a pointer reads it even when the struct has no parent and no
+children, so the call has a single possible target. Storage from `malloc`
+(+ `memset`) leaves the word zero, and the first method call crashes with
+SIGSEGV at a small address (0x18 in the app), with an empty BPL call stack and
+no diagnostic. Field access works, so the failure appears far from its cause.
+The behavior is not documented in the language guides; only BUG-454's
+`alloc_with_vtable` and the implicit vtable store in `init` methods hint at it.
+Repro: `apps/bpl-quant/repros/bug800_heap_vtable.bpl` (prints `field 21`, then
+crashes at -O0 and -O2).
+
+Suggested fix: call methods of structs without children (and without
+`*Spec` conversion) directly, as for values, and document heap allocation of
+structs with methods in docs/22-manual-memory.md. A null-vtable check before an
+indirect call would at least turn the crash into a diagnosable runtime error.
+
+**Workaround in the app**: `Order` has an `init` method that the order pool calls
+on every fresh slot; the compiler stores the vtable in `init` bodies.
+
+### BUG-801: Small methods and functions are never inlined at -O2
+
+**Status**: Open · **Priority**: P2 (performance)
+
+Two code-generation choices keep LLVM from inlining accessor-sized calls:
+
+1. A method call through a pointer always loads the hidden vtable word and
+   calls through it (`%f = load i8*, ...vtable slot...; call %f(...)`), even
+   when the struct has no parent and no children (same root cause as
+   BUG-800). The indirect call is not devirtualized at -O2.
+2. Every function starts with the stack guard (`llvm.stacksave`, a load of
+   `__bpl_stack_limit`, an increment of `__bpl_stack_depth` with a 10000-frame
+   limit) and ends with the matching decrement. Running `opt -O2` on the
+   emitted IR still leaves `call @gridAt_Grid_ptr_i32` in the loop, so even a
+   one-line free function stays an out-of-line call.
+
+`apps/bpl-quant/repros/bug801_virtual_calls.bpl` sums a 1024-element buffer
+100000 times at -O2: field access in the loop 255 ms, a free-function accessor
+545 ms, the same accessor as a method 962 ms (3.8x the field version). In the
+application, `Matrix.at`/`put` style code makes a 200x200 Cholesky plus LU
+inverse take 265 ms.
+
+Suggested fix: call methods of structs without overriding descendants
+directly; mark small non-recursive functions so the stack-depth bookkeeping
+can be elided or inlined (for example, only guard functions that are part of a
+call-graph cycle, or keep the guard but allow inlining).
+
+**Workaround in the app**: none applied yet; hot loops index raw buffers
+directly where it matters.
+
+### BUG-802: A method named after a keyword gets a whole-struct "Unexpected syntax"
+
+**Status**: Open · **Priority**: P3 (diagnostics)
+
+`frame global(this: *Registry)` inside a struct is rejected, which is correct,
+but the error points at the `struct` line and echoes the struct's source up to
+the first method body (`Unexpected syntax: 'struct Registry { count: int,
+frame size(...'`), never naming the keyword. A reserved word used as a local
+name (`local as: int`) already gets the precise "'as' is a reserved word and
+cannot be used as a name" at the token. In the application a method called
+`global` in a 900-line file produced a diagnostic that was hard to trace.
+Repro: `apps/bpl-quant/repros/bug802_keyword_method_name.bpl`.
+
+Suggested fix: apply the reserved-word check to method (and field) names
+before falling back to the generic syntax error.
+
+**Workaround in the app**: the method was renamed (`globalSlot`).
+
+### BUG-803: Returning a large struct by value makes LLVM codegen very slow
+
+**Status**: Open · **Priority**: P2 (compile time)
+
+A struct returned by value is emitted as a first-class aggregate
+(`%v = load %struct.Big, %struct.Big* %p` then `ret %struct.Big %v`).
+LLVM's SelectionDAG expands aggregate values field by field and array element
+by array element, so instruction selection time grows with the struct size.
+`apps/bpl-quant/repros/bug803_large_struct_return.bpl` returns a struct
+holding `Slot[N]` (24 bytes per slot): the whole build takes 0.8 s at N=128,
+2.9 s at N=512 and 5.1 s at N=1024 at -O2 (4.4 s at -O0) for a 30-line
+program.
+
+In the application, `Compiler.create()` (a ~14 KB struct with
+`LocalVar[256]` and `LoopCtx[16]` arrays) alone took 51 s of instruction
+selection; `clang -ftime-trace` attributed 51.5 s of a 102 s `clang -O2` run
+of the 13 MB module to that one function. Rewriting it (and `Vm.create`) to
+initialize in place cut the app's -O2 build from 77 s to 46 s.
+
+Suggested fix: lower large struct returns through an `sret` pointer and
+copies through `llvm.memcpy` instead of aggregate loads/stores (Clang's
+approach), at least above a size threshold.
+
+**Workaround in the app**: `Compiler.init(this)` and `Vm.init(this, ...)`
+initialize in place.
+
+### BUG-804: `bpl build` loses the location of parse errors in imported modules
+
+**Status**: Open · **Priority**: P2 (diagnostics)
+
+When an imported module fails to parse (for example `local ret: int`), `bpl
+build` and `bpl run` report the error at the entry file's `import` statement:
+`error[main.bpl:8:1]: Failed to resolve import './middle.bpl': Failed to
+resolve import './helper.bpl': 'ret' is a reserved word and cannot be used as a
+name`, with the snippet of the import line and no file, line or column for the
+offending token. This happens for a direct import too (`direct.bpl:1:1`).
+`bpl check` on the same entry file reports `helper.bpl:6:11` with the right
+snippet. While building the app (60+ modules) every such mistake had to be
+found by searching for the keyword. Repro: `apps/bpl-quant/repros/bug804/`
+(`main.bpl` imports `middle.bpl` which imports `helper.bpl`; `direct.bpl`
+imports `helper.bpl`).
+
+Suggested fix: make the build path attach the imported module's diagnostic
+(file and span) the way `check` does, keeping the import chain as context.
+
 ## Open audit findings (2026-10-28)
 
 Found by a repository-wide audit. Each compiler item was reproduced with a probe
