@@ -1,0 +1,53 @@
+== prng
+prng.uniform_mean = 0.5009
+prng.normal_mean = -0.0030
+prng.normal_sd = 1.0024
+== special
+special.bvn_mixed = 0.283138
+== stats
+stats.skew = 0.656250
+stats.kurt = -0.218750
+stats.reg_r2 = 0.997305
+stats.welch_t = -3.9056
+stats.hist_total = 500
+stats.acf1 = -0.027476
+stats.hurst = 0.5610
+== sort
+== matrix
+matrix.eig0 = 123.477232
+matrix.eig1 = 15.503963
+matrix.eig2 = 0.018805
+== optimize
+== black_scholes
+black_scholes.delta = 0.636831
+black_scholes.gamma = 0.018762
+black_scholes.vega = 0.375240
+black_scholes.theta = -0.017573
+black_scholes.rho = 0.532325
+black_scholes.vanna = -0.281430
+black_scholes.volga = 0.098501
+black_scholes.dividend_call = 9.831949
+black_scholes.black76 = 7.577082
+black_scholes.digital = 0.532325
+black_scholes.margrabe = 12.952273
+black_scholes.kirk = 9.989009
+== implied_vol
+implied_vol.iv_12 = 0.24111689
+== lattice
+lattice.american_put_crr = 6.088810
+lattice.american_put_delta = -0.411170
+lattice.american_put_gamma = 0.023018
+lattice.dividend_american_call = 6.540259
+== monte_carlo
+monte_carlo.european = 10.454840
+monte_carlo.european_se = 0.032891
+monte_carlo.control = 10.451182
+monte_carlo.asian = 6.154298
+monte_carlo.geometric_asian = 5.940192
+monte_carlo.up_and_out = 3.407117
+monte_carlo.lookback = 15.942993
+monte_carlo.longstaff_schwartz = 5.957635
+monte_carlo.heston = 10.314259
+monte_carlo.merton_series = 11.661675
+monte_carlo.basket = 15.426415
+selftest: 227 passed, 0 failed

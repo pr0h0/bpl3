@@ -1,0 +1,7 @@
+{
+  "name": "bpl-quant",
+  "version": "0.1.0",
+  "description": "Market-data and analytics server: order matching, time series, option pricing and portfolio risk",
+  "main": "src/main.bpl",
+  "license": "MIT"
+}
