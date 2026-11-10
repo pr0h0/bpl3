@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "name": "bpl-metrics",
+  "version": "0.1.0",
+  "archiveFile": "bpl-metrics-0.1.0.tgz",
+  "archiveSha256": "c514b00d8e078f2bd85f57869da97e58db93ff596ecd8ea496c99190a8f9ca06",
+  "packageHash": "c1be91a6f102f9f1d38c564b3a83d50085feaddf59159d39c1c8387af13b822e",
+  "sizeBytes": 5810,
+  "createdAt": "2026-11-10T12:31:16.090Z",
+  "manifest": {
+    "name": "bpl-metrics",
+    "version": "0.1.0",
+    "description": "Prometheus counters, gauges and histograms in the text exposition format",
+    "main": "index.bpl",
+    "license": "MIT"
+  }
+}

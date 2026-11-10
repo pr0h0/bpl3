@@ -1,0 +1,7 @@
+{
+  "name": "bpl-metrics",
+  "version": "0.1.0",
+  "description": "Prometheus counters, gauges and histograms in the text exposition format",
+  "main": "index.bpl",
+  "license": "MIT"
+}
