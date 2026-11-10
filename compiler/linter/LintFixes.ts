@@ -1,5 +1,7 @@
 import type * as AST from "../common/AST";
 import { Formatter } from "../formatter/Formatter";
+import { lexWithGrammar } from "../frontend/GrammarLexer";
+import { TokenType } from "../frontend/TokenType";
 import { findUnusedImports } from "./Linter";
 
 /** Offset in `source` of a 1-based line and UTF-16 column. */
@@ -21,6 +23,17 @@ function renderImport(statement: AST.ImportStmt): string {
     location: statement.location,
   } as unknown as AST.Program;
   return new Formatter().format(program).trimEnd();
+}
+
+/** The comments written inside `text`, in order. */
+function commentsIn(text: string): string[] {
+  try {
+    return lexWithGrammar(text, "import.bpl")
+      .filter((token) => token.type === TokenType.Comment)
+      .map((token) => token.lexeme.trim());
+  } catch {
+    return [];
+  }
 }
 
 /**
@@ -46,20 +59,31 @@ export function fixUnusedImports(
         : statement.items.filter(
             (item) => !names.includes(item.alias ?? item.name),
           );
+      const lineStart = source.lastIndexOf("\n", start - 1) + 1;
+      const before = source.slice(lineStart, start);
       if (remaining.length > 0) {
+        // Comments inside the import survive above its rewritten form.
+        const indent = before.trim() === "" ? before : "";
+        const comments = commentsIn(source.slice(start, end));
         return {
           start,
           end,
-          text: renderImport({ ...statement, items: remaining }),
+          text: [
+            ...comments,
+            renderImport({ ...statement, items: remaining }),
+          ].join(`\n${indent}`),
         };
       }
-      // Delete the whole line when the import is alone on it.
-      const lineStart = source.lastIndexOf("\n", start - 1) + 1;
-      const before = source.slice(lineStart, start);
+      // Delete the whole line when the import is alone on it, and otherwise
+      // the spacing that separated it from its neighbour on the line.
       const newline = source.slice(end).match(/^[ \t]*(\r\n|\r|\n|$)/);
       if (before.trim() === "" && newline) {
         start = lineStart;
         end += newline[0].length;
+      } else if (before.trim() === "") {
+        end += source.slice(end).match(/^[ \t]*/)![0].length;
+      } else {
+        start -= before.match(/[ \t]*$/)![0].length;
       }
       return { start, end, text: "" };
     })

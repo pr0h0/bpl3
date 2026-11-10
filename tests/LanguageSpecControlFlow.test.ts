@@ -171,6 +171,36 @@ frame main() ret int {
         message: "Duplicate case value '1'",
       },
       {
+        name: "case-outside-subject-range",
+        source:
+          "frame main() ret int { local v: u8 = cast<u8>(44); switch (v) { case 44: { break; } case 300: { break; } default: { break; } } return 0; }\n",
+        code: "BPL_INTEGER_LITERAL_OVERFLOW",
+      },
+      {
+        name: "negative-case-on-unsigned",
+        source:
+          "frame main() ret int { local v: u8 = cast<u8>(1); switch (v) { case -1: { break; } default: { break; } } return 0; }\n",
+        code: "BPL_INTEGER_LITERAL_OVERFLOW",
+      },
+      {
+        name: "char-and-integer-duplicate",
+        source:
+          "frame main() ret int { local v: char = 'a'; switch (v) { case 'a': { break; } case 97: { break; } default: { break; } } return 0; }\n",
+        message: "Duplicate case value '97'",
+      },
+      {
+        name: "fallthrough-from-default",
+        source:
+          "frame main() ret int { local v: int = 1; switch (v) { case 1: { break; } default: { if (v > 0) { fallthrough; } break; } } return v; }\n",
+        code: "BPL_FALLTHROUGH_OUTSIDE_SWITCH",
+      },
+      {
+        name: "fallthrough-from-last-case",
+        source:
+          "frame main() ret int { local v: int = 1; switch (v) { case 1: { fallthrough; } } return v; }\n",
+        code: "BPL_FALLTHROUGH_OUTSIDE_SWITCH",
+      },
+      {
         name: "case-without-terminator",
         source:
           "frame main() ret int { local v: int = 1; switch (v) { case 1: { v = 2; } default: { break; } } return v; }\n",
@@ -307,6 +337,16 @@ frame main() ret int {
   local x: int = 1;
   defer { x++; }
   return x;
+}`,
+        code: "BPL_CAPTURED_VALUE_ASSIGNED",
+      },
+      {
+        name: "defer-tuple-assign-outer",
+        source: `frame main() ret int {
+  local x: int = 1;
+  local y: int = 1;
+  defer { (x, y) = (2, 3); }
+  return x + y;
 }`,
         code: "BPL_CAPTURED_VALUE_ASSIGNED",
       },

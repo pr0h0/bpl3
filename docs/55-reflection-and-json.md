@@ -168,6 +168,7 @@ The implementation is experimental; it is not a general, strict JSON validator.
 | `i8` / `char`, `i16` / `short`                                    | Decimal numbers                       | Checked signed 8-/16-bit integers                          |
 | `u8` / `uchar`, `u16` / `ushort`, `u32` / `uint`, `u64` / `ulong` | Exact decimal numbers                 | Checked unsigned integers                                  |
 | `float` / `double` / `f64`                                        | Bounded binary64 formatting           | JSON fractions and exponents; finite binary64 results      |
+| `f32`                                                             | Nine significant digits               | Rounded to the nearest `f32`; values beyond its range fail |
 | Other primitive kinds                                             | Unsupported kinds fall back to `null` | No general primitive conversion                            |
 | Structs                                                           | Reflected fields or a custom hook     | Reflected fields; unknown keys are skipped                 |
 | Fixed arrays, `Array<T>`                                          | Recursive elements                    | Subject to element support and parser limits               |
@@ -198,7 +199,10 @@ below 0x20. Valid UTF-8 bytes are preserved; embedded NUL remains unsupported.
 Binary64 (`float`/`double`/`f64`) output uses up to 17 significant digits and may
 use exponent notation; this preserves finite values through a binary64 JSON
 parser. Formatting is bounded and does not allocate a fixed-size heap buffer.
-NaN and either infinity serialize as `null`. Numeric formatting and floating-point
+An `f32` prints with nine significant digits (`%.9g`), enough to read back
+the same `f32`; a parsed number that rounds past the largest finite `f32` is
+the error `Number out of range for f32`. NaN and either infinity serialize as
+`null`. Numeric formatting and floating-point
 parsing require the C numeric locale; callers changing the process locale must
 retain that convention.
 

@@ -403,7 +403,6 @@ export abstract class BinaryExpressionGenerator extends AddressExpressionGenerat
 
       if (isLambdaKind || isLambdaSig) {
         return this.generateLambdaEquality(
-          expr,
           leftRaw,
           rightRaw,
           leftType,
@@ -926,7 +925,7 @@ export abstract class BinaryExpressionGenerator extends AddressExpressionGenerat
 
         // Check for lambda equality
         if (expr.left.resolvedType?.kind === "LambdaType") {
-          return this.generateLambdaEquality(expr, left, right, leftType, true);
+          return this.generateLambdaEquality(left, right, leftType, true);
         }
 
         op = isFloat ? "fcmp oeq" : "icmp eq";
@@ -965,13 +964,7 @@ export abstract class BinaryExpressionGenerator extends AddressExpressionGenerat
 
         // Check for lambda inequality
         if (expr.left.resolvedType?.kind === "LambdaType") {
-          return this.generateLambdaEquality(
-            expr,
-            left,
-            right,
-            leftType,
-            false,
-          );
+          return this.generateLambdaEquality(left, right, leftType, false);
         }
 
         op = isFloat ? "fcmp une" : "icmp ne";
@@ -1046,7 +1039,6 @@ export abstract class BinaryExpressionGenerator extends AddressExpressionGenerat
    * Lambdas are fat pointers { func_ptr, ctx_ptr }
    */
   private generateLambdaEquality(
-    expr: AST.BinaryExpr,
     left: string,
     right: string,
     type: string,

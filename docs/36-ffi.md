@@ -183,10 +183,11 @@ struct PackedFields {
     marker: char,
 }
 
-enum Color {
-    COLOR_RED,
-    COLOR_BLUE,
-}
+type Color = int;
+global const COLOR_RED: int = 1;
+global const COLOR_BLUE: int = 2;
+
+type CRow_int_3 = int[3];
 
 extern puts(s: string) ret int;
 extern malloc(size: ulong) ret *void;
@@ -194,7 +195,22 @@ extern pow(base: double, exp: double) ret double;
 extern fill(values: *int, count: ulong) ret void;
 extern fill_matrix(matrix: *CRow_int_3) ret void;
 extern printf(fmt: string, ...) ret int;
+
+export [bpl_size];
+export [continued_word];
+# ... one export per generated type, constant and function
+export printf;
 ```
+
+A BPL enum crosses the C ABI as its variant's index. A C enum whose values are
+0, 1, 2, ... in order becomes a BPL `enum`; any other becomes an `int` alias
+with one constant per enumerator, so `COLOR_RED` above still passes 1. An
+enumerator whose initializer is not an integer expression of literals, earlier
+enumerators and integer `#define`s (such as `sizeof(int)`) is left as a
+comment, together with the implicit values that follow it.
+
+Every generated declaration is exported, so `import [Point], puts from
+"./c_bindings.bpl";` works without editing the file.
 
 C `float` declarations map to BPL `f32`, including typedefs, pointers, and
 struct fields. C `double` maps to BPL `double`. Constants with an `f` or `F`

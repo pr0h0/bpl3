@@ -164,6 +164,21 @@ frame main() ret int {
 }
 ```
 
+When a lambda initializes a local declared with a `Lambda` type, its parameter
+and return types may be left out; they come from the declared type:
+
+```bpl
+extern printf(fmt: string, ...);
+
+frame main() ret int {
+    local inc: Lambda<int>(int) = |x| { return x + 1; };
+    printf("%d\n", inc(1));  # 2
+    return 0;
+}
+```
+
+Elsewhere, such as in an assignment or as a call argument, write the types.
+
 ## Variable Capture (Closures)
 
 Capturing lambdas allocate storage for their captured values. If this allocation

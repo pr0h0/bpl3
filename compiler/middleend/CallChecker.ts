@@ -115,6 +115,30 @@ const CALLEE_MEMBERS = new WeakSet<AST.Expression>();
 /** `case Enum.Variant:` labels name a data-carrying variant without its data. */
 export const ENUM_VARIANT_LABELS = new WeakSet<AST.Expression>();
 
+/** Whether a spec method names `Self` in a parameter after `this` or its result. */
+function mentionsSelf(method: AST.SpecMethod): boolean {
+  const mentions = (type: AST.TypeNode | undefined): boolean => {
+    if (!type) return false;
+    switch (type.kind) {
+      case "BasicType":
+        return type.name === "Self" || type.genericArgs.some(mentions);
+      case "TupleType":
+        return type.types.some(mentions);
+      case "FunctionType":
+      case "LambdaType":
+        return mentions(type.returnType) || type.paramTypes.some(mentions);
+      default:
+        return false;
+    }
+  };
+  const params =
+    method.params[0]?.name === "this" ? method.params.slice(1) : method.params;
+  return (
+    params.some((parameter) => mentions(parameter.type)) ||
+    mentions(method.returnType)
+  );
+}
+
 export function checkCall(
   this: CheckerContext,
   expr: AST.CallExpr,
@@ -1279,6 +1303,23 @@ export function checkMember(
           throw new CompilerError(
             `Cannot use spec method '${specValue.name}' as a value`,
             `Call it directly (${expr.property}(...)), or wrap the call in a lambda.`,
+            expr.location,
+            INSTANCE_METHOD_NOT_COMPATIBLE_CODE,
+          );
+        }
+
+        // Through a `*Spec` the implementing type is not known, so a method
+        // that takes or returns `Self` beyond its receiver cannot be called:
+        // the implementation expects its own struct there.
+        if (
+          compatibleMethod?.kind === "SpecMethod" &&
+          this.currentScope.resolve((baseType as AST.BasicTypeNode).name)
+            ?.kind === "Spec" &&
+          mentionsSelf(compatibleMethod)
+        ) {
+          throw new CompilerError(
+            `Spec method '${compatibleMethod.name}' uses 'Self' outside its receiver, so it cannot be called through a spec pointer`,
+            "Call it on the implementing struct, or through a generic parameter constrained by the spec (frame f<T: Spec>(x: *T)).",
             expr.location,
             INSTANCE_METHOD_NOT_COMPATIBLE_CODE,
           );

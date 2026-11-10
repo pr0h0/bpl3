@@ -4286,9 +4286,15 @@ describe("CLI Tests", () => {
       expect(result.stdout).not.toContain("struct value {");
       expect(result.stdout).toContain("struct OuterNamed {");
       expect(result.stdout).not.toContain("struct InnerHidden {");
-      expect(result.stdout).toContain("enum Color {");
-      expect(result.stdout).toContain("COLOR_RED,");
-      expect(result.stdout).toContain("COLOR_BLUE,");
+      // A BPL enum passes its index, so C values 1 and 2 need constants.
+      expect(result.stdout).toContain("type Color = int;");
+      expect(result.stdout).toContain("global const COLOR_RED: int = 1;");
+      expect(result.stdout).toContain("global const COLOR_BLUE: int = 2;");
+      expect(result.stdout).not.toContain("enum Color {");
+      expect(result.stdout).toContain("export [Color];");
+      expect(result.stdout).toContain("export COLOR_RED;");
+      expect(result.stdout).toContain("export [Point];");
+      expect(result.stdout).toContain("export make_point;");
       expect(result.stdout).toContain(
         "extern make_point(x: int, y: double) ret Point;",
       );

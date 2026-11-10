@@ -72,6 +72,38 @@ describe("literal match patterns", () => {
         code: "BPL_MATCH_EXHAUSTIVENESS_MISMATCH",
         message: "Unreachable match arm: an earlier arm matches every value",
       },
+      {
+        name: "tuple-arm-after-tuple-of-bindings",
+        source: matchOn(
+          "(int, int)",
+          "(0, 0)",
+          "(x, y) => x + y, (0, 0) => 2, _ => 0",
+        ),
+        code: "BPL_MATCH_EXHAUSTIVENESS_MISMATCH",
+        message: "Unreachable match arm: an earlier arm matches every value",
+      },
+      {
+        name: "repeated-tuple-literal",
+        source: matchOn(
+          "(int, int)",
+          "(0, 0)",
+          "(0, 0) => 1, (0, 0) => 2, _ => 0",
+        ),
+        code: "BPL_MATCH_EXHAUSTIVENESS_MISMATCH",
+        message:
+          "Unreachable match arm: this value is already matched by an earlier arm",
+      },
+      {
+        name: "tuple-arm-covered-element-wise",
+        source: matchOn(
+          "(int, int)",
+          "(0, 0)",
+          "(0, _) => 1, (0, 5) => 2, _ => 0",
+        ),
+        code: "BPL_MATCH_EXHAUSTIVENESS_MISMATCH",
+        message:
+          "Unreachable match arm: this value is already matched by an earlier arm",
+      },
     ]);
   }, 60000);
 });

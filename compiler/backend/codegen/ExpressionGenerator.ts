@@ -35,6 +35,15 @@ const COMPOUND_BINARY_OPERATORS: Partial<Record<TokenType, TokenType>> = {
 };
 
 export abstract class ExpressionGenerator extends UnaryExpressionGenerator {
+  /** Whether a type is a `*Spec`, which lowers to a pointer to a stack pair. */
+  protected isSpecPointerType(type: AST.TypeNode | undefined): boolean {
+    if (type?.kind !== "BasicType" || type.pointerDepth !== 1) return false;
+    if (type.arrayDimensions.length > 0) return false;
+    return (
+      this.getSpecDeclarationForType({ ...type, pointerDepth: 0 }) !== undefined
+    );
+  }
+
   protected abstract generateBlock(block: AST.BlockStmt): void;
   protected abstract generateThrow(stmt: AST.ThrowStmt): void;
 
@@ -280,6 +289,15 @@ export abstract class ExpressionGenerator extends UnaryExpressionGenerator {
       const layout = new Map<string, number>();
       const fieldTypes: string[] = [];
 
+      // A spec pointer points at a `{ data, vtable }` pair in this frame, so
+      // the context holds the pair itself (see captureInfo.specPair).
+      const specPairs = expr.capturedVariables.map((decl) =>
+        this.isSpecPointerType(
+          (("typeAnnotation" in decl ? decl.typeAnnotation : undefined) ||
+            ("type" in decl ? decl.type : undefined) ||
+            decl.resolvedType)!,
+        ),
+      );
       expr.capturedVariables.forEach((decl, i) => {
         layout.set(decl.name as string, i);
         if ("typeAnnotation" in decl && decl.typeAnnotation) {
@@ -301,6 +319,9 @@ export abstract class ExpressionGenerator extends UnaryExpressionGenerator {
         }
       });
 
+      specPairs.forEach((isPair, i) => {
+        if (isPair) fieldTypes[i] = fieldTypes[i]!.replace(/\*$/, "");
+      });
       this.structLayouts.set(captureStructName, layout);
 
       // Emit struct declaration
@@ -354,7 +375,12 @@ export abstract class ExpressionGenerator extends UnaryExpressionGenerator {
           `  ${fieldPtr} = getelementptr inbounds ${captureStructType}, ${captureStructType}* ${structPtr}, i32 0, i32 ${i}`,
         );
         const fieldType = fieldTypes[i];
-        this.emit(`  store ${fieldType} ${val}, ${fieldType}* ${fieldPtr}`);
+        let stored = val;
+        if (specPairs[i]) {
+          stored = this.newRegister();
+          this.emit(`  ${stored} = load ${fieldType}, ${fieldType}* ${val}`);
+        }
+        this.emit(`  store ${fieldType} ${stored}, ${fieldType}* ${fieldPtr}`);
       });
 
       ctxPtr = mallocReg;
@@ -1601,6 +1627,30 @@ export abstract class ExpressionGenerator extends UnaryExpressionGenerator {
       }
     }
 
+    // Field values are evaluated in source order, as call arguments and other
+    // literals are, and then placed in layout order.
+    const evaluated = new Map<string, { value: string; type: string }>();
+    for (const field of expr.fields) {
+      const valExpr = field.value;
+      let fieldTypeNode = valExpr.resolvedType!;
+      if (baseStructDef) {
+        const fieldDef =
+          this.getStructFieldByName(baseStructDef, field.name) ??
+          this.getAllStructFields(baseStructDef).find(
+            (candidate) => candidate.name === field.name,
+          );
+        if (fieldDef) {
+          fieldTypeNode = genericContextMap
+            ? this.substituteType(fieldDef.type, genericContextMap)
+            : fieldDef.type;
+        }
+      }
+      evaluated.set(field.name, {
+        type: this.resolveType(fieldTypeNode),
+        value: this.generateAggregateElementForTarget(valExpr, fieldTypeNode),
+      });
+    }
+
     for (const [fieldName, fieldIndex] of sortedFields) {
       if (fieldName === "__vtable__") {
         const vtableGlobal = this.vtableGlobalNames.get(structName);
@@ -1616,38 +1666,11 @@ export abstract class ExpressionGenerator extends UnaryExpressionGenerator {
         continue;
       }
 
-      let valExpr = fieldValues?.get(fieldName);
-      if (!fieldValues) {
-        for (const field of expr.fields) {
-          if (field.name === fieldName) {
-            valExpr = field.value;
-            break;
-          }
-        }
-      }
-      if (valExpr) {
-        let fieldTypeNode = valExpr.resolvedType!;
-        if (baseStructDef) {
-          const fieldDef =
-            this.getStructFieldByName(baseStructDef, fieldName) ??
-            this.getAllStructFields(baseStructDef).find(
-              (field) => field.name === fieldName,
-            );
-          if (fieldDef) {
-            fieldTypeNode = genericContextMap
-              ? this.substituteType(fieldDef.type, genericContextMap)
-              : fieldDef.type;
-          }
-        }
-        const expectedFieldType = this.resolveType(fieldTypeNode);
-        const val = this.generateAggregateElementForTarget(
-          valExpr,
-          fieldTypeNode,
-        );
-
+      const field = evaluated.get(fieldName);
+      if (field) {
         const nextVal = this.newRegister();
         this.emit(
-          `  ${nextVal} = insertvalue ${type} ${structVal}, ${expectedFieldType} ${val}, ${fieldIndex}`,
+          `  ${nextVal} = insertvalue ${type} ${structVal}, ${field.type} ${field.value}, ${fieldIndex}`,
         );
         structVal = nextVal;
       }

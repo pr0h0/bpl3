@@ -686,7 +686,7 @@ function runPackedPackageSmoke(): void {
     runPackedSourceAnalysisNoInputJsonSmoke(installedBpl);
     runPackedCompletionJsonSmoke(installedBpl, installDir);
     runCompletionSmoke(installedBpl, installDir);
-    runLibraryTemplateSmoke(installedBpl, installDir);
+    runLibraryTemplateSmoke(installedBpl);
     runPackedRunScriptListJsonSmoke(installedBpl);
     runPackedRunScriptFailureJsonSmoke(installedBpl);
     runTinyProgramSmoke("packed npm CLI", installedBpl, { bplHome: null });
@@ -1233,10 +1233,7 @@ function runPackedDoctorFailureJsonSmoke(
   }
 }
 
-function runLibraryTemplateSmoke(
-  installedBpl: string,
-  installDir: string,
-): void {
+function runLibraryTemplateSmoke(installedBpl: string): void {
   const workspaceDir = mkdtempSync(join(tmpdir(), "bpl-release-template-"));
 
   try {

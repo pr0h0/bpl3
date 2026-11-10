@@ -302,6 +302,36 @@ frame main() ret int {
 }`,
           expectedStdout: "30 11 22 10 11 20\n",
         },
+        {
+          name: "x86-asm-global-operands",
+          validateLlvm: true,
+          source: `extern printf(fmt: string, ...);
+global LIMIT: long = 0;
+global COUNTER: int = 40;
+global const BASE: int = 7;
+frame main() ret int {
+  local v: long = 9;
+  local b: int = 0;
+  asm("intel") {
+    mov rax, (v)
+    add rax, 1
+    mov (=LIMIT), rax
+  }
+  asm("att") {
+    movl (COUNTER), %eax
+    addl (BASE), %eax
+    movl %eax, (=COUNTER)
+  }
+  asm("att") {
+    movq (&COUNTER), %rax
+    movl (%rax), %eax
+    movl %eax, (=b)
+  }
+  printf("%ld %d %d\\n", LIMIT, COUNTER, b);
+  return 0;
+}`,
+          expectedStdout: "10 47 47\n",
+        },
       ]);
     },
     120000,
@@ -321,6 +351,18 @@ frame main() ret int {
         source:
           'frame main() ret int { asm("intel") { mov eax, (missing) } return 0; }\n',
         message: "Undefined variable 'missing' in asm block",
+      },
+      {
+        name: "output-to-local-constant",
+        source:
+          'frame main() ret int { local const k: int = 1; asm("intel") { mov (=k), 5 } return k; }\n',
+        code: "BPL_ASSIGNMENT_TARGET_CONSTANT",
+      },
+      {
+        name: "output-to-global-constant",
+        source:
+          'global const K: int = 1;\nframe main() ret int { asm("att") { movl $5, (=K) } return K; }\n',
+        code: "BPL_ASSIGNMENT_TARGET_CONSTANT",
       },
     ]);
   }, 120000);

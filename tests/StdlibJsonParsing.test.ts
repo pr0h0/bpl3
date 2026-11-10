@@ -25,8 +25,9 @@ const invalidCases = [
     "[1e]",
     "[01]",
   ].map((input) => ({ type: "Array<int>", input })),
-  { type: "Float32Pair", input: "[1.25]" },
-  { type: "Array<f32>", input: "[1.25]" },
+  // f32 is supported (BUG-531); a value past its range is not.
+  { type: "Float32Pair", input: "[1.25, 1e39]" },
+  { type: "Array<f32>", input: "[-340282356779733661637539395458142568448]" },
   ...[
     '{"id":1,}',
     '{"id":1 "extra":2}',

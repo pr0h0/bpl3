@@ -141,8 +141,9 @@ Tests and code generation must preserve it.
 - **[R-ARR-4]** `*T` is a raw pointer. It carries no length and has no
   ownership semantics. Adding or subtracting an integer moves the pointer by
   that many elements.
-- **[R-ARR-5]** Indexing a fixed array with an out-of-range index stops the
-  program with an `Array index I is out of bounds for size N` runtime failure.
+- **[R-ARR-5]** Indexing a fixed array with an out-of-range index throws an
+  `IndexOutOfBoundsError`; uncaught, it stops the program with an
+  `Array index I is out of bounds for size N` runtime failure.
 - **[R-ARR-6]** Indexing a slice is bounds-checked against its stored length
   with the same runtime failure.
 - **[R-ARR-7]** Indexing a raw pointer uses direct pointer arithmetic. The
@@ -434,6 +435,10 @@ frame main() ret int {
   implement `Spec`, whether the spec is listed directly, after a parent struct,
   or on a parent struct. Inside the function, the spec's methods are called on
   `T` with `Self` bound to `T`, including for generic specs (`T: Getter<long>`).
+  A constraint may also name a type: `<T: Parent>` accepts `Parent` and the
+  structs that inherit from it, and `<T: Box<int>>` or `<T: int>` accepts
+  types compatible with it. A constraint naming nothing declared is rejected
+  with `BPL_TYPE_NOT_FOUND`.
 - **[R-FN-10]** A native variadic parameter `xs: ...T` must be followed by one
   `int` count parameter and is allowed on free functions only; a method with
   one is rejected with `BPL_VARIADIC_METHOD_UNSUPPORTED`. A variadic function
@@ -460,9 +465,12 @@ frame identity<T>(val: T) ret T {
   every field declared directly in `S`; missing fields are rejected with
   `BPL_STRUCT_LITERAL_FIELD_MISSING` and unknown fields with
   `BPL_STRUCT_LITERAL_FIELD_UNKNOWN`. Inherited fields may be omitted and are
-  then zero-initialized.
+  then zero-initialized. Field values are evaluated in the order they are
+  written.
 - **[R-STRUCT-4]** Fields are laid out in declaration order with C alignment
-  and padding. Inherited fields precede the child's fields.
+  and padding. Inherited fields precede the child's fields, and a child
+  cannot declare a field, or a method, with the name of an inherited field
+  (`BPL_SYMBOL_ALREADY_DEFINED`); a method may override an inherited method.
 - **[R-STRUCT-5]** A struct begins with a hidden vtable pointer when it
   declares methods, lists a parent struct or spec, or is the parent of another
   struct. Other structs have no hidden storage (`struct Plain { x: int, }` is 4
@@ -536,8 +544,15 @@ arguments; tuple, callable, pointer and array types cannot be spec parents.
   implementing struct converts to `*Spec` in arguments, local initializers and
   assignments, local array elements, and explicit `cast<*Spec>`. The method
   table is built in the frame performing the conversion, so `*Spec` cannot be a
-  return type, a global type, or a struct field type; those are rejected with
-  `BPL_SPEC_POINTER_ESCAPES`.
+  return type, a global type, or a struct field type, also inside a tuple or as
+  a generic argument (`ret (*Spec, int)`, `ret Box<*Spec>`); those are rejected
+  with `BPL_SPEC_POINTER_ESCAPES`. A lambda that captures a `*Spec` keeps its
+  own copy, so it may outlive the frame. A spec method that names `Self`
+  outside its receiver (`eq(this: *Self, o: *Self)`, `ret Self`) cannot be
+  called through a `*Spec`, which does not know the implementing type
+  (`BPL_INSTANCE_METHOD_NOT_COMPATIBLE`); call it through a generic parameter
+  constrained by the spec. A `*Spec` has the methods of the specs it extends,
+  and an implementing struct must implement them.
 
 ```bpl
 spec Drawable {
@@ -570,7 +585,9 @@ struct Circle : Shape, Drawable, Named {
 - **[R-ENUM-1]** An enum declares unit variants (`A`), tuple variants
   (`B(int, int)`), and struct variants (`C { x: int }`). Values are written
   `E.A`, `E.B(1, 2)`, and `E.C { x: 1 }`. Generic enums take explicit type
-  arguments: `Option<int>.Some(1)`. A tuple or struct variant is a value only
+  arguments, `Option<int>.Some(1)`, which may be left out where the expected
+  type supplies them: an annotated declaration, an assignment, a return, an
+  argument, or the other side of `==`. A tuple or struct variant is a value only
   with its data: `E.B` alone is rejected with
   `BPL_ENUM_VARIANT_ARGUMENT_COUNT_MISMATCH`, except as a `switch` case label.
 - **[R-ENUM-2]** Enum values compare with `==` and `!=`. Enums do not convert
@@ -645,11 +662,15 @@ loop (;;) {
   other types are rejected with `BPL_SWITCH_VALUE_TYPE_MISMATCH`. Case values
   must be literals (optionally negated) or enum variants; anything else, such
   as a variable, is rejected with `BPL_SWITCH_CASE_VALUE_NOT_CONSTANT`.
-  Duplicate case values are rejected. Strings compare by content, and a null
-  string matches no case.
+  On an integer subject a case value must fit the subject's type
+  (`BPL_INTEGER_LITERAL_OVERFLOW`), and a character label is its code, so
+  `case 'a':` and `case 97:` are duplicates. Duplicate case values are
+  rejected. Strings compare by content, and a null string matches no case.
 - **[R-CTRL-8]** Every `case` or `default` body, braced or not, must end with `break`,
   `continue`, `return`, `throw`, or `fallthrough`. Control never falls into
-  the next case implicitly; `fallthrough;` continues with the next case body.
+  the next case implicitly; `fallthrough;` continues with the next case body,
+  so the last body (`default`, or the last case without one) cannot use it
+  (`BPL_FALLTHROUGH_OUTSIDE_SWITCH`).
   When no case matches and there is no `default`, the switch does nothing.
 
 ```bpl
@@ -728,9 +749,10 @@ try {
 
 ### Operators
 
-- **[R-EXPR-1]** `+`, `-`, `*`, and `/` apply to numeric operands. Integer
+- **[R-EXPR-1]** `+`, `-`, `*`, and `/` apply to numeric operands, which
+  include `bool` as a one-bit integer (`true + true` wraps to `false`). Integer
   division truncates toward zero, and `%` takes the sign of the dividend. `%`
-  requires integer operands (`BPL_MODULO_OPERAND_TYPE_MISMATCH`).
+  and `%=` require integer operands (`BPL_MODULO_OPERAND_TYPE_MISMATCH`).
 - **[R-EXPR-2]** `&&` and `||` require `bool` operands and evaluate the right
   operand only when needed. `!` requires a `bool` operand.
 - **[R-EXPR-3]** `&`, `|`, `^`, `~`, `<<`, and `>>` require integer operands;
@@ -778,7 +800,9 @@ try {
 
 - **[R-LAMBDA-1]** `|name: Type, ...| ret Type { ... }` creates a `Lambda`
   value. It may have zero parameters (`|| { ... }`), and `ret` may be omitted
-  for a `void` result.
+  for a `void` result. A lambda initializing a local declared with a `Lambda`
+  type may leave out its parameter and result types, which the declared type
+  supplies (`local f: Lambda<int>(int) = |x| { return x; };`).
 - **[R-LAMBDA-2]** A lambda captures the outer locals it uses by value when it
   is created. Later changes to the outer variable are not visible to the
   lambda.
@@ -811,14 +835,17 @@ try {
   `BPL_MATCH_LITERAL_PATTERN_TYPE_MISMATCH`. An integer literal may match a
   floating-point value.
 - **[R-MATCH-3]** An enum match must cover every variant or include a
-  catch-all arm. Other matches must include an unguarded `_` or identifier arm.
+  catch-all arm. Other matches must include an unguarded `_` or identifier
+  arm, unless their unguarded arms cover every value of a finite type, such as
+  `true` and `false` on a `bool` or every combination of a tuple of `bool`s.
   Guarded arms do not count toward exhaustiveness. Arms with sub-patterns
   cover a variant together: `E.V(true)` and `E.V(false)` cover `E.V`, while
   `E.V(1, y)` alone does not; struct-variant fields count the same way. The catch-all arm of an enum match is `_`; an
   identifier cannot bind the whole enum value.
   An arm that can never be selected (after an unguarded `_` or binding, after
-  an arm that already matches every value of its variant, or an unguarded
-  literal arm that repeats an earlier one) is rejected. Violations are
+  an arm that already matches every value of its variant, or after an
+  unguarded arm that matches all of its values, such as `(x, y)` before
+  `(0, 0)`, or `(0, _)` before `(0, 5)`) is rejected. Violations are
   rejected with `BPL_MATCH_EXHAUSTIVENESS_MISMATCH`.
 - **[R-MATCH-4]** An arm body may be a block. Inside a block arm of a match
   used as an expression, `return expression;` yields the arm's value rather
@@ -930,7 +957,8 @@ import * as std from "std";
   Without it, the block clobbers memory and flags plus every register named in
   the assembly text.
 - **[R-ASM-6]** Every `(name)`, `(=name)`, and `(&name)` operand must name a
-  variable in scope.
+  local or global variable in scope. An output operand cannot name a constant
+  (`BPL_ASSIGNMENT_TARGET_CONSTANT`).
 
 <!-- bpl-doc: arch=x64 -->
 

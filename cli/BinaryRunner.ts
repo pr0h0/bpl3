@@ -482,15 +482,6 @@ function buildClangArgs(
     args.push(`-L${p}`);
   }
 
-  // Libraries to link
-  for (const l of normalizeArrayOption(options.lib)) {
-    args.push(`-l${l}`);
-  }
-
-  if (!wasmTarget) {
-    args.push(...getNativeLinkerFlags(hostDefaults.os));
-  }
-
   // Additional clang flags
   for (const flag of normalizeArrayOption(options.clangFlag)) {
     args.push(flag);
@@ -552,8 +543,18 @@ function buildClangArgs(
     }
   }
 
-  // Input and output
-  args.push(irPath, "-o", execPath);
+  args.push(irPath);
+
+  // Libraries follow every input: a linker reads a static archive once, in
+  // order, and takes only the members that earlier inputs need.
+  for (const l of normalizeArrayOption(options.lib)) {
+    args.push(`-l${l}`);
+  }
+  if (!wasmTarget) {
+    args.push(...getNativeLinkerFlags(hostDefaults.os));
+  }
+
+  args.push("-o", execPath);
 
   return args;
 }

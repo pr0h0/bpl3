@@ -944,6 +944,328 @@ expression as written instead of the wrapper used for the lookup, giving
 pointer receivers were never mapped and read as before.
 `tests/MemberErrorTypeName.test.ts` covers four primitives and a struct.
 
+## Language conformance audit (2026-11-10)
+
+Two auditors probed every rule of `docs/LANGUAGE_SPEC.md` and the guides with
+small programs: about 330 probes for sections 1, 2 and 5-7, and about 470 for
+sections 3, 4 and 8-12 and the tools.
+
+### BUG-518: Switch case values were not checked against the subject type
+
+**Status**: Fixed · **Priority**: P2
+
+On a `u8` subject, `case 300:` passed `bpl check` and silently matched 44, and
+with `case 44:` as well it failed in clang (`duplicate case value`). `case 'a':`
+and `case 97:` on a `char` did the same.
+
+**Resolution**: on an integer subject each case value must fit its type
+(`BPL_INTEGER_LITERAL_OVERFLOW`), and duplicates are compared as values of that
+type, characters by their code. R-CTRL-7. `tests/LanguageSpecControlFlow.test.ts`.
+
+### BUG-519: `bpl check` reported an import cycle as a missing export
+
+**Status**: Fixed · **Priority**: P2
+
+For `main.bpl` and `other.bpl` importing each other, or a self-import, `check`
+said `Module './other.bpl' does not export 'g'`: the module being loaded had no
+exports yet. `bpl build` reported the cycle.
+
+**Resolution**: the checker tracks the modules it is loading and reports
+`Circular dependency detected: main.bpl -> other.bpl -> main.bpl`.
+`tests/CircularImportLocations.test.ts`.
+
+### BUG-520: Inline asm in `intel`/`att` ignored global operands
+
+**Status**: Fixed · **Priority**: P2
+
+`(G)` and `(=G)` naming a global stayed as text in the asm string: an input
+failed to link and an output failed in clang. The `llvm` flavor worked.
+
+**Resolution**: the checker records each global operand's linker name and type,
+and code generation passes its storage like a local's. R-ASM-6.
+`tests/LanguageSpecModules.test.ts`.
+
+### BUG-521: An asm output operand could write a constant
+
+**Status**: Fixed · **Priority**: P3
+
+`mov (=k), 5` on `local const k` (or a `global const`) compiled and changed it.
+
+**Resolution**: `BPL_ASSIGNMENT_TARGET_CONSTANT`. R-ASM-6.
+
+### BUG-522: Tuple assignment escaped the captured-write check
+
+**Status**: Fixed · **Priority**: P3
+
+`(a, b) = (7, 8)` inside a lambda or `defer` was accepted and discarded, while
+`a = 7` is `BPL_CAPTURED_VALUE_ASSIGNED`.
+
+**Resolution**: each element of an assigned tuple is checked. R-LAMBDA-4,
+R-DEFER-5.
+
+### BUG-523: `%=` accepted floating-point values
+
+**Status**: Fixed · **Priority**: P3
+
+`a % 2.0` is `BPL_MODULO_OPERAND_TYPE_MISMATCH`, but `a %= 2.0` compiled to
+`fmod`.
+
+**Resolution**: `%=` is checked like `%`. R-EXPR-1.
+
+### BUG-524: `bpl check` accepted a by-value extern of a parent struct
+
+**Status**: Fixed · **Priority**: P3
+
+A struct that another struct inherits from gets a hidden vtable pointer, so it
+cannot cross the C ABI by value. `bpl build` rejected `extern getX(a: A)` for
+such an `A`; `bpl check` accepted it, since the child can be declared later.
+
+**Resolution**: the checker validates extern signatures again once every
+struct in the program is known. `tests/ExternAbiSafety.test.ts`.
+
+### BUG-525: `-l` could not link a static archive
+
+**Status**: Fixed · **Priority**: P3
+
+The `-l` libraries came before the program's IR on the clang command line, and
+a linker takes from a static archive only what earlier inputs need, so
+`-l name` with `libname.a` failed with `undefined reference`.
+
+**Resolution**: libraries and the native linker flags follow every input.
+`tests/StaticLibraryLink.test.ts`.
+
+### BUG-526: `bpl bindgen` dropped C enum values and exported nothing
+
+**Status**: Fixed · **Priority**: P2
+
+`typedef enum { COLOR_RED = 1, COLOR_BLUE = 2 } Color;` became a BPL enum with
+`COLOR_RED` as index 0, so C received 0 for `COLOR_RED`; the FFI guide showed
+this output. The second of two consecutive plain `enum X {...};` declarations
+was dropped. The bindings had no `export`, so they could not be imported.
+
+**Resolution**: an enum numbered 0, 1, 2, ... stays an enum; any other becomes
+an `int` alias with one constant per enumerator, evaluating integer
+initializers of literals, earlier enumerators and `#define`s. Every generated
+declaration is exported. `tests/CBindgenEnums.test.ts`.
+
+### BUG-527: Unreachable tuple match arms were accepted
+
+**Status**: Fixed · **Priority**: P4
+
+`(x, y) => ...` followed by `(0, 0) => ...`, or two unguarded `(0, 0)` arms,
+compiled; the later arm never ran.
+
+**Resolution**: an arm is unreachable when one earlier unguarded arm matches
+all its values, element by element for tuples. R-MATCH-3.
+`tests/MatchLiteralPatterns.test.ts`.
+
+### BUG-528: `fallthrough` in the last case was accepted
+
+**Status**: Fixed · **Priority**: P4
+
+With no next case, it silently left the switch.
+
+**Resolution**: `BPL_FALLTHROUGH_OUTSIDE_SWITCH`. R-CTRL-8.
+
+### BUG-529: `bpl lint --fix` dropped comments inside a rewritten import
+
+**Status**: Fixed · **Priority**: P4
+
+Rewriting `import a, # why\n b from "./lib.bpl";` without `a` deleted the
+comment, and removing the first of two imports on one line left the second
+indented.
+
+**Resolution**: the comments are kept above the rewritten import, and the
+spacing next to a removed import goes with it. `tests/LintFixImports.test.ts`.
+
+### BUG-530: Some diagnostics have no error code
+
+**Status**: Open · **Priority**: P4
+
+No `BPL_*` code on: `++`/`--` on `bool`, pointer or string operands, `Unused
+variable`, `Duplicate case value`, the switch terminator errors, asm `Unknown
+asm flavor` and `Undefined variable` (also reported at the `asm` keyword rather
+than the operand), `Module has no exported member` on namespace access, and
+`Circular dependency detected`. A new code also needs the CLI registry shim, CI
+triage patterns and the error-code documentation, so these are one change.
+
+### BUG-531: `JSON` serialized `f32` fields as `null`
+
+**Status**: Fixed · **Priority**: P3
+
+`JSON.stringify<T>` wrote `null` for an `f32` field and `JSON.parse<T>` failed
+on it with `Unsupported JSON primitive type`.
+
+**Resolution**: `f32` prints with nine significant digits, which reads back the
+same value, and parses to the nearest `f32`; a number past its range is an
+error. The stdlib fuzz lane's reflected structs include `f32` fields.
+
+### BUG-532: A `*Spec` escaped its frame through a tuple, generic or lambda
+
+**Status**: Fixed · **Priority**: P1
+
+A `*Spec` value points at a `{ data, vtable }` pair in the frame that made it.
+Only a direct return, global or field type was rejected, so
+`ret (*Spec, int)`, `ret H<*Spec>` and a returned lambda capturing a `*Spec`
+passed `bpl check` and crashed.
+
+**Resolution**: `BPL_SPEC_POINTER_ESCAPES` also covers tuple elements and
+generic arguments; a lambda keeps its own copy of a captured pair, so it can
+outlive the frame. R-SPEC-4. `tests/ConformanceAuditRegressions.test.ts`.
+
+### BUG-533: A lambda could capture an `@[auto_destroy]` value
+
+**Status**: Fixed · **Priority**: P1
+
+The capture copied the value without `BPL_OWNING_VALUE_COPIED`, so a returned
+lambda read memory the destructor had freed.
+
+**Resolution**: capturing an owning value is `BPL_OWNING_VALUE_COPIED`. `tests/ConformanceAuditRegressions.test.ts`.
+
+### BUG-534: Generic locals of a struct type got no vtable or constructor
+
+**Status**: Fixed · **Priority**: P1
+
+In `frame f<T>()`, `local x: T` and `local a: T[2]` with `T` a struct skipped
+the implicit `new(this)` constructor and, for arrays, the vtables, so a
+virtual call crashed and fields held garbage. Arrays of a struct with a vtable
+only from inheritance were also left without vtables.
+
+**Resolution**: a local's type is instantiated before its initialization is
+generated. `tests/ConformanceAuditRegressions.test.ts`.
+
+### BUG-535: The vtable store overwrote a zeroed owning local with `undef`
+
+**Status**: Fixed · **Priority**: P2
+
+`local u: R;` with an `@[auto_destroy]` `R` was zeroed and then overwritten by
+a value holding only the vtable, so `u.id` printed garbage at -O2.
+
+**Resolution**: zeroed storage receives a zero constant with the vtable. `tests/ConformanceAuditRegressions.test.ts`.
+
+### BUG-536: Spec inheritance was incomplete
+
+**Status**: Fixed · **Priority**: P2
+
+With `spec Fancy : Named`, a struct implementing `Fancy` without `Named`'s
+methods passed `bpl check` and failed in code generation with no location,
+and `Named`'s methods could not be called through `*Fancy` or `T: Fancy`.
+`spec A : B` with `spec B : A` was accepted.
+
+**Resolution**: implementing a spec checks the specs it extends, a spec has
+their methods, and a cycle is `BPL_TYPE_RECURSION_CYCLE`. R-SPEC-4. `tests/ConformanceAuditRegressions.test.ts`.
+
+### BUG-537: Spec methods using `Self` produced invalid IR through `*Spec`
+
+**Status**: Fixed · **Priority**: P2
+
+`cp.eq(&v)` for `eq(this: *Self, o: *Self)` on a `*Eq`, or a `ret Self`
+method, passed `bpl check` and failed in clang on `struct.Self`.
+
+**Resolution**: such a method cannot be called through a spec pointer, which
+does not know the implementing type (`BPL_INSTANCE_METHOD_NOT_COMPATIBLE`); a
+generic `T: Eq` can. R-SPEC-4. `tests/ConformanceAuditRegressions.test.ts`.
+
+### BUG-538: `fixedArray + n` produced invalid IR
+
+**Status**: Fixed · **Priority**: P2
+
+The checker took `arr + 5` as pointer arithmetic typed as the array, and
+clang rejected `add [5 x i32]`. The pointers guide used it.
+
+**Resolution**: an array decays only into a `*T` destination (R-CONV-4), so
+`arr + 5` is an error; `&arr[5]` and `p + 5` are pointers. `tests/ConformanceAuditRegressions.test.ts`.
+
+### BUG-539: `ptr is T` crashed on a null pointer
+
+**Status**: Fixed · **Priority**: P2
+
+It loaded the vtable through the pointer: a crash at -O0. `as` was guarded.
+
+**Resolution**: a null pointer matches no type. `tests/ConformanceAuditRegressions.test.ts`.
+
+### BUG-540: A constant array could be written through an implicit view
+
+**Status**: Fixed · **Priority**: P2
+
+`local p: *int = constArray;` and `local s: int[] = GLOBAL_CONST;` were
+accepted, though `&constArray[0]` is not; writing through them changed the
+constant or crashed on read-only memory.
+
+**Resolution**: converting constant array storage to a pointer or slice is
+`BPL_ADDRESS_OF_CONSTANT`. R-DECL-7. `tests/ConformanceAuditRegressions.test.ts`.
+
+### BUG-541: `sizeof(int[5])` and `sizeof(*int)` were rejected
+
+**Status**: Fixed · **Priority**: P3
+
+`sizeof(...)` parses its operand as an expression first, so both read as
+indexing and dereferencing a value named `int`.
+
+**Resolution**: such an expression whose root names a type is that type. `tests/ConformanceAuditRegressions.test.ts`.
+
+### BUG-542: An unknown generic constraint was accepted
+
+**Status**: Fixed · **Priority**: P3
+
+`<T: DoesNotExist>` was accepted, and failed only at a call.
+
+**Resolution**: `BPL_TYPE_NOT_FOUND` at the declaration. Struct and type
+constraints, which the examples use, are documented in R-FN-9. `tests/ConformanceAuditRegressions.test.ts`.
+
+### BUG-543: Array literals of spec pointers are rejected
+
+**Status**: Open · **Priority**: P3
+
+`local arr: *Drawable[2] = [&c, &s];` is `BPL_ARRAY_LITERAL_TYPE_MISMATCH`,
+though R-SPEC-4 allows the conversion for array elements; assigning the
+elements one by one works.
+
+### BUG-544: An overloaded function cannot be used as a value
+
+**Status**: Open · **Priority**: P3
+
+`local f: Func<string>(long) = ov;` with `ov(int)` and `ov(long)` takes the
+first overload and reports a type mismatch, instead of choosing the overload
+the expected type names.
+
+### BUG-545: A child struct could reuse an inherited member's name
+
+**Status**: Fixed · **Priority**: P3
+
+`struct C : P { x: long }` with `P` declaring `x` made a second, hidden `x`,
+and a child method named like an inherited field could not be called.
+
+**Resolution**: `BPL_SYMBOL_ALREADY_DEFINED`; a method may still override an
+inherited method. R-STRUCT-4. `tests/ConformanceAuditRegressions.test.ts`.
+
+### BUG-546: Mutually recursive type aliases were not diagnosed
+
+**Status**: Fixed · **Priority**: P3
+
+`type T1 = T2; type T2 = T1;` passed `bpl check` and gave a misleading error
+when used.
+
+**Resolution**: `BPL_TYPE_RECURSION_CYCLE`. `tests/ConformanceAuditRegressions.test.ts`.
+
+### BUG-547: Struct literal fields were evaluated in declaration order
+
+**Status**: Fixed · **Priority**: P4
+
+`P { b: t(1), a: t(2) }` called `t(2)` first; call arguments and other
+literals evaluate left to right.
+
+**Resolution**: fields are evaluated as written. R-STRUCT-3. `tests/ConformanceAuditRegressions.test.ts`.
+
+### BUG-548: Minor declaration diagnostics
+
+**Status**: Open · **Priority**: P4
+
+`local x;` and `global B;` report "Unexpected syntax" rather than
+`BPL_VARIABLE_TYPE_ANNOTATION_MISSING`; `frame ret(...)` gets no reserved-word
+message; `${f32Value}` reports a missing `toString` member; infinite generic
+recursion passes `bpl check` and fails only when building.
+
 ## Generated-program fuzzer findings (2026-10-29)
 
 Found by the oracle fuzzer (`fuzz/programGenerator.ts`, see

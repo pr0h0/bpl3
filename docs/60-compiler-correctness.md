@@ -467,8 +467,9 @@ Each campaign iteration picks one input lane:
   `fuzz/stdlibProgramGenerator.ts`, which checks strings, collections, `BigInt`,
   `Rational`, `Parse`, dates, paths, URLs, UTF-8, regular expressions, JSON
   (including `JSON.stringify<T>`, `JSON.parse<T>` and `TypeInfo` on random
-  structs), the codecs and the SHA-2 and HMAC hashes against exact JavaScript
-  and Node models. A further
+  structs), the codecs, the SHA-2 and HMAC hashes, the `std/hash` checksums
+  (FNV-1a, CRC-32, Adler-32) and `std/otp` codes against exact JavaScript and
+  Node models. A further
   fifth comes from `fuzz/typeMutation.ts`, which damages valid programs: the
   checker must reject the result, or it must compile to valid IR, so an error
   from code generation is a bug.

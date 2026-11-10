@@ -1965,6 +1965,21 @@ export abstract class MatchExpressionGenerator extends CallExpressionGenerator {
         const targetHasVtable = this.vtableGlobalNames.has(targetStructName);
 
         if (targetCouldBeValid && valueHasVtable && targetHasVtable) {
+          // A null pointer has no runtime type, so it matches nothing; its
+          // vtable slot must not be read.
+          const isNull = this.newRegister();
+          const nullLabel = this.newLabel("is.null");
+          const loadLabel = this.newLabel("is.load");
+          const doneLabel = this.newLabel("is.done");
+          this.emit(
+            `  ${isNull} = icmp eq %struct.${valueStructName}* ${matchValue}, null`,
+          );
+          this.emit(
+            `  br i1 ${isNull}, label %${nullLabel}, label %${loadLabel}`,
+          );
+          this.emit(`${nullLabel}:`);
+          this.emit(`  br label %${doneLabel}`);
+          this.emit(`${loadLabel}:`);
           // Generate runtime vtable comparison
           // 1. Load the vtable pointer from the object (first field)
           const vtablePtrPtr = this.newRegister();
@@ -1985,9 +2000,18 @@ export abstract class MatchExpressionGenerator extends CallExpressionGenerator {
           this.emit(
             `  ${targetVtablePtr} = bitcast ${targetVtableType}* ${targetVtable} to i8*`,
           );
+          const matches = this.newRegister();
+          this.emit(
+            `  ${matches} = icmp eq i8* ${actualVtable}, ${targetVtablePtr}`,
+          );
+          const compared = this.newLabel("is.compared");
+          this.emit(`  br label %${compared}`);
+          this.emit(`${compared}:`);
+          this.emit(`  br label %${doneLabel}`);
+          this.emit(`${doneLabel}:`);
           const result = this.newRegister();
           this.emit(
-            `  ${result} = icmp eq i8* ${actualVtable}, ${targetVtablePtr}`,
+            `  ${result} = phi i1 [ false, %${nullLabel} ], [ ${matches}, %${compared} ]`,
           );
           return result;
         }
