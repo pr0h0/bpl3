@@ -2,7 +2,7 @@
 
 Generated from parsed library declarations with `bun run docs:stdlib`. Do not edit by hand.
 
-This index covers all 95 BPL modules under `lib/`, including memory and low-level modules.
+This index covers all 96 BPL modules under `lib/`, including memory and low-level modules.
 It lists explicit exports and declarations defined in each source file. Re-exported symbols
 are listed under exports; their definitions are in the originating modules. Inherited members
 are not repeated. An exported type's declared members include implementation helpers and fields;
@@ -25,6 +25,7 @@ platform has been validated. C/POSIX extern declarations retain their native ABI
 - [std/base32.bpl](../lib/base32.bpl)
 - [std/base64.bpl](../lib/base64.bpl)
 - [std/base85.bpl](../lib/base85.bpl)
+- [std/bench.bpl](../lib/bench.bpl)
 - [std/bigint.bpl](../lib/bigint.bpl)
 - [std/binary.bpl](../lib/binary.bpl)
 - [std/bits.bpl](../lib/bits.bpl)
@@ -516,6 +517,38 @@ frame decodeToString(input: string) ret string
 frame encodeZ85(data: *u8, length: int) ret string
 frame decodedLengthZ85(input: string) ret int
 frame decodeZ85(input: string, output: *u8) ret int
+```
+
+## std/bench.bpl
+
+[Source](../lib/bench.bpl)
+
+Exports:
+
+```bpl
+export [Bench];
+export [BenchResult];
+```
+
+### BenchResult
+
+```bpl
+struct BenchResult
+iterations: long
+totalUs: long
+nsPerOp: float
+frame opsPerSecond(this: *BenchResult) ret float
+```
+
+### Bench
+
+```bpl
+struct Bench
+frame consume(value: long)
+frame runFixed(iterations: long, body: Lambda<void>()) ret BenchResult
+frame measureFor(minimumMs: long, body: Lambda<void>()) ret BenchResult
+frame measure(body: Lambda<void>()) ret BenchResult
+frame report(name: string, body: Lambda<void>()) ret BenchResult
 ```
 
 ## std/bigint.bpl
@@ -4884,6 +4917,17 @@ frame encodeCodepoint(codepoint: u32, dest: *u8) ret int
 frame isAscii(codepoint: u32) ret bool
 frame isAsciiString(s: string) ret bool
 frame toCodepoints(s: string) ret Array<u32>
+frame fromCodepoints(codepoints: *Array<u32>) ret String
+frame sanitize(s: string) ret String
+frame reverse(s: string) ret String
+frame substring(s: string, start: int, count: int) ret String
+frame truncate(s: string, maxCodepoints: int) ret String
+frame byteOffset(s: string, index: int) ret int
+frame toUtf16(s: string) ret Array<u16>
+frame fromUtf16(units: *Array<u16>) ret String
+frame isWhitespace(cp: u32) ret bool
+frame codepointWidth(cp: u32) ret int
+frame displayWidth(s: string) ret int
 ```
 
 ## std/uuid.bpl

@@ -144,6 +144,18 @@ number written. Provide a writable buffer of at least four bytes. It does not
 append a NUL terminator. Surrogates (U+D800–U+DFFF) and values above U+10FFFF
 encode as U+FFFD rather than producing invalid UTF-8.
 
+### Codepoint operations
+
+`UTF8` also edits text by codepoint, returning new Strings or arrays:
+`fromCodepoints(&codepoints)`, `sanitize` (malformed bytes become U+FFFD),
+`reverse`, `substring(text, start, count)` and `truncate(text, max)` (clamped
+codepoint ranges), `byteOffset(text, index)` (-1 when out of range),
+`toUtf16` and `fromUtf16` (surrogate pairs; unpaired surrogates become
+U+FFFD), `isWhitespace(codepoint)` (Unicode White_Space) and
+`codepointWidth`/`displayWidth` (terminal columns: 0 for controls and
+combining marks, 2 for East Asian wide characters and common emoji ranges,
+otherwise 1; an approximation of `wcwidth`).
+
 ## C-string utilities
 
 `StringUtils.findString(haystack, needle, start)` searches from a byte offset and

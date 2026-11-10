@@ -8,95 +8,96 @@ import lib5 from "../lib/assert.bpl" with { type: "text" };
 import lib6 from "../lib/base32.bpl" with { type: "text" };
 import lib7 from "../lib/base64.bpl" with { type: "text" };
 import lib8 from "../lib/base85.bpl" with { type: "text" };
-import lib9 from "../lib/bigint.bpl" with { type: "text" };
-import lib10 from "../lib/binary.bpl" with { type: "text" };
-import lib11 from "../lib/bits.bpl" with { type: "text" };
-import lib12 from "../lib/bitset.bpl" with { type: "text" };
-import lib13 from "../lib/bufio.bpl" with { type: "text" };
-import lib14 from "../lib/c.bpl" with { type: "text" };
-import lib15 from "../lib/c_runtime.bpl" with { type: "text" };
-import lib16 from "../lib/char_utils.bpl" with { type: "text" };
-import lib17 from "../lib/complex.bpl" with { type: "text" };
-import lib18 from "../lib/compress.bpl" with { type: "text" };
-import lib19 from "../lib/core_specs.bpl" with { type: "text" };
-import lib20 from "../lib/csv.bpl" with { type: "text" };
-import lib21 from "../lib/date.bpl" with { type: "text" };
-import lib22 from "../lib/debug.bpl" with { type: "text" };
-import lib23 from "../lib/decimal.bpl" with { type: "text" };
-import lib24 from "../lib/deque.bpl" with { type: "text" };
-import lib25 from "../lib/diagnostics.bpl" with { type: "text" };
-import lib26 from "../lib/entropy.bpl" with { type: "text" };
-import lib27 from "../lib/env.bpl" with { type: "text" };
-import lib28 from "../lib/errors.bpl" with { type: "text" };
-import lib29 from "../lib/files.bpl" with { type: "text" };
-import lib30 from "../lib/fmt.bpl" with { type: "text" };
-import lib31 from "../lib/fs.bpl" with { type: "text" };
-import lib32 from "../lib/graph.bpl" with { type: "text" };
-import lib33 from "../lib/hash.bpl" with { type: "text" };
-import lib34 from "../lib/hex.bpl" with { type: "text" };
-import lib35 from "../lib/hmac.bpl" with { type: "text" };
-import lib36 from "../lib/ini.bpl" with { type: "text" };
-import lib37 from "../lib/intrinsics.bpl" with { type: "text" };
-import lib38 from "../lib/io.bpl" with { type: "text" };
-import lib39 from "../lib/iter.bpl" with { type: "text" };
-import lib40 from "../lib/iter_specs.bpl" with { type: "text" };
-import lib41 from "../lib/json.bpl" with { type: "text" };
-import lib42 from "../lib/linked_list.bpl" with { type: "text" };
-import lib43 from "../lib/log.bpl" with { type: "text" };
-import lib44 from "../lib/lru_cache.bpl" with { type: "text" };
-import lib45 from "../lib/map.bpl" with { type: "text" };
-import lib46 from "../lib/math.bpl" with { type: "text" };
-import lib47 from "../lib/matrix.bpl" with { type: "text" };
-import lib48 from "../lib/memory/allocator.bpl" with { type: "text" };
-import lib49 from "../lib/memory/arena_allocator.bpl" with { type: "text" };
-import lib50 from "../lib/memory/page_allocator.bpl" with { type: "text" };
-import lib51 from "../lib/memory/pool_allocator.bpl" with { type: "text" };
-import lib52 from "../lib/memory/stack_allocator.bpl" with { type: "text" };
-import lib53 from "../lib/memory/syscalls.bpl" with { type: "text" };
-import lib54 from "../lib/option.bpl" with { type: "text" };
-import lib55 from "../lib/otp.bpl" with { type: "text" };
-import lib56 from "../lib/parse.bpl" with { type: "text" };
-import lib57 from "../lib/path.bpl" with { type: "text" };
-import lib58 from "../lib/primitives.bpl" with { type: "text" };
-import lib59 from "../lib/priority_queue.bpl" with { type: "text" };
-import lib60 from "../lib/process.bpl" with { type: "text" };
-import lib61 from "../lib/queue.bpl" with { type: "text" };
-import lib62 from "../lib/rand.bpl" with { type: "text" };
-import lib63 from "../lib/range.bpl" with { type: "text" };
-import lib64 from "../lib/rational.bpl" with { type: "text" };
-import lib65 from "../lib/reflection.bpl" with { type: "text" };
-import lib66 from "../lib/regex.bpl" with { type: "text" };
-import lib67 from "../lib/result.bpl" with { type: "text" };
-import lib68 from "../lib/ring_buffer.bpl" with { type: "text" };
-import lib69 from "../lib/runtime_support.c" with { type: "text" };
-import lib70 from "../lib/runtime_wasm.ll" with { type: "text" };
-import lib71 from "../lib/runtime_wasm_host.ll" with { type: "text" };
-import lib72 from "../lib/scope_stack.bpl" with { type: "text" };
-import lib73 from "../lib/semver.bpl" with { type: "text" };
-import lib74 from "../lib/set.bpl" with { type: "text" };
-import lib75 from "../lib/sha1.bpl" with { type: "text" };
-import lib76 from "../lib/sha256.bpl" with { type: "text" };
-import lib77 from "../lib/sha384.bpl" with { type: "text" };
-import lib78 from "../lib/sha512.bpl" with { type: "text" };
-import lib79 from "../lib/stack.bpl" with { type: "text" };
-import lib80 from "../lib/stats.bpl" with { type: "text" };
-import lib81 from "../lib/std.bpl" with { type: "text" };
-import lib82 from "../lib/string.bpl" with { type: "text" };
-import lib83 from "../lib/string_builder.bpl" with { type: "text" };
-import lib84 from "../lib/string_utils.bpl" with { type: "text" };
-import lib85 from "../lib/sync.bpl" with { type: "text" };
-import lib86 from "../lib/table.bpl" with { type: "text" };
-import lib87 from "../lib/thread.bpl" with { type: "text" };
-import lib88 from "../lib/time.bpl" with { type: "text" };
-import lib89 from "../lib/tree_map.bpl" with { type: "text" };
-import lib90 from "../lib/trie.bpl" with { type: "text" };
-import lib91 from "../lib/type.bpl" with { type: "text" };
-import lib92 from "../lib/union_find.bpl" with { type: "text" };
-import lib93 from "../lib/url.bpl" with { type: "text" };
-import lib94 from "../lib/utf8.bpl" with { type: "text" };
-import lib95 from "../lib/uuid.bpl" with { type: "text" };
-import lib96 from "../lib/vec2.bpl" with { type: "text" };
-import lib97 from "../lib/vec3.bpl" with { type: "text" };
+import lib9 from "../lib/bench.bpl" with { type: "text" };
+import lib10 from "../lib/bigint.bpl" with { type: "text" };
+import lib11 from "../lib/binary.bpl" with { type: "text" };
+import lib12 from "../lib/bits.bpl" with { type: "text" };
+import lib13 from "../lib/bitset.bpl" with { type: "text" };
+import lib14 from "../lib/bufio.bpl" with { type: "text" };
+import lib15 from "../lib/c.bpl" with { type: "text" };
+import lib16 from "../lib/c_runtime.bpl" with { type: "text" };
+import lib17 from "../lib/char_utils.bpl" with { type: "text" };
+import lib18 from "../lib/complex.bpl" with { type: "text" };
+import lib19 from "../lib/compress.bpl" with { type: "text" };
+import lib20 from "../lib/core_specs.bpl" with { type: "text" };
+import lib21 from "../lib/csv.bpl" with { type: "text" };
+import lib22 from "../lib/date.bpl" with { type: "text" };
+import lib23 from "../lib/debug.bpl" with { type: "text" };
+import lib24 from "../lib/decimal.bpl" with { type: "text" };
+import lib25 from "../lib/deque.bpl" with { type: "text" };
+import lib26 from "../lib/diagnostics.bpl" with { type: "text" };
+import lib27 from "../lib/entropy.bpl" with { type: "text" };
+import lib28 from "../lib/env.bpl" with { type: "text" };
+import lib29 from "../lib/errors.bpl" with { type: "text" };
+import lib30 from "../lib/files.bpl" with { type: "text" };
+import lib31 from "../lib/fmt.bpl" with { type: "text" };
+import lib32 from "../lib/fs.bpl" with { type: "text" };
+import lib33 from "../lib/graph.bpl" with { type: "text" };
+import lib34 from "../lib/hash.bpl" with { type: "text" };
+import lib35 from "../lib/hex.bpl" with { type: "text" };
+import lib36 from "../lib/hmac.bpl" with { type: "text" };
+import lib37 from "../lib/ini.bpl" with { type: "text" };
+import lib38 from "../lib/intrinsics.bpl" with { type: "text" };
+import lib39 from "../lib/io.bpl" with { type: "text" };
+import lib40 from "../lib/iter.bpl" with { type: "text" };
+import lib41 from "../lib/iter_specs.bpl" with { type: "text" };
+import lib42 from "../lib/json.bpl" with { type: "text" };
+import lib43 from "../lib/linked_list.bpl" with { type: "text" };
+import lib44 from "../lib/log.bpl" with { type: "text" };
+import lib45 from "../lib/lru_cache.bpl" with { type: "text" };
+import lib46 from "../lib/map.bpl" with { type: "text" };
+import lib47 from "../lib/math.bpl" with { type: "text" };
+import lib48 from "../lib/matrix.bpl" with { type: "text" };
+import lib49 from "../lib/memory/allocator.bpl" with { type: "text" };
+import lib50 from "../lib/memory/arena_allocator.bpl" with { type: "text" };
+import lib51 from "../lib/memory/page_allocator.bpl" with { type: "text" };
+import lib52 from "../lib/memory/pool_allocator.bpl" with { type: "text" };
+import lib53 from "../lib/memory/stack_allocator.bpl" with { type: "text" };
+import lib54 from "../lib/memory/syscalls.bpl" with { type: "text" };
+import lib55 from "../lib/option.bpl" with { type: "text" };
+import lib56 from "../lib/otp.bpl" with { type: "text" };
+import lib57 from "../lib/parse.bpl" with { type: "text" };
+import lib58 from "../lib/path.bpl" with { type: "text" };
+import lib59 from "../lib/primitives.bpl" with { type: "text" };
+import lib60 from "../lib/priority_queue.bpl" with { type: "text" };
+import lib61 from "../lib/process.bpl" with { type: "text" };
+import lib62 from "../lib/queue.bpl" with { type: "text" };
+import lib63 from "../lib/rand.bpl" with { type: "text" };
+import lib64 from "../lib/range.bpl" with { type: "text" };
+import lib65 from "../lib/rational.bpl" with { type: "text" };
+import lib66 from "../lib/reflection.bpl" with { type: "text" };
+import lib67 from "../lib/regex.bpl" with { type: "text" };
+import lib68 from "../lib/result.bpl" with { type: "text" };
+import lib69 from "../lib/ring_buffer.bpl" with { type: "text" };
+import lib70 from "../lib/runtime_support.c" with { type: "text" };
+import lib71 from "../lib/runtime_wasm.ll" with { type: "text" };
+import lib72 from "../lib/runtime_wasm_host.ll" with { type: "text" };
+import lib73 from "../lib/scope_stack.bpl" with { type: "text" };
+import lib74 from "../lib/semver.bpl" with { type: "text" };
+import lib75 from "../lib/set.bpl" with { type: "text" };
+import lib76 from "../lib/sha1.bpl" with { type: "text" };
+import lib77 from "../lib/sha256.bpl" with { type: "text" };
+import lib78 from "../lib/sha384.bpl" with { type: "text" };
+import lib79 from "../lib/sha512.bpl" with { type: "text" };
+import lib80 from "../lib/stack.bpl" with { type: "text" };
+import lib81 from "../lib/stats.bpl" with { type: "text" };
+import lib82 from "../lib/std.bpl" with { type: "text" };
+import lib83 from "../lib/string.bpl" with { type: "text" };
+import lib84 from "../lib/string_builder.bpl" with { type: "text" };
+import lib85 from "../lib/string_utils.bpl" with { type: "text" };
+import lib86 from "../lib/sync.bpl" with { type: "text" };
+import lib87 from "../lib/table.bpl" with { type: "text" };
+import lib88 from "../lib/thread.bpl" with { type: "text" };
+import lib89 from "../lib/time.bpl" with { type: "text" };
+import lib90 from "../lib/tree_map.bpl" with { type: "text" };
+import lib91 from "../lib/trie.bpl" with { type: "text" };
+import lib92 from "../lib/type.bpl" with { type: "text" };
+import lib93 from "../lib/union_find.bpl" with { type: "text" };
+import lib94 from "../lib/url.bpl" with { type: "text" };
+import lib95 from "../lib/utf8.bpl" with { type: "text" };
+import lib96 from "../lib/uuid.bpl" with { type: "text" };
+import lib97 from "../lib/vec2.bpl" with { type: "text" };
+import lib98 from "../lib/vec3.bpl" with { type: "text" };
 
 /** Standard library files by path relative to `lib/`. */
 export const EMBEDDED_LIB_FILES: ReadonlyArray<
@@ -111,93 +112,94 @@ export const EMBEDDED_LIB_FILES: ReadonlyArray<
   ["base32.bpl", lib6],
   ["base64.bpl", lib7],
   ["base85.bpl", lib8],
-  ["bigint.bpl", lib9],
-  ["binary.bpl", lib10],
-  ["bits.bpl", lib11],
-  ["bitset.bpl", lib12],
-  ["bufio.bpl", lib13],
-  ["c.bpl", lib14],
-  ["c_runtime.bpl", lib15],
-  ["char_utils.bpl", lib16],
-  ["complex.bpl", lib17],
-  ["compress.bpl", lib18],
-  ["core_specs.bpl", lib19],
-  ["csv.bpl", lib20],
-  ["date.bpl", lib21],
-  ["debug.bpl", lib22],
-  ["decimal.bpl", lib23],
-  ["deque.bpl", lib24],
-  ["diagnostics.bpl", lib25],
-  ["entropy.bpl", lib26],
-  ["env.bpl", lib27],
-  ["errors.bpl", lib28],
-  ["files.bpl", lib29],
-  ["fmt.bpl", lib30],
-  ["fs.bpl", lib31],
-  ["graph.bpl", lib32],
-  ["hash.bpl", lib33],
-  ["hex.bpl", lib34],
-  ["hmac.bpl", lib35],
-  ["ini.bpl", lib36],
-  ["intrinsics.bpl", lib37],
-  ["io.bpl", lib38],
-  ["iter.bpl", lib39],
-  ["iter_specs.bpl", lib40],
-  ["json.bpl", lib41],
-  ["linked_list.bpl", lib42],
-  ["log.bpl", lib43],
-  ["lru_cache.bpl", lib44],
-  ["map.bpl", lib45],
-  ["math.bpl", lib46],
-  ["matrix.bpl", lib47],
-  ["memory/allocator.bpl", lib48],
-  ["memory/arena_allocator.bpl", lib49],
-  ["memory/page_allocator.bpl", lib50],
-  ["memory/pool_allocator.bpl", lib51],
-  ["memory/stack_allocator.bpl", lib52],
-  ["memory/syscalls.bpl", lib53],
-  ["option.bpl", lib54],
-  ["otp.bpl", lib55],
-  ["parse.bpl", lib56],
-  ["path.bpl", lib57],
-  ["primitives.bpl", lib58],
-  ["priority_queue.bpl", lib59],
-  ["process.bpl", lib60],
-  ["queue.bpl", lib61],
-  ["rand.bpl", lib62],
-  ["range.bpl", lib63],
-  ["rational.bpl", lib64],
-  ["reflection.bpl", lib65],
-  ["regex.bpl", lib66],
-  ["result.bpl", lib67],
-  ["ring_buffer.bpl", lib68],
-  ["runtime_support.c", lib69],
-  ["runtime_wasm.ll", lib70],
-  ["runtime_wasm_host.ll", lib71],
-  ["scope_stack.bpl", lib72],
-  ["semver.bpl", lib73],
-  ["set.bpl", lib74],
-  ["sha1.bpl", lib75],
-  ["sha256.bpl", lib76],
-  ["sha384.bpl", lib77],
-  ["sha512.bpl", lib78],
-  ["stack.bpl", lib79],
-  ["stats.bpl", lib80],
-  ["std.bpl", lib81],
-  ["string.bpl", lib82],
-  ["string_builder.bpl", lib83],
-  ["string_utils.bpl", lib84],
-  ["sync.bpl", lib85],
-  ["table.bpl", lib86],
-  ["thread.bpl", lib87],
-  ["time.bpl", lib88],
-  ["tree_map.bpl", lib89],
-  ["trie.bpl", lib90],
-  ["type.bpl", lib91],
-  ["union_find.bpl", lib92],
-  ["url.bpl", lib93],
-  ["utf8.bpl", lib94],
-  ["uuid.bpl", lib95],
-  ["vec2.bpl", lib96],
-  ["vec3.bpl", lib97],
+  ["bench.bpl", lib9],
+  ["bigint.bpl", lib10],
+  ["binary.bpl", lib11],
+  ["bits.bpl", lib12],
+  ["bitset.bpl", lib13],
+  ["bufio.bpl", lib14],
+  ["c.bpl", lib15],
+  ["c_runtime.bpl", lib16],
+  ["char_utils.bpl", lib17],
+  ["complex.bpl", lib18],
+  ["compress.bpl", lib19],
+  ["core_specs.bpl", lib20],
+  ["csv.bpl", lib21],
+  ["date.bpl", lib22],
+  ["debug.bpl", lib23],
+  ["decimal.bpl", lib24],
+  ["deque.bpl", lib25],
+  ["diagnostics.bpl", lib26],
+  ["entropy.bpl", lib27],
+  ["env.bpl", lib28],
+  ["errors.bpl", lib29],
+  ["files.bpl", lib30],
+  ["fmt.bpl", lib31],
+  ["fs.bpl", lib32],
+  ["graph.bpl", lib33],
+  ["hash.bpl", lib34],
+  ["hex.bpl", lib35],
+  ["hmac.bpl", lib36],
+  ["ini.bpl", lib37],
+  ["intrinsics.bpl", lib38],
+  ["io.bpl", lib39],
+  ["iter.bpl", lib40],
+  ["iter_specs.bpl", lib41],
+  ["json.bpl", lib42],
+  ["linked_list.bpl", lib43],
+  ["log.bpl", lib44],
+  ["lru_cache.bpl", lib45],
+  ["map.bpl", lib46],
+  ["math.bpl", lib47],
+  ["matrix.bpl", lib48],
+  ["memory/allocator.bpl", lib49],
+  ["memory/arena_allocator.bpl", lib50],
+  ["memory/page_allocator.bpl", lib51],
+  ["memory/pool_allocator.bpl", lib52],
+  ["memory/stack_allocator.bpl", lib53],
+  ["memory/syscalls.bpl", lib54],
+  ["option.bpl", lib55],
+  ["otp.bpl", lib56],
+  ["parse.bpl", lib57],
+  ["path.bpl", lib58],
+  ["primitives.bpl", lib59],
+  ["priority_queue.bpl", lib60],
+  ["process.bpl", lib61],
+  ["queue.bpl", lib62],
+  ["rand.bpl", lib63],
+  ["range.bpl", lib64],
+  ["rational.bpl", lib65],
+  ["reflection.bpl", lib66],
+  ["regex.bpl", lib67],
+  ["result.bpl", lib68],
+  ["ring_buffer.bpl", lib69],
+  ["runtime_support.c", lib70],
+  ["runtime_wasm.ll", lib71],
+  ["runtime_wasm_host.ll", lib72],
+  ["scope_stack.bpl", lib73],
+  ["semver.bpl", lib74],
+  ["set.bpl", lib75],
+  ["sha1.bpl", lib76],
+  ["sha256.bpl", lib77],
+  ["sha384.bpl", lib78],
+  ["sha512.bpl", lib79],
+  ["stack.bpl", lib80],
+  ["stats.bpl", lib81],
+  ["std.bpl", lib82],
+  ["string.bpl", lib83],
+  ["string_builder.bpl", lib84],
+  ["string_utils.bpl", lib85],
+  ["sync.bpl", lib86],
+  ["table.bpl", lib87],
+  ["thread.bpl", lib88],
+  ["time.bpl", lib89],
+  ["tree_map.bpl", lib90],
+  ["trie.bpl", lib91],
+  ["type.bpl", lib92],
+  ["union_find.bpl", lib93],
+  ["url.bpl", lib94],
+  ["utf8.bpl", lib95],
+  ["uuid.bpl", lib96],
+  ["vec2.bpl", lib97],
+  ["vec3.bpl", lib98],
 ];
