@@ -23,6 +23,8 @@ packages/package-name -o packages/package-name` before distributing them.
 | [bpl-auth](bpl-auth/README.md)                     | Passwords, revocable sessions, CSRF                               | SQLite and libsodium                 |
 | [bpl-csv](bpl-csv/README.md)                       | Optional CSV downloads and reports                                | None                                 |
 | [bpl-sqlite](bpl-sqlite/README.md)                 | Prepared statements, migrations, WAL and online backups           | Link native SQLite                   |
+| [bpl-json](bpl-json/README.md)                     | Dynamic JSON values: strict parsing, editing, serialization       | None                                 |
+| [bpl-json-schema](bpl-json-schema/README.md)       | JSON Schema (2020-12 subset) validation with JSON Pointer errors  | None                                 |
 
 Start with the [college task board](../examples/college_web/README.md). Handler
 signatures follow the familiar Express/Gin pattern: `frame handler(req:

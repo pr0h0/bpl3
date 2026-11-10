@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "name": "bpl-json",
+  "version": "0.1.0",
+  "archiveFile": "bpl-json-0.1.0.tgz",
+  "archiveSha256": "4bf653b09fa7760becb7ae37100b41deefde1fdf3e9b8eb2299e9ba7e888bf43",
+  "packageHash": "aa464bf5eaad800a3403b0fc37138b2920e49b8cd69f6204abe9e19e0f6b9dca",
+  "sizeBytes": 9578,
+  "createdAt": "2026-11-10T12:22:56.060Z",
+  "manifest": {
+    "name": "bpl-json",
+    "version": "0.1.0",
+    "description": "Dynamic JSON values: strict parsing, building, querying and serialization",
+    "main": "index.bpl",
+    "license": "MIT"
+  }
+}
