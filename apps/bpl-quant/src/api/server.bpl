@@ -28,6 +28,7 @@ import stressScenariosHandler, stressRunHandler, stressDemoHandler, brinsonHandl
 import columnarQueryHandler, columnarStatsHandler from "./handlers_columnar.bpl";
 import moreIndicatorHandler, moreIndicatorListHandler, performanceHandler, sampleTestsHandler from "./handlers_analytics.bpl";
 import scheduleHandler, impactHandler, shortfallHandler, surveillanceHandler from "./handlers_execution.bpl";
+import strategyHandler, templatesHandler, regimeHandler, adjustHandler, liquidityHandler, spanHandler from "./handlers_structure.bpl";
 import fixParseHandler, fixOrderHandler, fixCancelHandler, fixLogHandler, feedReplayHandler, feedSampleHandler from "./handlers_proto.bpl";
 import symbolsHandler, createSymbolHandler, submitOrderHandler, getOrderHandler, cancelOrderHandler, replaceOrderHandler, bookHandler, quoteHandler, tradesHandler, tradesCsvHandler, simulateHandler, engineStatsHandler, endOfDayHandler, validateBookHandler from "./handlers_market.bpl";
 
@@ -319,6 +320,13 @@ frame registerOpsRoutes() {
     route(HttpMethod.GET, "/tca/impact", impactHandler, "square-root market impact (?qty=&adv=&daily_vol=&y=&minutes=)");
     route(HttpMethod.POST, "/tca/shortfall", shortfallHandler, "implementation shortfall decomposition and benchmark slippage {side, target, decision, arrival, close, fills}");
     route(HttpMethod.GET, "/oms/surveillance", surveillanceHandler, "spoofing, wash trades, order-to-trade, quote stuffing and marking-the-close alerts over the desk journal");
+    route(HttpMethod.GET, "/options/templates", templatesHandler, "named multi-leg option strategies");
+    route(HttpMethod.GET, "/options/strategy", strategyHandler, "analyse a template (?template=&spot=&vol=&rate=&expiry=&width=&points=)");
+    route(HttpMethod.POST, "/options/strategy", strategyHandler, "analyse custom legs {spot, vol, rate, legs:[{type, strike, expiry, qty, premium?}]}: breakevens, max P&L, probability of profit, Greeks");
+    route(HttpMethod.GET, "/tsa/:symbol/regime", regimeHandler, "Gaussian HMM regimes by Baum-Welch with Viterbi path (?states=&max_iter=&tail=)");
+    route(HttpMethod.POST, "/bars/:symbol/adjust", adjustHandler, "splits and dividends: total return, yield, optional back-adjustment {actions, apply}");
+    route(HttpMethod.GET, "/liquidity/:symbol", liquidityHandler, "Amihud, Roll, Corwin-Schultz, VPIN and Kyle's lambda (?buckets=)");
+    route(HttpMethod.POST, "/risk/span", spanHandler, "SPAN-style scenario margin with risk arrays and inter-commodity credits {products, options}");
     route(HttpMethod.GET, "/feed/sample", feedSampleHandler, "first packets of a generated feed, hex and decoded (?events=&packets=&seed=)");
 }
 

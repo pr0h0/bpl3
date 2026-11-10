@@ -374,4 +374,27 @@ surveillance.wash_trade = fund:beta
 surveillance.order_to_trade = hft
 surveillance.quote_stuffing = hft
 surveillance.marking_close = closer
-selftest: 1060 passed, 0 failed
+== strategies
+strategies.pop = 0.391274
+strategies.straddle_cost = 9.950154
+strategies.straddle_delta = 0.081640
+strategies.condor_pop = 0.535704
+== regime
+regime.sigma_calm = 0.00497
+regime.sigma_turbulent = 0.02446
+regime.stay_calm = 0.9885
+regime.calm_duration = 87.22
+regime.viterbi_accuracy = 0.9890
+regime.bic_2 = -13471.66
+== corporate
+corporate.total_return_index = 116.150943
+== liquidity
+liquidity.amihud = 0.02612427
+liquidity.corwin_schultz = 0.004352
+liquidity.vpin = 0.235403
+== span_margin
+span_margin.total_futures = 41900.00
+span_margin.short_put_scan = 10292.73
+span_margin.short_put_worst = -2x extreme
+span_margin.put_spread_margin = 3883.27
+selftest: 1104 passed, 0 failed
