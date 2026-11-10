@@ -181,3 +181,48 @@ frame main() {
     printf("Done!\n");
 }
 ```
+
+## Pattern formatting and calendar helpers
+
+`DateTime.formatPattern(pattern)` and `Date.formatPattern(pattern)` return a
+new `String` using strftime-style directives: `%Y`, `%y`, `%m`, `%d`, `%e`
+(space-padded day), `%H`, `%I`, `%p`, `%M`, `%S`, `%j`, `%a`/`%A`, `%b`/`%B`
+(English names), `%u` (ISO weekday 1-7), `%w` (0-6, Sunday 0), `%V` (ISO
+week), `%G` (ISO week-year), `%s` (Unix seconds), `%F`, `%T`, `%z` (`+0000`),
+`%Z` (`UTC`) and `%%`. Unknown directives are copied. `formatRfc3339()` and
+`formatHttp()` produce `2024-01-02T15:04:05Z` and `Tue, 02 Jan 2024 15:04:05
+GMT`. `Date` also has `weekdayName`, `monthName`, `isoWeekday`, `isoWeekYear`,
+`startOfMonth` and `endOfMonth`.
+
+## Parsing and formatting durations
+
+`Duration.parse(text, &duration)` accepts Go-style text (`1h30m`, `1.5s`,
+`250ms`, `-2m`, units `h`, `m`, `s`, `ms`, `us`, `ns`, with finer units
+truncated to milliseconds) and ISO 8601 durations (`PT1H30M`, `P2DT3H`,
+`PT0.5S`; a day is 24 hours, and years, months and weeks are rejected). It
+returns false and leaves the output unchanged for anything else.
+`formatIso()` returns a newly allocated ISO string (`PT1H30M`, `PT0S`) the
+caller frees. `fromDays`, `toDays`, `isZero`, `isNegative`, `abs` and
+`scale(factor)` complete the arithmetic.
+
+```bpl
+import [Duration] from "std/time.bpl";
+import [DateTime] from "std/date.bpl";
+import [String] from "std/string.bpl";
+extern printf(fmt: string, ...);
+extern free(ptr: *void);
+
+frame main() ret int {
+    local timeout: Duration = Duration.fromMs(cast<long>(0));
+    if (Duration.parse("1m30s", &timeout)) {
+        local iso: string = timeout.formatIso();
+        printf("%ld ms = %s\n", timeout.toMs(), iso); # 90000 ms = PT1M30S
+        free(cast<*void>(iso));
+    }
+    local at: DateTime = DateTime.new(2024, 1, 2, 15, 4, 5);
+    local text: String = at.formatPattern("%A %d %B %Y, %I:%M %p");
+    printf("%s\n", text.cstr()); # Tuesday 02 January 2024, 03:04 PM
+    text.destroy();
+    return 0;
+}
+```

@@ -25,6 +25,9 @@ const expectedOutputs: Record<string, string> = {
   "simd-f32": "Results: 6.000000, 8.000000, 10.000000, 12.000000\n",
   "llvm-sqrt": "sqrt(2.0) = 1.414214\n",
   "spec-methods": "5 5\n",
+  "thread-spawn": "4000 42\n",
+  "thread-channel": "55\n",
+  "iter-chain": "0 4 16 36\n",
 };
 
 test("documentation discovery includes programs by default and validates explicit classifications", () => {
