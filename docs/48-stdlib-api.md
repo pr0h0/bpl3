@@ -624,11 +624,13 @@ matched by following every state at once, so matching never backtracks and
 takes linear time in the text for each start position. Syntax: literal bytes;
 `.` (any byte except newline); `[abc]`, `[a-z]`, negated `[^...]` (a `]` first
 in a class is literal); `\d \w \s` and their negations `\D \W \S`; `\`
-escaping any other character, plus `\n \t \r`; groups `( )`; alternation
+escaping any other character, plus `\n \t \r`; capturing groups `( )`
+(numbered from 1 by their opening parenthesis) and non-capturing `(?: )`;
+alternation
 `|`; greedy `*`, `+` and `?`; counted repetition `{m}`, `{m,}`, `{m,n}` and
 `{,n}` (counts up to 1000; a `{` that does not start a count is a literal
 brace); and the anchors `^` and `$` for the start and end of the text.
-Captures and backreferences are not supported. `find` returns the leftmost match, extended as far as it goes.
+Backreferences are not supported. `find` returns the leftmost match, extended as far as it goes.
 
 - `Regex.compile(pattern: string) ret Regex` — throws a string describing a
   syntax error
@@ -641,6 +643,18 @@ ret bool` — byte offsets of the match, end exclusive
 - `regex.replaceFirst(text: string, replacement: string) ret string`
 - `regex.split(text: string) ret Array<string>` — the pieces between matches
 - `regex.destroy()`
+- `regex.captures(text) ret RegexMatch`, `regex.capturesFrom(text, begin)` —
+  the leftmost match with group spans; `regex.groups()` counts the groups
+- `regex.replaceAllGroups(text, template) ret string` — like `replaceAll`, with
+  `$0`-`$9`, `${n}` and `$$` in `template`
+
+`captures` runs a Pike VM with leftmost-first priority (earlier alternatives
+and greedy repetition win), the rule Perl, Python and RE2 use, while `find`
+extends the leftmost match as far as possible; the two differ only for
+patterns such as `a|ab`. A `RegexMatch` has `found`, `start(group)`,
+`end(group)` (-1 for a group that did not take part), `matched(group)`,
+`text(source, group)` (a caller-freed copy) and `destroy()`. A group inside a
+repetition reports its last iteration.
 
 `replaceAll` and `replaceFirst` copy `replacement` literally and return a
 caller-owned string, or `nullptr` if allocation fails. Matches do not overlap.

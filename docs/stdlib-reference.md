@@ -3605,6 +3605,7 @@ Exports:
 
 ```bpl
 export [Regex];
+export [RegexMatch];
 ```
 
 ### Regex
@@ -3623,6 +3624,7 @@ classCapacity: int
 start: int
 pattern: string
 position: int
+groupCount: int
 frame compile(pattern: string) ret Regex
 frame destroy(this: *Regex)
 frame addState(this: *Regex, kind: int, argument: int) ret int
@@ -3630,7 +3632,7 @@ frame parseAlternation(this: *Regex, end: *int) ret int
 frame parseConcatenation(this: *Regex, end: *int) ret int
 frame parseRepetition(this: *Regex, end: *int) ret int
 frame parseCount(this: *Regex) ret int
-frame parseCounted(this: *Regex, atomStart: int, end: *int) ret int
+frame parseCounted(this: *Regex, atomStart: int, groupsBefore: int, end: *int) ret int
 frame parseAtom(this: *Regex, end: *int) ret int
 frame parseEscapedByte(this: *Regex) ret int
 frame parseShorthand(this: *Regex, c: char) ret int
@@ -3653,6 +3655,27 @@ frame replaceFirst(this: *Regex, text: string, replacement: string) ret string
 frame split(this: *Regex, text: string) ret Array<string>
 frame copyRange(text: string, start: long, end: long) ret string
 frame replace(this: *Regex, text: string, replacement: string, limit: long) ret string
+frame _addThread(this: *Regex, list: *int, caps: *long, size: *int, marks: *int, generation: int, state: int, current: *long, slots: int, at: long, length: long)
+frame capturesFrom(this: *Regex, text: string, begin: long) ret RegexMatch
+frame captures(this: *Regex, text: string) ret RegexMatch
+frame groups(this: *Regex) ret int
+frame replaceAllGroups(this: *Regex, text: string, template: string) ret string
+```
+
+### RegexMatch
+
+```bpl
+struct RegexMatch
+found: bool
+groupCount: int
+spans: *long
+frame empty(groupCount: int) ret RegexMatch
+frame _check(this: *RegexMatch, group: int)
+frame start(this: *RegexMatch, group: int) ret long
+frame end(this: *RegexMatch, group: int) ret long
+frame matched(this: *RegexMatch, group: int) ret bool
+frame text(this: *RegexMatch, source: string, group: int) ret string
+frame destroy(this: *RegexMatch)
 ```
 
 ## std/result.bpl

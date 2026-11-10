@@ -5,11 +5,13 @@
 # Syntax: literal bytes; `.` (any byte except newline); `[abc]`, `[a-z]` and
 # negated `[^...]` classes; `\d \w \s` and their negations `\D \W \S`; `\`
 # escaping any other character (`\.`, `\*`, `\\`, also `\n \t \r`); grouping
-# with `( )`; alternation `|`; `*`, `+` and `?` (greedy); counted repetition
+# with `( )` (capturing, numbered from 1 by opening parenthesis) and `(?: )`
+# (non-capturing); alternation `|`; `*`, `+` and `?` (greedy); counted repetition
 # `{m}`, `{m,}`, `{m,n}` and `{,n}` (up to 1000; a `{` without a count is a
 # literal brace); and the anchors `^` (start of text) and `$` (end of text).
 
 export [Regex];
+export [RegexMatch];
 
 import [Array] from "std/array.bpl";
 
@@ -26,6 +28,8 @@ global REGEX_EMPTY: int = 3;
 global REGEX_MATCH: int = 4;
 global REGEX_START: int = 5;
 global REGEX_END: int = 6;
+# Records the text offset in capture slot `arg`.
+global REGEX_SAVE: int = 7;
 
 # A compiled pattern. Create it with `Regex.compile`, which throws on a syntax
 # error, and release it with `destroy`.
@@ -46,6 +50,8 @@ struct Regex {
     # Parser position in `pattern`.
     pattern: string,
     position: int,
+    # Number of capturing groups.
+    groupCount: int,
 
     frame compile(pattern: string) ret Regex {
         local regex: Regex;
@@ -63,6 +69,7 @@ struct Regex {
         regex.classCount = 0;
         regex.pattern = pattern;
         regex.position = 0;
+        regex.groupCount = 0;
         local end: int = -1;
         local first: int = -1;
         # Syntax errors are thrown from deep in the parser; free the buffers
@@ -168,11 +175,12 @@ struct Regex {
 
     frame parseRepetition(this: *Regex, end: *int) ret int {
         local atomStart: int = this.position;
+        local groupsBefore: int = this.groupCount;
         local atomEnd: int = -1;
         local atom: int = this.parseAtom(&atomEnd);
         local c: char = this.pattern[this.position];
         if (c == '{') {
-            local counted: int = this.parseCounted(atomStart, end);
+            local counted: int = this.parseCounted(atomStart, groupsBefore, end);
             if (counted >= 0) {
                 return counted;
             }
@@ -221,7 +229,8 @@ struct Regex {
     # required ones followed by a starred one or n - m optional ones. Returns
     # -1, leaving `position` on the `{`, when no count follows, so the brace
     # is an ordinary character.
-    frame parseCounted(this: *Regex, atomStart: int, end: *int) ret int {
+    # Every copy reuses the group numbers of the first parse.
+    frame parseCounted(this: *Regex, atomStart: int, groupsBefore: int, end: *int) ret int {
         local brace: int = this.position;
         this.position = this.position + 1;
         local low: int = this.parseCount();
@@ -244,11 +253,13 @@ struct Regex {
             throw "Regex: repetition range out of order";
         }
         local afterBrace: int = this.position + 1;
+        local groupsAfter: int = this.groupCount;
 
         local first: int = this.addState(REGEX_EMPTY, 0);
         local tail: int = first;
         loop (local i: int = 0; i < low; i = i + 1) {
             this.position = atomStart;
+            this.groupCount = groupsBefore;
             local copyEnd: int = -1;
             local copy: int = this.parseAtom(&copyEnd);
             *(this.outs + tail) = copy;
@@ -260,6 +271,7 @@ struct Regex {
         }
         loop (local i: int = 0; i < optional; i = i + 1) {
             this.position = atomStart;
+            this.groupCount = groupsBefore;
             local copyEnd: int = -1;
             local copy: int = this.parseAtom(&copyEnd);
             local after: int = this.addState(REGEX_EMPTY, 0);
@@ -275,6 +287,7 @@ struct Regex {
             tail = after;
         }
         this.position = afterBrace;
+        this.groupCount = groupsAfter;
         *end = tail;
         return first;
     }
@@ -287,14 +300,34 @@ struct Regex {
         this.position = this.position + 1;
         local state: int = -1;
         if (c == '(') {
+            local capturing: bool = true;
+            if ((this.pattern[this.position] == '?') && (this.pattern[this.position + 1] == ':')) {
+                capturing = false;
+                this.position = this.position + 2;
+            }
+            local group: int = 0;
+            if (capturing) {
+                this.groupCount = this.groupCount + 1;
+                group = this.groupCount;
+            }
             local innerEnd: int = -1;
             local inner: int = this.parseAlternation(&innerEnd);
             if (this.pattern[this.position] != ')') {
                 throw "Regex: missing ')'";
             }
             this.position = this.position + 1;
-            *end = innerEnd;
-            return inner;
+            if (!capturing) {
+                *end = innerEnd;
+                return inner;
+            }
+            local open: int = this.addState(REGEX_SAVE, group * 2);
+            local close: int = this.addState(REGEX_SAVE, (group * 2) + 1);
+            local closed: int = this.addState(REGEX_EMPTY, 0);
+            *(this.outs + open) = inner;
+            *(this.outs + innerEnd) = close;
+            *(this.outs + close) = closed;
+            *end = closed;
+            return open;
         } else if (c == '.') {
             local any: int = this.newClass();
             this.fillClass(any, 0, 255);
@@ -486,7 +519,7 @@ struct Regex {
                 *(stack + top) = *(this.alternates + current);
                 *(stack + (top + 1)) = *(this.outs + current);
                 top = top + 2;
-            } else if (kind == REGEX_EMPTY) {
+            } else if ((kind == REGEX_EMPTY) || (kind == REGEX_SAVE)) {
                 *(stack + top) = *(this.outs + current);
                 top = top + 1;
             } else if (kind == REGEX_START) {
@@ -726,5 +759,331 @@ struct Regex {
         }
         *(output + used) = cast<u8>(0);
         return cast<string>(output);
+    }
+    # ------------------------------------------------------------------
+    # Capturing matches (Pike VM). Captures follow leftmost-first priority
+    # like Perl, Python and RE2: earlier alternatives and greedy repetition
+    # win. `find`/`matches` above report the leftmost-longest match; for
+    # most patterns the two agree.
+
+    frame _addThread(this: *Regex, list: *int, caps: *long, size: *int, marks: *int, generation: int, state: int, current: *long, slots: int, at: long, length: long) {
+        if ((state < 0) || (*(marks + state) == generation)) {
+            return;
+        }
+        *(marks + state) = generation;
+        local kind: int = *(this.kinds + state);
+        if (kind == REGEX_SPLIT) {
+            this._addThread(list, caps, size, marks, generation, *(this.outs + state), current, slots, at, length);
+            this._addThread(list, caps, size, marks, generation, *(this.alternates + state), current, slots, at, length);
+            return;
+        }
+        if (kind == REGEX_EMPTY) {
+            this._addThread(list, caps, size, marks, generation, *(this.outs + state), current, slots, at, length);
+            return;
+        }
+        if (kind == REGEX_START) {
+            if (at == 0) {
+                this._addThread(list, caps, size, marks, generation, *(this.outs + state), current, slots, at, length);
+            }
+            return;
+        }
+        if (kind == REGEX_END) {
+            if (at == length) {
+                this._addThread(list, caps, size, marks, generation, *(this.outs + state), current, slots, at, length);
+            }
+            return;
+        }
+        if (kind == REGEX_SAVE) {
+            local slot: int = *(this.args + state);
+            local previous: long = *(current + slot);
+            *(current + slot) = at;
+            this._addThread(list, caps, size, marks, generation, *(this.outs + state), current, slots, at, length);
+            *(current + slot) = previous;
+            return;
+        }
+        local index: int = *size;
+        *(list + index) = state;
+        loop (local k: int = 0; k < slots; k = k + 1) {
+            *(caps + ((cast<long>(index) * cast<long>(slots)) + cast<long>(k))) = *(current + k);
+        }
+        *size = index + 1;
+    }
+
+    # The leftmost-first match at or after `begin`, with its groups.
+    frame capturesFrom(this: *Regex, text: string, begin: long) ret RegexMatch {
+        local slots: int = (this.groupCount + 1) * 2;
+        local result: RegexMatch = RegexMatch.empty(this.groupCount);
+        if (text == nullptr) {
+            return result;
+        }
+        local length: long = strlen(text);
+        local stateBytes: long = cast<long>(this.count + 1) * 4;
+        local capsBytes: long = cast<long>(this.count + 1) * cast<long>(slots) * 8;
+        local current: *int = cast<*int>(malloc(stateBytes));
+        local next: *int = cast<*int>(malloc(stateBytes));
+        local currentCaps: *long = cast<*long>(malloc(capsBytes));
+        local nextCaps: *long = cast<*long>(malloc(capsBytes));
+        local marks: *int = cast<*int>(malloc(stateBytes));
+        local scratch: *long = cast<*long>(malloc(cast<long>(slots) * 8));
+        loop (local i: int = 0; i <= this.count; i = i + 1) {
+            *(marks + i) = -1;
+        }
+        local generation: int = 0;
+        local size: int = 0;
+        local matched: bool = false;
+        local at: long = begin;
+        loop (at <= length) {
+            # A new attempt starts here unless a match is already known; it
+            # has the lowest priority.
+            if (!matched) {
+                loop (local k: int = 0; k < slots; k = k + 1) {
+                    *(scratch + k) = -1;
+                }
+                *scratch = at;
+                this._addThread(current, currentCaps, &size, marks, generation, this.start, scratch, slots, at, length);
+            }
+            if (size == 0) {
+                break;
+            }
+            generation = generation + 1;
+            local nextSize: int = 0;
+            loop (local i: int = 0; i < size; i = i + 1) {
+                local state: int = *(current + i);
+                local kind: int = *(this.kinds + state);
+                local threadCaps: *long = currentCaps + (cast<long>(i) * cast<long>(slots));
+                if (kind == REGEX_MATCH) {
+                    matched = true;
+                    loop (local k: int = 0; k < slots; k = k + 1) {
+                        *(result.spans + k) = *(threadCaps + k);
+                    }
+                    *(result.spans + 1) = at;
+                    # Lower-priority threads can no longer win.
+                    break;
+                }
+                if (at >= length) {
+                    continue;
+                }
+                local b: int = cast<int>(cast<u8>(text[at]));
+                local accepts: bool = false;
+                if (kind == REGEX_BYTE) {
+                    accepts = *(this.args + state) == b;
+                } else if (kind == REGEX_CLASS) {
+                    accepts = this.classHas(*(this.args + state), b);
+                }
+                if (accepts) {
+                    loop (local k: int = 0; k < slots; k = k + 1) {
+                        *(scratch + k) = *(threadCaps + k);
+                    }
+                    this._addThread(next, nextCaps, &nextSize, marks, generation, *(this.outs + state), scratch, slots, at + 1, length);
+                }
+            }
+            local swapStates: *int = current;
+            current = next;
+            next = swapStates;
+            local swapCaps: *long = currentCaps;
+            currentCaps = nextCaps;
+            nextCaps = swapCaps;
+            size = nextSize;
+            if (matched && (size == 0)) {
+                break;
+            }
+            at = at + 1;
+        }
+        result.found = matched;
+        free(cast<*void>(current));
+        free(cast<*void>(next));
+        free(cast<*void>(currentCaps));
+        free(cast<*void>(nextCaps));
+        free(cast<*void>(marks));
+        free(cast<*void>(scratch));
+        return result;
+    }
+
+    # The leftmost-first match anywhere in `text`, with its groups.
+    frame captures(this: *Regex, text: string) ret RegexMatch {
+        return this.capturesFrom(text, 0);
+    }
+
+    # The number of capturing groups.
+    frame groups(this: *Regex) ret int {
+        return this.groupCount;
+    }
+
+    /#
+        Replaces every match with `template`, where `$0` is the whole match,
+        `$1`-`$9` (or `${10}` and up) are groups (empty when a group did not
+        take part) and `$$` is a dollar sign. Returns a new string the caller
+        frees.
+    #/
+    frame replaceAllGroups(this: *Regex, text: string, template: string) ret string {
+        local length: long = strlen(text);
+        local templateLength: long = strlen(template);
+        local capacity: long = length + 64;
+        local out: string = cast<string>(malloc(capacity));
+        local used: long = 0;
+        local search: long = 0;
+        local copied: long = 0;
+        loop (search <= length) {
+            local found: RegexMatch = this.capturesFrom(text, search);
+            if (!found.found) {
+                found.destroy();
+                break;
+            }
+            local start: long = found.start(0);
+            local end: long = found.end(0);
+            # Text before the match, then the expanded template.
+            local needed: long = used + (start - copied) + templateLength + 1;
+            loop (local g: int = 0; g <= this.groupCount; g = g + 1) {
+                if (found.matched(g)) {
+                    needed = needed + ((found.end(g) - found.start(g)) * templateLength);
+                }
+            }
+            if (needed >= capacity) {
+                capacity = (needed * 2) + 16;
+                out = cast<string>(realloc(cast<*void>(out), capacity));
+            }
+            loop (local i: long = copied; i < start; i = i + 1) {
+                out[used] = text[i];
+                used = used + 1;
+            }
+            local t: long = 0;
+            loop (t < templateLength) {
+                local c: char = template[t];
+                if ((c == '$') && ((t + 1) < templateLength)) {
+                    local d: char = template[t + 1];
+                    local group: int = -1;
+                    local skip: long = 2;
+                    if (d == '$') {
+                        out[used] = '$';
+                        used = used + 1;
+                        t = t + 2;
+                        continue;
+                    }
+                    if ((d >= '0') && (d <= '9')) {
+                        group = cast<int>(d) - 48;
+                    } else if (d == '{') {
+                        local k: long = t + 2;
+                        local value: int = 0;
+                        local digits: int = 0;
+                        loop ((k < templateLength) && (template[k] >= '0') && (template[k] <= '9') && (digits < 6)) {
+                            value = (value * 10) + (cast<int>(template[k]) - 48);
+                            k = k + 1;
+                            digits = digits + 1;
+                        }
+                        if ((digits > 0) && (k < templateLength) && (template[k] == '}')) {
+                            group = value;
+                            skip = (k - t) + 1;
+                        }
+                    }
+                    if (group >= 0) {
+                        if ((group <= this.groupCount) && found.matched(group)) {
+                            loop (local i: long = found.start(group); i < found.end(group); i = i + 1) {
+                                out[used] = text[i];
+                                used = used + 1;
+                            }
+                        }
+                        t = t + skip;
+                        continue;
+                    }
+                }
+                out[used] = c;
+                used = used + 1;
+                t = t + 1;
+            }
+            copied = end;
+            search = Regex.nextSearch(start, end);
+            found.destroy();
+            if (search > length) {
+                break;
+            }
+            # An empty match is followed by the byte it skipped.
+            if ((end == start) && (start < length)) {
+                if ((used + 2) >= capacity) {
+                    capacity = (capacity * 2) + 16;
+                    out = cast<string>(realloc(cast<*void>(out), capacity));
+                }
+                out[used] = text[start];
+                used = used + 1;
+                copied = start + 1;
+            }
+        }
+        if ((used + (length - copied) + 1) >= capacity) {
+            capacity = used + (length - copied) + 1;
+            out = cast<string>(realloc(cast<*void>(out), capacity));
+        }
+        loop (local i: long = copied; i < length; i = i + 1) {
+            out[used] = text[i];
+            used = used + 1;
+        }
+        out[used] = cast<char>(0);
+        return out;
+    }
+}
+
+/#
+    RegexMatch
+    The result of `Regex.captures`: whether a match was found and the byte
+    span of the whole match (group 0) and of each capturing group. A group
+    that did not take part has start and end -1. Release with `destroy`.
+#/
+struct RegexMatch {
+    found: bool,
+    groupCount: int,
+    spans: *long,
+    frame empty(groupCount: int) ret RegexMatch {
+        local result: RegexMatch;
+        result.found = false;
+        result.groupCount = groupCount;
+        local slots: int = (groupCount + 1) * 2;
+        result.spans = cast<*long>(malloc(cast<long>(slots) * 8));
+        if (result.spans == nullptr) {
+            throw "Regex: out of memory";
+        }
+        loop (local i: int = 0; i < slots; i = i + 1) {
+            *(result.spans + i) = -1;
+        }
+        return result;
+    }
+
+    frame _check(this: *RegexMatch, group: int) {
+        if ((group < 0) || (group > this.groupCount)) {
+            throw "Regex: group index out of range";
+        }
+    }
+
+    # Byte offset where `group` starts (-1 when it did not participate).
+    frame start(this: *RegexMatch, group: int) ret long {
+        this._check(group);
+        return *(this.spans + (group * 2));
+    }
+
+    # Byte offset just after `group` (-1 when it did not participate).
+    frame end(this: *RegexMatch, group: int) ret long {
+        this._check(group);
+        return *(this.spans + ((group * 2) + 1));
+    }
+
+    # Whether `group` took part in the match.
+    frame matched(this: *RegexMatch, group: int) ret bool {
+        return this.found && (this.start(group) >= cast<long>(0)) && (this.end(group) >= cast<long>(0));
+    }
+
+    # A copy of the text of `group` from `source` (the searched text), or
+    # an empty string when it did not participate. The caller frees it.
+    frame text(this: *RegexMatch, source: string, group: int) ret string {
+        local begin: long = 0;
+        local finish: long = 0;
+        if (this.matched(group)) {
+            begin = this.start(group);
+            finish = this.end(group);
+        }
+        return Regex.copyRange(source, begin, finish);
+    }
+
+    frame destroy(this: *RegexMatch) {
+        if (this.spans != nullptr) {
+            free(cast<*void>(this.spans));
+            this.spans = nullptr;
+        }
     }
 }
