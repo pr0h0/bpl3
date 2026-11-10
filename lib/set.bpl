@@ -112,6 +112,90 @@ struct Set<T>: Iterable<T>, Destructible {
         return result;
     }
 
+    # Builds a set from the elements of an array.
+    frame fromArray(values: *Array<T>) ret Set<T> {
+        local result: Set<T> = Set<T>.new(values.length);
+        loop (local i: int = 0; i < values.length; i = i + 1) {
+            result.add(values.data[i]);
+        }
+        return result;
+    }
+
+    # Adds every element of `other`.
+    frame addAll(this: *Set<T>, other: *Set<T>) {
+        local it: SetIterator<T> = other.iterator();
+        loop {
+            local opt: Option<T> = it.next();
+            if (opt.isNone()) {
+                return;
+            }
+            this.add(opt.unwrap());
+        }
+    }
+
+    # Adds `value`; returns true when it was not already present.
+    frame insert(this: *Set<T>, value: T) ret bool {
+        if (this.inner.has(value)) {
+            return false;
+        }
+        this.inner.set(value, true);
+        return true;
+    }
+
+    frame isSupersetOf(this: *Set<T>, other: *Set<T>) ret bool {
+        return other.isSubsetOf(this);
+    }
+
+    # True when the sets share no element.
+    frame isDisjoint(this: *Set<T>, other: *Set<T>) ret bool {
+        local it: SetIterator<T> = this.iterator();
+        loop {
+            local opt: Option<T> = it.next();
+            if (opt.isNone()) {
+                return true;
+            }
+            if (other.has(opt.unwrap())) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    # Elements in exactly one of the two sets (a new set).
+    frame symmetricDifference(this: *Set<T>, other: *Set<T>) ret Set<T> {
+        local left: Set<T> = this.difference(other);
+        local right: Set<T> = other.difference(this);
+        left.addAll(&right);
+        right.destroy();
+        return left;
+    }
+
+    # Keeps the elements for which `keep` is true; returns how many were removed.
+    frame retain(this: *Set<T>, keep: Lambda<bool>(T)) ret int {
+        local elements: Array<T> = this.toArray();
+        local removed: int = 0;
+        loop (local i: int = 0; i < elements.length; i = i + 1) {
+            if (!keep(elements.data[i])) {
+                this.inner.remove(elements.data[i]);
+                removed = removed + 1;
+            }
+        }
+        elements.destroy();
+        return removed;
+    }
+
+    # Calls `visit` for each element in iteration order.
+    frame forEach(this: *Set<T>, visit: Lambda<void>(T)) {
+        local it: SetIterator<T> = this.iterator();
+        loop {
+            local opt: Option<T> = it.next();
+            if (opt.isNone()) {
+                return;
+            }
+            visit(opt.unwrap());
+        }
+    }
+
     # Returns a new set containing elements from both sets (union)
     frame union(this: *Set<T>, other: *Set<T>) ret Set<T> {
         local result: Set<T> = Set<T>.new(this.size() + other.size(), this.inner.hasher, this.inner.equaler);

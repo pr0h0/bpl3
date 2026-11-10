@@ -94,3 +94,14 @@ or any file cannot be built, so it can gate CI directly.
 With `--json`, the report has `check: "test"`, the totals (`totalTests`,
 `passed`, `failed`, `fileErrors`) and, for each file, its tests with `name`,
 `passed`, `exitCode`, `durationMs` and `output`.
+
+## Micro-benchmarks
+
+`std/bench.bpl` measures code inside a program. `Bench.measure(body)` doubles
+the iteration count until one batch of calls to `body` takes at least 100 ms
+(`measureFor(ms, body)` changes the threshold) and returns a `BenchResult`
+with `iterations`, `totalUs`, `nsPerOp` and `opsPerSecond()`.
+`Bench.runFixed(n, body)` runs exactly `n` times, and `Bench.report(name,
+body)` prints `name: N ns/op (M iterations)`. Pass computed values to
+`Bench.consume(value)` so the optimizer cannot remove the work; build
+benchmarks with `-O 3` for meaningful numbers.

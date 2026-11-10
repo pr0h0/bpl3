@@ -108,6 +108,51 @@ near +1.
 | `Math.isEven(x: int) ret bool`        | Check if even           |
 | `Math.isOdd(x: int) ret bool`         | Check if odd            |
 
+## More float functions
+
+All of these are implemented in BPL on top of the LLVM intrinsics, so they are
+available on every target `Math` supports.
+
+| Function                                          | Notes                                                         |
+| ------------------------------------------------- | ------------------------------------------------------------- |
+| `isFinite`, `trunc`, `fract`, `fma`               | Classification, rounding toward zero, fractional part, FMA    |
+| `approxEqual(a, b, relTol, absTol)`               | Relative or absolute tolerance comparison                     |
+| `cbrt`, `hypot`, `exp2`, `logBase(x, base)`       | `hypot` avoids intermediate overflow                          |
+| `expm1`, `log1p`                                  | Accurate near zero                                            |
+| `powInt(x, n)`                                    | Integer exponent by repeated squaring (negative allowed)      |
+| `sinh`, `cosh`, `tanh`, `asinh`, `acosh`, `atanh` | Hyperbolic functions; NaN outside the domain                  |
+| `erf`, `erfc`                                     | Abramowitz-Stegun 7.1.26, absolute error below 1.5e-7         |
+| `lgamma`, `tgamma`                                | Lanczos approximation (about 15 digits), reflection below 0.5 |
+| `smoothstep`, `inverseLerp`, `remap`              | Interpolation helpers (`remap` does not clamp)                |
+| `wrapAngle(radians)`                              | Wraps into `[-pi, pi)`                                        |
+
+## 64-bit integer functions
+
+| Function                                                 | Notes                                                     |
+| -------------------------------------------------------- | --------------------------------------------------------- |
+| `gcdLong`, `lcmLong`                                     | Throw when the result does not fit a `long`               |
+| `mulMod(a, b, m)`, `powMod(base, e, m)`                  | Unsigned modular arithmetic without overflow              |
+| `modInverse(a, m)`                                       | Inverse modulo `m`, or -1 when none exists                |
+| `isqrt(n)`                                               | Exact `floor(sqrt(n))` for every non-negative `long`      |
+| `isPrime(n)`                                             | Deterministic Miller-Rabin for every non-negative `long`  |
+| `primesUpTo(limit)`                                      | Sieve of Eratosthenes; returns an `Array<int>` to destroy |
+| `binomial(n, k)`                                         | `C(n, k)`, 0 outside `0 <= k <= n`; throws on overflow    |
+| `floorDiv`, `floorMod`                                   | Division rounding toward negative infinity                |
+| `clampLong`, `checkedAdd`, `checkedMul`, `saturatingAdd` | Overflow-aware arithmetic                                 |
+| `digitCount(n)`                                          | Decimal digits of `                                       | n   | `   |
+
+```bpl
+import [Math] from "std/math.bpl";
+extern printf(fmt: string, ...);
+
+frame main() ret int {
+    printf("%lu\n", Math.powMod(cast<ulong>(2), cast<ulong>(100), cast<ulong>(1000000007))); # 976371285
+    printf("%d\n", Math.isPrime(cast<long>(1000000007))); # 1
+    printf("%.4f\n", Math.hypot(3.0, 4.0)); # 5.0000
+    return 0;
+}
+```
+
 ## Example
 
 ```bpl

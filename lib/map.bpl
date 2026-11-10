@@ -519,4 +519,105 @@ struct Map<K, V>: Iterable<Pair<K, V>>, Destructible, Equatable<Map<K, V>> {
         this.clear();
         this.buckets.destroy();
     }
+    # A pointer to the stored value for `key`, or null. The pointer stays
+    # valid until the entry is removed or the map is destroyed (rehashing
+    # relinks nodes but keeps their storage).
+    frame getRef(this: *Map<K, V>, key: K) ret *V {
+        local idx: int = this._getBucketIndex(key);
+        local current: *MapNode<K, V> = this.buckets.get(idx);
+        local eqFunc: Func<bool>(*K, *K) = this.equaler;
+        loop (current != nullptr) {
+            if (eqFunc(&current.key, &key)) {
+                return &current.value;
+            }
+            current = current.next;
+        }
+        return nullptr;
+    }
+
+    # The stored value for `key`, inserting `value` first when absent.
+    # Returns a pointer as `getRef` does.
+    frame getOrInsert(this: *Map<K, V>, key: K, value: V) ret *V {
+        local existing: *V = this.getRef(key);
+        if (existing != nullptr) {
+            return existing;
+        }
+        this.set(key, value);
+        return this.getRef(key);
+    }
+
+    # Replaces the value of `key` with `transform(current)`, starting from
+    # `initial` when absent, and returns the new value.
+    frame update(this: *Map<K, V>, key: K, initial: V, transform: Lambda<V>(V)) ret V {
+        local slot: *V = this.getOrInsert(key, initial);
+        local next: V = transform(*slot);
+        *slot = next;
+        return next;
+    }
+
+    # The key/value pairs in iteration order (a new array).
+    frame entries(this: *Map<K, V>) ret Array<Pair<K, V>> {
+        local result: Array<Pair<K, V>> = Array<Pair<K, V>>.new(this.count);
+        loop (local i: int = 0; i < this.buckets.len(); i = i + 1) {
+            local current: *MapNode<K, V> = this.buckets.get(i);
+            loop (current != nullptr) {
+                result.push(Pair<K, V> { key: current.key, value: current.value });
+                current = current.next;
+            }
+        }
+        return result;
+    }
+
+    # Calls `visit(key, value)` for each entry in iteration order.
+    frame forEach(this: *Map<K, V>, visit: Lambda<void>(K, V)) {
+        loop (local i: int = 0; i < this.buckets.len(); i = i + 1) {
+            local current: *MapNode<K, V> = this.buckets.get(i);
+            loop (current != nullptr) {
+                local next: *MapNode<K, V> = current.next;
+                visit(current.key, current.value);
+                current = next;
+            }
+        }
+    }
+
+    # Removes the entries for which `keep` is false; returns how many.
+    frame retain(this: *Map<K, V>, keep: Lambda<bool>(K, V)) ret int {
+        local removed: int = 0;
+        loop (local i: int = 0; i < this.buckets.len(); i = i + 1) {
+            local previous: *MapNode<K, V> = nullptr;
+            local current: *MapNode<K, V> = this.buckets.get(i);
+            loop (current != nullptr) {
+                local next: *MapNode<K, V> = current.next;
+                if (keep(current.key, current.value)) {
+                    previous = current;
+                } else {
+                    if (previous == nullptr) {
+                        this.buckets.set(i, next);
+                    } else {
+                        previous.next = next;
+                    }
+                    free(cast<*void>(current));
+                    this.count = this.count - 1;
+                    removed = removed + 1;
+                }
+                current = next;
+            }
+        }
+        return removed;
+    }
+
+    # Copies every entry of `other` into this map (other's values win).
+    frame merge(this: *Map<K, V>, other: *Map<K, V>) {
+        loop (local i: int = 0; i < other.buckets.len(); i = i + 1) {
+            local current: *MapNode<K, V> = other.buckets.get(i);
+            loop (current != nullptr) {
+                this.set(current.key, current.value);
+                current = current.next;
+            }
+        }
+    }
+
+    frame isEmpty(this: *Map<K, V>) ret bool {
+        return this.count == 0;
+    }
 }

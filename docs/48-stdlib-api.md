@@ -374,6 +374,16 @@ decoders return `nullptr` for a `%` without two hex digits after it and for
 - `Url.encodeForm(text: string) ret string`
 - `Url.decode(text: string) ret string`
 - `Url.decodeForm(text: string) ret string`
+- `Url.parse(text) ret Option<ParsedUrl>` — RFC 3986 components (`scheme`,
+  `userinfo`, `host`, `port` or -1, `path`, `query`, `fragment`; owned
+  Strings, scheme and host lower-cased, not percent-decoded);
+  `effectivePort()` adds the defaults for http, https, ws, wss and ftp, and
+  `toString()` reassembles it. `None` for an invalid scheme, IPv6 literal or
+  port.
+- `Url.parseQuery(query) ret Array<QueryParam>` — decoded `key`/`value`
+  pairs (`+` is a space, `hasValue` distinguishes `flag` from `flag=`);
+  release with `Url.destroyParams(&params)`. `Url.queryValue(query, key)`
+  returns the first value and `Url.buildQuery(&params)` form-encodes pairs.
 
 ### Parse (`std/parse.bpl`)
 
@@ -511,6 +521,15 @@ cover the common cases.
 - `res.map<U>(transform)` and `res.mapErr<F>(transform)` — transform the
   success value or the error, keeping the other side
 - `res.ok()` — `Some(value)` for success, `None` for an error
+- `opt.filter(predicate)`, `opt.or(other)`, `opt.orElse(fallback)`,
+  `opt.xor(other)`, `opt.isSomeAnd(predicate)`, `opt.isNoneOr(predicate)`,
+  `opt.mapOr<U>(default, transform)` and `opt.inspect(action)`; through a
+  pointer, `slot.take()` empties an option and `slot.replace(value)` stores a
+  new value, both returning the previous contents
+- `res.andThen<U>(next)` chains fallible steps, `res.orElse<F>(recover)` and
+  `res.unwrapOrElse(fallback)` handle errors, `res.err()` returns
+  `Some(error)`, and `res.isOkAnd`, `res.isErrAnd` and `res.mapOr<U>` test or
+  fold either side
 
 ```bpl
 import printf from "std/c.bpl";
@@ -582,6 +601,15 @@ Copying a `BigInt` with `=` shares its limbs, so destroy only one copy, or use
   `0^0` is 1), `value.gcd(other: *BigInt)` (of the magnitudes; `gcd(0, 0)` is 0)
 - `value.toLong(out: *long) ret bool` — false when the value does not fit
 - `value.clone() ret BigInt`, `value.toString() ret string`, `value.destroy()`
+- `value.mod(modulus)` — floor remainder, in `[0, modulus)` for a positive
+  modulus; `value.modPow(exponent, modulus)` for a non-negative exponent and
+  positive modulus
+- `value.sqrt()` (floor, throws for negatives), `BigInt.factorial(n)`,
+  `value.lcm(other)`, `value.min(other)`, `value.max(other)`
+- `BigInt.parseRadix(text, base)` and `value.toStringRadix(base)` for bases
+  2-36 (the result string is caller-freed)
+- `addLong`, `multiplyLong`, `compareLong`, `signum`, `isEven`, `isOdd`,
+  `digitCount`
 
 ```bpl
 import printf, free from "std/c.bpl";
@@ -606,11 +634,13 @@ matched by following every state at once, so matching never backtracks and
 takes linear time in the text for each start position. Syntax: literal bytes;
 `.` (any byte except newline); `[abc]`, `[a-z]`, negated `[^...]` (a `]` first
 in a class is literal); `\d \w \s` and their negations `\D \W \S`; `\`
-escaping any other character, plus `\n \t \r`; groups `( )`; alternation
+escaping any other character, plus `\n \t \r`; capturing groups `( )`
+(numbered from 1 by their opening parenthesis) and non-capturing `(?: )`;
+alternation
 `|`; greedy `*`, `+` and `?`; counted repetition `{m}`, `{m,}`, `{m,n}` and
 `{,n}` (counts up to 1000; a `{` that does not start a count is a literal
 brace); and the anchors `^` and `$` for the start and end of the text.
-Captures and backreferences are not supported. `find` returns the leftmost match, extended as far as it goes.
+Backreferences are not supported. `find` returns the leftmost match, extended as far as it goes.
 
 - `Regex.compile(pattern: string) ret Regex` — throws a string describing a
   syntax error
@@ -623,6 +653,18 @@ ret bool` — byte offsets of the match, end exclusive
 - `regex.replaceFirst(text: string, replacement: string) ret string`
 - `regex.split(text: string) ret Array<string>` — the pieces between matches
 - `regex.destroy()`
+- `regex.captures(text) ret RegexMatch`, `regex.capturesFrom(text, begin)` —
+  the leftmost match with group spans; `regex.groups()` counts the groups
+- `regex.replaceAllGroups(text, template) ret string` — like `replaceAll`, with
+  `$0`-`$9`, `${n}` and `$$` in `template`
+
+`captures` runs a Pike VM with leftmost-first priority (earlier alternatives
+and greedy repetition win), the rule Perl, Python and RE2 use, while `find`
+extends the leftmost match as far as possible; the two differ only for
+patterns such as `a|ab`. A `RegexMatch` has `found`, `start(group)`,
+`end(group)` (-1 for a group that did not take part), `matched(group)`,
+`text(source, group)` (a caller-freed copy) and `destroy()`. A group inside a
+repetition reports its last iteration.
 
 `replaceAll` and `replaceFirst` copy `replacement` literally and return a
 caller-owned string, or `nullptr` if allocation fails. Matches do not overlap.
@@ -1133,8 +1175,14 @@ omitted areas:
 | `memory/allocator.bpl`, `memory/arena_allocator.bpl`, `memory/pool_allocator.bpl`, `memory/stack_allocator.bpl` | [Manual allocator contracts](22-manual-memory.md#manual-allocator-contracts); explicit lifetimes and checked sizes |
 | `memory/page_allocator.bpl`, `memory/syscalls.bpl`                                                              | PageAllocator uses native page alignment; raw syscalls declarations remain low-level                               |
 | `iter_specs.bpl`, `core_specs.bpl`                                                                              | Interfaces used by implemented collections                                                                         |
-| `iter.bpl`                                                                                                      | No public API; use implemented collection iterators in `iter_specs.bpl`                                            |
-| `thread.bpl`, `sync.bpl`                                                                                        | No public API; native threading/synchronization requires an FFI library                                            |
+| `iter.bpl`                                                                                                      | [Lazy iterators](69-stdlib-iterators.md): `Iter<T>` adapters/consumers; destroy the final iterator of a chain      |
+| `thread.bpl`, `sync.bpl`                                                                                        | [Threads and synchronization](68-stdlib-concurrency.md); native-only (pthreads)                                    |
+| `bits.bpl`, `hash.bpl`, `rand.bpl`                                                                              | [Bit helpers, hashes/checksums and generators](70-stdlib-hashing-bits-random.md); not cryptographic                |
+| `ring_buffer.bpl`, `lru_cache.bpl`, `tree_map.bpl`, `trie.bpl`, `union_find.bpl`, `graph.bpl`                   | [Additional collections and graph algorithms](30-stdlib-collections.md); elements are not destroyed                |
+| `csv.bpl`, `ini.bpl`, `semver.bpl`, `ansi.bpl`, `table.bpl`, `base85.bpl`                                       | [Text formats and terminal output](71-stdlib-text-formats.md)                                                      |
+| `compress.bpl`                                                                                                  | [DEFLATE, zlib and gzip](72-stdlib-compression.md) in pure BPL                                                     |
+| `files.bpl`, `bufio.bpl`                                                                                        | [Tree walking, temp files and buffered I/O](31-stdlib-fs.md#higher-level-helpers-stdfilesbpl); native-only         |
+| `matrix.bpl`, `decimal.bpl`                                                                                     | [Dense matrices and fixed-point decimals](73-stdlib-numeric.md)                                                    |
 | `type.bpl`, `primitives.bpl`, `reflection.bpl`, `intrinsics.bpl`                                                | Compiler/runtime support; platform and representation details matter                                               |
 | `c.bpl`                                                                                                         | Native C declarations, not a portable or memory-safe wrapper                                                       |
 | `process.bpl`                                                                                                   | Shell-free `run`/`runWith` and shell helpers; see the [process guide](59-process-execution.md)                     |

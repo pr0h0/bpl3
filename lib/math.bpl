@@ -1,6 +1,7 @@
 # Math helpers
 
-import sqrt, sin, cos, pow, exp, log, floor, ceil, round, fabs, minnum, maxnum, copysign from "./intrinsics.bpl";
+import sqrt, sin, cos, pow, exp, log, floor, ceil, round, fabs, minnum, maxnum, copysign, fma from "./intrinsics.bpl";
+import [Array] from "./array.bpl";
 
 # Arc tangent has no LLVM intrinsic mapping here, so it comes from the
 # platform math library, as the accuracy note on Math.atan explains.
@@ -411,5 +412,568 @@ struct Math {
 
     frame isOdd(x: int) ret bool {
         return (x & 1) == 1;
+    }
+    # ------------------------------------------------------------------
+    # Rounding and classification
+
+    # True for a value that is neither NaN nor infinite.
+    frame isFinite(x: float) ret bool {
+        return !Math.isNan(x) && !Math.isInfinite(x);
+    }
+
+    # Rounds toward zero.
+    frame trunc(x: float) ret float {
+        if (x < 0.0) {
+            return ceil(x);
+        }
+        return floor(x);
+    }
+
+    # The fractional part, with the sign of x (x - trunc(x)).
+    frame fract(x: float) ret float {
+        return x - Math.trunc(x);
+    }
+
+    # Fused multiply-add a * b + c with a single rounding.
+    frame fma(a: float, b: float, c: float) ret float {
+        return fma(a, b, c);
+    }
+
+    # Whether a and b differ by at most max(relTol * max(|a|, |b|), absTol).
+    frame approxEqual(a: float, b: float, relTol: float, absTol: float) ret bool {
+        if (a == b) {
+            return true;
+        }
+        local difference: float = fabs(a - b);
+        local scale: float = fabs(a);
+        if (fabs(b) > scale) {
+            scale = fabs(b);
+        }
+        return (difference <= (relTol * scale)) || (difference <= absTol);
+    }
+
+    # ------------------------------------------------------------------
+    # Powers, roots and logarithms
+
+    # Cube root, defined for negative values.
+    frame cbrt(x: float) ret float {
+        if ((x == 0.0) || !Math.isFinite(x)) {
+            return x;
+        }
+        local magnitude: float = fabs(x);
+        local y: float = pow(magnitude, 1.0 / 3.0);
+        # One Newton step fixes the last bits of pow's estimate.
+        y = y - (((y * y * y) - magnitude) / (3.0 * y * y));
+        return copysign(y, x);
+    }
+
+    # sqrt(x*x + y*y) without intermediate overflow or underflow.
+    frame hypot(x: float, y: float) ret float {
+        local a: float = fabs(x);
+        local b: float = fabs(y);
+        if (Math.isInfinite(a) || Math.isInfinite(b)) {
+            return 1.0 / 0.0;
+        }
+        if (b > a) {
+            local swap: float = a;
+            a = b;
+            b = swap;
+        }
+        if (a == 0.0) {
+            return 0.0;
+        }
+        local ratio: float = b / a;
+        return a * sqrt(1.0 + (ratio * ratio));
+    }
+
+    frame exp2(x: float) ret float {
+        return pow(2.0, x);
+    }
+
+    # e^x - 1, accurate for small x.
+    frame expm1(x: float) ret float {
+        if (fabs(x) < 0.00001) {
+            return x + ((x * x) / 2.0) + ((x * x * x) / 6.0);
+        }
+        return exp(x) - 1.0;
+    }
+
+    # ln(1 + x), accurate for small x.
+    frame log1p(x: float) ret float {
+        local u: float = 1.0 + x;
+        if (u == 1.0) {
+            return x;
+        }
+        # Corrects the rounding error of 1 + x (Goldberg's method).
+        return (log(u) * x) / (u - 1.0);
+    }
+
+    # Logarithm of x in an arbitrary base.
+    frame logBase(x: float, base: float) ret float {
+        return log(x) / log(base);
+    }
+
+    # x raised to an integer power by repeated squaring.
+    frame powInt(x: float, n: int) ret float {
+        local exponent: long = cast<long>(n);
+        local negative: bool = exponent < cast<long>(0);
+        if (negative) {
+            exponent = -exponent;
+        }
+        local result: float = 1.0;
+        local base: float = x;
+        loop (exponent > cast<long>(0)) {
+            if ((exponent & cast<long>(1)) == cast<long>(1)) {
+                result = result * base;
+            }
+            base = base * base;
+            exponent = exponent >> cast<long>(1);
+        }
+        if (negative) {
+            return 1.0 / result;
+        }
+        return result;
+    }
+
+    # ------------------------------------------------------------------
+    # Hyperbolic functions
+
+    frame sinh(x: float) ret float {
+        if (fabs(x) < 0.00001) {
+            return x + ((x * x * x) / 6.0);
+        }
+        return (exp(x) - exp(-x)) / 2.0;
+    }
+
+    frame cosh(x: float) ret float {
+        return (exp(x) + exp(-x)) / 2.0;
+    }
+
+    frame tanh(x: float) ret float {
+        if (x > 20.0) {
+            return 1.0;
+        }
+        if (x < -20.0) {
+            return -1.0;
+        }
+        if (fabs(x) < 0.00001) {
+            return x - ((x * x * x) / 3.0);
+        }
+        local e2: float = exp(2.0 * x);
+        return (e2 - 1.0) / (e2 + 1.0);
+    }
+
+    frame asinh(x: float) ret float {
+        local a: float = fabs(x);
+        local result: float = log(a + sqrt((a * a) + 1.0));
+        if (a < 0.0001) {
+            result = a - ((a * a * a) / 6.0);
+        }
+        return copysign(result, x);
+    }
+
+    # Inverse hyperbolic cosine; NaN below 1.
+    frame acosh(x: float) ret float {
+        if (x < 1.0) {
+            return 0.0 / 0.0;
+        }
+        return log(x + sqrt((x * x) - 1.0));
+    }
+
+    # Inverse hyperbolic tangent; NaN outside [-1, 1], infinite at +-1.
+    frame atanh(x: float) ret float {
+        if ((x > 1.0) || (x < -1.0)) {
+            return 0.0 / 0.0;
+        }
+        return 0.5 * Math.log1p((2.0 * x) / (1.0 - x));
+    }
+
+    # ------------------------------------------------------------------
+    # Special functions
+
+    # Error function (Abramowitz and Stegun 7.1.26, error below 1.5e-7).
+    frame erf(x: float) ret float {
+        local t: float = 1.0 / (1.0 + (0.3275911 * fabs(x)));
+        local polynomial: float = t * (0.254829592 + (t * (-0.284496736 + (t * (1.421413741 + (t * (-1.453152027 + (t * 1.061405429))))))));
+        local result: float = 1.0 - (polynomial * exp(-(x * x)));
+        return copysign(result, x);
+    }
+
+    frame erfc(x: float) ret float {
+        return 1.0 - Math.erf(x);
+    }
+
+    # ln|Gamma(x)| by the Lanczos approximation (g = 7, about 15 digits).
+    frame lgamma(x: float) ret float {
+        if (x < 0.5) {
+            # Reflection: Gamma(x) Gamma(1 - x) = pi / sin(pi x).
+            return log(3.14159265358979323846 / fabs(sin(3.14159265358979323846 * x))) - Math.lgamma(1.0 - x);
+        }
+        local coefficients: float[9] = [0.99999999999980993, 676.5203681218851, -1259.1392167224028, 771.32342877765313, -176.61502916214059, 12.507343278686905, -0.13857109526572012, 0.0000099843695780195716, 0.00000015056327351493116];
+        local z: float = x - 1.0;
+        local sum: float = coefficients[0];
+        loop (local i: int = 1; i < 9; i = i + 1) {
+            sum = sum + (coefficients[i] / (z + cast<float>(i)));
+        }
+        local t: float = z + 7.5;
+        return ((0.91893853320467274178 + ((z + 0.5) * log(t))) - t) + log(sum);
+    }
+
+    # The gamma function (factorial for positive integers: Gamma(n) = (n-1)!).
+    frame tgamma(x: float) ret float {
+        if ((x <= 0.0) && (x == floor(x))) {
+            return 0.0 / 0.0;
+        }
+        if (x < 0.5) {
+            return 3.14159265358979323846 / (sin(3.14159265358979323846 * x) * Math.tgamma(1.0 - x));
+        }
+        return exp(Math.lgamma(x));
+    }
+
+    # ------------------------------------------------------------------
+    # Interpolation and ranges
+
+    # Hermite interpolation from 0 to 1 as x moves from edge0 to edge1.
+    frame smoothstep(edge0: float, edge1: float, x: float) ret float {
+        if (edge0 == edge1) {
+            if (x < edge0) {
+                return 0.0;
+            }
+            return 1.0;
+        }
+        local t: float = Math.clamp((x - edge0) / (edge1 - edge0), 0.0, 1.0);
+        return t * t * (3.0 - (2.0 * t));
+    }
+
+    # The position of x between a and b as a fraction (inverse of lerp).
+    frame inverseLerp(a: float, b: float, x: float) ret float {
+        if (a == b) {
+            return 0.0;
+        }
+        return (x - a) / (b - a);
+    }
+
+    # Maps x from [inMin, inMax] to [outMin, outMax] (not clamped).
+    frame remap(x: float, inMin: float, inMax: float, outMin: float, outMax: float) ret float {
+        return Math.lerp(outMin, outMax, Math.inverseLerp(inMin, inMax, x));
+    }
+
+    # Wraps an angle in radians into [-pi, pi).
+    frame wrapAngle(radians: float) ret float {
+        local tau: float = 6.28318530717958647692;
+        local wrapped: float = radians - (tau * floor((radians + 3.14159265358979323846) / tau));
+        return wrapped;
+    }
+
+    # ------------------------------------------------------------------
+    # Integer number theory (64-bit)
+
+    frame gcdLong(a: long, b: long) ret long {
+        local x: ulong = Math._magnitude(a);
+        local y: ulong = Math._magnitude(b);
+        loop (y != cast<ulong>(0)) {
+            local temp: ulong = y;
+            y = x % y;
+            x = temp;
+        }
+        if (x > cast<ulong>(9223372036854775807)) {
+            throw "Math.gcdLong result exceeds long";
+        }
+        return cast<long>(x);
+    }
+
+    # Least common multiple; throws when it does not fit a long.
+    frame lcmLong(a: long, b: long) ret long {
+        if ((a == cast<long>(0)) || (b == cast<long>(0))) {
+            return 0;
+        }
+        local common: ulong = cast<ulong>(Math.gcdLong(a, b));
+        local x: ulong = Math._magnitude(a) / common;
+        local y: ulong = Math._magnitude(b);
+        if (x > (cast<ulong>(9223372036854775807) / y)) {
+            throw "Math.lcmLong result exceeds long";
+        }
+        return cast<long>(x * y);
+    }
+
+    frame _magnitude(value: long) ret ulong {
+        if (value < cast<long>(0)) {
+            return cast<ulong>(0) - cast<ulong>(value);
+        }
+        return cast<ulong>(value);
+    }
+
+    # (a * b) mod m without overflow, for m > 0.
+    frame mulMod(a: ulong, b: ulong, m: ulong) ret ulong {
+        if (m == cast<ulong>(0)) {
+            throw "Math.mulMod modulus must be positive";
+        }
+        local x: ulong = a % m;
+        local y: ulong = b % m;
+        if ((x < cast<ulong>(4294967296)) && (y < cast<ulong>(4294967296))) {
+            return (x * y) % m;
+        }
+        local result: ulong = 0;
+        loop (y > cast<ulong>(0)) {
+            if ((y & cast<ulong>(1)) == cast<ulong>(1)) {
+                # result + x may exceed 2^64; subtract instead of adding past m.
+                if (result >= (m - x)) {
+                    result = result - (m - x);
+                } else {
+                    result = result + x;
+                }
+            }
+            if (x >= (m - x)) {
+                x = x - (m - x);
+            } else {
+                x = x + x;
+            }
+            y = y >> cast<ulong>(1);
+        }
+        return result;
+    }
+
+    # base^exponent mod m by square-and-multiply, for m > 0.
+    frame powMod(base: ulong, exponent: ulong, m: ulong) ret ulong {
+        if (m == cast<ulong>(0)) {
+            throw "Math.powMod modulus must be positive";
+        }
+        local result: ulong = cast<ulong>(1) % m;
+        local b: ulong = base % m;
+        local e: ulong = exponent;
+        loop (e > cast<ulong>(0)) {
+            if ((e & cast<ulong>(1)) == cast<ulong>(1)) {
+                result = Math.mulMod(result, b, m);
+            }
+            b = Math.mulMod(b, b, m);
+            e = e >> cast<ulong>(1);
+        }
+        return result;
+    }
+
+    # The modular inverse of a mod m (m > 1), or -1 when gcd(a, m) != 1.
+    frame modInverse(a: long, m: long) ret long {
+        if (m <= cast<long>(1)) {
+            return -1;
+        }
+        local oldR: long = a % m;
+        if (oldR < cast<long>(0)) {
+            oldR = oldR + m;
+        }
+        local r: long = m;
+        local oldS: long = 1;
+        local s: long = 0;
+        loop (r != cast<long>(0)) {
+            local quotient: long = oldR / r;
+            local nextR: long = oldR - (quotient * r);
+            oldR = r;
+            r = nextR;
+            local nextS: long = oldS - (quotient * s);
+            oldS = s;
+            s = nextS;
+        }
+        if (oldR != cast<long>(1)) {
+            return -1;
+        }
+        local inverse: long = oldS % m;
+        if (inverse < cast<long>(0)) {
+            inverse = inverse + m;
+        }
+        return inverse;
+    }
+
+    # floor(sqrt(n)) for n >= 0, exact for every long.
+    frame isqrt(n: long) ret long {
+        if (n < cast<long>(0)) {
+            throw "Math.isqrt requires a non-negative value";
+        }
+        if (n < cast<long>(2)) {
+            return n;
+        }
+        local x: long = cast<long>(sqrt(cast<float>(n)));
+        # Correct the floating-point estimate in both directions.
+        loop ((x > cast<long>(0)) && (x > (n / x))) {
+            x = x - 1;
+        }
+        loop ((x + 1) <= (n / (x + 1))) {
+            x = x + 1;
+        }
+        return x;
+    }
+
+    # Deterministic primality for every non-negative long (Miller-Rabin
+    # with the first twelve prime bases).
+    frame isPrime(n: long) ret bool {
+        if (n < cast<long>(2)) {
+            return false;
+        }
+        local small: long[12] = [cast<long>(2), cast<long>(3), cast<long>(5), cast<long>(7), cast<long>(11), cast<long>(13), cast<long>(17), cast<long>(19), cast<long>(23), cast<long>(29), cast<long>(31), cast<long>(37)];
+        loop (local i: int = 0; i < 12; i = i + 1) {
+            if (n == small[i]) {
+                return true;
+            }
+            if ((n % small[i]) == cast<long>(0)) {
+                return false;
+            }
+        }
+        local value: ulong = cast<ulong>(n);
+        local d: ulong = value - cast<ulong>(1);
+        local r: int = 0;
+        loop ((d & cast<ulong>(1)) == cast<ulong>(0)) {
+            d = d >> cast<ulong>(1);
+            r = r + 1;
+        }
+        loop (local i: int = 0; i < 12; i = i + 1) {
+            local x: ulong = Math.powMod(cast<ulong>(small[i]), d, value);
+            if ((x == cast<ulong>(1)) || (x == (value - cast<ulong>(1)))) {
+                continue;
+            }
+            local composite: bool = true;
+            loop (local j: int = 1; j < r; j = j + 1) {
+                x = Math.mulMod(x, x, value);
+                if (x == (value - cast<ulong>(1))) {
+                    composite = false;
+                    break;
+                }
+            }
+            if (composite) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    # Primes up to and including `limit` (sieve of Eratosthenes).
+    frame primesUpTo(limit: int) ret Array<int> {
+        local primes: Array<int> = Array<int>.new(16);
+        if (limit < 2) {
+            return primes;
+        }
+        local composite: Array<bool> = Array<bool>.new(limit + 1);
+        loop (local i: int = 0; i <= limit; i = i + 1) {
+            composite.push(false);
+        }
+        loop (local i: int = 2; i <= limit; i = i + 1) {
+            if (composite.data[i]) {
+                continue;
+            }
+            primes.push(i);
+            local start: long = cast<long>(i) * cast<long>(i);
+            loop (local j: long = start; j <= cast<long>(limit); j = j + cast<long>(i)) {
+                composite.data[cast<int>(j)] = true;
+            }
+        }
+        composite.destroy();
+        return primes;
+    }
+
+    # The binomial coefficient C(n, k); throws when it does not fit a long.
+    frame binomial(n: int, k: int) ret long {
+        if ((k < 0) || (n < 0) || (k > n)) {
+            return 0;
+        }
+        if (k > (n - k)) {
+            k = n - k;
+        }
+        local result: long = 1;
+        loop (local i: int = 1; i <= k; i = i + 1) {
+            # result * (n - k + i) / i is exact; divide by the common factor
+            # first to delay overflow.
+            local numerator: long = cast<long>((n - k) + i);
+            local g: long = Math.gcdLong(result, cast<long>(i));
+            local reducedResult: long = result / g;
+            local divisor: long = cast<long>(i) / g;
+            local reducedNumerator: long = numerator / divisor;
+            if ((reducedResult > cast<long>(0)) && (reducedNumerator > (cast<long>(9223372036854775807) / reducedResult))) {
+                throw "Math.binomial result exceeds long";
+            }
+            result = reducedResult * reducedNumerator;
+        }
+        return result;
+    }
+
+    # Integer division rounding toward negative infinity.
+    frame floorDiv(a: long, b: long) ret long {
+        if (b == cast<long>(0)) {
+            throw "Math.floorDiv by zero";
+        }
+        local quotient: long = a / b;
+        if (((a % b) != cast<long>(0)) && ((a < cast<long>(0)) != (b < cast<long>(0)))) {
+            quotient = quotient - 1;
+        }
+        return quotient;
+    }
+
+    # The remainder with the sign of the divisor (a - b * floorDiv(a, b)).
+    frame floorMod(a: long, b: long) ret long {
+        if (b == cast<long>(0)) {
+            throw "Math.floorMod by zero";
+        }
+        local remainder: long = a % b;
+        if ((remainder != cast<long>(0)) && ((remainder < cast<long>(0)) != (b < cast<long>(0)))) {
+            remainder = remainder + b;
+        }
+        return remainder;
+    }
+
+    # Clamp for longs.
+    frame clampLong(x: long, minVal: long, maxVal: long) ret long {
+        if (x < minVal) {
+            return minVal;
+        }
+        if (x > maxVal) {
+            return maxVal;
+        }
+        return x;
+    }
+
+    # Adds without wrapping; throws on overflow.
+    frame checkedAdd(a: long, b: long) ret long {
+        if ((b > cast<long>(0)) && (a > (cast<long>(9223372036854775807) - b))) {
+            throw "Math.checkedAdd overflow";
+        }
+        if ((b < cast<long>(0)) && (a < ((cast<long>(-9223372036854775807) - 1) - b))) {
+            throw "Math.checkedAdd overflow";
+        }
+        return a + b;
+    }
+
+    # Multiplies without wrapping; throws on overflow.
+    frame checkedMul(a: long, b: long) ret long {
+        if ((a == cast<long>(0)) || (b == cast<long>(0))) {
+            return 0;
+        }
+        local minimum: long = cast<long>(-9223372036854775807) - 1;
+        # Dividing the minimum by -1 traps, so those cases are decided first.
+        if (((a == cast<long>(-1)) && (b == minimum)) || ((b == cast<long>(-1)) && (a == minimum))) {
+            throw "Math.checkedMul overflow";
+        }
+        local product: long = a * b;
+        if ((product / b) != a) {
+            throw "Math.checkedMul overflow";
+        }
+        return product;
+    }
+
+    # Adds, clamping at the long limits instead of wrapping.
+    frame saturatingAdd(a: long, b: long) ret long {
+        if ((b > cast<long>(0)) && (a > (cast<long>(9223372036854775807) - b))) {
+            return 9223372036854775807;
+        }
+        if ((b < cast<long>(0)) && (a < ((cast<long>(-9223372036854775807) - 1) - b))) {
+            return cast<long>(-9223372036854775807) - 1;
+        }
+        return a + b;
+    }
+
+    # The number of decimal digits of |n| (1 for 0).
+    frame digitCount(n: long) ret int {
+        local value: ulong = Math._magnitude(n);
+        local digits: int = 1;
+        loop (value >= cast<ulong>(10)) {
+            value = value / cast<ulong>(10);
+            digits = digits + 1;
+        }
+        return digits;
     }
 }

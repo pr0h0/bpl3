@@ -2,7 +2,7 @@
 
 Generated from parsed library declarations with `bun run docs:stdlib`. Do not edit by hand.
 
-This index covers all 77 BPL modules under `lib/`, including memory and low-level modules.
+This index covers all 96 BPL modules under `lib/`, including memory and low-level modules.
 It lists explicit exports and declarations defined in each source file. Re-exported symbols
 are listed under exports; their definitions are in the originating modules. Inherited members
 are not repeated. An exported type's declared members include implementation helpers and fields;
@@ -17,32 +17,43 @@ platform has been validated. C/POSIX extern declarations retain their native ABI
 ## Module index
 
 - [std/algorithm.bpl](../lib/algorithm.bpl)
+- [std/ansi.bpl](../lib/ansi.bpl)
 - [std/arg_parser.bpl](../lib/arg_parser.bpl)
 - [std/args.bpl](../lib/args.bpl)
 - [std/array.bpl](../lib/array.bpl)
 - [std/assert.bpl](../lib/assert.bpl)
 - [std/base32.bpl](../lib/base32.bpl)
 - [std/base64.bpl](../lib/base64.bpl)
+- [std/base85.bpl](../lib/base85.bpl)
+- [std/bench.bpl](../lib/bench.bpl)
 - [std/bigint.bpl](../lib/bigint.bpl)
 - [std/binary.bpl](../lib/binary.bpl)
+- [std/bits.bpl](../lib/bits.bpl)
 - [std/bitset.bpl](../lib/bitset.bpl)
+- [std/bufio.bpl](../lib/bufio.bpl)
 - [std/c.bpl](../lib/c.bpl)
 - [std/c_runtime.bpl](../lib/c_runtime.bpl)
 - [std/char_utils.bpl](../lib/char_utils.bpl)
 - [std/complex.bpl](../lib/complex.bpl)
+- [std/compress.bpl](../lib/compress.bpl)
 - [std/core_specs.bpl](../lib/core_specs.bpl)
+- [std/csv.bpl](../lib/csv.bpl)
 - [std/date.bpl](../lib/date.bpl)
 - [std/debug.bpl](../lib/debug.bpl)
+- [std/decimal.bpl](../lib/decimal.bpl)
 - [std/deque.bpl](../lib/deque.bpl)
 - [std/diagnostics.bpl](../lib/diagnostics.bpl)
 - [std/entropy.bpl](../lib/entropy.bpl)
 - [std/env.bpl](../lib/env.bpl)
 - [std/errors.bpl](../lib/errors.bpl)
+- [std/files.bpl](../lib/files.bpl)
 - [std/fmt.bpl](../lib/fmt.bpl)
 - [std/fs.bpl](../lib/fs.bpl)
+- [std/graph.bpl](../lib/graph.bpl)
 - [std/hash.bpl](../lib/hash.bpl)
 - [std/hex.bpl](../lib/hex.bpl)
 - [std/hmac.bpl](../lib/hmac.bpl)
+- [std/ini.bpl](../lib/ini.bpl)
 - [std/intrinsics.bpl](../lib/intrinsics.bpl)
 - [std/io.bpl](../lib/io.bpl)
 - [std/iter.bpl](../lib/iter.bpl)
@@ -50,8 +61,10 @@ platform has been validated. C/POSIX extern declarations retain their native ABI
 - [std/json.bpl](../lib/json.bpl)
 - [std/linked_list.bpl](../lib/linked_list.bpl)
 - [std/log.bpl](../lib/log.bpl)
+- [std/lru_cache.bpl](../lib/lru_cache.bpl)
 - [std/map.bpl](../lib/map.bpl)
 - [std/math.bpl](../lib/math.bpl)
+- [std/matrix.bpl](../lib/matrix.bpl)
 - [std/memory/allocator.bpl](../lib/memory/allocator.bpl)
 - [std/memory/arena_allocator.bpl](../lib/memory/arena_allocator.bpl)
 - [std/memory/page_allocator.bpl](../lib/memory/page_allocator.bpl)
@@ -72,7 +85,9 @@ platform has been validated. C/POSIX extern declarations retain their native ABI
 - [std/reflection.bpl](../lib/reflection.bpl)
 - [std/regex.bpl](../lib/regex.bpl)
 - [std/result.bpl](../lib/result.bpl)
+- [std/ring_buffer.bpl](../lib/ring_buffer.bpl)
 - [std/scope_stack.bpl](../lib/scope_stack.bpl)
+- [std/semver.bpl](../lib/semver.bpl)
 - [std/set.bpl](../lib/set.bpl)
 - [std/sha1.bpl](../lib/sha1.bpl)
 - [std/sha256.bpl](../lib/sha256.bpl)
@@ -85,9 +100,13 @@ platform has been validated. C/POSIX extern declarations retain their native ABI
 - [std/string_builder.bpl](../lib/string_builder.bpl)
 - [std/string_utils.bpl](../lib/string_utils.bpl)
 - [std/sync.bpl](../lib/sync.bpl)
+- [std/table.bpl](../lib/table.bpl)
 - [std/thread.bpl](../lib/thread.bpl)
 - [std/time.bpl](../lib/time.bpl)
+- [std/tree_map.bpl](../lib/tree_map.bpl)
+- [std/trie.bpl](../lib/trie.bpl)
 - [std/type.bpl](../lib/type.bpl)
+- [std/union_find.bpl](../lib/union_find.bpl)
 - [std/url.bpl](../lib/url.bpl)
 - [std/utf8.bpl](../lib/utf8.bpl)
 - [std/uuid.bpl](../lib/uuid.bpl)
@@ -139,6 +158,68 @@ frame rangeStep(start: int, end: int, step: int) ret Array<int>
 frame copy(src: *Array<int>, dest: *Array<int>)
 frame merge(a: *Array<int>, b: *Array<int>) ret Array<int>
 frame equals(a: *Array<int>, b: *Array<int>) ret bool
+```
+
+## std/ansi.bpl
+
+[Source](../lib/ansi.bpl)
+
+Exports:
+
+```bpl
+export [Ansi];
+```
+
+### Ansi
+
+```bpl
+struct Ansi
+frame reset() ret string
+frame bold() ret string
+frame dim() ret string
+frame italic() ret string
+frame underline() ret string
+frame blink() ret string
+frame inverse() ret string
+frame strikethrough() ret string
+frame black() ret string
+frame red() ret string
+frame green() ret string
+frame yellow() ret string
+frame blue() ret string
+frame magenta() ret string
+frame cyan() ret string
+frame white() ret string
+frame gray() ret string
+frame brightRed() ret string
+frame brightGreen() ret string
+frame brightYellow() ret string
+frame brightBlue() ret string
+frame brightMagenta() ret string
+frame brightCyan() ret string
+frame brightWhite() ret string
+frame bgBlack() ret string
+frame bgRed() ret string
+frame bgGreen() ret string
+frame bgYellow() ret string
+frame bgBlue() ret string
+frame bgMagenta() ret string
+frame bgCyan() ret string
+frame bgWhite() ret string
+frame clearScreen() ret string
+frame clearLine() ret string
+frame hideCursor() ret string
+frame showCursor() ret string
+frame color256(index: int) ret String
+frame background256(index: int) ret String
+frame rgb(red: int, green: int, blue: int) ret String
+frame backgroundRgb(red: int, green: int, blue: int) ret String
+frame moveTo(row: int, column: int) ret String
+frame paint(text: string, style: string) ret String
+frame paintIf(text: string, style: string, enabled: bool) ret String
+frame enabled() ret bool
+frame strip(text: string) ret String
+frame visibleWidth(text: string) ret int
 ```
 
 ## std/arg_parser.bpl
@@ -309,6 +390,29 @@ frame contains(this: *Array<T>, value: T) ret bool
 frame findIndex(this: *Array<T>, predicate: Lambda<bool>(T)) ret Option<int>
 frame __lshift__(this: *Array<T>, value: T) ret *Array<T>
 frame __rshift__(this: *Array<T>, dest: *T) ret *Array<T>
+frame reserve(this: *Array<T>, capacity: int)
+frame extend(this: *Array<T>, other: *Array<T>)
+frame first(this: *Array<T>) ret Option<T>
+frame last(this: *Array<T>) ret Option<T>
+frame reverse(this: *Array<T>)
+frame swap(this: *Array<T>, a: int, b: int)
+frame slice(this: *Array<T>, start: int, end: int) ret Array<T>
+frame retain(this: *Array<T>, keep: Lambda<bool>(T)) ret int
+frame dedup(this: *Array<T>) ret int
+frame dedupBy(this: *Array<T>, same: Lambda<bool>(T, T)) ret int
+frame swapRemove(this: *Array<T>, index: int) ret T
+frame truncate(this: *Array<T>, length: int)
+frame fill(this: *Array<T>, value: T)
+frame rotateLeft(this: *Array<T>, count: int)
+frame _reverseRange(data: *T, low: int, high: int)
+frame lastIndexOf(this: *Array<T>, value: T) ret int
+frame countWhere(this: *Array<T>, predicate: Lambda<bool>(T)) ret int
+frame isSortedBy(this: *Array<T>, compare: Lambda<int>(T, T)) ret bool
+frame binarySearchBy(this: *Array<T>, probe: Lambda<int>(T)) ret int
+frame partitionPoint(this: *Array<T>, before: Lambda<bool>(T)) ret int
+frame minBy(this: *Array<T>, compare: Lambda<int>(T, T)) ret Option<T>
+frame maxBy(this: *Array<T>, compare: Lambda<int>(T, T)) ret Option<T>
+frame shrinkToFit(this: *Array<T>)
 ```
 
 ## std/assert.bpl
@@ -390,6 +494,63 @@ frame encodedLength(inputLen: int) ret int
 frame isValid(input: string) ret bool
 ```
 
+## std/base85.bpl
+
+[Source](../lib/base85.bpl)
+
+Exports:
+
+```bpl
+export [Base85];
+```
+
+### Base85
+
+```bpl
+struct Base85
+frame encode(data: *u8, length: int) ret string
+frame encodeString(text: string) ret string
+frame scan(input: string, output: *u8, write: bool) ret int
+frame decode(input: string, output: *u8) ret int
+frame decodedLength(input: string) ret int
+frame decodeToString(input: string) ret string
+frame encodeZ85(data: *u8, length: int) ret string
+frame decodedLengthZ85(input: string) ret int
+frame decodeZ85(input: string, output: *u8) ret int
+```
+
+## std/bench.bpl
+
+[Source](../lib/bench.bpl)
+
+Exports:
+
+```bpl
+export [Bench];
+export [BenchResult];
+```
+
+### BenchResult
+
+```bpl
+struct BenchResult
+iterations: long
+totalUs: long
+nsPerOp: float
+frame opsPerSecond(this: *BenchResult) ret float
+```
+
+### Bench
+
+```bpl
+struct Bench
+frame consume(value: long)
+frame runFixed(iterations: long, body: Lambda<void>()) ret BenchResult
+frame measureFor(minimumMs: long, body: Lambda<void>()) ret BenchResult
+frame measure(body: Lambda<void>()) ret BenchResult
+frame report(name: string, body: Lambda<void>()) ret BenchResult
+```
+
 ## std/bigint.bpl
 
 [Source](../lib/bigint.bpl)
@@ -433,6 +594,22 @@ frame pow(this: *BigInt, exponent: int) ret BigInt
 frame gcd(this: *BigInt, other: *BigInt) ret BigInt
 frame toLong(this: *BigInt, out: *long) ret bool
 frame toString(this: *BigInt) ret string
+frame signum(this: *BigInt) ret int
+frame isEven(this: *BigInt) ret bool
+frame isOdd(this: *BigInt) ret bool
+frame addLong(this: *BigInt, value: long) ret BigInt
+frame multiplyLong(this: *BigInt, value: long) ret BigInt
+frame compareLong(this: *BigInt, value: long) ret int
+frame min(this: *BigInt, other: *BigInt) ret BigInt
+frame max(this: *BigInt, other: *BigInt) ret BigInt
+frame mod(this: *BigInt, modulus: *BigInt) ret BigInt
+frame modPow(this: *BigInt, exponent: *BigInt, modulus: *BigInt) ret BigInt
+frame sqrt(this: *BigInt) ret BigInt
+frame factorial(n: int) ret BigInt
+frame lcm(this: *BigInt, other: *BigInt) ret BigInt
+frame parseRadix(text: string, base: int) ret BigInt
+frame toStringRadix(this: *BigInt, base: int) ret string
+frame digitCount(this: *BigInt) ret int
 ```
 
 ## std/binary.bpl
@@ -490,6 +667,58 @@ frame writeU64LE(this: *ByteWriter, value: u64) ret bool
 frame writeU64BE(this: *ByteWriter, value: u64) ret bool
 ```
 
+## std/bits.bpl
+
+[Source](../lib/bits.bpl)
+
+Exports:
+
+```bpl
+export [Bits];
+```
+
+### Bits
+
+```bpl
+struct Bits
+frame popCount32(value: uint) ret int
+frame popCount64(value: ulong) ret int
+frame leadingZeros32(value: uint) ret int
+frame leadingZeros64(value: ulong) ret int
+frame trailingZeros32(value: uint) ret int
+frame trailingZeros64(value: ulong) ret int
+frame rotateLeft32(value: uint, count: int) ret uint
+frame rotateRight32(value: uint, count: int) ret uint
+frame rotateLeft64(value: ulong, count: int) ret ulong
+frame rotateRight64(value: ulong, count: int) ret ulong
+frame byteSwap32(value: uint) ret uint
+frame byteSwap64(value: ulong) ret ulong
+frame reverseBits32(value: uint) ret uint
+frame reverseBits64(value: ulong) ret ulong
+frame parity32(value: uint) ret int
+frame parity64(value: ulong) ret int
+frame isPowerOfTwo64(value: ulong) ret bool
+frame nextPowerOfTwo64(value: ulong) ret ulong
+frame highestBit32(value: uint) ret int
+frame highestBit64(value: ulong) ret int
+frame lowestBit32(value: uint) ret int
+frame lowestBit64(value: ulong) ret int
+frame isolateLowest64(value: ulong) ret ulong
+frame mask64(width: int) ret ulong
+frame extract64(value: ulong, offset: int, width: int) ret ulong
+frame insert64(value: ulong, offset: int, width: int, field: ulong) ret ulong
+frame testBit64(value: ulong, index: int) ret bool
+frame setBit64(value: ulong, index: int) ret ulong
+frame clearBit64(value: ulong, index: int) ret ulong
+frame toggleBit64(value: ulong, index: int) ret ulong
+frame signExtend64(value: ulong, width: int) ret long
+frame interleave(x: uint, y: uint) ret ulong
+frame _spread(value: uint) ret ulong
+frame toGray64(value: ulong) ret ulong
+frame fromGray64(gray: ulong) ret ulong
+frame toBinary64(value: ulong, width: int) ret string
+```
+
 ## std/bitset.bpl
 
 [Source](../lib/bitset.bpl)
@@ -529,6 +758,65 @@ frame orWith(this: *BitSet, other: *BitSet)
 frame xorWith(this: *BitSet, other: *BitSet)
 frame equals(this: *BitSet, other: *BitSet) ret bool
 frame clone(this: *BitSet) ret BitSet
+```
+
+## std/bufio.bpl
+
+[Source](../lib/bufio.bpl)
+
+Exports:
+
+```bpl
+export [BufferedReader];
+export [BufferedWriter];
+```
+
+### BufferedReader
+
+```bpl
+struct BufferedReader
+fd: int
+stream: *void
+buffer: *u8
+start: int
+end: int
+eof: bool
+frame _make(fd: int, stream: *void) ret BufferedReader
+frame fromFd(fd: int) ret BufferedReader
+frame stdin() ret BufferedReader
+frame open(path: string) ret BufferedReader
+frame _fill(this: *BufferedReader) ret bool
+frame readByte(this: *BufferedReader) ret int
+frame peekByte(this: *BufferedReader) ret int
+frame readUntil(this: *BufferedReader, delimiter: u8) ret Option<String>
+frame readLine(this: *BufferedReader) ret Option<String>
+frame readBytes(this: *BufferedReader, data: *u8, length: int) ret int
+frame readAll(this: *BufferedReader) ret String
+frame close(this: *BufferedReader)
+```
+
+### BufferedWriter
+
+```bpl
+struct BufferedWriter
+fd: int
+stream: *void
+buffer: *u8
+length: int
+failed: bool
+frame _make(fd: int, stream: *void) ret BufferedWriter
+frame fromFd(fd: int) ret BufferedWriter
+frame stdout() ret BufferedWriter
+frame stderr() ret BufferedWriter
+frame create(path: string) ret BufferedWriter
+frame append(path: string) ret BufferedWriter
+frame flush(this: *BufferedWriter) ret bool
+frame writeBytes(this: *BufferedWriter, data: *u8, length: int) ret bool
+frame write(this: *BufferedWriter, text: string) ret bool
+frame writeLine(this: *BufferedWriter, text: string) ret bool
+frame writeByte(this: *BufferedWriter, value: u8) ret bool
+frame writeLong(this: *BufferedWriter, value: long) ret bool
+frame close(this: *BufferedWriter) ret bool
 ```
 
 ## std/c.bpl
@@ -737,6 +1025,30 @@ frame __ne__(this: *Complex, other: *Complex) ret bool
 frame __neg__(this: *Complex) ret Complex
 ```
 
+## std/compress.bpl
+
+[Source](../lib/compress.bpl)
+
+Exports:
+
+```bpl
+export [Deflate];
+```
+
+### Deflate
+
+```bpl
+struct Deflate
+frame inflate(data: *u8, length: long) ret Array<u8>
+frame deflate(data: *u8, length: long, level: int) ret Array<u8>
+frame zlibCompress(data: *u8, length: long, level: int) ret Array<u8>
+frame zlibDecompress(data: *u8, length: long) ret Array<u8>
+frame gzipCompress(data: *u8, length: long, level: int) ret Array<u8>
+frame gzipDecompress(data: *u8, length: long) ret Array<u8>
+frame _gzipMember(data: *u8, length: long, start: long, out: *Array<u8>) ret long
+frame gzipString(text: string, level: int) ret Array<u8>
+```
+
 ## std/core_specs.bpl
 
 [Source](../lib/core_specs.bpl)
@@ -790,6 +1102,31 @@ spec Cloneable<T>
 frame clone(this: *T) ret T
 ```
 
+## std/csv.bpl
+
+[Source](../lib/csv.bpl)
+
+Exports:
+
+```bpl
+export [Csv];
+```
+
+### Csv
+
+```bpl
+struct Csv
+frame parse(text: string) ret Array<Array<String>>
+frame parseWith(text: string, delimiter: char) ret Array<Array<String>>
+frame _destroyRow(row: *Array<String>)
+frame destroyRows(rows: *Array<Array<String>>)
+frame needsQuoting(field: string, delimiter: char) ret bool
+frame appendField(out: *StringBuilder, field: string, delimiter: char)
+frame formatRow(fields: *Array<String>, delimiter: char) ret String
+frame formatStrings(fields: *Array<string>, delimiter: char) ret String
+frame format(rows: *Array<Array<String>>, delimiter: char) ret String
+```
+
 ## std/date.bpl
 
 [Source](../lib/date.bpl)
@@ -837,6 +1174,13 @@ frame __lt__(this: *Date, other: *Date) ret bool
 frame __le__(this: *Date, other: *Date) ret bool
 frame __gt__(this: *Date, other: *Date) ret bool
 frame __ge__(this: *Date, other: *Date) ret bool
+frame weekdayName(this: *Date) ret string
+frame monthName(this: *Date) ret string
+frame isoWeekday(this: *Date) ret int
+frame isoWeekYear(this: *Date) ret int
+frame startOfMonth(this: *Date) ret Date
+frame endOfMonth(this: *Date) ret Date
+frame formatPattern(this: *Date, pattern: string) ret String
 frame clone(this: *Date) ret Date
 ```
 
@@ -876,6 +1220,9 @@ frame __lt__(this: *DateTime, other: *DateTime) ret bool
 frame __le__(this: *DateTime, other: *DateTime) ret bool
 frame __gt__(this: *DateTime, other: *DateTime) ret bool
 frame __ge__(this: *DateTime, other: *DateTime) ret bool
+frame formatPattern(this: *DateTime, pattern: string) ret String
+frame formatRfc3339(this: *DateTime) ret String
+frame formatHttp(this: *DateTime) ret String
 frame clone(this: *DateTime) ret DateTime
 ```
 
@@ -895,6 +1242,76 @@ export [Debug];
 struct Debug
 frame captureStackTrace(buffer: **void, max_frames: int) ret int
 frame printStackTrace()
+```
+
+## std/decimal.bpl
+
+[Source](../lib/decimal.bpl)
+
+Exports:
+
+```bpl
+export [Decimal];
+export DECIMAL_ROUND_HALF_EVEN;
+export DECIMAL_ROUND_HALF_UP;
+export DECIMAL_ROUND_DOWN;
+export DECIMAL_ROUND_UP;
+export DECIMAL_ROUND_FLOOR;
+export DECIMAL_ROUND_CEILING;
+```
+
+```bpl
+global DECIMAL_ROUND_HALF_EVEN: int = 0
+```
+
+```bpl
+global DECIMAL_ROUND_HALF_UP: int = 1
+```
+
+```bpl
+global DECIMAL_ROUND_DOWN: int = 2
+```
+
+```bpl
+global DECIMAL_ROUND_UP: int = 3
+```
+
+```bpl
+global DECIMAL_ROUND_FLOOR: int = 4
+```
+
+```bpl
+global DECIMAL_ROUND_CEILING: int = 5
+```
+
+### Decimal
+
+```bpl
+struct Decimal
+units: long
+scale: int
+frame new(units: long, scale: int) ret Decimal
+frame fromLong(value: long) ret Decimal
+frame zero() ret Decimal
+frame parse(text: string) ret Option<Decimal>
+frame fromFloat(value: float, scale: int) ret Decimal
+frame toFloat(this: *Decimal) ret float
+frame rescale(this: *Decimal, scale: int, mode: int) ret Decimal
+frame round(this: *Decimal, scale: int) ret Decimal
+frame add(this: *Decimal, other: *Decimal) ret Decimal
+frame subtract(this: *Decimal, other: *Decimal) ret Decimal
+frame negate(this: *Decimal) ret Decimal
+frame abs(this: *Decimal) ret Decimal
+frame multiply(this: *Decimal, other: *Decimal) ret Decimal
+frame divide(this: *Decimal, other: *Decimal, scale: int, mode: int) ret Decimal
+frame multiplyLong(this: *Decimal, factor: long) ret Decimal
+frame allocate(this: *Decimal, parts: int, index: int) ret Decimal
+frame compare(this: *Decimal, other: *Decimal) ret int
+frame equals(this: *Decimal, other: *Decimal) ret bool
+frame isZero(this: *Decimal) ret bool
+frame isNegative(this: *Decimal) ret bool
+frame normalize(this: *Decimal) ret Decimal
+frame toString(this: *Decimal) ret String
 ```
 
 ## std/deque.bpl
@@ -1158,6 +1575,39 @@ struct DivisionByZeroError: Error
 struct StackOverflowError: Error
 ```
 
+## std/files.bpl
+
+[Source](../lib/files.bpl)
+
+Exports:
+
+```bpl
+export [Files];
+```
+
+### Files
+
+```bpl
+struct Files
+frame isFile(path: string) ret bool
+frame isDir(path: string) ret bool
+frame isSymlink(path: string) ret bool
+frame fileSize(path: string) ret long
+frame readLines(path: string) ret Array<String>
+frame writeLines(path: string, lines: *Array<String>) ret bool
+frame touch(path: string) ret bool
+frame walk(root: string) ret Array<String>
+frame _walkInto(directory: string, out: *Array<String>)
+frame _compare(a: string, b: string) ret int
+frame walkFiles(root: string) ret Array<String>
+frame removeAll(path: string) ret bool
+frame copyTree(source: string, target: string) ret bool
+frame tempFile(prefix: string) ret String
+frame tempDir(prefix: string) ret String
+frame cwd() ret String
+frame chdir(path: string) ret bool
+```
+
 ## std/fmt.bpl
 
 [Source](../lib/fmt.bpl)
@@ -1237,6 +1687,69 @@ frame listDir(path: string) ret Array<String>
 frame listDirChecked(path: string) ret Array<String>
 ```
 
+## std/graph.bpl
+
+[Source](../lib/graph.bpl)
+
+Exports:
+
+```bpl
+export [Graph];
+export [GraphEdge];
+export GRAPH_UNREACHABLE;
+```
+
+```bpl
+global GRAPH_UNREACHABLE: long = 9223372036854775807
+```
+
+### GraphEdge
+
+```bpl
+struct GraphEdge
+source: int
+target: int
+weight: long
+next: int
+```
+
+### Graph
+
+```bpl
+struct Graph
+vertexCount: int
+directed: bool
+head: Array<int>
+edges: Array<GraphEdge>
+frame new(vertexCount: int, directed: bool) ret Graph
+frame directedGraph(vertexCount: int) ret Graph
+frame undirectedGraph(vertexCount: int) ret Graph
+frame destroy(this: *Graph)
+frame _check(this: *Graph, vertex: int)
+frame _link(this: *Graph, source: int, target: int, weight: long)
+frame addVertex(this: *Graph) ret int
+frame addEdge(this: *Graph, source: int, target: int, weight: long)
+frame connect(this: *Graph, source: int, target: int)
+frame len(this: *Graph) ret int
+frame edgeCount(this: *Graph) ret int
+frame hasEdge(this: *Graph, source: int, target: int) ret bool
+frame neighbors(this: *Graph, vertex: int) ret Array<int>
+frame outDegree(this: *Graph, vertex: int) ret int
+frame bfs(this: *Graph, start: int) ret Array<int>
+frame bfsDistances(this: *Graph, start: int) ret Array<int>
+frame dfs(this: *Graph, start: int) ret Array<int>
+frame dijkstraWith(this: *Graph, start: int, previous: *Array<int>) ret Array<long>
+frame dijkstra(this: *Graph, start: int) ret Array<long>
+frame shortestPath(this: *Graph, source: int, target: int) ret Array<int>
+frame bellmanFord(this: *Graph, start: int) ret Option<Array<long>>
+frame topologicalSort(this: *Graph) ret Option<Array<int>>
+frame hasCycle(this: *Graph) ret bool
+frame connectedComponents(this: *Graph, count: *int) ret Array<int>
+frame stronglyConnectedComponents(this: *Graph, count: *int) ret Array<int>
+frame minimumSpanningTree(this: *Graph, total: *long) ret Array<GraphEdge>
+frame isBipartite(this: *Graph) ret bool
+```
+
 ## std/hash.bpl
 
 [Source](../lib/hash.bpl)
@@ -1259,6 +1772,17 @@ frame crc32(data: *u8, length: long) ret uint
 frame crc32Update(crc: uint, data: *u8, length: long) ret uint
 frame crc32String(input: string) ret uint
 frame adler32(data: *u8, length: long) ret uint
+frame fnv1a32Bytes(data: *u8, length: long) ret uint
+frame fnv1a64Bytes(data: *u8, length: long) ret ulong
+frame djb2(input: string) ret uint
+frame crc32c(data: *u8, length: long) ret uint
+frame crc32cUpdate(crc: uint, data: *u8, length: long) ret uint
+frame murmur3(data: *u8, length: long, seed: uint) ret uint
+frame xxhash32(data: *u8, length: long, seed: uint) ret uint
+frame xxhash64(data: *u8, length: long, seed: ulong) ret ulong
+frame xxhash32String(input: string) ret uint
+frame xxhash64String(input: string) ret ulong
+frame siphash24(key0: ulong, key1: ulong, data: *u8, length: long) ret ulong
 ```
 
 ## std/hex.bpl
@@ -1339,6 +1863,51 @@ frame new(key: *u8, keyLength: long) ret HmacSha1
 frame update(this: *HmacSha1, data: *u8, length: long)
 frame finish(this: *HmacSha1, mac: *u8)
 frame digest(key: *u8, keyLength: long, data: *u8, length: long, mac: *u8)
+```
+
+## std/ini.bpl
+
+[Source](../lib/ini.bpl)
+
+Exports:
+
+```bpl
+export [Ini];
+export [IniEntry];
+```
+
+### IniEntry
+
+```bpl
+struct IniEntry
+section: String
+key: String
+value: String
+```
+
+### Ini
+
+```bpl
+struct Ini
+entries: Array<IniEntry>
+sectionOrder: Array<String>
+frame new() ret Ini
+frame parse(text: string) ret Ini
+frame _noteSection(this: *Ini, section: string)
+frame _find(this: *Ini, section: string, key: string) ret int
+frame set(this: *Ini, section: string, key: string, value: string)
+frame get(this: *Ini, section: string, key: string) ret Option<string>
+frame getOr(this: *Ini, section: string, key: string, fallback: string) ret string
+frame has(this: *Ini, section: string, key: string) ret bool
+frame getInt(this: *Ini, section: string, key: string, fallback: long) ret long
+frame getBool(this: *Ini, section: string, key: string, fallback: bool) ret bool
+frame remove(this: *Ini, section: string, key: string) ret bool
+frame sections(this: *Ini) ret Array<string>
+frame keys(this: *Ini, section: string) ret Array<string>
+frame len(this: *Ini) ret int
+frame _appendSection(this: *Ini, out: *StringBuilder, section: string)
+frame toText(this: *Ini) ret String
+frame destroy(this: *Ini)
 ```
 
 ## std/intrinsics.bpl
@@ -1570,6 +2139,157 @@ frame bpl_printf(fmt: string, args: *Any, args_count: int)
 Exports:
 
 ```bpl
+export [Iter];
+export [Peekable];
+export [Enumerated];
+export [Zipped];
+export iterEnumerate;
+export iterChunks;
+export iterRange;
+export iterRangeStep;
+export iterRangeOf;
+export iterCounter;
+export iterChars;
+export iterArray;
+export sumInt;
+export sumLong;
+export sumFloat;
+export minInt;
+export maxInt;
+```
+
+### Enumerated
+
+```bpl
+struct Enumerated<T>
+index: int
+value: T
+```
+
+### Zipped
+
+```bpl
+struct Zipped<A, B>
+first: A
+second: B
+```
+
+### Iter
+
+```bpl
+struct Iter<T>
+step: Lambda<Option<T>>()
+arena: *IterArena
+frame fromFn(step: Lambda<Option<T>>()) ret Iter<T>
+frame fromIterator<I: Iterator<T>>(source: I) ret Iter<T>
+frame fromArray(array: *Array<T>) ret Iter<T>
+frame fromPointer(data: *T, count: int) ret Iter<T>
+frame empty() ret Iter<T>
+frame once(value: T) ret Iter<T>
+frame repeat(value: T) ret Iter<T>
+frame repeatN(value: T, count: int) ret Iter<T>
+frame successors(first: T, next: Lambda<Option<T>>(T)) ret Iter<T>
+frame next(this: *Iter<T>) ret Option<T>
+frame destroy(this: *Iter<T>)
+frame map<U>(this: *Iter<T>, transform: Lambda<U>(T)) ret Iter<U>
+frame filter(this: *Iter<T>, predicate: Lambda<bool>(T)) ret Iter<T>
+frame filterMap<U>(this: *Iter<T>, transform: Lambda<Option<U>>(T)) ret Iter<U>
+frame take(this: *Iter<T>, count: int) ret Iter<T>
+frame skip(this: *Iter<T>, count: int) ret Iter<T>
+frame takeWhile(this: *Iter<T>, predicate: Lambda<bool>(T)) ret Iter<T>
+frame skipWhile(this: *Iter<T>, predicate: Lambda<bool>(T)) ret Iter<T>
+frame stepBy(this: *Iter<T>, step: int) ret Iter<T>
+frame zip<U>(this: *Iter<T>, other: Iter<U>) ret Iter<Zipped<T, U>>
+frame chain(this: *Iter<T>, other: Iter<T>) ret Iter<T>
+frame inspect(this: *Iter<T>, action: Lambda<void>(T)) ret Iter<T>
+frame flatMap<U>(this: *Iter<T>, expand: Lambda<Iter<U>>(T)) ret Iter<U>
+frame scan<S>(this: *Iter<T>, initial: S, combine: Lambda<S>(S, T)) ret Iter<S>
+frame dedupBy(this: *Iter<T>, same: Lambda<bool>(T, T)) ret Iter<T>
+frame fuse(this: *Iter<T>) ret Iter<T>
+frame collect(this: *Iter<T>) ret Array<T>
+frame collectInto(this: *Iter<T>, target: *Array<T>)
+frame sortedBy(this: *Iter<T>, compare: Lambda<int>(T, T)) ret Array<T>
+frame count(this: *Iter<T>) ret int
+frame fold<U>(this: *Iter<T>, initial: U, combine: Lambda<U>(U, T)) ret U
+frame reduce(this: *Iter<T>, combine: Lambda<T>(T, T)) ret Option<T>
+frame forEach(this: *Iter<T>, action: Lambda<void>(T))
+frame any(this: *Iter<T>, predicate: Lambda<bool>(T)) ret bool
+frame all(this: *Iter<T>, predicate: Lambda<bool>(T)) ret bool
+frame find(this: *Iter<T>, predicate: Lambda<bool>(T)) ret Option<T>
+frame position(this: *Iter<T>, predicate: Lambda<bool>(T)) ret Option<int>
+frame last(this: *Iter<T>) ret Option<T>
+frame nth(this: *Iter<T>, index: int) ret Option<T>
+frame minBy(this: *Iter<T>, compare: Lambda<int>(T, T)) ret Option<T>
+frame maxBy(this: *Iter<T>, compare: Lambda<int>(T, T)) ret Option<T>
+frame partition(this: *Iter<T>, predicate: Lambda<bool>(T)) ret (Array<T>, Array<T>)
+frame advanceBy(this: *Iter<T>, count: int) ret int
+frame peekable(this: *Iter<T>) ret Peekable<T>
+```
+
+### Peekable
+
+```bpl
+struct Peekable<T>
+inner: Iter<T>
+peeked: Option<T>
+hasPeeked: bool
+frame new(inner: Iter<T>) ret Peekable<T>
+frame peek(this: *Peekable<T>) ret Option<T>
+frame next(this: *Peekable<T>) ret Option<T>
+frame nextIf(this: *Peekable<T>, predicate: Lambda<bool>(T)) ret Option<T>
+frame destroy(this: *Peekable<T>)
+```
+
+```bpl
+frame iterEnumerate<T>(source: Iter<T>) ret Iter<Enumerated<T>>
+```
+
+```bpl
+frame iterChunks<T>(source: Iter<T>, size: int) ret Iter<Array<T>>
+```
+
+```bpl
+frame iterRange(start: int, end: int) ret Iter<int>
+```
+
+```bpl
+frame iterRangeStep(start: int, end: int, step: int) ret Iter<int>
+```
+
+```bpl
+frame iterRangeOf(range: Range) ret Iter<int>
+```
+
+```bpl
+frame iterCounter(start: int) ret Iter<int>
+```
+
+```bpl
+frame iterChars(text: string) ret Iter<char>
+```
+
+```bpl
+frame iterArray<T>(array: *Array<T>) ret Iter<T>
+```
+
+```bpl
+frame sumInt(values: *Iter<int>) ret long
+```
+
+```bpl
+frame sumLong(values: *Iter<long>) ret long
+```
+
+```bpl
+frame sumFloat(values: *Iter<float>) ret float
+```
+
+```bpl
+frame minInt(values: *Iter<int>) ret Option<int>
+```
+
+```bpl
+frame maxInt(values: *Iter<int>) ret Option<int>
 ```
 
 ## std/iter_specs.bpl
@@ -1758,6 +2478,50 @@ frame useStderr(enabled: bool)
 frame levelFromEnv() ret bool
 ```
 
+## std/lru_cache.bpl
+
+[Source](../lib/lru_cache.bpl)
+
+Exports:
+
+```bpl
+export [LruCache];
+```
+
+### LruCache
+
+```bpl
+struct LruCache<K, V>
+index: Map<K, int>
+keys: *K
+values: *V
+prev: *int
+next: *int
+head: int
+tail: int
+freeHead: int
+count: int
+cap: int
+frame new(capacity: int) ret LruCache<K, V>
+frame _reset(this: *LruCache<K, V>)
+frame destroy(this: *LruCache<K, V>)
+frame len(this: *LruCache<K, V>) ret int
+frame capacity(this: *LruCache<K, V>) ret int
+frame isEmpty(this: *LruCache<K, V>) ret bool
+frame _unlink(this: *LruCache<K, V>, slot: int)
+frame _pushFront(this: *LruCache<K, V>, slot: int)
+frame _touch(this: *LruCache<K, V>, slot: int)
+frame has(this: *LruCache<K, V>, key: K) ret bool
+frame get(this: *LruCache<K, V>, key: K) ret Option<V>
+frame peek(this: *LruCache<K, V>, key: K) ret Option<V>
+frame putEvicting(this: *LruCache<K, V>, key: K, value: V, evictedKey: *K, evictedValue: *V) ret bool
+frame put(this: *LruCache<K, V>, key: K, value: V) ret bool
+frame remove(this: *LruCache<K, V>, key: K) ret bool
+frame oldestKey(this: *LruCache<K, V>) ret Option<K>
+frame keysByRecency(this: *LruCache<K, V>) ret Array<K>
+frame clear(this: *LruCache<K, V>)
+```
+
 ## std/map.bpl
 
 [Source](../lib/map.bpl)
@@ -1825,6 +2589,14 @@ frame clear(this: *Map<K, V>)
 frame __eq__(this: *Map<K, V>, other: *Map<K, V>) ret bool
 frame __ne__(this: *Map<K, V>, other: *Map<K, V>) ret bool
 frame destroy(this: *Map<K, V>)
+frame getRef(this: *Map<K, V>, key: K) ret *V
+frame getOrInsert(this: *Map<K, V>, key: K, value: V) ret *V
+frame update(this: *Map<K, V>, key: K, initial: V, transform: Lambda<V>(V)) ret V
+frame entries(this: *Map<K, V>) ret Array<Pair<K, V>>
+frame forEach(this: *Map<K, V>, visit: Lambda<void>(K, V))
+frame retain(this: *Map<K, V>, keep: Lambda<bool>(K, V)) ret int
+frame merge(this: *Map<K, V>, other: *Map<K, V>)
+frame isEmpty(this: *Map<K, V>) ret bool
 ```
 
 ## std/math.bpl
@@ -1912,6 +2684,99 @@ frame factorial(n: int) ret long
 frame fibonacci(n: int) ret long
 frame isEven(x: int) ret bool
 frame isOdd(x: int) ret bool
+frame isFinite(x: float) ret bool
+frame trunc(x: float) ret float
+frame fract(x: float) ret float
+frame fma(a: float, b: float, c: float) ret float
+frame approxEqual(a: float, b: float, relTol: float, absTol: float) ret bool
+frame cbrt(x: float) ret float
+frame hypot(x: float, y: float) ret float
+frame exp2(x: float) ret float
+frame expm1(x: float) ret float
+frame log1p(x: float) ret float
+frame logBase(x: float, base: float) ret float
+frame powInt(x: float, n: int) ret float
+frame sinh(x: float) ret float
+frame cosh(x: float) ret float
+frame tanh(x: float) ret float
+frame asinh(x: float) ret float
+frame acosh(x: float) ret float
+frame atanh(x: float) ret float
+frame erf(x: float) ret float
+frame erfc(x: float) ret float
+frame lgamma(x: float) ret float
+frame tgamma(x: float) ret float
+frame smoothstep(edge0: float, edge1: float, x: float) ret float
+frame inverseLerp(a: float, b: float, x: float) ret float
+frame remap(x: float, inMin: float, inMax: float, outMin: float, outMax: float) ret float
+frame wrapAngle(radians: float) ret float
+frame gcdLong(a: long, b: long) ret long
+frame lcmLong(a: long, b: long) ret long
+frame _magnitude(value: long) ret ulong
+frame mulMod(a: ulong, b: ulong, m: ulong) ret ulong
+frame powMod(base: ulong, exponent: ulong, m: ulong) ret ulong
+frame modInverse(a: long, m: long) ret long
+frame isqrt(n: long) ret long
+frame isPrime(n: long) ret bool
+frame primesUpTo(limit: int) ret Array<int>
+frame binomial(n: int, k: int) ret long
+frame floorDiv(a: long, b: long) ret long
+frame floorMod(a: long, b: long) ret long
+frame clampLong(x: long, minVal: long, maxVal: long) ret long
+frame checkedAdd(a: long, b: long) ret long
+frame checkedMul(a: long, b: long) ret long
+frame saturatingAdd(a: long, b: long) ret long
+frame digitCount(n: long) ret int
+```
+
+## std/matrix.bpl
+
+[Source](../lib/matrix.bpl)
+
+Exports:
+
+```bpl
+export [Matrix];
+export MATRIX_EPSILON;
+```
+
+```bpl
+global MATRIX_EPSILON: float = 0.000000000001
+```
+
+### Matrix
+
+```bpl
+struct Matrix
+rows: int
+cols: int
+data: *float
+frame new(rows: int, cols: int) ret Matrix
+frame identity(size: int) ret Matrix
+frame fromValues(rows: int, cols: int, values: *float) ret Matrix
+frame destroy(this: *Matrix)
+frame clone(this: *Matrix) ret Matrix
+frame _check(this: *Matrix, row: int, col: int)
+frame get(this: *Matrix, row: int, col: int) ret float
+frame set(this: *Matrix, row: int, col: int, value: float)
+frame isSquare(this: *Matrix) ret bool
+frame _sameShape(this: *Matrix, other: *Matrix)
+frame add(this: *Matrix, other: *Matrix) ret Matrix
+frame subtract(this: *Matrix, other: *Matrix) ret Matrix
+frame scale(this: *Matrix, factor: float) ret Matrix
+frame multiply(this: *Matrix, other: *Matrix) ret Matrix
+frame hadamard(this: *Matrix, other: *Matrix) ret Matrix
+frame transpose(this: *Matrix) ret Matrix
+frame trace(this: *Matrix) ret float
+frame norm(this: *Matrix) ret float
+frame _largest(this: *Matrix) ret float
+frame _decompose(lu: *Matrix, pivot: *int) ret int
+frame determinant(this: *Matrix) ret float
+frame solve(this: *Matrix, rhs: *Matrix) ret Matrix
+frame inverse(this: *Matrix) ret Matrix
+frame rank(this: *Matrix) ret int
+frame approxEquals(this: *Matrix, other: *Matrix, tolerance: float) ret bool
+frame toString(this: *Matrix, decimals: int) ret String
 ```
 
 ## std/memory/allocator.bpl
@@ -2099,6 +2964,17 @@ frame unwrapOrElse(this: Option<T>, fallback: Lambda<T>()) ret T
 frame map<U>(this: Option<T>, transform: Lambda<U>(T)) ret Option<U>
 frame andThen<U>(this: Option<T>, next: Lambda<Option<U>>(T)) ret Option<U>
 frame unwrapOr(this: Option<T>, defaultValue: T) ret T
+frame filter(this: Option<T>, predicate: Lambda<bool>(T)) ret Option<T>
+frame filterValue(value: T, keep: bool) ret Option<T>
+frame or(this: Option<T>, other: Option<T>) ret Option<T>
+frame orElse(this: Option<T>, fallback: Lambda<Option<T>>()) ret Option<T>
+frame xor(this: Option<T>, other: Option<T>) ret Option<T>
+frame isSomeAnd(this: Option<T>, predicate: Lambda<bool>(T)) ret bool
+frame isNoneOr(this: Option<T>, predicate: Lambda<bool>(T)) ret bool
+frame mapOr<U>(this: Option<T>, defaultValue: U, transform: Lambda<U>(T)) ret U
+frame inspect(this: Option<T>, action: Lambda<void>(T)) ret Option<T>
+frame take(this: *Option<T>) ret Option<T>
+frame replace(this: *Option<T>, value: T) ret Option<T>
 frame __eq__(this: *Option<T>, other: *Option<T>) ret bool
 frame __ne__(this: *Option<T>, other: *Option<T>) ret bool
 frame clone(this: *Option<T>) ret Option<T>
@@ -2495,6 +3371,8 @@ Exports:
 
 ```bpl
 export [Rand];
+export [SplitMix64];
+export [Xoshiro256];
 ```
 
 ### Rand
@@ -2518,6 +3396,45 @@ frame shuffle<T>(this: *Rand, arr: *Array<T>)
 frame choice<T>(this: *Rand, arr: *Array<T>, output: *T) ret bool
 frame fillBytes(this: *Rand, buf: *u8, len: int)
 frame weightedChoice(this: *Rand, weights: *Array<int>) ret int
+frame nextBelow(this: *Rand, bound: ulong) ret ulong
+frame rangeLong(this: *Rand, min: long, max: long) ret long
+frame nextUnit(this: *Rand) ret float
+frame nextBernoulli(this: *Rand, p: float) ret bool
+frame nextNormal(this: *Rand, mean: float, stddev: float) ret float
+frame nextExponential(this: *Rand, lambda: float) ret float
+frame nextPoisson(this: *Rand, mean: float) ret int
+frame nextBinomial(this: *Rand, trials: int, p: float) ret int
+frame sample<T>(this: *Rand, arr: *Array<T>, count: int) ret Array<T>
+```
+
+### SplitMix64
+
+```bpl
+struct SplitMix64
+state: ulong
+frame seed(seed: ulong) ret SplitMix64
+frame next(this: *SplitMix64) ret ulong
+```
+
+### Xoshiro256
+
+```bpl
+struct Xoshiro256
+s0: ulong
+s1: ulong
+s2: ulong
+s3: ulong
+frame seed(seed: ulong) ret Xoshiro256
+frame _rotl(value: ulong, count: ulong) ret ulong
+frame nextULong(this: *Xoshiro256) ret ulong
+frame nextLong(this: *Xoshiro256) ret long
+frame nextUInt(this: *Xoshiro256) ret uint
+frame nextFloat(this: *Xoshiro256) ret float
+frame nextBool(this: *Xoshiro256) ret bool
+frame nextBelow(this: *Xoshiro256, bound: ulong) ret ulong
+frame range(this: *Xoshiro256, min: int, max: int) ret int
+frame jump(this: *Xoshiro256)
+frame shuffle<T>(this: *Xoshiro256, arr: *Array<T>)
 ```
 
 ## std/range.bpl
@@ -2703,6 +3620,7 @@ Exports:
 
 ```bpl
 export [Regex];
+export [RegexMatch];
 ```
 
 ### Regex
@@ -2721,6 +3639,7 @@ classCapacity: int
 start: int
 pattern: string
 position: int
+groupCount: int
 frame compile(pattern: string) ret Regex
 frame destroy(this: *Regex)
 frame addState(this: *Regex, kind: int, argument: int) ret int
@@ -2728,7 +3647,7 @@ frame parseAlternation(this: *Regex, end: *int) ret int
 frame parseConcatenation(this: *Regex, end: *int) ret int
 frame parseRepetition(this: *Regex, end: *int) ret int
 frame parseCount(this: *Regex) ret int
-frame parseCounted(this: *Regex, atomStart: int, end: *int) ret int
+frame parseCounted(this: *Regex, atomStart: int, groupsBefore: int, end: *int) ret int
 frame parseAtom(this: *Regex, end: *int) ret int
 frame parseEscapedByte(this: *Regex) ret int
 frame parseShorthand(this: *Regex, c: char) ret int
@@ -2751,6 +3670,27 @@ frame replaceFirst(this: *Regex, text: string, replacement: string) ret string
 frame split(this: *Regex, text: string) ret Array<string>
 frame copyRange(text: string, start: long, end: long) ret string
 frame replace(this: *Regex, text: string, replacement: string, limit: long) ret string
+frame _addThread(this: *Regex, list: *int, caps: *long, size: *int, marks: *int, generation: int, state: int, current: *long, slots: int, at: long, length: long)
+frame capturesFrom(this: *Regex, text: string, begin: long) ret RegexMatch
+frame captures(this: *Regex, text: string) ret RegexMatch
+frame groups(this: *Regex) ret int
+frame replaceAllGroups(this: *Regex, text: string, template: string) ret string
+```
+
+### RegexMatch
+
+```bpl
+struct RegexMatch
+found: bool
+groupCount: int
+spans: *long
+frame empty(groupCount: int) ret RegexMatch
+frame _check(this: *RegexMatch, group: int)
+frame start(this: *RegexMatch, group: int) ret long
+frame end(this: *RegexMatch, group: int) ret long
+frame matched(this: *RegexMatch, group: int) ret bool
+frame text(this: *RegexMatch, source: string, group: int) ret string
+frame destroy(this: *RegexMatch)
 ```
 
 ## std/result.bpl
@@ -2778,10 +3718,66 @@ frame map<U>(this: Result<T, E>, transform: Lambda<U>(T)) ret Result<U, E>
 frame mapErr<F>(this: Result<T, E>, transform: Lambda<F>(E)) ret Result<T, F>
 frame ok(this: Result<T, E>) ret Option<T>
 frame unwrapOr(this: Result<T, E>, defaultValue: T) ret T
+frame andThen<U>(this: Result<T, E>, next: Lambda<Result<U, E>>(T)) ret Result<U, E>
+frame orElse<F>(this: Result<T, E>, recover: Lambda<Result<T, F>>(E)) ret Result<T, F>
+frame unwrapOrElse(this: Result<T, E>, fallback: Lambda<T>(E)) ret T
+frame err(this: Result<T, E>) ret Option<E>
+frame isOkAnd(this: Result<T, E>, predicate: Lambda<bool>(T)) ret bool
+frame isErrAnd(this: Result<T, E>, predicate: Lambda<bool>(E)) ret bool
+frame mapOr<U>(this: Result<T, E>, defaultValue: U, transform: Lambda<U>(T)) ret U
 frame unwrapErr(this: Result<T, E>) ret E
 frame __eq__(this: *Result<T, E>, other: *Result<T, E>) ret bool
 frame __ne__(this: *Result<T, E>, other: *Result<T, E>) ret bool
 frame clone(this: *Result<T, E>) ret Result<T, E>
+```
+
+## std/ring_buffer.bpl
+
+[Source](../lib/ring_buffer.bpl)
+
+Exports:
+
+```bpl
+export [RingBuffer];
+export [RingBufferIterator];
+```
+
+### RingBufferIterator
+
+```bpl
+struct RingBufferIterator<T>: Iterator<T>
+buffer: *RingBuffer<T>
+index: int
+frame next(this: *RingBufferIterator<T>) ret Option<T>
+```
+
+### RingBuffer
+
+```bpl
+struct RingBuffer<T>
+data: *T
+cap: int
+head: int
+length: int
+frame new(capacity: int) ret RingBuffer<T>
+frame destroy(this: *RingBuffer<T>)
+frame len(this: *RingBuffer<T>) ret int
+frame capacity(this: *RingBuffer<T>) ret int
+frame isEmpty(this: *RingBuffer<T>) ret bool
+frame isFull(this: *RingBuffer<T>) ret bool
+frame _slot(this: *RingBuffer<T>, index: int) ret int
+frame push(this: *RingBuffer<T>, value: T) ret bool
+frame pushOverwrite(this: *RingBuffer<T>, value: T) ret Option<T>
+frame pushFront(this: *RingBuffer<T>, value: T) ret bool
+frame pop(this: *RingBuffer<T>) ret Option<T>
+frame popBack(this: *RingBuffer<T>) ret Option<T>
+frame front(this: *RingBuffer<T>) ret Option<T>
+frame back(this: *RingBuffer<T>) ret Option<T>
+frame get(this: *RingBuffer<T>, index: int) ret T
+frame set(this: *RingBuffer<T>, index: int, value: T)
+frame clear(this: *RingBuffer<T>)
+frame toArray(this: *RingBuffer<T>) ret Array<T>
+frame iterator(this: *RingBuffer<T>) ret RingBufferIterator<T>
 ```
 
 ## std/scope_stack.bpl
@@ -2806,6 +3802,47 @@ frame exitScope(this: *ScopeStack<T>)
 frame define(this: *ScopeStack<T>, name: string, value: T)
 frame lookup(this: *ScopeStack<T>, name: string) ret Option<T>
 frame isDefinedInCurrentScope(this: *ScopeStack<T>, name: string) ret bool
+```
+
+## std/semver.bpl
+
+[Source](../lib/semver.bpl)
+
+Exports:
+
+```bpl
+export [SemVer];
+```
+
+### SemVer
+
+```bpl
+struct SemVer
+major: long
+minor: long
+patch: long
+prerelease: String
+build: String
+frame new(major: long, minor: long, patch: long) ret SemVer
+frame parse(text: string) ret Option<SemVer>
+frame isValid(text: string) ret bool
+frame destroy(this: *SemVer)
+frame isPrerelease(this: *SemVer) ret bool
+frame compare(this: *SemVer, other: *SemVer) ret int
+frame compareStrings(a: string, b: string) ret int
+frame toString(this: *SemVer) ret String
+frame bumpMajor(this: *SemVer) ret SemVer
+frame bumpMinor(this: *SemVer) ret SemVer
+frame bumpPatch(this: *SemVer) ret SemVer
+frame satisfies(this: *SemVer, range: string) ret bool
+frame satisfiesString(version: string, range: string) ret bool
+frame _satisfiesSet(this: *SemVer, range: string, start: long, end: long) ret bool
+frame _partial(range: string, start: long, end: long, parts: *long, prerelease: *String) ret int
+frame _compareParts(this: *SemVer, major: long, minor: long, patch: long, prerelease: string) ret int
+frame _sameTuple(this: *SemVer, parts: *long) ret bool
+frame _compareToken(this: *SemVer, range: string, start: long, end: long, operator: string, allowsPrerelease: *bool) ret bool
+frame _evaluate(this: *SemVer, op: string, parts: *long, given: int, pre: string) ret bool
+frame _hyphenHigh(this: *SemVer, range: string, start: long, end: long, allowsPrerelease: *bool) ret bool
 ```
 
 ## std/set.bpl
@@ -2845,6 +3882,14 @@ frame clear(this: *Set<T>)
 frame isEmpty(this: *Set<T>) ret bool
 frame isSubsetOf(this: *Set<T>, other: *Set<T>) ret bool
 frame toArray(this: *Set<T>) ret Array<T>
+frame fromArray(values: *Array<T>) ret Set<T>
+frame addAll(this: *Set<T>, other: *Set<T>)
+frame insert(this: *Set<T>, value: T) ret bool
+frame isSupersetOf(this: *Set<T>, other: *Set<T>) ret bool
+frame isDisjoint(this: *Set<T>, other: *Set<T>) ret bool
+frame symmetricDifference(this: *Set<T>, other: *Set<T>) ret Set<T>
+frame retain(this: *Set<T>, keep: Lambda<bool>(T)) ret int
+frame forEach(this: *Set<T>, visit: Lambda<void>(T))
 frame union(this: *Set<T>, other: *Set<T>) ret Set<T>
 frame difference(this: *Set<T>, other: *Set<T>) ret Set<T>
 frame intersection(this: *Set<T>, other: *Set<T>) ret Set<T>
@@ -3311,6 +4356,41 @@ frame trim(s: string) ret String
 frame replaceChar(s: string, target: char, repl: char) ret String
 frame findString(haystack: string, needle: string, start: int) ret int
 frame replace(s: string, oldStr: string, newStr: string) ret String
+frame contains(haystack: string, needle: string) ret bool
+frame indexOf(haystack: string, needle: string) ret int
+frame lastIndexOf(haystack: string, needle: string) ret int
+frame countOccurrences(haystack: string, needle: string) ret int
+frame compareIgnoreCase(a: string, b: string) ret int
+frame equalsIgnoreCase(a: string, b: string) ret bool
+frame isBlank(s: string) ret bool
+frame trimWhitespace(s: string) ret String
+frame trimStart(s: string) ret String
+frame trimEnd(s: string) ret String
+frame trimChars(s: string, chars: string) ret String
+frame removePrefix(s: string, prefix: string) ret String
+frame removeSuffix(s: string, suffix: string) ret String
+frame splitBy(s: string, separator: string) ret Array<String>
+frame splitWhitespace(s: string) ret Array<String>
+frame splitLines(s: string) ret Array<String>
+frame joinStrings(parts: *Array<String>, separator: string) ret String
+frame destroyAll(parts: *Array<String>)
+frame toLowerAscii(s: string) ret String
+frame toUpperAscii(s: string) ret String
+frame capitalize(s: string) ret String
+frame toTitleCase(s: string) ret String
+frame _words(s: string, separator: char, camel: bool, pascal: bool) ret String
+frame toSnakeCase(s: string) ret String
+frame toKebabCase(s: string) ret String
+frame toCamelCase(s: string) ret String
+frame toPascalCase(s: string) ret String
+frame padCenter(s: string, width: int, fill: char) ret String
+frame repeat(s: string, count: int) ret String
+frame truncate(s: string, width: int, ellipsis: string) ret String
+frame wordWrap(s: string, width: int) ret String
+frame editDistance(a: string, b: string) ret int
+frame commonPrefixLength(a: string, b: string) ret int
+frame escape(s: string) ret String
+frame unescape(s: string) ret String
 ```
 
 ## std/sync.bpl
@@ -3320,6 +4400,255 @@ frame replace(s: string, oldStr: string, newStr: string) ret String
 Exports:
 
 ```bpl
+export [AtomicInt];
+export [AtomicLong];
+export [AtomicBool];
+export [SpinLock];
+export [Mutex];
+export [RwLock];
+export [Condvar];
+export [Once];
+export [Semaphore];
+export [WaitGroup];
+export [Barrier];
+export [Channel];
+export fence;
+```
+
+```bpl
+frame fence()
+```
+
+### AtomicInt
+
+```bpl
+struct AtomicInt
+value: int
+frame new(initial: int) ret AtomicInt
+frame load(this: *AtomicInt) ret int
+frame store(this: *AtomicInt, value: int)
+frame swap(this: *AtomicInt, value: int) ret int
+frame fetchAdd(this: *AtomicInt, delta: int) ret int
+frame fetchSub(this: *AtomicInt, delta: int) ret int
+frame fetchAnd(this: *AtomicInt, mask: int) ret int
+frame fetchOr(this: *AtomicInt, mask: int) ret int
+frame fetchXor(this: *AtomicInt, mask: int) ret int
+frame fetchMax(this: *AtomicInt, value: int) ret int
+frame fetchMin(this: *AtomicInt, value: int) ret int
+frame compareExchange(this: *AtomicInt, expected: int, desired: int) ret int
+frame compareAndSet(this: *AtomicInt, expected: int, desired: int) ret bool
+frame increment(this: *AtomicInt) ret int
+frame decrement(this: *AtomicInt) ret int
+frame update(this: *AtomicInt, transform: Lambda<int>(int)) ret int
+```
+
+### AtomicLong
+
+```bpl
+struct AtomicLong
+value: long
+frame new(initial: long) ret AtomicLong
+frame load(this: *AtomicLong) ret long
+frame store(this: *AtomicLong, value: long)
+frame swap(this: *AtomicLong, value: long) ret long
+frame fetchAdd(this: *AtomicLong, delta: long) ret long
+frame fetchSub(this: *AtomicLong, delta: long) ret long
+frame fetchAnd(this: *AtomicLong, mask: long) ret long
+frame fetchOr(this: *AtomicLong, mask: long) ret long
+frame fetchXor(this: *AtomicLong, mask: long) ret long
+frame compareExchange(this: *AtomicLong, expected: long, desired: long) ret long
+frame compareAndSet(this: *AtomicLong, expected: long, desired: long) ret bool
+frame increment(this: *AtomicLong) ret long
+frame decrement(this: *AtomicLong) ret long
+```
+
+### AtomicBool
+
+```bpl
+struct AtomicBool
+cell: AtomicInt
+frame new(initial: bool) ret AtomicBool
+frame load(this: *AtomicBool) ret bool
+frame store(this: *AtomicBool, value: bool)
+frame swap(this: *AtomicBool, value: bool) ret bool
+frame compareAndSet(this: *AtomicBool, expected: bool, desired: bool) ret bool
+```
+
+### SpinLock
+
+```bpl
+struct SpinLock
+state: AtomicInt
+frame new() ret SpinLock
+frame lock(this: *SpinLock)
+frame tryLock(this: *SpinLock) ret bool
+frame unlock(this: *SpinLock)
+```
+
+### Mutex
+
+```bpl
+struct Mutex
+handle: *void
+frame new() ret Mutex
+frame lock(this: *Mutex)
+frame tryLock(this: *Mutex) ret bool
+frame unlock(this: *Mutex)
+frame withLock(this: *Mutex, action: Lambda<void>())
+frame destroy(this: *Mutex)
+```
+
+### RwLock
+
+```bpl
+struct RwLock
+handle: *void
+frame new() ret RwLock
+frame readLock(this: *RwLock)
+frame tryReadLock(this: *RwLock) ret bool
+frame writeLock(this: *RwLock)
+frame tryWriteLock(this: *RwLock) ret bool
+frame unlock(this: *RwLock)
+frame destroy(this: *RwLock)
+```
+
+### Condvar
+
+```bpl
+struct Condvar
+handle: *void
+frame new() ret Condvar
+frame wait(this: *Condvar, mutex: *Mutex)
+frame waitUntil(this: *Condvar, mutex: *Mutex, ready: Lambda<bool>())
+frame notifyOne(this: *Condvar)
+frame notifyAll(this: *Condvar)
+frame destroy(this: *Condvar)
+```
+
+### Once
+
+```bpl
+struct Once
+state: AtomicInt
+frame new() ret Once
+frame call(this: *Once, init: Lambda<void>())
+frame isCompleted(this: *Once) ret bool
+```
+
+### Semaphore
+
+```bpl
+struct Semaphore
+mutex: Mutex
+condvar: Condvar
+permits: *int
+frame new(permits: int) ret Semaphore
+frame acquire(this: *Semaphore)
+frame tryAcquire(this: *Semaphore) ret bool
+frame release(this: *Semaphore)
+frame available(this: *Semaphore) ret int
+frame destroy(this: *Semaphore)
+```
+
+### WaitGroup
+
+```bpl
+struct WaitGroup
+mutex: Mutex
+condvar: Condvar
+count: *int
+frame new() ret WaitGroup
+frame add(this: *WaitGroup, delta: int)
+frame done(this: *WaitGroup)
+frame wait(this: *WaitGroup)
+frame destroy(this: *WaitGroup)
+```
+
+### Barrier
+
+```bpl
+struct Barrier
+mutex: Mutex
+condvar: Condvar
+state: *BarrierState
+frame new(parties: int) ret Barrier
+frame wait(this: *Barrier) ret bool
+frame destroy(this: *Barrier)
+```
+
+### Channel
+
+```bpl
+struct Channel<T>
+mutex: Mutex
+notEmpty: Condvar
+notFull: Condvar
+state: *ChannelState<T>
+frame new(capacity: int) ret Channel<T>
+frame send(this: *Channel<T>, value: T) ret bool
+frame trySend(this: *Channel<T>, value: T) ret bool
+frame recv(this: *Channel<T>) ret Option<T>
+frame tryRecv(this: *Channel<T>) ret Option<T>
+frame close(this: *Channel<T>)
+frame isClosed(this: *Channel<T>) ret bool
+frame len(this: *Channel<T>) ret int
+frame capacity(this: *Channel<T>) ret int
+frame _push(this: *Channel<T>, value: T)
+frame _pop(this: *Channel<T>) ret T
+frame destroy(this: *Channel<T>)
+```
+
+## std/table.bpl
+
+[Source](../lib/table.bpl)
+
+Exports:
+
+```bpl
+export [Table];
+export TABLE_ALIGN_LEFT;
+export TABLE_ALIGN_RIGHT;
+export TABLE_ALIGN_CENTER;
+```
+
+```bpl
+global TABLE_ALIGN_LEFT: int = 0
+```
+
+```bpl
+global TABLE_ALIGN_RIGHT: int = 1
+```
+
+```bpl
+global TABLE_ALIGN_CENTER: int = 2
+```
+
+### Table
+
+```bpl
+struct Table
+header: Array<String>
+rows: Array<Array<String>>
+alignments: Array<int>
+padding: int
+frame new() ret Table
+frame setHeader(this: *Table, cells: *Array<string>)
+frame addRow(this: *Table, cells: *Array<string>)
+frame addStringRow(this: *Table, cells: *Array<String>)
+frame setAlignment(this: *Table, column: int, alignment: int)
+frame setPadding(this: *Table, padding: int)
+frame rowCount(this: *Table) ret int
+frame _columns(this: *Table) ret int
+frame _widths(this: *Table, columns: int) ret Array<int>
+frame _appendRepeated(out: *StringBuilder, text: string, count: int)
+frame _rule(this: *Table, out: *StringBuilder, widths: *Array<int>, fill: string, left: string, join: string, right: string)
+frame _row(this: *Table, out: *StringBuilder, cells: *Array<String>, widths: *Array<int>, style: *TableStyle)
+frame _render(this: *Table, style: TableStyle) ret String
+frame render(this: *Table) ret String
+frame renderAscii(this: *Table) ret String
+frame renderPlain(this: *Table) ret String
+frame _destroyCells(cells: *Array<String>)
+frame destroy(this: *Table)
 ```
 
 ## std/thread.bpl
@@ -3329,6 +4658,41 @@ Exports:
 Exports:
 
 ```bpl
+export [Thread];
+export [JoinHandle];
+```
+
+### Thread
+
+```bpl
+struct Thread
+handle: ulong
+state: *ThreadState
+finished: bool
+frame spawn(body: Lambda<void>()) ret Thread
+frame spawnFunc(body: Func<void>()) ret Thread
+frame join(this: *Thread) ret bool
+frame panicked(this: *Thread) ret bool
+frame panicMessage(this: *Thread) ret string
+frame detach(this: *Thread)
+frame destroy(this: *Thread)
+frame id(this: *Thread) ret ulong
+frame currentId() ret ulong
+frame sleepMs(ms: long)
+frame sleepUs(us: long)
+frame yieldNow()
+frame hardwareConcurrency() ret int
+```
+
+### JoinHandle
+
+```bpl
+struct JoinHandle<T>
+thread: Thread
+slot: *JoinSlot<T>
+frame spawn(work: Lambda<T>()) ret JoinHandle<T>
+frame join(this: *JoinHandle<T>) ret T
+frame id(this: *JoinHandle<T>) ret ulong
 ```
 
 ## std/time.bpl
@@ -3353,6 +4717,15 @@ frame fromSeconds(sec: long) ret Duration
 frame fromMinutes(min: long) ret Duration
 frame fromHours(hours: long) ret Duration
 frame format(this: *Duration) ret string
+frame fromDays(days: long) ret Duration
+frame toDays(this: *Duration) ret long
+frame isZero(this: *Duration) ret bool
+frame isNegative(this: *Duration) ret bool
+frame abs(this: *Duration) ret Duration
+frame scale(this: *Duration, factor: long) ret Duration
+frame parse(text: string, output: *Duration) ret bool
+frame _parseIso(text: string, start: long, n: long, negative: bool, output: *Duration) ret bool
+frame formatIso(this: *Duration) ret string
 frame toMs(this: *Duration) ret long
 frame toSeconds(this: *Duration) ret long
 frame toMinutes(this: *Duration) ret long
@@ -3399,6 +4772,108 @@ frame formatTimestamp(timestamp: long) ret string
 frame measure(action: Lambda<void>()) ret long
 ```
 
+## std/tree_map.bpl
+
+[Source](../lib/tree_map.bpl)
+
+Exports:
+
+```bpl
+export [TreeMap];
+export compareInts;
+export compareLongs;
+export compareStrings;
+```
+
+```bpl
+frame compareInts(a: int, b: int) ret int
+```
+
+```bpl
+frame compareLongs(a: long, b: long) ret int
+```
+
+```bpl
+frame compareStrings(a: string, b: string) ret int
+```
+
+### TreeMap
+
+```bpl
+struct TreeMap<K, V>
+root: *TreeMapNode<K, V>
+count: int
+compare: Lambda<int>(K, K)
+frame new(compare: Lambda<int>(K, K)) ret TreeMap<K, V>
+frame _cmp(this: *TreeMap<K, V>, a: K, b: K) ret int
+frame _height(node: *TreeMapNode<K, V>) ret int
+frame _update(node: *TreeMapNode<K, V>)
+frame _rotateRight(node: *TreeMapNode<K, V>) ret *TreeMapNode<K, V>
+frame _rotateLeft(node: *TreeMapNode<K, V>) ret *TreeMapNode<K, V>
+frame _balance(node: *TreeMapNode<K, V>) ret *TreeMapNode<K, V>
+frame _insert(this: *TreeMap<K, V>, node: *TreeMapNode<K, V>, key: K, value: V, added: *bool) ret *TreeMapNode<K, V>
+frame put(this: *TreeMap<K, V>, key: K, value: V) ret bool
+frame _find(this: *TreeMap<K, V>, key: K) ret *TreeMapNode<K, V>
+frame get(this: *TreeMap<K, V>, key: K) ret Option<V>
+frame getOr(this: *TreeMap<K, V>, key: K, fallback: V) ret V
+frame has(this: *TreeMap<K, V>, key: K) ret bool
+frame _removeMin(node: *TreeMapNode<K, V>, removed: **TreeMapNode<K, V>) ret *TreeMapNode<K, V>
+frame _remove(this: *TreeMap<K, V>, node: *TreeMapNode<K, V>, key: K, removed: *bool) ret *TreeMapNode<K, V>
+frame remove(this: *TreeMap<K, V>, key: K) ret bool
+frame len(this: *TreeMap<K, V>) ret int
+frame isEmpty(this: *TreeMap<K, V>) ret bool
+frame height(this: *TreeMap<K, V>) ret int
+frame minKey(this: *TreeMap<K, V>) ret Option<K>
+frame maxKey(this: *TreeMap<K, V>) ret Option<K>
+frame floorKey(this: *TreeMap<K, V>, key: K) ret Option<K>
+frame ceilingKey(this: *TreeMap<K, V>, key: K) ret Option<K>
+frame _collect(this: *TreeMap<K, V>, bounded: bool, low: K, high: K) ret Array<*TreeMapNode<K, V>>
+frame _visit(nodes: Array<*TreeMapNode<K, V>>, visit: Lambda<void>(K, V))
+frame forEach(this: *TreeMap<K, V>, visit: Lambda<void>(K, V))
+frame forEachInRange(this: *TreeMap<K, V>, low: K, high: K, visit: Lambda<void>(K, V))
+frame _keysOf(nodes: Array<*TreeMapNode<K, V>>) ret Array<K>
+frame keys(this: *TreeMap<K, V>) ret Array<K>
+frame values(this: *TreeMap<K, V>) ret Array<V>
+frame keysInRange(this: *TreeMap<K, V>, low: K, high: K) ret Array<K>
+frame _freeAll(node: *TreeMapNode<K, V>)
+frame clear(this: *TreeMap<K, V>)
+frame destroy(this: *TreeMap<K, V>)
+```
+
+## std/trie.bpl
+
+[Source](../lib/trie.bpl)
+
+Exports:
+
+```bpl
+export [Trie];
+```
+
+### Trie
+
+```bpl
+struct Trie<V>
+root: *TrieNode<V>
+count: int
+frame new() ret Trie<V>
+frame _node(byte: u8) ret *TrieNode<V>
+frame _freeNode(node: *TrieNode<V>)
+frame destroy(this: *Trie<V>)
+frame len(this: *Trie<V>) ret int
+frame isEmpty(this: *Trie<V>) ret bool
+frame _childOf(node: *TrieNode<V>, byte: u8) ret *TrieNode<V>
+frame _walk(this: *Trie<V>, key: string) ret *TrieNode<V>
+frame insert(this: *Trie<V>, key: string, value: V) ret bool
+frame get(this: *Trie<V>, key: string) ret Option<V>
+frame has(this: *Trie<V>, key: string) ret bool
+frame hasPrefix(this: *Trie<V>, prefix: string) ret bool
+frame countPrefix(this: *Trie<V>, prefix: string) ret int
+frame remove(this: *Trie<V>, key: string) ret bool
+frame keysWithPrefix(this: *Trie<V>, prefix: string) ret Array<String>
+frame longestPrefixOf(this: *Trie<V>, text: string) ret int
+```
+
 ## std/type.bpl
 
 [Source](../lib/type.bpl)
@@ -3427,6 +4902,35 @@ type_info: *TypeInfo
 data: u64
 ```
 
+## std/union_find.bpl
+
+[Source](../lib/union_find.bpl)
+
+Exports:
+
+```bpl
+export [UnionFind];
+```
+
+### UnionFind
+
+```bpl
+struct UnionFind
+parent: *int
+sizes: *int
+count: int
+sets: int
+frame new(count: int) ret UnionFind
+frame destroy(this: *UnionFind)
+frame _check(this: *UnionFind, element: int)
+frame find(this: *UnionFind, element: int) ret int
+frame union(this: *UnionFind, a: int, b: int) ret bool
+frame connected(this: *UnionFind, a: int, b: int) ret bool
+frame setSize(this: *UnionFind, element: int) ret int
+frame setCount(this: *UnionFind) ret int
+frame len(this: *UnionFind) ret int
+```
+
 ## std/url.bpl
 
 [Source](../lib/url.bpl)
@@ -3435,6 +4939,35 @@ Exports:
 
 ```bpl
 export [Url];
+export [ParsedUrl];
+export [QueryParam];
+```
+
+### QueryParam
+
+```bpl
+struct QueryParam
+key: String
+value: String
+hasValue: bool
+```
+
+### ParsedUrl
+
+```bpl
+struct ParsedUrl
+scheme: String
+userinfo: String
+host: String
+port: int
+path: String
+query: String
+fragment: String
+hasAuthority: bool
+frame destroy(this: *ParsedUrl)
+frame destroyPartial(this: *ParsedUrl)
+frame effectivePort(this: *ParsedUrl) ret int
+frame toString(this: *ParsedUrl) ret String
 ```
 
 ### Url
@@ -3449,6 +4982,11 @@ frame isUnreserved(c: int) ret bool
 frame hexValue(c: int) ret int
 frame encode(text: string, spaceAsPlus: bool) ret string
 frame decodeWith(text: string, plusAsSpace: bool) ret string
+frame parse(text: string) ret Option<ParsedUrl>
+frame parseQuery(query: string) ret Array<QueryParam>
+frame queryValue(query: string, key: string) ret Option<String>
+frame buildQuery(params: *Array<QueryParam>) ret String
+frame destroyParams(params: *Array<QueryParam>)
 ```
 
 ## std/utf8.bpl
@@ -3477,6 +5015,17 @@ frame encodeCodepoint(codepoint: u32, dest: *u8) ret int
 frame isAscii(codepoint: u32) ret bool
 frame isAsciiString(s: string) ret bool
 frame toCodepoints(s: string) ret Array<u32>
+frame fromCodepoints(codepoints: *Array<u32>) ret String
+frame sanitize(s: string) ret String
+frame reverse(s: string) ret String
+frame substring(s: string, start: int, count: int) ret String
+frame truncate(s: string, maxCodepoints: int) ret String
+frame byteOffset(s: string, index: int) ret int
+frame toUtf16(s: string) ret Array<u16>
+frame fromUtf16(units: *Array<u16>) ret String
+frame isWhitespace(cp: u32) ret bool
+frame codepointWidth(cp: u32) ret int
+frame displayWidth(s: string) ret int
 ```
 
 ## std/uuid.bpl

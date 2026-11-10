@@ -518,4 +518,277 @@ struct BigInt {
         }
         return output;
     }
+    # -1, 0 or 1.
+    frame signum(this: *BigInt) ret int {
+        return this.sign;
+    }
+
+    frame isEven(this: *BigInt) ret bool {
+        if (this.length == 0) {
+            return true;
+        }
+        # 10^9 is even, so the lowest limb decides.
+        return (*this.limbs % cast<uint>(2)) == cast<uint>(0);
+    }
+
+    frame isOdd(this: *BigInt) ret bool {
+        return !this.isEven();
+    }
+
+    # This value plus a small integer.
+    frame addLong(this: *BigInt, value: long) ret BigInt {
+        local other: BigInt = BigInt.fromLong(value);
+        local result: BigInt = this.add(&other);
+        other.destroy();
+        return result;
+    }
+
+    # This value times a small integer.
+    frame multiplyLong(this: *BigInt, value: long) ret BigInt {
+        local other: BigInt = BigInt.fromLong(value);
+        local result: BigInt = this.multiply(&other);
+        other.destroy();
+        return result;
+    }
+
+    # Compares with a long: negative, zero or positive.
+    frame compareLong(this: *BigInt, value: long) ret int {
+        local other: BigInt = BigInt.fromLong(value);
+        local order: int = this.compare(&other);
+        other.destroy();
+        return order;
+    }
+
+    frame min(this: *BigInt, other: *BigInt) ret BigInt {
+        if (this.compare(other) <= 0) {
+            return this.clone();
+        }
+        return other.clone();
+    }
+
+    frame max(this: *BigInt, other: *BigInt) ret BigInt {
+        if (this.compare(other) >= 0) {
+            return this.clone();
+        }
+        return other.clone();
+    }
+
+    # The remainder of floor division: for a positive modulus the result
+    # is in [0, modulus). Throws for a zero modulus.
+    frame mod(this: *BigInt, modulus: *BigInt) ret BigInt {
+        local remainder: BigInt;
+        local quotient: BigInt = this.divide(modulus, &remainder);
+        quotient.destroy();
+        if ((remainder.sign != 0) && (remainder.sign != modulus.sign)) {
+            local adjusted: BigInt = remainder.add(modulus);
+            remainder.destroy();
+            return adjusted;
+        }
+        return remainder;
+    }
+
+    # this^exponent mod modulus for exponent >= 0 and modulus > 0.
+    frame modPow(this: *BigInt, exponent: *BigInt, modulus: *BigInt) ret BigInt {
+        if (modulus.sign <= 0) {
+            throw "BigInt.modPow: modulus must be positive";
+        }
+        if (exponent.sign < 0) {
+            throw "BigInt.modPow: negative exponent";
+        }
+        local one: BigInt = BigInt.fromLong(1);
+        local result: BigInt = one.mod(modulus);
+        one.destroy();
+        local base: BigInt = this.mod(modulus);
+        local e: BigInt = exponent.clone();
+        loop (e.sign != 0) {
+            local bit: int = 0;
+            local halved: BigInt = e.divideSmall(2, &bit);
+            if (bit != 0) {
+                local product: BigInt = result.multiply(&base);
+                result.destroy();
+                result = product.mod(modulus);
+                product.destroy();
+            }
+            e.destroy();
+            e = halved;
+            if (e.sign != 0) {
+                local squared: BigInt = base.multiply(&base);
+                base.destroy();
+                base = squared.mod(modulus);
+                squared.destroy();
+            }
+        }
+        e.destroy();
+        base.destroy();
+        return result;
+    }
+
+    # floor(sqrt(this)) by Newton's method. Throws for negative values.
+    frame sqrt(this: *BigInt) ret BigInt {
+        if (this.sign < 0) {
+            throw "BigInt.sqrt: negative value";
+        }
+        if (this.sign == 0) {
+            return BigInt.fromLong(0);
+        }
+        # Start above the root: 10^(9 * ceil(length / 2)).
+        local x: BigInt = BigInt.fromLong(1);
+        loop (local i: int = 0; i < ((this.length + 1) / 2); i = i + 1) {
+            local next: BigInt = x.multiplyLong(cast<long>(1000000000));
+            x.destroy();
+            x = next;
+        }
+        loop {
+            # y = (x + this / x) / 2
+            local quotient: BigInt = this.divide(&x, nullptr);
+            local sum: BigInt = x.add(&quotient);
+            quotient.destroy();
+            local y: BigInt = sum.divideSmall(2, nullptr);
+            sum.destroy();
+            if (y.compare(&x) >= 0) {
+                y.destroy();
+                return x;
+            }
+            x.destroy();
+            x = y;
+        }
+        return x;
+    }
+
+    # n! for n >= 0.
+    frame factorial(n: int) ret BigInt {
+        if (n < 0) {
+            throw "BigInt.factorial: negative argument";
+        }
+        local result: BigInt = BigInt.fromLong(1);
+        loop (local i: int = 2; i <= n; i = i + 1) {
+            local next: BigInt = BigInt.multiplyMagnitudeSmall(&result, cast<ulong>(i));
+            result.destroy();
+            result = next;
+        }
+        return result;
+    }
+
+    # The least common multiple of the magnitudes; lcm with 0 is 0.
+    frame lcm(this: *BigInt, other: *BigInt) ret BigInt {
+        if ((this.sign == 0) || (other.sign == 0)) {
+            return BigInt.fromLong(0);
+        }
+        local common: BigInt = this.gcd(other);
+        local product: BigInt = this.multiply(other);
+        local result: BigInt = product.divide(&common, nullptr);
+        product.destroy();
+        common.destroy();
+        if (result.sign < 0) {
+            result.sign = 1;
+        }
+        return result;
+    }
+
+    # Parses text in base 2-36 (letters in either case, optional sign).
+    # Throws on an invalid digit, an empty number or an unsupported base.
+    frame parseRadix(text: string, base: int) ret BigInt {
+        if ((base < 2) || (base > 36)) {
+            throw "BigInt.parseRadix: base must be 2-36";
+        }
+        if (text == nullptr) {
+            throw "BigInt.parseRadix: empty number";
+        }
+        local i: int = 0;
+        local negative: bool = false;
+        if ((text[0] == '-') || (text[0] == '+')) {
+            negative = text[0] == '-';
+            i = 1;
+        }
+        if (text[i] == cast<char>(0)) {
+            throw "BigInt.parseRadix: empty number";
+        }
+        local result: BigInt = BigInt.fromLong(0);
+        loop (text[i] != cast<char>(0)) {
+            local c: int = cast<int>(cast<u8>(text[i]));
+            local digit: int = 99;
+            if ((c >= 48) && (c <= 57)) {
+                digit = c - 48;
+            } else if ((c >= 97) && (c <= 122)) {
+                digit = (c - 97) + 10;
+            } else if ((c >= 65) && (c <= 90)) {
+                digit = (c - 65) + 10;
+            }
+            if (digit >= base) {
+                result.destroy();
+                throw "BigInt.parseRadix: invalid digit";
+            }
+            local scaled: BigInt = BigInt.multiplyMagnitudeSmall(&result, cast<ulong>(base));
+            local next: BigInt = scaled.addLong(cast<long>(digit));
+            scaled.destroy();
+            result.destroy();
+            result = next;
+            i = i + 1;
+        }
+        if (negative && (result.sign != 0)) {
+            result.sign = -1;
+        }
+        return result;
+    }
+
+    # Text in base 2-36 with lowercase letters. Returns a newly allocated
+    # string the caller frees.
+    frame toStringRadix(this: *BigInt, base: int) ret string {
+        if ((base < 2) || (base > 36)) {
+            throw "BigInt.toStringRadix: base must be 2-36";
+        }
+        local digits: string = "0123456789abcdefghijklmnopqrstuvwxyz";
+        # Each base-10^9 limb needs at most 30 binary digits.
+        local capacity: long = (cast<long>(this.length) * 30) + 3;
+        local reversed: string = cast<string>(malloc(capacity));
+        if (reversed == nullptr) {
+            throw "BigInt: out of memory";
+        }
+        local count: int = 0;
+        local value: BigInt = this.abs();
+        if (value.sign == 0) {
+            reversed[0] = '0';
+            count = 1;
+        }
+        loop (value.sign != 0) {
+            local digit: int = 0;
+            local next: BigInt = value.divideSmall(base, &digit);
+            reversed[count] = digits[digit];
+            count = count + 1;
+            value.destroy();
+            value = next;
+        }
+        value.destroy();
+        local output: string = cast<string>(malloc(cast<long>(count + 2)));
+        if (output == nullptr) {
+            free(cast<*void>(reversed));
+            throw "BigInt: out of memory";
+        }
+        local at: int = 0;
+        if (this.sign < 0) {
+            output[0] = '-';
+            at = 1;
+        }
+        loop (local i: int = count - 1; i >= 0; i = i - 1) {
+            output[at] = reversed[i];
+            at = at + 1;
+        }
+        output[at] = cast<char>(0);
+        free(cast<*void>(reversed));
+        return output;
+    }
+
+    # The number of decimal digits of the magnitude (1 for zero).
+    frame digitCount(this: *BigInt) ret int {
+        if (this.length == 0) {
+            return 1;
+        }
+        local top: uint = *(this.limbs + (this.length - 1));
+        local digits: int = 0;
+        loop (top > cast<uint>(0)) {
+            digits = digits + 1;
+            top = top / cast<uint>(10);
+        }
+        return ((this.length - 1) * 9) + digits;
+    }
 }
