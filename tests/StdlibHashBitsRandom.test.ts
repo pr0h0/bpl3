@@ -30,7 +30,7 @@ import [Hash] from "std/hash.bpl";
 extern printf(fmt: string, ...);
 extern strlen(s: string) ret long;
 frame row(data: *u8, n: long) {
-    printf("%08x %016lx %08x %08x %08x\\n", Hash.xxhash32(data, n, 0), Hash.xxhash64(data, n, 0), Hash.murmur3_32(data, n, 0), Hash.murmur3_32(data, n, 42), Hash.crc32c(data, n));
+    printf("%08x %016lx %08x %08x %08x\\n", Hash.xxhash32(data, n, 0), Hash.xxhash64(data, n, 0), Hash.murmur3(data, n, 0), Hash.murmur3(data, n, 42), Hash.crc32c(data, n));
 }
 frame main() ret int {
     local texts: string[5] = ["", "a", "abc", "hello", "The quick brown fox jumps over the lazy dog"];

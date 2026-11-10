@@ -19,7 +19,7 @@ global TABLE_ALIGN_LEFT: int = 0;
 global TABLE_ALIGN_RIGHT: int = 1;
 global TABLE_ALIGN_CENTER: int = 2;
 
-struct _TableStyle {
+struct TableStyle {
     top: string,
     topJoin: string,
     topLeft: string,
@@ -145,7 +145,7 @@ struct Table {
         out.appendChar('\n');
     }
 
-    frame _row(this: *Table, out: *StringBuilder, cells: *Array<String>, widths: *Array<int>, style: *_TableStyle) {
+    frame _row(this: *Table, out: *StringBuilder, cells: *Array<String>, widths: *Array<int>, style: *TableStyle) {
         if (style.bordered) {
             out.append(style.vertical);
         }
@@ -194,7 +194,7 @@ struct Table {
         out.appendChar('\n');
     }
 
-    frame _render(this: *Table, style: _TableStyle) ret String {
+    frame _render(this: *Table, style: TableStyle) ret String {
         local out: StringBuilder = StringBuilder.new(128);
         local columns: int = this._columns();
         local widths: Array<int> = this._widths(columns);
@@ -233,17 +233,17 @@ struct Table {
 
     # Unicode box-drawing borders.
     frame render(this: *Table) ret String {
-        return this._render(_TableStyle { top: "─", topJoin: "┬", topLeft: "┌", topRight: "┐", middle: "─", middleJoin: "┼", middleLeft: "├", middleRight: "┤", bottom: "─", bottomJoin: "┴", bottomLeft: "└", bottomRight: "┘", vertical: "│", bordered: true });
+        return this._render(TableStyle { top: "─", topJoin: "┬", topLeft: "┌", topRight: "┐", middle: "─", middleJoin: "┼", middleLeft: "├", middleRight: "┤", bottom: "─", bottomJoin: "┴", bottomLeft: "└", bottomRight: "┘", vertical: "│", bordered: true });
     }
 
     # ASCII borders (+, -, |).
     frame renderAscii(this: *Table) ret String {
-        return this._render(_TableStyle { top: "-", topJoin: "+", topLeft: "+", topRight: "+", middle: "-", middleJoin: "+", middleLeft: "+", middleRight: "+", bottom: "-", bottomJoin: "+", bottomLeft: "+", bottomRight: "+", vertical: "|", bordered: true });
+        return this._render(TableStyle { top: "-", topJoin: "+", topLeft: "+", topRight: "+", middle: "-", middleJoin: "+", middleLeft: "+", middleRight: "+", bottom: "-", bottomJoin: "+", bottomLeft: "+", bottomRight: "+", vertical: "|", bordered: true });
     }
 
     # Columns separated by two spaces with a dashed header rule.
     frame renderPlain(this: *Table) ret String {
-        return this._render(_TableStyle { top: "", topJoin: "", topLeft: "", topRight: "", middle: "", middleJoin: "", middleLeft: "", middleRight: "", bottom: "", bottomJoin: "", bottomLeft: "", bottomRight: "", vertical: "", bordered: false });
+        return this._render(TableStyle { top: "", topJoin: "", topLeft: "", topRight: "", middle: "", middleJoin: "", middleLeft: "", middleRight: "", bottom: "", bottomJoin: "", bottomLeft: "", bottomRight: "", vertical: "", bordered: false });
     }
 
     frame _destroyCells(cells: *Array<String>) {

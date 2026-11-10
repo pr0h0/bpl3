@@ -14,7 +14,7 @@ helpers read a null-terminated string.
 | `xxhash32(data, len, seed)`           | xxHash32                                    |
 | `xxhash64(data, len, seed)`           | xxHash64                                    |
 | `xxhash32String`, `xxhash64String`    | xxHash with seed 0                          |
-| `murmur3_32(data, len, seed)`         | MurmurHash3 x86 32-bit                      |
+| `murmur3(data, len, seed)`            | MurmurHash3 x86 32-bit                      |
 | `siphash24(key0, key1, data, len)`    | SipHash-2-4 with a 128-bit key              |
 | `crc32`, `crc32Update`, `crc32String` | CRC-32 (IEEE, as in zlib, gzip, PNG)        |
 | `crc32c`, `crc32cUpdate`              | CRC-32C (Castagnoli)                        |

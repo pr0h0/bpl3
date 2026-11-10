@@ -1744,7 +1744,7 @@ frame fnv1a64Bytes(data: *u8, length: long) ret ulong
 frame djb2(input: string) ret uint
 frame crc32c(data: *u8, length: long) ret uint
 frame crc32cUpdate(crc: uint, data: *u8, length: long) ret uint
-frame murmur3_32(data: *u8, length: long, seed: uint) ret uint
+frame murmur3(data: *u8, length: long, seed: uint) ret uint
 frame xxhash32(data: *u8, length: long, seed: uint) ret uint
 frame xxhash64(data: *u8, length: long, seed: ulong) ret ulong
 frame xxhash32String(input: string) ret uint
@@ -2146,7 +2146,7 @@ second: B
 ```bpl
 struct Iter<T>
 step: Lambda<Option<T>>()
-arena: *_IterArena
+arena: *IterArena
 frame fromFn(step: Lambda<Option<T>>()) ret Iter<T>
 frame fromIterator<I: Iterator<T>>(source: I) ret Iter<T>
 frame fromArray(array: *Array<T>) ret Iter<T>
@@ -4473,7 +4473,7 @@ frame destroy(this: *WaitGroup)
 struct Barrier
 mutex: Mutex
 condvar: Condvar
-state: *_BarrierState
+state: *BarrierState
 frame new(parties: int) ret Barrier
 frame wait(this: *Barrier) ret bool
 frame destroy(this: *Barrier)
@@ -4486,7 +4486,7 @@ struct Channel<T>
 mutex: Mutex
 notEmpty: Condvar
 notFull: Condvar
-state: *_ChannelState<T>
+state: *ChannelState<T>
 frame new(capacity: int) ret Channel<T>
 frame send(this: *Channel<T>, value: T) ret bool
 frame trySend(this: *Channel<T>, value: T) ret bool
@@ -4545,8 +4545,8 @@ frame _columns(this: *Table) ret int
 frame _widths(this: *Table, columns: int) ret Array<int>
 frame _appendRepeated(out: *StringBuilder, text: string, count: int)
 frame _rule(this: *Table, out: *StringBuilder, widths: *Array<int>, fill: string, left: string, join: string, right: string)
-frame _row(this: *Table, out: *StringBuilder, cells: *Array<String>, widths: *Array<int>, style: *_TableStyle)
-frame _render(this: *Table, style: _TableStyle) ret String
+frame _row(this: *Table, out: *StringBuilder, cells: *Array<String>, widths: *Array<int>, style: *TableStyle)
+frame _render(this: *Table, style: TableStyle) ret String
 frame render(this: *Table) ret String
 frame renderAscii(this: *Table) ret String
 frame renderPlain(this: *Table) ret String
@@ -4570,7 +4570,7 @@ export [JoinHandle];
 ```bpl
 struct Thread
 handle: ulong
-state: *_ThreadState
+state: *ThreadState
 finished: bool
 frame spawn(body: Lambda<void>()) ret Thread
 frame spawnFunc(body: Func<void>()) ret Thread
@@ -4592,7 +4592,7 @@ frame hardwareConcurrency() ret int
 ```bpl
 struct JoinHandle<T>
 thread: Thread
-slot: *_JoinSlot<T>
+slot: *JoinSlot<T>
 frame spawn(work: Lambda<T>()) ret JoinHandle<T>
 frame join(this: *JoinHandle<T>) ret T
 frame id(this: *JoinHandle<T>) ret ulong
@@ -4704,24 +4704,24 @@ frame compareStrings(a: string, b: string) ret int
 
 ```bpl
 struct TreeMap<K, V>
-root: *_TreeNode<K, V>
+root: *TreeMapNode<K, V>
 count: int
 compare: Lambda<int>(K, K)
 frame new(compare: Lambda<int>(K, K)) ret TreeMap<K, V>
 frame _cmp(this: *TreeMap<K, V>, a: K, b: K) ret int
-frame _height(node: *_TreeNode<K, V>) ret int
-frame _update(node: *_TreeNode<K, V>)
-frame _rotateRight(node: *_TreeNode<K, V>) ret *_TreeNode<K, V>
-frame _rotateLeft(node: *_TreeNode<K, V>) ret *_TreeNode<K, V>
-frame _balance(node: *_TreeNode<K, V>) ret *_TreeNode<K, V>
-frame _insert(this: *TreeMap<K, V>, node: *_TreeNode<K, V>, key: K, value: V, added: *bool) ret *_TreeNode<K, V>
+frame _height(node: *TreeMapNode<K, V>) ret int
+frame _update(node: *TreeMapNode<K, V>)
+frame _rotateRight(node: *TreeMapNode<K, V>) ret *TreeMapNode<K, V>
+frame _rotateLeft(node: *TreeMapNode<K, V>) ret *TreeMapNode<K, V>
+frame _balance(node: *TreeMapNode<K, V>) ret *TreeMapNode<K, V>
+frame _insert(this: *TreeMap<K, V>, node: *TreeMapNode<K, V>, key: K, value: V, added: *bool) ret *TreeMapNode<K, V>
 frame put(this: *TreeMap<K, V>, key: K, value: V) ret bool
-frame _find(this: *TreeMap<K, V>, key: K) ret *_TreeNode<K, V>
+frame _find(this: *TreeMap<K, V>, key: K) ret *TreeMapNode<K, V>
 frame get(this: *TreeMap<K, V>, key: K) ret Option<V>
 frame getOr(this: *TreeMap<K, V>, key: K, fallback: V) ret V
 frame has(this: *TreeMap<K, V>, key: K) ret bool
-frame _removeMin(node: *_TreeNode<K, V>, removed: **_TreeNode<K, V>) ret *_TreeNode<K, V>
-frame _remove(this: *TreeMap<K, V>, node: *_TreeNode<K, V>, key: K, removed: *bool) ret *_TreeNode<K, V>
+frame _removeMin(node: *TreeMapNode<K, V>, removed: **TreeMapNode<K, V>) ret *TreeMapNode<K, V>
+frame _remove(this: *TreeMap<K, V>, node: *TreeMapNode<K, V>, key: K, removed: *bool) ret *TreeMapNode<K, V>
 frame remove(this: *TreeMap<K, V>, key: K) ret bool
 frame len(this: *TreeMap<K, V>) ret int
 frame isEmpty(this: *TreeMap<K, V>) ret bool
@@ -4730,15 +4730,15 @@ frame minKey(this: *TreeMap<K, V>) ret Option<K>
 frame maxKey(this: *TreeMap<K, V>) ret Option<K>
 frame floorKey(this: *TreeMap<K, V>, key: K) ret Option<K>
 frame ceilingKey(this: *TreeMap<K, V>, key: K) ret Option<K>
-frame _collect(this: *TreeMap<K, V>, bounded: bool, low: K, high: K) ret Array<*_TreeNode<K, V>>
-frame _visit(nodes: Array<*_TreeNode<K, V>>, visit: Lambda<void>(K, V))
+frame _collect(this: *TreeMap<K, V>, bounded: bool, low: K, high: K) ret Array<*TreeMapNode<K, V>>
+frame _visit(nodes: Array<*TreeMapNode<K, V>>, visit: Lambda<void>(K, V))
 frame forEach(this: *TreeMap<K, V>, visit: Lambda<void>(K, V))
 frame forEachInRange(this: *TreeMap<K, V>, low: K, high: K, visit: Lambda<void>(K, V))
-frame _keysOf(nodes: Array<*_TreeNode<K, V>>) ret Array<K>
+frame _keysOf(nodes: Array<*TreeMapNode<K, V>>) ret Array<K>
 frame keys(this: *TreeMap<K, V>) ret Array<K>
 frame values(this: *TreeMap<K, V>) ret Array<V>
 frame keysInRange(this: *TreeMap<K, V>, low: K, high: K) ret Array<K>
-frame _freeAll(node: *_TreeNode<K, V>)
+frame _freeAll(node: *TreeMapNode<K, V>)
 frame clear(this: *TreeMap<K, V>)
 frame destroy(this: *TreeMap<K, V>)
 ```
@@ -4757,16 +4757,16 @@ export [Trie];
 
 ```bpl
 struct Trie<V>
-root: *_TrieNode<V>
+root: *TrieNode<V>
 count: int
 frame new() ret Trie<V>
-frame _node(byte: u8) ret *_TrieNode<V>
-frame _freeNode(node: *_TrieNode<V>)
+frame _node(byte: u8) ret *TrieNode<V>
+frame _freeNode(node: *TrieNode<V>)
 frame destroy(this: *Trie<V>)
 frame len(this: *Trie<V>) ret int
 frame isEmpty(this: *Trie<V>) ret bool
-frame _childOf(node: *_TrieNode<V>, byte: u8) ret *_TrieNode<V>
-frame _walk(this: *Trie<V>, key: string) ret *_TrieNode<V>
+frame _childOf(node: *TrieNode<V>, byte: u8) ret *TrieNode<V>
+frame _walk(this: *Trie<V>, key: string) ret *TrieNode<V>
 frame insert(this: *Trie<V>, key: string, value: V) ret bool
 frame get(this: *Trie<V>, key: string) ret Option<V>
 frame has(this: *Trie<V>, key: string) ret bool

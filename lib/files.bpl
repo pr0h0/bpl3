@@ -10,7 +10,7 @@ export [Files];
 
 import [Array] from "std/array.bpl";
 import [String] from "std/string.bpl";
-import [FS], [FileInfo] from "std/fs.bpl";
+import [FS] from "std/fs.bpl";
 import [Path] from "std/path.bpl";
 import [StringUtils] from "std/string_utils.bpl";
 import [StringBuilder] from "std/string_builder.bpl";

@@ -42,16 +42,16 @@ frame compareStrings(a: string, b: string) ret int {
     return strcmp(a, b);
 }
 
-struct _TreeNode<K, V> {
+struct TreeMapNode<K, V> {
     key: K,
     value: V,
     height: int,
-    left: *_TreeNode<K, V>,
-    right: *_TreeNode<K, V>,
+    left: *TreeMapNode<K, V>,
+    right: *TreeMapNode<K, V>,
 }
 
 struct TreeMap<K, V> {
-    root: *_TreeNode<K, V>,
+    root: *TreeMapNode<K, V>,
     count: int,
     compare: Lambda<int>(K, K),
     frame new(compare: Lambda<int>(K, K)) ret TreeMap<K, V> {
@@ -67,14 +67,14 @@ struct TreeMap<K, V> {
         return compare(a, b);
     }
 
-    frame _height(node: *_TreeNode<K, V>) ret int {
+    frame _height(node: *TreeMapNode<K, V>) ret int {
         if (node == nullptr) {
             return 0;
         }
         return node.height;
     }
 
-    frame _update(node: *_TreeNode<K, V>) {
+    frame _update(node: *TreeMapNode<K, V>) {
         local left: int = TreeMap<K, V>._height(node.left);
         local right: int = TreeMap<K, V>._height(node.right);
         if (left > right) {
@@ -84,8 +84,8 @@ struct TreeMap<K, V> {
         }
     }
 
-    frame _rotateRight(node: *_TreeNode<K, V>) ret *_TreeNode<K, V> {
-        local pivot: *_TreeNode<K, V> = node.left;
+    frame _rotateRight(node: *TreeMapNode<K, V>) ret *TreeMapNode<K, V> {
+        local pivot: *TreeMapNode<K, V> = node.left;
         node.left = pivot.right;
         pivot.right = node;
         TreeMap<K, V>._update(node);
@@ -93,8 +93,8 @@ struct TreeMap<K, V> {
         return pivot;
     }
 
-    frame _rotateLeft(node: *_TreeNode<K, V>) ret *_TreeNode<K, V> {
-        local pivot: *_TreeNode<K, V> = node.right;
+    frame _rotateLeft(node: *TreeMapNode<K, V>) ret *TreeMapNode<K, V> {
+        local pivot: *TreeMapNode<K, V> = node.right;
         node.right = pivot.left;
         pivot.left = node;
         TreeMap<K, V>._update(node);
@@ -102,7 +102,7 @@ struct TreeMap<K, V> {
         return pivot;
     }
 
-    frame _balance(node: *_TreeNode<K, V>) ret *_TreeNode<K, V> {
+    frame _balance(node: *TreeMapNode<K, V>) ret *TreeMapNode<K, V> {
         TreeMap<K, V>._update(node);
         local factor: int = TreeMap<K, V>._height(node.left) - TreeMap<K, V>._height(node.right);
         if (factor > 1) {
@@ -120,9 +120,9 @@ struct TreeMap<K, V> {
         return node;
     }
 
-    frame _insert(this: *TreeMap<K, V>, node: *_TreeNode<K, V>, key: K, value: V, added: *bool) ret *_TreeNode<K, V> {
+    frame _insert(this: *TreeMap<K, V>, node: *TreeMapNode<K, V>, key: K, value: V, added: *bool) ret *TreeMapNode<K, V> {
         if (node == nullptr) {
-            local fresh: *_TreeNode<K, V> = cast<*_TreeNode<K, V>>(malloc(sizeof<_TreeNode<K, V>>()));
+            local fresh: *TreeMapNode<K, V> = cast<*TreeMapNode<K, V>>(malloc(sizeof<TreeMapNode<K, V>>()));
             if (fresh == nullptr) {
                 throw "TreeMap allocation failed";
             }
@@ -156,8 +156,8 @@ struct TreeMap<K, V> {
         return added;
     }
 
-    frame _find(this: *TreeMap<K, V>, key: K) ret *_TreeNode<K, V> {
-        local node: *_TreeNode<K, V> = this.root;
+    frame _find(this: *TreeMap<K, V>, key: K) ret *TreeMapNode<K, V> {
+        local node: *TreeMapNode<K, V> = this.root;
         loop (node != nullptr) {
             local order: int = this._cmp(key, node.key);
             if (order == 0) {
@@ -173,7 +173,7 @@ struct TreeMap<K, V> {
     }
 
     frame get(this: *TreeMap<K, V>, key: K) ret Option<V> {
-        local node: *_TreeNode<K, V> = this._find(key);
+        local node: *TreeMapNode<K, V> = this._find(key);
         if (node == nullptr) {
             return Option<V>.None;
         }
@@ -181,7 +181,7 @@ struct TreeMap<K, V> {
     }
 
     frame getOr(this: *TreeMap<K, V>, key: K, fallback: V) ret V {
-        local node: *_TreeNode<K, V> = this._find(key);
+        local node: *TreeMapNode<K, V> = this._find(key);
         if (node == nullptr) {
             return fallback;
         }
@@ -192,7 +192,7 @@ struct TreeMap<K, V> {
         return this._find(key) != nullptr;
     }
 
-    frame _removeMin(node: *_TreeNode<K, V>, removed: **_TreeNode<K, V>) ret *_TreeNode<K, V> {
+    frame _removeMin(node: *TreeMapNode<K, V>, removed: **TreeMapNode<K, V>) ret *TreeMapNode<K, V> {
         if (node.left == nullptr) {
             *removed = node;
             return node.right;
@@ -201,7 +201,7 @@ struct TreeMap<K, V> {
         return TreeMap<K, V>._balance(node);
     }
 
-    frame _remove(this: *TreeMap<K, V>, node: *_TreeNode<K, V>, key: K, removed: *bool) ret *_TreeNode<K, V> {
+    frame _remove(this: *TreeMap<K, V>, node: *TreeMapNode<K, V>, key: K, removed: *bool) ret *TreeMapNode<K, V> {
         if (node == nullptr) {
             return nullptr;
         }
@@ -212,14 +212,14 @@ struct TreeMap<K, V> {
             node.right = this._remove(node.right, key, removed);
         } else {
             *removed = true;
-            local left: *_TreeNode<K, V> = node.left;
-            local right: *_TreeNode<K, V> = node.right;
+            local left: *TreeMapNode<K, V> = node.left;
+            local right: *TreeMapNode<K, V> = node.right;
             free(cast<*void>(node));
             if (right == nullptr) {
                 return left;
             }
-            local successor: *_TreeNode<K, V> = nullptr;
-            local rest: *_TreeNode<K, V> = TreeMap<K, V>._removeMin(right, &successor);
+            local successor: *TreeMapNode<K, V> = nullptr;
+            local rest: *TreeMapNode<K, V> = TreeMap<K, V>._removeMin(right, &successor);
             successor.left = left;
             successor.right = rest;
             return TreeMap<K, V>._balance(successor);
@@ -251,7 +251,7 @@ struct TreeMap<K, V> {
     }
 
     frame minKey(this: *TreeMap<K, V>) ret Option<K> {
-        local node: *_TreeNode<K, V> = this.root;
+        local node: *TreeMapNode<K, V> = this.root;
         if (node == nullptr) {
             return Option<K>.None;
         }
@@ -262,7 +262,7 @@ struct TreeMap<K, V> {
     }
 
     frame maxKey(this: *TreeMap<K, V>) ret Option<K> {
-        local node: *_TreeNode<K, V> = this.root;
+        local node: *TreeMapNode<K, V> = this.root;
         if (node == nullptr) {
             return Option<K>.None;
         }
@@ -274,7 +274,7 @@ struct TreeMap<K, V> {
 
     # The greatest key <= `key`.
     frame floorKey(this: *TreeMap<K, V>, key: K) ret Option<K> {
-        local node: *_TreeNode<K, V> = this.root;
+        local node: *TreeMapNode<K, V> = this.root;
         local best: Option<K> = Option<K>.None;
         loop (node != nullptr) {
             local order: int = this._cmp(key, node.key);
@@ -293,7 +293,7 @@ struct TreeMap<K, V> {
 
     # The smallest key >= `key`.
     frame ceilingKey(this: *TreeMap<K, V>, key: K) ret Option<K> {
-        local node: *_TreeNode<K, V> = this.root;
+        local node: *TreeMapNode<K, V> = this.root;
         local best: Option<K> = Option<K>.None;
         loop (node != nullptr) {
             local order: int = this._cmp(key, node.key);
@@ -312,10 +312,10 @@ struct TreeMap<K, V> {
 
     # Nodes with low <= key < high in ascending order (every node when
     # `bounded` is false).
-    frame _collect(this: *TreeMap<K, V>, bounded: bool, low: K, high: K) ret Array<*_TreeNode<K, V>> {
-        local out: Array<*_TreeNode<K, V>> = Array<*_TreeNode<K, V>>.new(this.count);
-        local stack: Array<*_TreeNode<K, V>> = Array<*_TreeNode<K, V>>.new(32);
-        local node: *_TreeNode<K, V> = this.root;
+    frame _collect(this: *TreeMap<K, V>, bounded: bool, low: K, high: K) ret Array<*TreeMapNode<K, V>> {
+        local out: Array<*TreeMapNode<K, V>> = Array<*TreeMapNode<K, V>>.new(this.count);
+        local stack: Array<*TreeMapNode<K, V>> = Array<*TreeMapNode<K, V>>.new(32);
+        local node: *TreeMapNode<K, V> = this.root;
         loop ((node != nullptr) || (stack.length > 0)) {
             loop (node != nullptr) {
                 if (bounded && (this._cmp(node.key, low) < 0)) {
@@ -328,7 +328,7 @@ struct TreeMap<K, V> {
             if (stack.length == 0) {
                 break;
             }
-            local current: *_TreeNode<K, V> = stack.pop();
+            local current: *TreeMapNode<K, V> = stack.pop();
             if (bounded && (this._cmp(current.key, high) >= 0)) {
                 break;
             }
@@ -339,8 +339,8 @@ struct TreeMap<K, V> {
         return out;
     }
 
-    frame _visit(nodes: Array<*_TreeNode<K, V>>, visit: Lambda<void>(K, V)) {
-        local list: Array<*_TreeNode<K, V>> = nodes;
+    frame _visit(nodes: Array<*TreeMapNode<K, V>>, visit: Lambda<void>(K, V)) {
+        local list: Array<*TreeMapNode<K, V>> = nodes;
         defer list.destroy();
         loop (local i: int = 0; i < list.length; i = i + 1) {
             visit(list.data[i].key, list.data[i].value);
@@ -360,8 +360,8 @@ struct TreeMap<K, V> {
         TreeMap<K, V>._visit(this._collect(true, low, high), visit);
     }
 
-    frame _keysOf(nodes: Array<*_TreeNode<K, V>>) ret Array<K> {
-        local list: Array<*_TreeNode<K, V>> = nodes;
+    frame _keysOf(nodes: Array<*TreeMapNode<K, V>>) ret Array<K> {
+        local list: Array<*TreeMapNode<K, V>> = nodes;
         local out: Array<K> = Array<K>.new(list.length);
         loop (local i: int = 0; i < list.length; i = i + 1) {
             out.push(list.data[i].key);
@@ -384,7 +384,7 @@ struct TreeMap<K, V> {
         if (this.root == nullptr) {
             return out;
         }
-        local nodes: Array<*_TreeNode<K, V>> = this._collect(false, this.root.key, this.root.key);
+        local nodes: Array<*TreeMapNode<K, V>> = this._collect(false, this.root.key, this.root.key);
         loop (local i: int = 0; i < nodes.length; i = i + 1) {
             out.push(nodes.data[i].value);
         }
@@ -397,7 +397,7 @@ struct TreeMap<K, V> {
         return TreeMap<K, V>._keysOf(this._collect(true, low, high));
     }
 
-    frame _freeAll(node: *_TreeNode<K, V>) {
+    frame _freeAll(node: *TreeMapNode<K, V>) {
         if (node == nullptr) {
             return;
         }

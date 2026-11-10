@@ -246,7 +246,7 @@ struct Hash {
     }
 
     # MurmurHash3 x86 32-bit of `length` bytes with `seed`.
-    frame murmur3_32(data: *u8, length: long, seed: uint) ret uint {
+    frame murmur3(data: *u8, length: long, seed: uint) ret uint {
         local c1: uint = 0xcc9e2d51;
         local c2: uint = 0x1b873593;
         local hash: uint = seed;

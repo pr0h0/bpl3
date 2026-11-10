@@ -29,12 +29,12 @@ global DEFLATE_DIST_EXTRA: int[30] = [0, 0, 0, 0, 1, 1, 2, 2, 3, 3, 4, 4, 5, 5, 
 global DEFLATE_CODE_ORDER: int[19] = [16, 17, 18, 0, 8, 7, 9, 6, 10, 5, 11, 4, 12, 3, 13, 2, 14, 1, 15];
 
 # Canonical Huffman decoding table (counts per length, symbols by code).
-struct _Huffman {
+struct DeflateHuffman {
     count: int[16],
     symbol: int[320],
 }
 
-struct _BitReader {
+struct DeflateBitReader {
     data: *u8,
     length: long,
     position: long,
@@ -42,7 +42,7 @@ struct _BitReader {
     bits: int,
 }
 
-frame _inflateBits(reader: *_BitReader, need: int) ret int {
+frame _inflateBits(reader: *DeflateBitReader, need: int) ret int {
     loop (reader.bits < need) {
         if (reader.position >= reader.length) {
             throw "Deflate: unexpected end of input";
@@ -58,7 +58,7 @@ frame _inflateBits(reader: *_BitReader, need: int) ret int {
 }
 
 # Builds a decoding table from code lengths; throws when over-subscribed.
-frame _inflateBuild(table: *_Huffman, lengths: *int, count: int) {
+frame _inflateBuild(table: *DeflateHuffman, lengths: *int, count: int) {
     loop (local i: int = 0; i < 16; i = i + 1) {
         table.count[i] = 0;
     }
@@ -86,7 +86,7 @@ frame _inflateBuild(table: *_Huffman, lengths: *int, count: int) {
     }
 }
 
-frame _inflateDecode(reader: *_BitReader, table: *_Huffman) ret int {
+frame _inflateDecode(reader: *DeflateBitReader, table: *DeflateHuffman) ret int {
     local code: int = 0;
     local first: int = 0;
     local index: int = 0;
@@ -104,7 +104,7 @@ frame _inflateDecode(reader: *_BitReader, table: *_Huffman) ret int {
     throw "Deflate: invalid Huffman code";
 }
 
-frame _inflateCodes(reader: *_BitReader, out: *Array<u8>, lengths: *_Huffman, distances: *_Huffman) {
+frame _inflateCodes(reader: *DeflateBitReader, out: *Array<u8>, lengths: *DeflateHuffman, distances: *DeflateHuffman) {
     loop {
         local symbol: int = _inflateDecode(reader, lengths);
         if (symbol < 256) {
@@ -135,7 +135,7 @@ frame _inflateCodes(reader: *_BitReader, out: *Array<u8>, lengths: *_Huffman, di
     }
 }
 
-frame _inflateFixed(reader: *_BitReader, out: *Array<u8>) {
+frame _inflateFixed(reader: *DeflateBitReader, out: *Array<u8>) {
     local lengths: int[320];
     loop (local i: int = 0; i < 144; i = i + 1) {
         lengths[i] = 8;
@@ -149,17 +149,17 @@ frame _inflateFixed(reader: *_BitReader, out: *Array<u8>) {
     loop (local i: int = 280; i < 288; i = i + 1) {
         lengths[i] = 8;
     }
-    local litTable: _Huffman;
+    local litTable: DeflateHuffman;
     _inflateBuild(&litTable, &lengths[0], 288);
     loop (local i: int = 0; i < 30; i = i + 1) {
         lengths[i] = 5;
     }
-    local distTable: _Huffman;
+    local distTable: DeflateHuffman;
     _inflateBuild(&distTable, &lengths[0], 30);
     _inflateCodes(reader, out, &litTable, &distTable);
 }
 
-frame _inflateDynamic(reader: *_BitReader, out: *Array<u8>) {
+frame _inflateDynamic(reader: *DeflateBitReader, out: *Array<u8>) {
     local nlen: int = _inflateBits(reader, 5) + 257;
     local ndist: int = _inflateBits(reader, 5) + 1;
     local ncode: int = _inflateBits(reader, 4) + 4;
@@ -173,7 +173,7 @@ frame _inflateDynamic(reader: *_BitReader, out: *Array<u8>) {
     loop (local i: int = 0; i < ncode; i = i + 1) {
         lengths[DEFLATE_CODE_ORDER[i]] = _inflateBits(reader, 3);
     }
-    local codeTable: _Huffman;
+    local codeTable: DeflateHuffman;
     _inflateBuild(&codeTable, &lengths[0], 19);
     local index: int = 0;
     loop (index < (nlen + ndist)) {
@@ -207,16 +207,16 @@ frame _inflateDynamic(reader: *_BitReader, out: *Array<u8>) {
     if (lengths[256] == 0) {
         throw "Deflate: missing end-of-block code";
     }
-    local litTable: _Huffman;
+    local litTable: DeflateHuffman;
     _inflateBuild(&litTable, &lengths[0], nlen);
-    local distTable: _Huffman;
+    local distTable: DeflateHuffman;
     _inflateBuild(&distTable, &lengths[nlen], ndist);
     _inflateCodes(reader, out, &litTable, &distTable);
 }
 
 # Inflates a raw DEFLATE stream into `out`; returns the bytes consumed.
 frame _inflateInto(data: *u8, length: long, out: *Array<u8>) ret long {
-    local reader: _BitReader = _BitReader { data: data, length: length, position: 0, buffer: 0, bits: 0 };
+    local reader: DeflateBitReader = DeflateBitReader { data: data, length: length, position: 0, buffer: 0, bits: 0 };
     loop {
         local last: int = _inflateBits(&reader, 1);
         local kind: int = _inflateBits(&reader, 2);
@@ -254,13 +254,13 @@ frame _inflateInto(data: *u8, length: long, out: *Array<u8>) ret long {
     return reader.position;
 }
 
-struct _BitWriter {
+struct DeflateBitWriter {
     out: *Array<u8>,
     buffer: uint,
     bits: int,
 }
 
-frame _deflatePut(writer: *_BitWriter, value: int, count: int) {
+frame _deflatePut(writer: *DeflateBitWriter, value: int, count: int) {
     writer.buffer = writer.buffer | (cast<uint>(value) << cast<uint>(writer.bits));
     writer.bits = writer.bits + count;
     loop (writer.bits >= 8) {
@@ -270,7 +270,7 @@ frame _deflatePut(writer: *_BitWriter, value: int, count: int) {
     }
 }
 
-frame _deflateFlush(writer: *_BitWriter) {
+frame _deflateFlush(writer: *DeflateBitWriter) {
     if (writer.bits > 0) {
         writer.out.push(cast<u8>(writer.buffer & cast<uint>(255)));
     }
@@ -279,7 +279,7 @@ frame _deflateFlush(writer: *_BitWriter) {
 }
 
 # Huffman codes are sent most significant bit first.
-frame _deflatePutCode(writer: *_BitWriter, code: int, count: int) {
+frame _deflatePutCode(writer: *DeflateBitWriter, code: int, count: int) {
     local reversed: int = 0;
     loop (local i: int = 0; i < count; i = i + 1) {
         reversed = (reversed << 1) | ((code >> i) & 1);
@@ -287,7 +287,7 @@ frame _deflatePutCode(writer: *_BitWriter, code: int, count: int) {
     _deflatePut(writer, reversed, count);
 }
 
-frame _deflateLiteral(writer: *_BitWriter, symbol: int) {
+frame _deflateLiteral(writer: *DeflateBitWriter, symbol: int) {
     if (symbol < 144) {
         _deflatePutCode(writer, 48 + symbol, 8);
     } else if (symbol < 256) {
@@ -299,7 +299,7 @@ frame _deflateLiteral(writer: *_BitWriter, symbol: int) {
     }
 }
 
-frame _deflateMatch(writer: *_BitWriter, length: int, distance: int) {
+frame _deflateMatch(writer: *DeflateBitWriter, length: int, distance: int) {
     local code: int = 28;
     loop ((code > 0) && (DEFLATE_LENGTH_BASE[code] > length)) {
         code = code - 1;
@@ -355,7 +355,7 @@ frame _deflateInto(data: *u8, length: long, level: int, out: *Array<u8>) {
     } else if (level >= 3) {
         chainLimit = 16;
     }
-    local writer: _BitWriter = _BitWriter { out: out, buffer: 0, bits: 0 };
+    local writer: DeflateBitWriter = DeflateBitWriter { out: out, buffer: 0, bits: 0 };
     _deflatePut(&writer, 1, 1);
     _deflatePut(&writer, 1, 2);
     # head: latest position per 15-bit hash; prev: older positions by window slot.

@@ -25,17 +25,17 @@ struct GraphEdge {
 }
 
 # Binary min-heap of (distance, vertex) used by Dijkstra and Prim.
-struct _GraphHeap {
+struct GraphHeap {
     keys: Array<long>,
     vertices: Array<int>,
-    frame new() ret _GraphHeap {
-        local heap: _GraphHeap;
+    frame new() ret GraphHeap {
+        local heap: GraphHeap;
         heap.keys = Array<long>.new(16);
         heap.vertices = Array<int>.new(16);
         return heap;
     }
 
-    frame _swap(this: *_GraphHeap, a: int, b: int) {
+    frame _swap(this: *GraphHeap, a: int, b: int) {
         local key: long = this.keys.data[a];
         this.keys.data[a] = this.keys.data[b];
         this.keys.data[b] = key;
@@ -44,7 +44,7 @@ struct _GraphHeap {
         this.vertices.data[b] = vertex;
     }
 
-    frame push(this: *_GraphHeap, key: long, vertex: int) {
+    frame push(this: *GraphHeap, key: long, vertex: int) {
         this.keys.push(key);
         this.vertices.push(vertex);
         local i: int = this.keys.length - 1;
@@ -59,7 +59,7 @@ struct _GraphHeap {
     }
 
     # Removes the minimum; returns its vertex and stores its key.
-    frame pop(this: *_GraphHeap, key: *long) ret int {
+    frame pop(this: *GraphHeap, key: *long) ret int {
         *key = this.keys.data[0];
         local vertex: int = this.vertices.data[0];
         local last: int = this.keys.length - 1;
@@ -86,11 +86,11 @@ struct _GraphHeap {
         return vertex;
     }
 
-    frame isEmpty(this: *_GraphHeap) ret bool {
+    frame isEmpty(this: *GraphHeap) ret bool {
         return this.keys.length == 0;
     }
 
-    frame destroy(this: *_GraphHeap) {
+    frame destroy(this: *GraphHeap) {
         this.keys.destroy();
         this.vertices.destroy();
     }
@@ -323,7 +323,7 @@ struct Graph {
                 previous.push(-1);
             }
         }
-        local heap: _GraphHeap = _GraphHeap.new();
+        local heap: GraphHeap = GraphHeap.new();
         distance.data[start] = 0;
         heap.push(cast<long>(0), start);
         loop (!heap.isEmpty()) {
@@ -419,7 +419,7 @@ struct Graph {
             local target: int = this.edges.data[e].target;
             indegree.data[target] = indegree.data[target] + 1;
         }
-        local ready: _GraphHeap = _GraphHeap.new();
+        local ready: GraphHeap = GraphHeap.new();
         loop (local i: int = 0; i < this.vertexCount; i = i + 1) {
             if (indegree.data[i] == 0) {
                 ready.push(cast<long>(i), i);

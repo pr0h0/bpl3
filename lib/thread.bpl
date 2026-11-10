@@ -26,14 +26,14 @@ extern free(ptr: *void) ret void;
 # Shared between the spawning thread and the worker. The worker writes
 # `panicked`/`message` before it exits; pthread_join orders those writes
 # before the joiner reads them.
-struct _ThreadState {
+struct ThreadState {
     body: Lambda<void>(),
     panicked: bool,
     message: string,
 }
 
 frame _threadTrampoline(arg: *void) ret *void {
-    local state: *_ThreadState = cast<*_ThreadState>(arg);
+    local state: *ThreadState = cast<*ThreadState>(arg);
     local body: Lambda<void>() = state.body;
     try {
         body();
@@ -47,7 +47,7 @@ frame _threadTrampoline(arg: *void) ret *void {
     return nullptr;
 }
 
-frame _spawnState(state: *_ThreadState) ret ulong {
+frame _spawnState(state: *ThreadState) ret ulong {
     local handle: ulong = 0;
     local status: int = pthread_create(&handle, nullptr, _threadTrampoline, cast<*void>(state));
     if (status != 0) {
@@ -64,14 +64,14 @@ frame _spawnState(state: *_ThreadState) ret ulong {
 #/
 struct Thread {
     handle: ulong,
-    state: *_ThreadState,
+    state: *ThreadState,
     finished: bool,
     /#
         Starts a thread that runs `body`. Throws when the thread cannot be
         created.
     #/
     frame spawn(body: Lambda<void>()) ret Thread {
-        local state: *_ThreadState = cast<*_ThreadState>(malloc(sizeof<_ThreadState>()));
+        local state: *ThreadState = cast<*ThreadState>(malloc(sizeof<ThreadState>()));
         if (state == nullptr) {
             throw "Thread state allocation failed";
         }
@@ -191,7 +191,7 @@ struct Thread {
 
 # Result slot of a JoinHandle<T>; lives on the heap so the worker can write
 # it after `spawn` returned.
-struct _JoinSlot<T> {
+struct JoinSlot<T> {
     work: Lambda<T>(),
     value: T,
 }
@@ -203,9 +203,9 @@ struct _JoinSlot<T> {
 #/
 struct JoinHandle<T> {
     thread: Thread,
-    slot: *_JoinSlot<T>,
+    slot: *JoinSlot<T>,
     frame spawn(work: Lambda<T>()) ret JoinHandle<T> {
-        local slot: *_JoinSlot<T> = cast<*_JoinSlot<T>>(malloc(sizeof<_JoinSlot<T>>()));
+        local slot: *JoinSlot<T> = cast<*JoinSlot<T>>(malloc(sizeof<JoinSlot<T>>()));
         if (slot == nullptr) {
             throw "Thread state allocation failed";
         }

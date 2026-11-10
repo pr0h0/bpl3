@@ -743,7 +743,7 @@ struct WaitGroup {
     }
 }
 
-struct _BarrierState {
+struct BarrierState {
     parties: int,
     waiting: int,
     generation: long,
@@ -758,13 +758,13 @@ struct _BarrierState {
 struct Barrier {
     mutex: Mutex,
     condvar: Condvar,
-    state: *_BarrierState,
+    state: *BarrierState,
     frame new(parties: int) ret Barrier {
         if (parties < 1) {
             throw "Barrier needs at least one party";
         }
         local barrier: Barrier;
-        barrier.state = cast<*_BarrierState>(malloc(sizeof<_BarrierState>()));
+        barrier.state = cast<*BarrierState>(malloc(sizeof<BarrierState>()));
         if (barrier.state == nullptr) {
             throw "Barrier allocation failed";
         }
@@ -804,7 +804,7 @@ struct Barrier {
     }
 }
 
-struct _ChannelState<T> {
+struct ChannelState<T> {
     buffer: *T,
     capacity: int,
     head: int,
@@ -822,13 +822,13 @@ struct Channel<T> {
     mutex: Mutex,
     notEmpty: Condvar,
     notFull: Condvar,
-    state: *_ChannelState<T>,
+    state: *ChannelState<T>,
     frame new(capacity: int) ret Channel<T> {
         if (capacity < 1) {
             throw "Channel capacity must be positive";
         }
         local channel: Channel<T>;
-        channel.state = cast<*_ChannelState<T>>(malloc(sizeof<_ChannelState<T>>()));
+        channel.state = cast<*ChannelState<T>>(malloc(sizeof<ChannelState<T>>()));
         if (channel.state == nullptr) {
             throw "Channel allocation failed";
         }

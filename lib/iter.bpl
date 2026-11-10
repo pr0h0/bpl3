@@ -39,14 +39,14 @@ extern malloc(size: long) ret *void;
 extern free(ptr: *void) ret void;
 
 # Every heap block owned by one iterator chain.
-struct _IterArena {
+struct IterArena {
     blocks: **void,
     length: int,
     capacity: int,
 }
 
-frame _iterArenaNew() ret *_IterArena {
-    local arena: *_IterArena = cast<*_IterArena>(malloc(sizeof<_IterArena>()));
+frame _iterArenaNew() ret *IterArena {
+    local arena: *IterArena = cast<*IterArena>(malloc(sizeof<IterArena>()));
     if (arena == nullptr) {
         throw "Iterator allocation failed";
     }
@@ -56,7 +56,7 @@ frame _iterArenaNew() ret *_IterArena {
     return arena;
 }
 
-frame _iterArenaOwn(arena: *_IterArena, block: *void) {
+frame _iterArenaOwn(arena: *IterArena, block: *void) {
     if (block == nullptr) {
         return;
     }
@@ -81,7 +81,7 @@ frame _iterArenaOwn(arena: *_IterArena, block: *void) {
 }
 
 # Allocates `bytes` owned by the arena.
-frame _iterArenaAlloc(arena: *_IterArena, bytes: long) ret *void {
+frame _iterArenaAlloc(arena: *IterArena, bytes: long) ret *void {
     local block: *void = malloc(bytes);
     if (block == nullptr) {
         throw "Iterator allocation failed";
@@ -91,7 +91,7 @@ frame _iterArenaAlloc(arena: *_IterArena, bytes: long) ret *void {
 }
 
 # Moves every block of `other` (and `other` itself) into `arena`.
-frame _iterArenaAdopt(arena: *_IterArena, other: *_IterArena) {
+frame _iterArenaAdopt(arena: *IterArena, other: *IterArena) {
     if ((other == nullptr) || (other == arena)) {
         return;
     }
@@ -107,7 +107,7 @@ frame _iterArenaAdopt(arena: *_IterArena, other: *_IterArena) {
     _iterArenaOwn(arena, cast<*void>(other));
 }
 
-frame _iterArenaFree(arena: *_IterArena) {
+frame _iterArenaFree(arena: *IterArena) {
     if (arena == nullptr) {
         return;
     }
@@ -124,18 +124,18 @@ frame _iterArenaFree(arena: *_IterArena) {
 # The heap context of a closure this module created (null without captures).
 # A closure is the pair { function, context }; the holder has no hidden
 # fields, so its second word is the context.
-struct _IterClosureHolder<T> {
+struct IterClosureHolder<T> {
     step: Lambda<Option<T>>(),
 }
 
 frame _iterClosureContext<T>(step: Lambda<Option<T>>()) ret *void {
-    local holder: _IterClosureHolder<T> = _IterClosureHolder<T> { step: step };
+    local holder: IterClosureHolder<T> = IterClosureHolder<T> { step: step };
     local words: **void = cast<**void>(&holder);
     return words[1];
 }
 
 # Builds the next link of a chain and gives the closure to `arena`.
-frame _iterLink<V>(arena: *_IterArena, step: Lambda<Option<V>>()) ret Iter<V> {
+frame _iterLink<V>(arena: *IterArena, step: Lambda<Option<V>>()) ret Iter<V> {
     _iterArenaOwn(arena, _iterClosureContext<V>(step));
     return Iter<V> { step: step, arena: arena };
 }
@@ -154,11 +154,11 @@ struct Zipped<A, B> {
     second: B,
 }
 
-struct _IterIndex {
+struct IterIndex {
     index: int,
 }
 
-struct _IterFlag {
+struct IterFlag {
     done: bool,
 }
 
@@ -168,7 +168,7 @@ struct _IterFlag {
 #/
 struct Iter<T> {
     step: Lambda<Option<T>>(),
-    arena: *_IterArena,
+    arena: *IterArena,
     # Wraps a step function that returns `Some(value)` until it is exhausted.
     frame fromFn(step: Lambda<Option<T>>()) ret Iter<T> {
         return Iter<T> { step: step, arena: _iterArenaNew() };
@@ -176,7 +176,7 @@ struct Iter<T> {
 
     # Wraps any iterator by value; the copy is owned by the Iter.
     frame fromIterator<I: Iterator<T>>(source: I) ret Iter<T> {
-        local arena: *_IterArena = _iterArenaNew();
+        local arena: *IterArena = _iterArenaNew();
         local state: *I = cast<*I>(_iterArenaAlloc(arena, sizeof<I>()));
         *state = source;
         return _iterLink<T>(arena, || ret Option<T> {
@@ -186,8 +186,8 @@ struct Iter<T> {
 
     # Iterates the elements of `array` in order (borrowed, not copied).
     frame fromArray(array: *Array<T>) ret Iter<T> {
-        local arena: *_IterArena = _iterArenaNew();
-        local cursor: *_IterIndex = cast<*_IterIndex>(_iterArenaAlloc(arena, sizeof<_IterIndex>()));
+        local arena: *IterArena = _iterArenaNew();
+        local cursor: *IterIndex = cast<*IterIndex>(_iterArenaAlloc(arena, sizeof<IterIndex>()));
         cursor.index = 0;
         return _iterLink<T>(arena, || ret Option<T> {
             if (cursor.index >= array.length) {
@@ -201,8 +201,8 @@ struct Iter<T> {
 
     # Iterates `count` elements starting at `data` (borrowed).
     frame fromPointer(data: *T, count: int) ret Iter<T> {
-        local arena: *_IterArena = _iterArenaNew();
-        local cursor: *_IterIndex = cast<*_IterIndex>(_iterArenaAlloc(arena, sizeof<_IterIndex>()));
+        local arena: *IterArena = _iterArenaNew();
+        local cursor: *IterIndex = cast<*IterIndex>(_iterArenaAlloc(arena, sizeof<IterIndex>()));
         cursor.index = 0;
         return _iterLink<T>(arena, || ret Option<T> {
             if (cursor.index >= count) {
@@ -223,8 +223,8 @@ struct Iter<T> {
 
     # Yields `value` once.
     frame once(value: T) ret Iter<T> {
-        local arena: *_IterArena = _iterArenaNew();
-        local flag: *_IterFlag = cast<*_IterFlag>(_iterArenaAlloc(arena, sizeof<_IterFlag>()));
+        local arena: *IterArena = _iterArenaNew();
+        local flag: *IterFlag = cast<*IterFlag>(_iterArenaAlloc(arena, sizeof<IterFlag>()));
         flag.done = false;
         return _iterLink<T>(arena, || ret Option<T> {
             if (flag.done) {
@@ -237,7 +237,7 @@ struct Iter<T> {
 
     # Yields `value` forever. Combine with `take`.
     frame repeat(value: T) ret Iter<T> {
-        local arena: *_IterArena = _iterArenaNew();
+        local arena: *IterArena = _iterArenaNew();
         return _iterLink<T>(arena, || ret Option<T> {
             return Option<T>.Some(value);
         });
@@ -251,7 +251,7 @@ struct Iter<T> {
 
     # Yields `first`, then `next(previous)` until it returns None.
     frame successors(first: T, next: Lambda<Option<T>>(T)) ret Iter<T> {
-        local arena: *_IterArena = _iterArenaNew();
+        local arena: *IterArena = _iterArenaNew();
         local current: *Option<T> = cast<*Option<T>>(_iterArenaAlloc(arena, sizeof<Option<T>>()));
         *current = Option<T>.Some(first);
         return _iterLink<T>(arena, || ret Option<T> {
@@ -331,7 +331,7 @@ struct Iter<T> {
     # Yields at most `count` values.
     frame take(this: *Iter<T>, count: int) ret Iter<T> {
         local source: Iter<T> = *this;
-        local taken: *_IterIndex = cast<*_IterIndex>(_iterArenaAlloc(this.arena, sizeof<_IterIndex>()));
+        local taken: *IterIndex = cast<*IterIndex>(_iterArenaAlloc(this.arena, sizeof<IterIndex>()));
         taken.index = 0;
         return _iterLink<T>(this.arena, || ret Option<T> {
             if (taken.index >= count) {
@@ -346,7 +346,7 @@ struct Iter<T> {
     # Skips the first `count` values.
     frame skip(this: *Iter<T>, count: int) ret Iter<T> {
         local source: Iter<T> = *this;
-        local flag: *_IterFlag = cast<*_IterFlag>(_iterArenaAlloc(this.arena, sizeof<_IterFlag>()));
+        local flag: *IterFlag = cast<*IterFlag>(_iterArenaAlloc(this.arena, sizeof<IterFlag>()));
         flag.done = false;
         return _iterLink<T>(this.arena, || ret Option<T> {
             local inner: Iter<T> = source;
@@ -365,7 +365,7 @@ struct Iter<T> {
     # Yields values while `predicate` holds, then stops for good.
     frame takeWhile(this: *Iter<T>, predicate: Lambda<bool>(T)) ret Iter<T> {
         local source: Iter<T> = *this;
-        local flag: *_IterFlag = cast<*_IterFlag>(_iterArenaAlloc(this.arena, sizeof<_IterFlag>()));
+        local flag: *IterFlag = cast<*IterFlag>(_iterArenaAlloc(this.arena, sizeof<IterFlag>()));
         flag.done = false;
         return _iterLink<T>(this.arena, || ret Option<T> {
             if (flag.done) {
@@ -384,7 +384,7 @@ struct Iter<T> {
     # Drops values while `predicate` holds, then yields everything else.
     frame skipWhile(this: *Iter<T>, predicate: Lambda<bool>(T)) ret Iter<T> {
         local source: Iter<T> = *this;
-        local flag: *_IterFlag = cast<*_IterFlag>(_iterArenaAlloc(this.arena, sizeof<_IterFlag>()));
+        local flag: *IterFlag = cast<*IterFlag>(_iterArenaAlloc(this.arena, sizeof<IterFlag>()));
         flag.done = false;
         return _iterLink<T>(this.arena, || ret Option<T> {
             local inner: Iter<T> = source;
@@ -411,7 +411,7 @@ struct Iter<T> {
             throw "Iterator step must be positive";
         }
         local source: Iter<T> = *this;
-        local flag: *_IterFlag = cast<*_IterFlag>(_iterArenaAlloc(this.arena, sizeof<_IterFlag>()));
+        local flag: *IterFlag = cast<*IterFlag>(_iterArenaAlloc(this.arena, sizeof<IterFlag>()));
         flag.done = false;
         return _iterLink<T>(this.arena, || ret Option<T> {
             local inner: Iter<T> = source;
@@ -450,7 +450,7 @@ struct Iter<T> {
     frame chain(this: *Iter<T>, other: Iter<T>) ret Iter<T> {
         local source: Iter<T> = *this;
         _iterArenaAdopt(this.arena, other.arena);
-        local flag: *_IterFlag = cast<*_IterFlag>(_iterArenaAlloc(this.arena, sizeof<_IterFlag>()));
+        local flag: *IterFlag = cast<*IterFlag>(_iterArenaAlloc(this.arena, sizeof<IterFlag>()));
         flag.done = false;
         return _iterLink<T>(this.arena, || ret Option<T> {
             if (!flag.done) {
@@ -549,7 +549,7 @@ struct Iter<T> {
     # Ends permanently after the first None, even if the source resumes.
     frame fuse(this: *Iter<T>) ret Iter<T> {
         local source: Iter<T> = *this;
-        local flag: *_IterFlag = cast<*_IterFlag>(_iterArenaAlloc(this.arena, sizeof<_IterFlag>()));
+        local flag: *IterFlag = cast<*IterFlag>(_iterArenaAlloc(this.arena, sizeof<IterFlag>()));
         flag.done = false;
         return _iterLink<T>(this.arena, || ret Option<T> {
             if (flag.done) {
@@ -855,7 +855,7 @@ struct Peekable<T> {
 
 # Pairs each value with its zero-based position.
 frame iterEnumerate<T>(source: Iter<T>) ret Iter<Enumerated<T>> {
-    local cursor: *_IterIndex = cast<*_IterIndex>(_iterArenaAlloc(source.arena, sizeof<_IterIndex>()));
+    local cursor: *IterIndex = cast<*IterIndex>(_iterArenaAlloc(source.arena, sizeof<IterIndex>()));
     cursor.index = 0;
     return _iterLink<Enumerated<T>>(source.arena, || ret Option<Enumerated<T>> {
         local inner: Iter<T> = source;
@@ -908,8 +908,8 @@ frame iterRangeStep(start: int, end: int, step: int) ret Iter<int> {
 
 # The elements of a Range.
 frame iterRangeOf(range: Range) ret Iter<int> {
-    local arena: *_IterArena = _iterArenaNew();
-    local cursor: *_IterIndex = cast<*_IterIndex>(_iterArenaAlloc(arena, sizeof<_IterIndex>()));
+    local arena: *IterArena = _iterArenaNew();
+    local cursor: *IterIndex = cast<*IterIndex>(_iterArenaAlloc(arena, sizeof<IterIndex>()));
     cursor.index = 0;
     local length: int = range.len();
     return _iterLink<int>(arena, || ret Option<int> {
@@ -924,8 +924,8 @@ frame iterRangeOf(range: Range) ret Iter<int> {
 
 # start, start + 1, ... without end (wraps at the int limit). Use `take`.
 frame iterCounter(start: int) ret Iter<int> {
-    local arena: *_IterArena = _iterArenaNew();
-    local cursor: *_IterIndex = cast<*_IterIndex>(_iterArenaAlloc(arena, sizeof<_IterIndex>()));
+    local arena: *IterArena = _iterArenaNew();
+    local cursor: *IterIndex = cast<*IterIndex>(_iterArenaAlloc(arena, sizeof<IterIndex>()));
     cursor.index = start;
     return _iterLink<int>(arena, || ret Option<int> {
         local value: int = cursor.index;
@@ -936,8 +936,8 @@ frame iterCounter(start: int) ret Iter<int> {
 
 # The bytes of a null-terminated string (borrowed).
 frame iterChars(text: string) ret Iter<char> {
-    local arena: *_IterArena = _iterArenaNew();
-    local cursor: *_IterIndex = cast<*_IterIndex>(_iterArenaAlloc(arena, sizeof<_IterIndex>()));
+    local arena: *IterArena = _iterArenaNew();
+    local cursor: *IterIndex = cast<*IterIndex>(_iterArenaAlloc(arena, sizeof<IterIndex>()));
     cursor.index = 0;
     return _iterLink<char>(arena, || ret Option<char> {
         if (text == nullptr) {
