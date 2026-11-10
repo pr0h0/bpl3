@@ -26,6 +26,7 @@ import importBarsHandler, bookScenarioHandler, qmcHandler from "./handlers_scena
 import omsSubmitHandler, omsCancelHandler, omsReplaceHandler, omsOrdersHandler, omsPositionsHandler, omsBreachesHandler, omsGetLimitsHandler, omsSetLimitsHandler, omsKillHandler, omsReviveHandler, omsRestrictHandler, omsJournalHandler, omsSnapshotHandler, omsRecoverHandler, omsCompactHandler, omsStatsHandler from "./handlers_oms.bpl";
 import stressScenariosHandler, stressRunHandler, stressDemoHandler, brinsonHandler, linkHandler, rebalanceHandler, rebalanceSimulateHandler from "./handlers_portfolio.bpl";
 import columnarQueryHandler, columnarStatsHandler from "./handlers_columnar.bpl";
+import moreIndicatorHandler, moreIndicatorListHandler, performanceHandler, sampleTestsHandler from "./handlers_analytics.bpl";
 import fixParseHandler, fixOrderHandler, fixCancelHandler, fixLogHandler, feedReplayHandler, feedSampleHandler from "./handlers_proto.bpl";
 import symbolsHandler, createSymbolHandler, submitOrderHandler, getOrderHandler, cancelOrderHandler, replaceOrderHandler, bookHandler, quoteHandler, tradesHandler, tradesCsvHandler, simulateHandler, engineStatsHandler, endOfDayHandler, validateBookHandler from "./handlers_market.bpl";
 
@@ -309,6 +310,10 @@ frame registerOpsRoutes() {
     route(HttpMethod.GET, "/rebalance/simulate", rebalanceSimulateHandler, "buy-and-hold vs calendar vs threshold rebalancing (?symbols=&weights=&period=&band=)");
     route(HttpMethod.GET, "/columnar/stats", columnarStatsHandler, "columnar tables (rows, blocks, encoded size) and result-cache counters");
     route(HttpMethod.GET, "/columnar/:table", columnarQueryHandler, "zone-mapped columnar aggregate over trades or bars (?where=&group=&aggs=sum(qty),vwap(price,qty)&limit=&cache=)");
+    route(HttpMethod.GET, "/indicators2", moreIndicatorListHandler, "names of the second indicator set");
+    route(HttpMethod.GET, "/indicators2/:symbol", moreIndicatorHandler, "zlema, alma, t3, tsi, kst, vortex, choppiness, supertrend, pivots, ... (?name=&period=&tail=&multiplier=)");
+    route(HttpMethod.GET, "/stats/:symbol/performance", performanceHandler, "omega, calmar, kappa, probabilistic/deflated Sharpe, tail index, Cornish-Fisher VaR, normality tests, drawdown table");
+    route(HttpMethod.POST, "/stats/tests", sampleTestsHandler, "two-sample KS, Mann-Whitney, Kendall tau and Anderson-Darling {a, b}");
     route(HttpMethod.GET, "/feed/sample", feedSampleHandler, "first packets of a generated feed, hex and decoded (?events=&packets=&seed=)");
 }
 

@@ -315,4 +315,47 @@ columnar.bad_column_error = unknown column in where
 == query_cache
 query_cache.hit_rate = 0.5000
 query_cache.render = {"table":"trades","version":51,"rows":50,"scan":{"blocks":1,"pruned":0,"rows_scanned":50,"rows_matched":30},"groups":1,"result":[{"symbol":"ACME","count":30,"sum_notional":30900}]}
-selftest: 973 passed, 0 failed
+== indicators2
+indicators2.zlema = 117.604991
+indicators2.alma = 117.303563
+indicators2.t3 = 116.223647
+indicators2.vwma = 115.548499
+indicators2.mcginley = 116.205298
+indicators2.cmo = 11.527342
+indicators2.tsi = 3.904625
+indicators2.ppo = 0.402003
+indicators2.dpo = -0.647153
+indicators2.coppock = 1.692413
+indicators2.kst = -4.869993
+indicators2.ultimate = 46.261908
+indicators2.awesome = -0.034340
+indicators2.fisher = 1.120138
+indicators2.connors_rsi = 30.262525
+indicators2.vortex = 0.276353
+indicators2.choppiness = 45.292378
+indicators2.mass_index = 24.562996
+indicators2.ulcer = 1.364630
+indicators2.elder_bull = 1.389734
+indicators2.force_index = -1551.346097
+indicators2.ease_of_movement = 19.579569
+indicators2.linreg_slope = 0.396804
+indicators2.linreg_r2 = 0.538383
+== stats2
+stats2.kendall_random = -0.008120
+stats2.ks_same_d = 0.155000
+stats2.ks_same_p = 0.014428
+stats2.ks_shift_d = 0.192500
+stats2.mann_whitney_u = 61432.0
+stats2.ad_normal = 0.561926
+stats2.omega_0 = 1.216298
+stats2.calmar = 1.895922
+stats2.sortino_kappa2 = 0.116375
+stats2.kappa3 = 0.088156
+stats2.tail_ratio = 0.945176
+stats2.psr = 0.941548
+stats2.expected_max_sr = 0.126530
+stats2.hill_alpha = 3.2066
+stats2.cornish_fisher = 1.773650
+stats2.cf_var_normal_sample = 0.022159
+stats2.nw_slope = 1.864496
+selftest: 1035 passed, 0 failed
