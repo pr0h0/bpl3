@@ -582,6 +582,15 @@ Copying a `BigInt` with `=` shares its limbs, so destroy only one copy, or use
   `0^0` is 1), `value.gcd(other: *BigInt)` (of the magnitudes; `gcd(0, 0)` is 0)
 - `value.toLong(out: *long) ret bool` — false when the value does not fit
 - `value.clone() ret BigInt`, `value.toString() ret string`, `value.destroy()`
+- `value.mod(modulus)` — floor remainder, in `[0, modulus)` for a positive
+  modulus; `value.modPow(exponent, modulus)` for a non-negative exponent and
+  positive modulus
+- `value.sqrt()` (floor, throws for negatives), `BigInt.factorial(n)`,
+  `value.lcm(other)`, `value.min(other)`, `value.max(other)`
+- `BigInt.parseRadix(text, base)` and `value.toStringRadix(base)` for bases
+  2-36 (the result string is caller-freed)
+- `addLong`, `multiplyLong`, `compareLong`, `signum`, `isEven`, `isOdd`,
+  `digitCount`
 
 ```bpl
 import printf, free from "std/c.bpl";
@@ -1140,6 +1149,7 @@ omitted areas:
 | `csv.bpl`, `ini.bpl`, `semver.bpl`, `ansi.bpl`, `table.bpl`, `base85.bpl`                                       | [Text formats and terminal output](71-stdlib-text-formats.md)                                                      |
 | `compress.bpl`                                                                                                  | [DEFLATE, zlib and gzip](72-stdlib-compression.md) in pure BPL                                                     |
 | `files.bpl`, `bufio.bpl`                                                                                        | [Tree walking, temp files and buffered I/O](31-stdlib-fs.md#higher-level-helpers-stdfilesbpl); native-only         |
+| `matrix.bpl`, `decimal.bpl`                                                                                     | [Dense matrices and fixed-point decimals](73-stdlib-numeric.md)                                                    |
 | `type.bpl`, `primitives.bpl`, `reflection.bpl`, `intrinsics.bpl`                                                | Compiler/runtime support; platform and representation details matter                                               |
 | `c.bpl`                                                                                                         | Native C declarations, not a portable or memory-safe wrapper                                                       |
 | `process.bpl`                                                                                                   | Shell-free `run`/`runWith` and shell helpers; see the [process guide](59-process-execution.md)                     |

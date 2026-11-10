@@ -2,7 +2,7 @@
 
 Generated from parsed library declarations with `bun run docs:stdlib`. Do not edit by hand.
 
-This index covers all 93 BPL modules under `lib/`, including memory and low-level modules.
+This index covers all 95 BPL modules under `lib/`, including memory and low-level modules.
 It lists explicit exports and declarations defined in each source file. Re-exported symbols
 are listed under exports; their definitions are in the originating modules. Inherited members
 are not repeated. An exported type's declared members include implementation helpers and fields;
@@ -39,6 +39,7 @@ platform has been validated. C/POSIX extern declarations retain their native ABI
 - [std/csv.bpl](../lib/csv.bpl)
 - [std/date.bpl](../lib/date.bpl)
 - [std/debug.bpl](../lib/debug.bpl)
+- [std/decimal.bpl](../lib/decimal.bpl)
 - [std/deque.bpl](../lib/deque.bpl)
 - [std/diagnostics.bpl](../lib/diagnostics.bpl)
 - [std/entropy.bpl](../lib/entropy.bpl)
@@ -62,6 +63,7 @@ platform has been validated. C/POSIX extern declarations retain their native ABI
 - [std/lru_cache.bpl](../lib/lru_cache.bpl)
 - [std/map.bpl](../lib/map.bpl)
 - [std/math.bpl](../lib/math.bpl)
+- [std/matrix.bpl](../lib/matrix.bpl)
 - [std/memory/allocator.bpl](../lib/memory/allocator.bpl)
 - [std/memory/arena_allocator.bpl](../lib/memory/arena_allocator.bpl)
 - [std/memory/page_allocator.bpl](../lib/memory/page_allocator.bpl)
@@ -559,6 +561,22 @@ frame pow(this: *BigInt, exponent: int) ret BigInt
 frame gcd(this: *BigInt, other: *BigInt) ret BigInt
 frame toLong(this: *BigInt, out: *long) ret bool
 frame toString(this: *BigInt) ret string
+frame signum(this: *BigInt) ret int
+frame isEven(this: *BigInt) ret bool
+frame isOdd(this: *BigInt) ret bool
+frame addLong(this: *BigInt, value: long) ret BigInt
+frame multiplyLong(this: *BigInt, value: long) ret BigInt
+frame compareLong(this: *BigInt, value: long) ret int
+frame min(this: *BigInt, other: *BigInt) ret BigInt
+frame max(this: *BigInt, other: *BigInt) ret BigInt
+frame mod(this: *BigInt, modulus: *BigInt) ret BigInt
+frame modPow(this: *BigInt, exponent: *BigInt, modulus: *BigInt) ret BigInt
+frame sqrt(this: *BigInt) ret BigInt
+frame factorial(n: int) ret BigInt
+frame lcm(this: *BigInt, other: *BigInt) ret BigInt
+frame parseRadix(text: string, base: int) ret BigInt
+frame toStringRadix(this: *BigInt, base: int) ret string
+frame digitCount(this: *BigInt) ret int
 ```
 
 ## std/binary.bpl
@@ -1191,6 +1209,76 @@ export [Debug];
 struct Debug
 frame captureStackTrace(buffer: **void, max_frames: int) ret int
 frame printStackTrace()
+```
+
+## std/decimal.bpl
+
+[Source](../lib/decimal.bpl)
+
+Exports:
+
+```bpl
+export [Decimal];
+export DECIMAL_ROUND_HALF_EVEN;
+export DECIMAL_ROUND_HALF_UP;
+export DECIMAL_ROUND_DOWN;
+export DECIMAL_ROUND_UP;
+export DECIMAL_ROUND_FLOOR;
+export DECIMAL_ROUND_CEILING;
+```
+
+```bpl
+global DECIMAL_ROUND_HALF_EVEN: int = 0
+```
+
+```bpl
+global DECIMAL_ROUND_HALF_UP: int = 1
+```
+
+```bpl
+global DECIMAL_ROUND_DOWN: int = 2
+```
+
+```bpl
+global DECIMAL_ROUND_UP: int = 3
+```
+
+```bpl
+global DECIMAL_ROUND_FLOOR: int = 4
+```
+
+```bpl
+global DECIMAL_ROUND_CEILING: int = 5
+```
+
+### Decimal
+
+```bpl
+struct Decimal
+units: long
+scale: int
+frame new(units: long, scale: int) ret Decimal
+frame fromLong(value: long) ret Decimal
+frame zero() ret Decimal
+frame parse(text: string) ret Option<Decimal>
+frame fromFloat(value: float, scale: int) ret Decimal
+frame toFloat(this: *Decimal) ret float
+frame rescale(this: *Decimal, scale: int, mode: int) ret Decimal
+frame round(this: *Decimal, scale: int) ret Decimal
+frame add(this: *Decimal, other: *Decimal) ret Decimal
+frame subtract(this: *Decimal, other: *Decimal) ret Decimal
+frame negate(this: *Decimal) ret Decimal
+frame abs(this: *Decimal) ret Decimal
+frame multiply(this: *Decimal, other: *Decimal) ret Decimal
+frame divide(this: *Decimal, other: *Decimal, scale: int, mode: int) ret Decimal
+frame multiplyLong(this: *Decimal, factor: long) ret Decimal
+frame allocate(this: *Decimal, parts: int, index: int) ret Decimal
+frame compare(this: *Decimal, other: *Decimal) ret int
+frame equals(this: *Decimal, other: *Decimal) ret bool
+frame isZero(this: *Decimal) ret bool
+frame isNegative(this: *Decimal) ret bool
+frame normalize(this: *Decimal) ret Decimal
+frame toString(this: *Decimal) ret String
 ```
 
 ## std/deque.bpl
@@ -2606,6 +2694,56 @@ frame checkedAdd(a: long, b: long) ret long
 frame checkedMul(a: long, b: long) ret long
 frame saturatingAdd(a: long, b: long) ret long
 frame digitCount(n: long) ret int
+```
+
+## std/matrix.bpl
+
+[Source](../lib/matrix.bpl)
+
+Exports:
+
+```bpl
+export [Matrix];
+export MATRIX_EPSILON;
+```
+
+```bpl
+global MATRIX_EPSILON: float = 0.000000000001
+```
+
+### Matrix
+
+```bpl
+struct Matrix
+rows: int
+cols: int
+data: *float
+frame new(rows: int, cols: int) ret Matrix
+frame identity(size: int) ret Matrix
+frame fromValues(rows: int, cols: int, values: *float) ret Matrix
+frame destroy(this: *Matrix)
+frame clone(this: *Matrix) ret Matrix
+frame _check(this: *Matrix, row: int, col: int)
+frame get(this: *Matrix, row: int, col: int) ret float
+frame set(this: *Matrix, row: int, col: int, value: float)
+frame isSquare(this: *Matrix) ret bool
+frame _sameShape(this: *Matrix, other: *Matrix)
+frame add(this: *Matrix, other: *Matrix) ret Matrix
+frame subtract(this: *Matrix, other: *Matrix) ret Matrix
+frame scale(this: *Matrix, factor: float) ret Matrix
+frame multiply(this: *Matrix, other: *Matrix) ret Matrix
+frame hadamard(this: *Matrix, other: *Matrix) ret Matrix
+frame transpose(this: *Matrix) ret Matrix
+frame trace(this: *Matrix) ret float
+frame norm(this: *Matrix) ret float
+frame _largest(this: *Matrix) ret float
+frame _decompose(lu: *Matrix, pivot: *int) ret int
+frame determinant(this: *Matrix) ret float
+frame solve(this: *Matrix, rhs: *Matrix) ret Matrix
+frame inverse(this: *Matrix) ret Matrix
+frame rank(this: *Matrix) ret int
+frame approxEquals(this: *Matrix, other: *Matrix, tolerance: float) ret bool
+frame toString(this: *Matrix, decimals: int) ret String
 ```
 
 ## std/memory/allocator.bpl
