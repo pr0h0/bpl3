@@ -3867,6 +3867,14 @@ frame clear(this: *Set<T>)
 frame isEmpty(this: *Set<T>) ret bool
 frame isSubsetOf(this: *Set<T>, other: *Set<T>) ret bool
 frame toArray(this: *Set<T>) ret Array<T>
+frame fromArray(values: *Array<T>) ret Set<T>
+frame addAll(this: *Set<T>, other: *Set<T>)
+frame insert(this: *Set<T>, value: T) ret bool
+frame isSupersetOf(this: *Set<T>, other: *Set<T>) ret bool
+frame isDisjoint(this: *Set<T>, other: *Set<T>) ret bool
+frame symmetricDifference(this: *Set<T>, other: *Set<T>) ret Set<T>
+frame retain(this: *Set<T>, keep: Lambda<bool>(T)) ret int
+frame forEach(this: *Set<T>, visit: Lambda<void>(T))
 frame union(this: *Set<T>, other: *Set<T>) ret Set<T>
 frame difference(this: *Set<T>, other: *Set<T>) ret Set<T>
 frame intersection(this: *Set<T>, other: *Set<T>) ret Set<T>

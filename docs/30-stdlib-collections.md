@@ -136,6 +136,12 @@ s.destroy();
 is a subset of every set). `s.toArray()` returns a new array of the elements,
 in iteration order, that the caller destroys.
 
+### More Set methods
+
+`Set<T>.fromArray(&values)`, `addAll(&other)`, `insert(value)` (true when new),
+`isSupersetOf`, `isDisjoint`, `symmetricDifference` (a new set), `retain(keep)`
+(returns the number removed) and `forEach(visit)`.
+
 ## Stack<T>
 
 A Last-In-First-Out (LIFO) data structure.
