@@ -1123,6 +1123,13 @@ frame __lt__(this: *Date, other: *Date) ret bool
 frame __le__(this: *Date, other: *Date) ret bool
 frame __gt__(this: *Date, other: *Date) ret bool
 frame __ge__(this: *Date, other: *Date) ret bool
+frame weekdayName(this: *Date) ret string
+frame monthName(this: *Date) ret string
+frame isoWeekday(this: *Date) ret int
+frame isoWeekYear(this: *Date) ret int
+frame startOfMonth(this: *Date) ret Date
+frame endOfMonth(this: *Date) ret Date
+frame formatPattern(this: *Date, pattern: string) ret String
 frame clone(this: *Date) ret Date
 ```
 
@@ -1162,6 +1169,9 @@ frame __lt__(this: *DateTime, other: *DateTime) ret bool
 frame __le__(this: *DateTime, other: *DateTime) ret bool
 frame __gt__(this: *DateTime, other: *DateTime) ret bool
 frame __ge__(this: *DateTime, other: *DateTime) ret bool
+frame formatPattern(this: *DateTime, pattern: string) ret String
+frame formatRfc3339(this: *DateTime) ret String
+frame formatHttp(this: *DateTime) ret String
 frame clone(this: *DateTime) ret DateTime
 ```
 
@@ -4472,6 +4482,15 @@ frame fromSeconds(sec: long) ret Duration
 frame fromMinutes(min: long) ret Duration
 frame fromHours(hours: long) ret Duration
 frame format(this: *Duration) ret string
+frame fromDays(days: long) ret Duration
+frame toDays(this: *Duration) ret long
+frame isZero(this: *Duration) ret bool
+frame isNegative(this: *Duration) ret bool
+frame abs(this: *Duration) ret Duration
+frame scale(this: *Duration, factor: long) ret Duration
+frame parse(text: string, output: *Duration) ret bool
+frame _parseIso(text: string, start: long, n: long, negative: bool, output: *Duration) ret bool
+frame formatIso(this: *Duration) ret string
 frame toMs(this: *Duration) ret long
 frame toSeconds(this: *Duration) ret long
 frame toMinutes(this: *Duration) ret long

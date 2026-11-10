@@ -9,6 +9,44 @@ extern malloc(size: long) ret *void;
 extern snprintf(str: string, capacity: ulong, format: string, ...) ret int;
 extern strlen(str: string) ret long;
 
+import [String] from "std/string.bpl";
+import [StringBuilder] from "std/string_builder.bpl";
+
+global DATE_WEEKDAY_NAMES: string[7] = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+global DATE_MONTH_NAMES: string[12] = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+
+frame datePad(out: *StringBuilder, value: long, width: int, fill: char) {
+    local negative: bool = value < cast<long>(0);
+    local magnitude: ulong = cast<ulong>(value);
+    if (negative) {
+        magnitude = cast<ulong>(0) - magnitude;
+        out.appendChar('-');
+    }
+    local digits: char[24];
+    local count: int = 0;
+    loop {
+        digits[count] = cast<char>(cast<int>(magnitude % cast<ulong>(10)) + 48);
+        count = count + 1;
+        magnitude = magnitude / cast<ulong>(10);
+        if (magnitude == cast<ulong>(0)) {
+            break;
+        }
+    }
+    loop (local i: int = count; i < width; i = i + 1) {
+        out.appendChar(fill);
+    }
+    loop (local i: int = count - 1; i >= 0; i = i - 1) {
+        out.appendChar(digits[i]);
+    }
+}
+
+# Appends the first `count` bytes of `text` (all of it for count < 0).
+frame dateAppendName(out: *StringBuilder, text: string, count: int) {
+    loop (local i: int = 0; (text[i] != cast<char>(0)) && ((count < 0) || (i < count)); i = i + 1) {
+        out.appendChar(text[i]);
+    }
+}
+
 # Reads exactly `count` ASCII digits of `text` starting at `at` into `value`.
 frame dateReadDigits(text: string, length: long, at: long, count: int, value: *int) ret bool {
     if ((at + cast<long>(count)) > length) {
@@ -370,6 +408,55 @@ struct Date {
         return this.compare(other) >= 0;
     }
 
+    # The English weekday name ("Sunday" ... "Saturday").
+    frame weekdayName(this: *Date) ret string {
+        return DATE_WEEKDAY_NAMES[this.dayOfWeek()];
+    }
+
+    # The English month name, or "" for an invalid month.
+    frame monthName(this: *Date) ret string {
+        if ((this.month < 1) || (this.month > 12)) {
+            return "";
+        }
+        return DATE_MONTH_NAMES[this.month - 1];
+    }
+
+    # ISO weekday: 1 = Monday ... 7 = Sunday.
+    frame isoWeekday(this: *Date) ret int {
+        local dow: int = this.dayOfWeek();
+        if (dow == 0) {
+            return 7;
+        }
+        return dow;
+    }
+
+    # The ISO week-numbering year (differs from `year` near January 1).
+    frame isoWeekYear(this: *Date) ret int {
+        local week: int = this.weekOfYear();
+        if ((this.month == 1) && (week >= 52)) {
+            return this.year - 1;
+        }
+        if ((this.month == 12) && (week == 1)) {
+            return this.year + 1;
+        }
+        return this.year;
+    }
+
+    # The first and last day of this date's month.
+    frame startOfMonth(this: *Date) ret Date {
+        return Date.new(this.year, this.month, 1);
+    }
+
+    frame endOfMonth(this: *Date) ret Date {
+        return Date.new(this.year, this.month, this.daysInMonth());
+    }
+
+    # Formats with strftime-style directives (see DateTime.formatPattern).
+    frame formatPattern(this: *Date, pattern: string) ret String {
+        local at: DateTime = DateTime.fromDate(*this);
+        return at.formatPattern(pattern);
+    }
+
     frame clone(this: *Date) ret Date {
         return Date.new(this.year, this.month, this.day);
     }
@@ -655,6 +742,123 @@ struct DateTime {
 
     frame __ge__(this: *DateTime, other: *DateTime) ret bool {
         return this.compare(other) >= 0;
+    }
+
+    /#
+        Formats with strftime-style directives: %Y year, %y two-digit year,
+        %m month, %d day, %e space-padded day, %H hour, %I 12-hour hour, %p
+        AM/PM, %M minute, %S second, %j day of year, %a/%A weekday name,
+        %b/%B month name, %u ISO weekday (1-7), %w weekday (0-6, Sunday 0),
+        %V ISO week, %G ISO week-year, %s Unix seconds, %F = %Y-%m-%d, %T =
+        %H:%M:%S, %z +0000, %Z UTC and %% a percent sign. Other text is
+        copied. Returns a new String the caller destroys.
+    #/
+    frame formatPattern(this: *DateTime, pattern: string) ret String {
+        local out: StringBuilder = StringBuilder.new(32);
+        local date: Date = this.toDate();
+        local n: long = 0;
+        if (pattern != nullptr) {
+            n = strlen(pattern);
+        }
+        local i: long = 0;
+        loop (i < n) {
+            local c: char = pattern[i];
+            if ((c != '%') || ((i + 1) >= n)) {
+                out.appendChar(c);
+                i = i + 1;
+                continue;
+            }
+            local d: char = pattern[i + 1];
+            i = i + 2;
+            if (d == 'Y') {
+                datePad(&out, cast<long>(this.year), 4, '0');
+            } else if (d == 'y') {
+                local short: int = this.year % 100;
+                if (short < 0) {
+                    short = short + 100;
+                }
+                datePad(&out, cast<long>(short), 2, '0');
+            } else if (d == 'm') {
+                datePad(&out, cast<long>(this.month), 2, '0');
+            } else if (d == 'd') {
+                datePad(&out, cast<long>(this.day), 2, '0');
+            } else if (d == 'e') {
+                datePad(&out, cast<long>(this.day), 2, ' ');
+            } else if (d == 'H') {
+                datePad(&out, cast<long>(this.hour), 2, '0');
+            } else if (d == 'I') {
+                local twelve: int = this.hour % 12;
+                if (twelve == 0) {
+                    twelve = 12;
+                }
+                datePad(&out, cast<long>(twelve), 2, '0');
+            } else if (d == 'p') {
+                if (this.hour < 12) {
+                    out.append("AM");
+                } else {
+                    out.append("PM");
+                }
+            } else if (d == 'M') {
+                datePad(&out, cast<long>(this.minute), 2, '0');
+            } else if (d == 'S') {
+                datePad(&out, cast<long>(this.second), 2, '0');
+            } else if (d == 'j') {
+                datePad(&out, cast<long>(date.dayOfYear()), 3, '0');
+            } else if (d == 'a') {
+                dateAppendName(&out, date.weekdayName(), 3);
+            } else if (d == 'A') {
+                dateAppendName(&out, date.weekdayName(), -1);
+            } else if (d == 'b') {
+                dateAppendName(&out, date.monthName(), 3);
+            } else if (d == 'B') {
+                dateAppendName(&out, date.monthName(), -1);
+            } else if (d == 'u') {
+                datePad(&out, cast<long>(date.isoWeekday()), 1, '0');
+            } else if (d == 'w') {
+                datePad(&out, cast<long>(date.dayOfWeek()), 1, '0');
+            } else if (d == 'V') {
+                datePad(&out, cast<long>(date.weekOfYear()), 2, '0');
+            } else if (d == 'G') {
+                datePad(&out, cast<long>(date.isoWeekYear()), 4, '0');
+            } else if (d == 's') {
+                datePad(&out, this.toTimestamp(), 1, '0');
+            } else if (d == 'F') {
+                datePad(&out, cast<long>(this.year), 4, '0');
+                out.appendChar('-');
+                datePad(&out, cast<long>(this.month), 2, '0');
+                out.appendChar('-');
+                datePad(&out, cast<long>(this.day), 2, '0');
+            } else if (d == 'T') {
+                datePad(&out, cast<long>(this.hour), 2, '0');
+                out.appendChar(':');
+                datePad(&out, cast<long>(this.minute), 2, '0');
+                out.appendChar(':');
+                datePad(&out, cast<long>(this.second), 2, '0');
+            } else if (d == 'z') {
+                out.append("+0000");
+            } else if (d == 'Z') {
+                out.append("UTC");
+            } else if (d == '%') {
+                out.appendChar('%');
+            } else {
+                out.appendChar('%');
+                out.appendChar(d);
+            }
+        }
+        local result: String;
+        result.data = out.buffer;
+        result.length = out.length;
+        return result;
+    }
+
+    # RFC 3339 / ISO 8601 UTC timestamp ("2024-01-02T03:04:05Z").
+    frame formatRfc3339(this: *DateTime) ret String {
+        return this.formatPattern("%FT%TZ");
+    }
+
+    # RFC 7231 HTTP date ("Tue, 02 Jan 2024 03:04:05 GMT").
+    frame formatHttp(this: *DateTime) ret String {
+        return this.formatPattern("%a, %d %b %Y %T GMT");
     }
 
     frame clone(this: *DateTime) ret DateTime {
