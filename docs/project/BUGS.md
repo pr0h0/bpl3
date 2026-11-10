@@ -31,6 +31,36 @@ indirect call would at least turn the crash into a diagnosable runtime error.
 **Workaround in the app**: `Order` has an `init` method that the order pool calls
 on every fresh slot; the compiler stores the vtable in `init` bodies.
 
+### BUG-801: Small methods and functions are never inlined at -O2
+
+**Status**: Open · **Priority**: P2 (performance)
+
+Two code-generation choices keep LLVM from inlining accessor-sized calls:
+
+1. A method call through a pointer always loads the hidden vtable word and
+   calls through it (`%f = load i8*, ...vtable slot...; call %f(...)`), even
+   when the struct has no parent and no children (same root cause as
+   BUG-800). The indirect call is not devirtualized at -O2.
+2. Every function starts with the stack guard (`llvm.stacksave`, a load of
+   `__bpl_stack_limit`, an increment of `__bpl_stack_depth` with a 10000-frame
+   limit) and ends with the matching decrement. Running `opt -O2` on the
+   emitted IR still leaves `call @gridAt_Grid_ptr_i32` in the loop, so even a
+   one-line free function stays an out-of-line call.
+
+`apps/bpl-quant/repros/bug801_virtual_calls.bpl` sums a 1024-element buffer
+100000 times at -O2: field access in the loop 255 ms, a free-function accessor
+545 ms, the same accessor as a method 962 ms (3.8x the field version). In the
+application, `Matrix.at`/`put` style code makes a 200x200 Cholesky plus LU
+inverse take 265 ms.
+
+Suggested fix: call methods of structs without overriding descendants
+directly; mark small non-recursive functions so the stack-depth bookkeeping
+can be elided or inlined (for example, only guard functions that are part of a
+call-graph cycle, or keep the guard but allow inlining).
+
+**Workaround in the app**: none applied yet; hot loops index raw buffers
+directly where it matters.
+
 ## Open audit findings (2026-10-28)
 
 Found by a repository-wide audit. Each compiler item was reproduced with a probe

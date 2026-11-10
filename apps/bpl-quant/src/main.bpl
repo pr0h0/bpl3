@@ -14,6 +14,8 @@ import runSeriesTests from "./selftest/series_tests.bpl";
 import runRiskTests from "./selftest/risk_tests.bpl";
 import [Text] from "./core/text.bpl";
 import runServer, defaultConfig from "./api/server.bpl";
+import runBench from "./bench/kernels.bpl";
+import runLoadgen from "./bench/loadgen.bpl";
 import [AppConfig] from "./api/state.bpl";
 
 frame usage() {
@@ -56,6 +58,29 @@ frame main(argc: int, argv: *string) ret int {
             return 2;
         }
         return runServer(config);
+    }
+    if (Text.equals(cmd, "bench")) {
+        local scale: int = argc > 2 ? Text.parseIntOr(argv[2], -1) : 1;
+        if ((scale < 1) || (scale > 100)) {
+            printf("bench: scale must be 1-100\n");
+            return 2;
+        }
+        return runBench(scale);
+    }
+    if (Text.equals(cmd, "loadgen")) {
+        if (argc < 3) {
+            printf("loadgen: port required\n");
+            return 2;
+        }
+        local port: int = Text.parseIntOr(argv[2], -1);
+        local total: int = argc > 3 ? Text.parseIntOr(argv[3], -1) : 2000;
+        local conc: int = argc > 4 ? Text.parseIntOr(argv[4], -1) : 4;
+        local mix: string = argc > 5 ? argv[5] : "mixed";
+        if ((port < 1) || (port > 65535) || (total < 1) || (conc < 1) || (conc > 256) || (conc > total)) {
+            printf("loadgen: invalid port, request count or concurrency\n");
+            return 2;
+        }
+        return runLoadgen(port, total, conc, mix);
     }
     if (Text.equals(cmd, "help") || Text.equals(cmd, "--help")) {
         usage();

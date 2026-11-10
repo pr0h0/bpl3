@@ -414,6 +414,12 @@ struct Engine {
     # Releases stop orders triggered by the latest trade; repeats because a
     # released stop can itself trade through further stops.
     frame releaseStops(this: *Engine, symbol: int) {
+        # New stops are checked on arrival, so a rescan is only needed when
+        # the last price moved since the previous scan.
+        local book: *OrderBook = this.books + symbol;
+        if ((this.stops.len == 0) || (book.last_price == book.stop_scan_price)) {
+            return;
+        }
         local guard: int = 0;
         local changed: bool = true;
         loop (changed && (guard < 1000)) {
@@ -438,6 +444,7 @@ struct Engine {
                 }
             }
         }
+        book.stop_scan_price = book.last_price;
     }
 
     frame cancel(this: *Engine, id: long) ret bool {

@@ -233,6 +233,8 @@ struct OrderBook {
     reference_price: long,
     # Percentage band (in basis points) around the reference price; 0 = off.
     band_bps: long,
+    # Last price at which pending stops were scanned (-1 = never).
+    stop_scan_price: long,
 
     frame new(symbol: int, reference_price: long) ret OrderBook {
         local b: OrderBook;
@@ -249,6 +251,7 @@ struct OrderBook {
         b.low_price = 0;
         b.reference_price = reference_price;
         b.band_bps = 0;
+        b.stop_scan_price = -1;
         return b;
     }
 
