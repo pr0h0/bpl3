@@ -76,7 +76,7 @@ jobs:
       - name: Build the standalone executable
         run: |
           bun run generate:embedded
-          bun build --compile --target=${{ matrix.target }} --outfile="dist/bpl-${{ matrix.asset }}" ./index.ts
+          bun build --compile --target=${{ matrix.target }} --outfile="dist/bpl-${{ matrix.asset }}" ./index.ts ./cli/CompileWorker.ts
 
       - name: Smoke test outside the checkout
         if: matrix.smoke

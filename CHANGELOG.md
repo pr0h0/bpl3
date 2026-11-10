@@ -28,6 +28,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Changed
 
+- Large native builds use less memory and every core. IR of 4 MB or more is
+  split into parts that clang compiles in parallel, with small callees copied
+  into each part so they still inline. Projects with 256 KB or more of
+  sources compile to IR in a worker that ends before clang runs, and the
+  compiler collects garbage between phases. On the 48k-line bpl-quant app the
+  `-O2` build went from 77 s and about 1.1 GB peak to about 30 s and 650 MB.
+  See "Large Builds" in docs/39-compiler-options.md.
+
 - **Breaking:** a `*Spec` holds its object pointer and method table by value
   (16 bytes). It can be returned and stored in globals, struct fields, tuples
   and generic containers; `BPL_SPEC_POINTER_ESCAPES` no longer exists. It

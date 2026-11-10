@@ -2,6 +2,22 @@
 
 This file tracks bugs and edge cases found during comprehensive testing.
 
+## Build pipeline (2026-11-10)
+
+Found while measuring the memory and time of the bpl-quant build.
+
+### BUG-551: Cached parallel builds redefine globals that two modules share
+
+**Status**: Open · **Priority**: P2
+
+`bpl build apps/bpl-quant/src/main.bpl --cache -j 4 -O 2` fails compiling
+`lib/math.bpl`'s object: `redefinition of global '@PI'`. The cached path
+compiles each module to its own object without the cross-module symbol
+uniquing that the whole-program build applies, so a global name declared by
+two modules collides. Ordinary builds are unaffected, and large ordinary
+builds now compile in parallel parts (docs/39-compiler-options.md, "Large
+Builds").
+
 ## Standard library expansion (2026-11-10)
 
 Found while expanding `lib/`. Compiler bugs are open and have library
@@ -250,7 +266,7 @@ Suggested fix: make the build path attach the imported module's diagnostic
 
 ### BUG-820: A parameter named `entry` produces invalid LLVM IR
 
-**Status**: Open · **Priority**: P2
+**Status**: Fixed · **Priority**: P2
 
 A frame parameter called `entry` is emitted as the SSA argument `%entry`, and
 every function's first basic block is also labelled `entry`, so clang rejects
@@ -268,6 +284,8 @@ example `bpl.entry`), or suffix argument names like locals.
 
 The same bug as BUG-601, found while expanding the standard library; its fix
 renames such a parameter's LLVM value to `%param.entry`.
+
+**Resolution**: fixed with BUG-601 (PR #250).
 
 ## Open audit findings (2026-10-28)
 
