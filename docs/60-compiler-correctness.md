@@ -480,6 +480,11 @@ Each campaign iteration picks one input lane:
   and runs them with the playground's host adapter; that output must match
   too. It needs `wasm-ld`, and is skipped without it.
 - **differential**: templates whose O0 and O3 behavior must match.
+- **language server**: `bun run fuzz:language-server [from] [to] [renames]`
+  sends hover, definition, completion, signature help and the other requests
+  to generated programs and damaged copies of them. No request may throw, and
+  renaming a symbol must leave the program compiling and printing the same
+  output.
 
 To find which statement of a failing generated program diverges, regenerate it
 with tracing, which prints every value after each top-level statement. Use the

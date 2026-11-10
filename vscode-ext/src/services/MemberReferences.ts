@@ -77,6 +77,73 @@ export function findMemberReferences(
   return ranges;
 }
 
+/**
+ * Ranges of every reference in `program` to spec method `name` other than its
+ * declaration: the methods of structs implementing the spec, and calls on any
+ * value except one of a struct that does not implement it.
+ */
+export function findSpecMethodImplementations(
+  program: AST.Program,
+  spec: AST.SpecDecl,
+  name: string,
+  document: TextDocument,
+  typeOf: ExpressionTypeResolver,
+): Range[] {
+  const structs = new Map<string, AST.StructDecl>();
+  const specs = new Map<string, AST.SpecDecl>();
+  for (const statement of program.statements) {
+    if (statement.kind === "StructDecl") {
+      structs.set(statement.name, statement);
+    } else if (statement.kind === "SpecDecl") {
+      specs.set(statement.name, statement);
+    }
+  }
+  const typeNames = (types: AST.TypeNode[]) =>
+    types.flatMap((type) => (type.kind === "BasicType" ? [type.name] : []));
+  const specReaches = (
+    candidate: string,
+    seen = new Set<string>(),
+  ): boolean => {
+    if (candidate === spec.name) return true;
+    const declared = specs.get(candidate);
+    if (!declared || seen.has(candidate)) return false;
+    seen.add(candidate);
+    return typeNames(declared.extends).some((parent) =>
+      specReaches(parent, seen),
+    );
+  };
+  const implementing = (struct: AST.StructDecl): boolean =>
+    typeNames(struct.inheritanceList).some((parent) => {
+      const parentStruct = structs.get(parent);
+      return parentStruct ? implementing(parentStruct) : specReaches(parent);
+    });
+
+  const ranges: Range[] = [];
+  for (const struct of structs.values()) {
+    if (!implementing(struct)) continue;
+    for (const member of struct.members) {
+      if (member.kind === "FunctionDecl" && member.name === name) {
+        const range = nameRange(member, name, document, TokenType.Frame);
+        if (range) ranges.push(range);
+      }
+    }
+  }
+  walkAST(
+    program,
+    (current) => {
+      if (current.kind !== "Member") return;
+      const member = current as AST.MemberExpr;
+      if (member.property !== name) return;
+      const struct = structOf(member.object, structs, typeOf);
+      if (struct && !implementing(struct)) return;
+      const range = lastNameRange(member, name, document);
+      if (range) ranges.push(range);
+    },
+    { trackPath: false },
+  );
+  return ranges;
+}
+
 function memberTarget(
   node: AST.ASTNode,
   structs: Map<string, AST.StructDecl>,

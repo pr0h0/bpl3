@@ -792,14 +792,14 @@ export class ASTResolver {
 
     if ((node as AST.ASTNode).kind === "Match") {
       const matchExpr = node as AST.MatchExpr;
-      const matchedType = this.resolveType(matchExpr.value, filePath, false);
-
       for (const arm of matchExpr.arms) {
-        if (this.nodeContainsReference(arm.body, reference)) {
+        if (this.nodeContainsReference(arm, reference)) {
+          // Only for the arm holding the reference: a scrutinee is outside its
+          // arms, so resolving it cannot come back here.
           return this.resolvePatternBindingType(
             arm.pattern,
             name,
-            matchedType,
+            this.resolveType(matchExpr.value, filePath, false),
             ast,
           );
         }
@@ -1106,10 +1106,19 @@ export class ASTResolver {
     reference: AST.ASTNode,
   ): node is AST.ASTNode {
     if (!node?.location || !reference.location) return false;
-    return (
-      reference.location.startLine >= node.location.startLine &&
-      reference.location.startLine <= node.location.endLine
-    );
+    const outer = node.location;
+    const inner = reference.location;
+    // Columns matter: a `match` on one line must not contain its own scrutinee,
+    // or resolving the scrutinee would look for its binding in that match.
+    const startsInside =
+      inner.startLine > outer.startLine ||
+      (inner.startLine === outer.startLine &&
+        inner.startColumn >= outer.startColumn);
+    const endsInside =
+      inner.startLine < outer.endLine ||
+      (inner.startLine === outer.endLine &&
+        inner.startColumn < outer.endColumn);
+    return startsInside && endsInside;
   }
 
   /**
