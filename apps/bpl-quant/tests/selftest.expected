@@ -252,23 +252,23 @@ fix_session.timeout_reason = heartbeat timeout
 == fix_gateway
 fix_gateway.first_fill = 8=FIX.4.4|9=147|35=8|49=EXCH|56=CLIENT|34=3|52=19700101-00:00:02.000|37=3|11=c1|17=E2|150=F|39=1|55=ACME|54=1|38=400|44=101|151=100|14=300|6=100.5|31=100.5|32=300|10=218|
 == itch
-itch.packets = 1243
-itch.messages_total = 20622
-itch.bytes = 617772
-itch.adds = 7996
-itch.executions = 10761
-itch.deletes = 1860
+itch.packets = 1240
+itch.messages_total = 20595
+itch.bytes = 616477
+itch.adds = 7990
+itch.executions = 10705
+itch.deletes = 1894
 itch.dropped = 177
 == risk_limits
 risk_limits.breaches = 11
 risk_limits.last_breach = kill_switch
 == journal
 journal.snapshot_seq = 3006
-journal.snapshot_bytes = 234
+journal.snapshot_bytes = 481
 journal.records = 5507
-journal.journal_bytes = 144030
-journal.open_orders = 26
-journal.trades = 1514
+journal.journal_bytes = 143986
+journal.open_orders = 64
+journal.trades = 2053
 journal.torn_error = torn record
 journal.crc_error = CRC mismatch
 journal.snapshot_corrupt = snapshot CRC mismatch
@@ -307,4 +307,12 @@ rebalance.threshold_rebalances = 7
 rebalance.monthly_turnover = 0.282197
 rebalance.threshold_turnover = 0.213799
 rebalance.buy_and_hold_return = 0.509182
-selftest: 937 passed, 0 failed
+== columnar
+columnar.raw_bytes = 324984
+columnar.encoded_bytes = 121325
+columnar.matched = 4576
+columnar.bad_column_error = unknown column in where
+== query_cache
+query_cache.hit_rate = 0.5000
+query_cache.render = {"table":"trades","version":51,"rows":50,"scan":{"blocks":1,"pruned":0,"rows_scanned":50,"rows_matched":30},"groups":1,"result":[{"symbol":"ACME","count":30,"sum_notional":30900}]}
+selftest: 973 passed, 0 failed

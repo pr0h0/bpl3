@@ -158,20 +158,20 @@ frame testRiskLimits(c: *Check) {
 frame drive(je: *JournaledEngine, rng: *Xoshiro, steps: int, live: *LVec) {
     local accounts: int[3] = [je.accountId("a"), je.accountId("b"), je.accountId("c")];
     loop (local i: int = 0; i < steps; i = i + 1) {
-        local sym: int = rng.range(0, je.engine.book_count - 1);
+        local sym: int = rng.range(0, je.engine.book_count);
         local mid: long = je.engine.books[sym].reference_price;
         local tick: long = mid / 1000;
         local u: float = rng.nextFloat();
-        local acct: int = accounts[rng.range(0, 2)];
+        local acct: int = accounts[rng.range(0, 3)];
         if ((u < 0.55) || (live.len == 0)) {
             local side: Side = rng.chance(0.5) ? Side.Buy : Side.Sell;
-            local req: OrderRequest = OrderRequest.limit(sym, acct, side, mid + (cast<long>(rng.range(-15, 15)) * tick), cast<long>(rng.range(1, 40) * 5));
+            local req: OrderRequest = OrderRequest.limit(sym, acct, side, mid + (cast<long>(rng.range(-15, 16)) * tick), cast<long>(rng.range(1, 40) * 5));
             if (rng.chance(0.1)) {
                 req.tif = TimeInForce.Day;
             }
             if (rng.chance(0.05)) {
                 req.kind = OrderType.Stop;
-                req.stop_price = mid + (cast<long>(rng.range(-10, 10)) * tick);
+                req.stop_price = mid + (cast<long>(rng.range(-10, 11)) * tick);
                 req.price = 0;
             }
             local r: ExecReport = je.submit(&req);
@@ -179,13 +179,13 @@ frame drive(je: *JournaledEngine, rng: *Xoshiro, steps: int, live: *LVec) {
                 live.push(r.order_id);
             }
         } else if (u < 0.8) {
-            local k: int = rng.range(0, live.len - 1);
+            local k: int = rng.range(0, live.len);
             je.cancel(live.data[k]);
             live.data[k] = live.data[live.len - 1];
             live.len = live.len - 1;
         } else if (u < 0.95) {
-            local k: int = rng.range(0, live.len - 1);
-            local r: ExecReport = je.replace(live.data[k], mid + (cast<long>(rng.range(-5, 5)) * tick), cast<long>(rng.range(5, 60) * 5));
+            local k: int = rng.range(0, live.len);
+            local r: ExecReport = je.replace(live.data[k], mid + (cast<long>(rng.range(-5, 6)) * tick), cast<long>(rng.range(5, 60) * 5));
             if (r.order_id != 0) {
                 live.data[k] = r.order_id;
             }

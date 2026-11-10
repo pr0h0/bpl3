@@ -25,6 +25,7 @@ import pcaHandler, factorHandler, clusterHandler, directionHandler, bootstrapHan
 import importBarsHandler, bookScenarioHandler, qmcHandler from "./handlers_scenario.bpl";
 import omsSubmitHandler, omsCancelHandler, omsReplaceHandler, omsOrdersHandler, omsPositionsHandler, omsBreachesHandler, omsGetLimitsHandler, omsSetLimitsHandler, omsKillHandler, omsReviveHandler, omsRestrictHandler, omsJournalHandler, omsSnapshotHandler, omsRecoverHandler, omsCompactHandler, omsStatsHandler from "./handlers_oms.bpl";
 import stressScenariosHandler, stressRunHandler, stressDemoHandler, brinsonHandler, linkHandler, rebalanceHandler, rebalanceSimulateHandler from "./handlers_portfolio.bpl";
+import columnarQueryHandler, columnarStatsHandler from "./handlers_columnar.bpl";
 import fixParseHandler, fixOrderHandler, fixCancelHandler, fixLogHandler, feedReplayHandler, feedSampleHandler from "./handlers_proto.bpl";
 import symbolsHandler, createSymbolHandler, submitOrderHandler, getOrderHandler, cancelOrderHandler, replaceOrderHandler, bookHandler, quoteHandler, tradesHandler, tradesCsvHandler, simulateHandler, engineStatsHandler, endOfDayHandler, validateBookHandler from "./handlers_market.bpl";
 
@@ -306,6 +307,8 @@ frame registerOpsRoutes() {
     route(HttpMethod.POST, "/attribution/link", linkHandler, "Carino/Menchero multi-period linking {portfolio, benchmark, effects?, method}");
     route(HttpMethod.POST, "/rebalance", rebalanceHandler, "whole-lot rebalance to targets with bands, min trade, turnover cap and costs");
     route(HttpMethod.GET, "/rebalance/simulate", rebalanceSimulateHandler, "buy-and-hold vs calendar vs threshold rebalancing (?symbols=&weights=&period=&band=)");
+    route(HttpMethod.GET, "/columnar/stats", columnarStatsHandler, "columnar tables (rows, blocks, encoded size) and result-cache counters");
+    route(HttpMethod.GET, "/columnar/:table", columnarQueryHandler, "zone-mapped columnar aggregate over trades or bars (?where=&group=&aggs=sum(qty),vwap(price,qty)&limit=&cache=)");
     route(HttpMethod.GET, "/feed/sample", feedSampleHandler, "first packets of a generated feed, hex and decoded (?events=&packets=&seed=)");
 }
 

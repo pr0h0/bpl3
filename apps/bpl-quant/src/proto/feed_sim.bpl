@@ -56,7 +56,7 @@ struct FeedSim {
         local a: int = e.accountId("feed-a");
         local b: int = e.accountId("feed-b");
         loop (local i: int = 0; i < events; i = i + 1) {
-            local sym: int = rng.range(0, symbols - 1);
+            local sym: int = rng.range(0, symbols);
             local tick: long = mids[sym] / 1000;
             if (rng.chance(0.02)) {
                 mids[sym] = mids[sym] + (rng.chance(0.5) ? tick : -tick);
@@ -65,20 +65,20 @@ struct FeedSim {
             local acct: int = rng.chance(0.5) ? a : b;
             if ((u < 0.6) || (live.len == 0)) {
                 local side: Side = rng.chance(0.5) ? Side.Buy : Side.Sell;
-                local px: long = mids[sym] + (cast<long>(rng.range(-20, 20)) * tick);
+                local px: long = mids[sym] + (cast<long>(rng.range(-20, 21)) * tick);
                 local req: OrderRequest = OrderRequest.limit(sym, acct, side, px, cast<long>(rng.range(1, 50) * 10));
                 local r: ExecReport = pub.submit(&req);
                 if (r.resting) {
                     live.push(r.order_id);
                 }
             } else if (u < 0.85) {
-                local k: int = rng.range(0, live.len - 1);
+                local k: int = rng.range(0, live.len);
                 pub.cancel(live.data[k]);
                 live.data[k] = live.data[live.len - 1];
                 live.len = live.len - 1;
             } else if (u < 0.95) {
-                local k: int = rng.range(0, live.len - 1);
-                local r: ExecReport = pub.replace(live.data[k], mids[sym] + (cast<long>(rng.range(-5, 5)) * tick), cast<long>(rng.range(1, 30) * 10));
+                local k: int = rng.range(0, live.len);
+                local r: ExecReport = pub.replace(live.data[k], mids[sym] + (cast<long>(rng.range(-5, 6)) * tick), cast<long>(rng.range(1, 30) * 10));
                 if (r.order_id != 0) {
                     live.data[k] = r.order_id;
                 }
