@@ -12,6 +12,9 @@ import healthHandler, infoHandler, metricsHandler, metricsJsonHandler, routesHan
 import barsHandler, barsCsvHandler, syntheticBarsHandler, appendBarHandler, indicatorHandler, indicatorSummaryHandler, volatilityHandler, returnsHandler, seriesListHandler from "./handlers_series.bpl";
 import priceHandler, greeksHandler, impliedVolHandler, treeHandler, monteCarloHandler, asianHandler, barrierHandler, americanHandler, chainHandler, hestonHandler, jumpHandler, exoticHandler from "./handlers_pricing.bpl";
 import varHandler, optimizeHandler, covarianceHandler, frontierHandler, backtestVarHandler, describeHandler, regressionHandler, matrixHandler, correlationHandler from "./handlers_risk.bpl";
+import runScriptHandler, checkScriptHandler, backtestHandler, optimizeStrategyHandler, builtinsHandler from "./handlers_strategy.bpl";
+import curveHandler, bondHandler, swapHandler, capHandler, swaptionHandler, shortRateHandler from "./handlers_rates.bpl";
+import fourierHandler, carrMadanHandler, sabrHandler, sviHandler, surfaceHandler from "./handlers_vol.bpl";
 import symbolsHandler, createSymbolHandler, submitOrderHandler, getOrderHandler, cancelOrderHandler, replaceOrderHandler, bookHandler, quoteHandler, tradesHandler, tradesCsvHandler, simulateHandler, engineStatsHandler, endOfDayHandler, validateBookHandler from "./handlers_market.bpl";
 
 export runServer;
@@ -199,6 +202,24 @@ frame registerRoutes() {
     route(HttpMethod.POST, "/stats/describe", describeHandler, "descriptive statistics of {values}");
     route(HttpMethod.POST, "/stats/regression", regressionHandler, "OLS of {x, y}");
     route(HttpMethod.POST, "/math/matrix", matrixHandler, "matrix ops {op, a, b}");
+    route(HttpMethod.POST, "/strategy/run", runScriptHandler, "run a QScript program {source, symbol, commission_bps, ...}; backtests position() calls");
+    route(HttpMethod.POST, "/strategy/check", checkScriptHandler, "compile a QScript program and list its bytecode");
+    route(HttpMethod.GET, "/strategy/builtins", builtinsHandler, "QScript builtin functions and host globals");
+    route(HttpMethod.GET, "/backtest/:symbol", backtestHandler, "built-in strategy backtest (?strategy=&fast=&slow=&period=&...)");
+    route(HttpMethod.GET, "/backtest/:symbol/optimize", optimizeStrategyHandler, "SMA window grid search");
+    route(HttpMethod.GET, "/rates/curve", curveHandler, "bootstrapped default curve, grid, par swaps, NSS fit (?interp=&points=)");
+    route(HttpMethod.POST, "/rates/curve", curveHandler, "bootstrap {instruments:[{type, maturity, rate}]}");
+    route(HttpMethod.GET, "/rates/bond", bondHandler, "bond price/yield, duration, convexity, DV01 (?coupon=&maturity=&yield=|price=)");
+    route(HttpMethod.GET, "/rates/swap", swapHandler, "swap NPV, par rate, PV01, key-rate deltas (?maturity=&fixed_rate=)");
+    route(HttpMethod.POST, "/rates/swap", swapHandler, "swap on a custom curve");
+    route(HttpMethod.GET, "/rates/cap", capHandler, "cap/floor under Black-76 (?maturity=&strike=&vol=)");
+    route(HttpMethod.GET, "/rates/swaption", swaptionHandler, "payer/receiver swaption (?expiry=&tenor=&vol=&strike=)");
+    route(HttpMethod.GET, "/rates/short", shortRateHandler, "Vasicek/CIR curves, Hull-White tree vs Jamshidian (?model=)");
+    route(HttpMethod.GET, "/vol/fourier", fourierHandler, "characteristic-function price (?model=heston|variance_gamma|black_scholes)");
+    route(HttpMethod.GET, "/vol/carr_madan", carrMadanHandler, "Carr-Madan FFT call grid (?model=&log2n=&eta=)");
+    route(HttpMethod.POST, "/vol/sabr", sabrHandler, "calibrate SABR {forward, expiry, beta, strikes, vols}");
+    route(HttpMethod.POST, "/vol/svi", sviHandler, "calibrate raw SVI {forward, expiry, strikes, vols}");
+    route(HttpMethod.GET, "/vol/surface", surfaceHandler, "SVI surface: implied/local vol and prices (?strike=&expiry=)");
     api_router.useNotFound(notFound);
 }
 

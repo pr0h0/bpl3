@@ -137,4 +137,52 @@ portfolio.frontier_top_vol = 0.01770830
 portfolio.bl_view_asset = 14.791667
 portfolio.tracking_error = 0.00627411
 portfolio.diversification_ratio = 1.369227
-selftest: 392 passed, 0 failed
+== qscript_lexer
+== qscript_parser
+== qscript_eval
+== qscript_strategy
+qscript_strategy.sma_cross_return = -0.076365
+qscript_strategy.sma_cross_sharpe = -0.048961
+qscript_strategy.sma_cross_trades = 149
+qscript_strategy.instructions = 10163
+== backtest
+backtest.sma_cross = 0.180399
+backtest.rsi_reversion = -0.295917
+backtest.bollinger = -0.248066
+backtest.macd_trend = -0.429594
+backtest.momentum = 0.141655
+backtest.optimized_fast = 20
+backtest.optimized_slow = 75
+backtest.optimized_sharpe = 1.199864
+== day_counts
+== curves
+curves.zero_10y = 0.04049098
+curves.forward_5y_6y = 0.04199635
+curves.linear_zero_4y = 0.03740674
+curves.cubic_zero_4y = 0.03741326
+== bonds
+bonds.convexity = 73.628731
+bonds.dv01 = 0.07794581
+bonds.yield_at_95 = 0.05661689
+== swaps
+swaps.pv01 = 448.075818
+swaps.key_rate_total = 462.2452
+swaps.cap_5y = 23599.8791
+swaps.payer_1y5y = 15739.2212
+== short_rate
+short_rate.vasicek_5y = 0.79985563
+short_rate.cir_5y = 0.79990360
+short_rate.hw_option = 0.01199174
+== complex
+== fft
+== fourier
+fourier.heston_atm = 10.39421857
+fourier.heston_iv_80 = 0.229614
+fourier.heston_iv_120 = 0.172211
+fourier.variance_gamma = 10.44454469
+== sabr
+sabr.atm_vol = 0.17857520
+== svi
+svi.surface_vol_90_075 = 0.23436989
+svi.local_vol_100_1 = 0.18881845
+selftest: 542 passed, 0 failed

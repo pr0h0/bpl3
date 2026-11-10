@@ -74,7 +74,10 @@ describe("bpl-quant", () => {
       const base = `http://127.0.0.1:${port}/api`;
       const getJson = async (path: string, init?: RequestInit) => {
         const res = await fetch(base + path, init);
-        return { status: res.status, body: await res.json() };
+        // Response shapes are asserted field by field below.
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const body = (await res.json()) as any;
+        return { status: res.status, body };
       };
       try {
         let ready = false;

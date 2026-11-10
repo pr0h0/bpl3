@@ -12,6 +12,9 @@ import runPricingTests from "./selftest/pricing_tests.bpl";
 import runMarketTests from "./selftest/market_tests.bpl";
 import runSeriesTests from "./selftest/series_tests.bpl";
 import runRiskTests from "./selftest/risk_tests.bpl";
+import runDslTests from "./selftest/dsl_tests.bpl";
+import runRatesTests from "./selftest/rates_tests.bpl";
+import runSurfaceTests from "./selftest/surface_tests.bpl";
 import [Text] from "./core/text.bpl";
 import runServer, defaultConfig from "./api/server.bpl";
 import runBench from "./bench/kernels.bpl";
@@ -33,6 +36,9 @@ frame runSelftest() ret int {
     runMarketTests(&c);
     runSeriesTests(&c);
     runRiskTests(&c);
+    runDslTests(&c);
+    runRatesTests(&c);
+    runSurfaceTests(&c);
     return c.summary() == 0 ? 0 : 1;
 }
 
