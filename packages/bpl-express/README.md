@@ -4,7 +4,8 @@ A small Express-inspired HTTP framework. The current socket backend targets
 **Linux IPv4** and handles one connection at a time in `listen` mode. The optional process
 worker mode handles connections concurrently. It is suitable for local
 projects and small services; it does not provide an asynchronous event loop,
-TLS, HTTP/2, keep-alive, multipart parsing, or production load guarantees.
+HTTP/2, or production load guarantees. Keep-alive is opt-in and plain-HTTP
+only; multipart bodies are parsed by `bpl-web-middleware`.
 Use a reverse proxy for HTTPS and deployment controls.
 
 ```bpl
@@ -29,7 +30,19 @@ caller closes both descriptors. Accepted connections have five-second read/write
 (`app.timeout_seconds`) and a ten-second total request assembly deadline
 (`app.request_timeout_seconds`). Each deadline accepts 1–300 seconds. Requests are bounded
 to 16 KiB headers and 1 MiB bodies. Fragmented fixed-length and chunked requests are assembled; unsupported
-request transfer codings return 501. Every response closes the connection.
+request transfer codings return 501. By default every response closes the
+connection (`Connection: close`).
+
+`app.keepAlive(maxRequests, idleSeconds)` enables persistent plain-HTTP
+connections: up to `maxRequests` (2 to 10000) requests per connection, which
+closes after `idleSeconds` (1 to 300) without a new request. HTTP/1.1 clients
+keep the connection unless they send `Connection: close`; HTTP/1.0 clients
+must send `Connection: keep-alive`. Pipelined requests are answered in order.
+A kept connection waits in the pending set described below, so an idle
+client never blocks the sequential server or a worker. The connection closes
+after the last allowed request (announced with `Connection: close`), after an
+invalid request, a handler failure or a write failure. HTTPS connections and
+`serveConnection` still serve one request per connection.
 
 `listen`, `listenOn` and each worker keep up to 64 accepted connections in a
 pending set, so idle sockets such as browser preconnects and clients that
@@ -41,10 +54,13 @@ response. TLS connections are served from their first bytes, because the
 handshake reads in blocking steps, so a TLS client that stalls mid-request
 still occupies its worker until the request deadline.
 
-Routes support `get`, `post`, `put`, `delete`, `patch`, `options`, `head`, and
+Routes support `get`, `post`, `put`, `delete`, `patch`, `options`, `head`,
+`all` (every method above except `head`, which falls back to `get`), and
 `on(method, path, handler)`. Parameters use `/users/:id`; nonterminal `*`
 characters are literal and do not stop later parameter extraction. A final `*` matches
-remaining path characters. `req.getParam("id")` returns `Option<string>`.
+remaining path characters, which are percent-decoded and available as the `*`
+parameter (`/files/*` on `/files/a/b.png` gives `req.getParam("*")` =
+`a/b.png`). `req.getParam("id")` returns `Option<string>`.
 Parameter values are percent-decoded (`/users/John%20Doe` gives `John Doe`; `+`
 stays literal in paths), and a path with an invalid escape or `%00` in a
 parameter does not match the route.
@@ -90,6 +106,68 @@ files run before router middleware, so use it for public assets only.
 `useStaticMiddleware(handler)` supplies an optional handler immediately before
 static content is sent; use it to apply CSP/frame/referrer headers to HTML as
 well as API responses. It may send a terminal response instead of the file.
+Content types follow the file extension (HTML, CSS, JavaScript, JSON, source
+maps, text, CSV, XML, SVG, PNG, JPEG, GIF, WebP, ICO, WebAssembly and WOFF2,
+case-insensitively; `App.mimeType(path)` exposes the table), and other files are
+`application/octet-stream` with `nosniff`. Static files always carry an ETag
+and Last-Modified for conditional requests; `app.staticMaxAge(seconds)` also
+sends `Cache-Control: public, max-age=N` (`0` sends `no-cache`, which
+revalidates with the ETag each time). Use long max-ages only for fingerprinted
+file names.
+
+## Cookies
+
+`Cookies` reads the `Cookie` header and writes `Set-Cookie` lines:
+
+```bpl
+import [App], [Request], [Response], [Cookies], [CookieOptions] from "bpl-express";
+import [Option] from "std/option.bpl";
+import [String] from "std/string.bpl";
+
+frame theme(req: *Request, res: *Response) {
+    local current: Option<String> = Cookies.get(req, "theme");
+    local options: CookieOptions = CookieOptions.defaults();
+    options.max_age = 31536000;
+    if (!current.isSome()) {
+        Cookies.set(res, "theme", "dark", &options);
+        res.text("theme set");
+        return;
+    }
+    local value: String = current.unwrap();
+    res.text(value.data);
+    value.destroy();
+}
+
+frame main() {
+    local app: App = App.new();
+    app.router.get("/theme", theme);
+    app.listen(3000);
+}
+```
+
+- `Cookies.of(req)` returns a `CookieJar` (`get`, `has`, `count`, `destroy`)
+  of owned copies; `Cookies.get(req, name)` returns one value as an owned
+  `String`. `Cookies.parse(header)` parses any header value. Pairs with
+  invalid names or values are skipped, quoted values are unquoted, and when a
+  name repeats the first occurrence wins. Values are not percent-decoded.
+- `Cookies.set(res, name, value, &options)` appends a `Set-Cookie` header and
+  `Cookies.serialize` returns the text. `CookieOptions.defaults()` is
+  `Path=/; HttpOnly; SameSite=Lax`, host-only, session lifetime. Fields:
+  `path`, `domain`, `max_age` (seconds, negative omits it), `secure`,
+  `http_only` and `same_site` (`"Strict"`, `"Lax"`, `"None"` or `nullptr`).
+- Invalid input throws rather than producing a header browsers would
+  misinterpret: names must be HTTP tokens, values RFC 6265 cookie octets
+  (no spaces, quotes, commas, semicolons or backslashes; encode other data
+  with base64url), paths must start with `/`, attributes cannot contain `;`,
+  `SameSite=None` requires `secure`, `__Secure-` names require `secure`, and
+  `__Host-` names require `secure`, `Path=/` and no domain.
+- `Cookies.clear(res, name, &options)` expires a cookie; use the same path
+  and domain it was set with.
+- `Cookies.sign(name, value, secret)` appends an HMAC-SHA256 signature
+  (`value.signature`, base64url) bound to the cookie name, and
+  `Cookies.unsign(name, signed, secret)` returns the value only when the
+  signature matches, compared in constant time. Secrets must be at least 32
+  bytes. Signing prevents tampering but does not hide the value.
 
 Optional middleware and validation are separate packages. Templates can use
 `bpl-templ`; database integrations can use `bpl-db` or `bpl-sqlite`.

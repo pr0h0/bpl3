@@ -7,22 +7,30 @@ relative sibling archive references, so keep the package directory layout when
 installing from a checkout. Repack edited packages with `bun index.ts pack
 packages/package-name -o packages/package-name` before distributing them.
 
-| Package                                            | Purpose                                                           | Optional native dependency           |
-| -------------------------------------------------- | ----------------------------------------------------------------- | ------------------------------------ |
-| [bpl-express](bpl-express/README.md)               | Routing, middleware, responses, public assets                     | Linux sockets; OpenSSL 3 for HTTPS   |
-| [bpl-http-parser](bpl-http-parser/README.md)       | Bounded request framing and decoded queries                       | None                                 |
-| [bpl-http-client](bpl-http-client/README.md)       | Synchronous HTTP/HTTPS requests and bounded responses             | Linux sockets; OpenSSL 3 for HTTPS   |
-| [bpl-templ](bpl-templ/README.md)                   | Compiled templates and HTML escaping                              | Native template CLI                  |
-| [bpl-db](bpl-db/README.md)                         | Typed in-memory tables and trusted snapshots                      | None                                 |
-| [bpl-validation](bpl-validation/README.md)         | Input rules and JSON field errors                                 | None                                 |
-| [bpl-web-middleware](bpl-web-middleware/README.md) | Headers, configurable CORS, negotiation, gzip, JSON checks, forms | Uses bpl-express; optional libz.so.1 |
-| [bpl-tls](bpl-tls/README.md)                       | Native TLS transport with verified client connections             | OpenSSL 3 runtime, loaded on use     |
-| [bpl-rate-limit](bpl-rate-limit/README.md)         | Shared request throttling middleware                              | SQLite 3.35+                         |
-| [bpl-passport](bpl-passport/README.md)             | Named authentication strategies                                   | Uses bpl-express                     |
-| [bpl-passport-local](bpl-passport-local/README.md) | Bounded username/password JSON strategy                           | Linux/glibc credential wiping        |
-| [bpl-auth](bpl-auth/README.md)                     | Passwords, revocable sessions, CSRF                               | SQLite and libsodium                 |
-| [bpl-csv](bpl-csv/README.md)                       | Optional CSV downloads and reports                                | None                                 |
-| [bpl-sqlite](bpl-sqlite/README.md)                 | Prepared statements, migrations, WAL and online backups           | Link native SQLite                   |
+| Package                                            | Purpose                                                             | Optional native dependency           |
+| -------------------------------------------------- | ------------------------------------------------------------------- | ------------------------------------ |
+| [bpl-express](bpl-express/README.md)               | Routing, middleware, responses, public assets                       | Linux sockets; OpenSSL 3 for HTTPS   |
+| [bpl-http-parser](bpl-http-parser/README.md)       | Bounded request framing and decoded queries                         | None                                 |
+| [bpl-http-client](bpl-http-client/README.md)       | Synchronous HTTP/HTTPS requests and bounded responses               | Linux sockets; OpenSSL 3 for HTTPS   |
+| [bpl-templ](bpl-templ/README.md)                   | Compiled templates and HTML escaping                                | Native template CLI                  |
+| [bpl-db](bpl-db/README.md)                         | Typed in-memory tables and trusted snapshots                        | None                                 |
+| [bpl-validation](bpl-validation/README.md)         | Input rules and JSON field errors                                   | None                                 |
+| [bpl-web-middleware](bpl-web-middleware/README.md) | Headers, configurable CORS, negotiation, gzip, JSON checks, forms   | Uses bpl-express; optional libz.so.1 |
+| [bpl-tls](bpl-tls/README.md)                       | Native TLS transport with verified client connections               | OpenSSL 3 runtime, loaded on use     |
+| [bpl-rate-limit](bpl-rate-limit/README.md)         | Shared request throttling middleware                                | SQLite 3.35+                         |
+| [bpl-passport](bpl-passport/README.md)             | Named authentication strategies                                     | Uses bpl-express                     |
+| [bpl-passport-local](bpl-passport-local/README.md) | Bounded username/password JSON strategy                             | Linux/glibc credential wiping        |
+| [bpl-auth](bpl-auth/README.md)                     | Passwords, revocable sessions, CSRF                                 | SQLite and libsodium                 |
+| [bpl-csv](bpl-csv/README.md)                       | Optional CSV downloads and reports                                  | None                                 |
+| [bpl-sqlite](bpl-sqlite/README.md)                 | Prepared statements, migrations, WAL and online backups             | Link native SQLite                   |
+| [bpl-json](bpl-json/README.md)                     | Dynamic JSON values: strict parsing, editing, serialization         | None                                 |
+| [bpl-json-schema](bpl-json-schema/README.md)       | JSON Schema (2020-12 subset) validation with JSON Pointer errors    | None                                 |
+| [bpl-jwt](bpl-jwt/README.md)                       | HS256/HS512 JSON Web Tokens with pinned algorithms and claim checks | None                                 |
+| [bpl-cache](bpl-cache/README.md)                   | In-memory LRU cache with TTLs, byte budget and compute-on-miss      | None                                 |
+| [bpl-metrics](bpl-metrics/README.md)               | Prometheus counters, gauges and histograms for a /metrics route     | None                                 |
+| [bpl-markdown](bpl-markdown/README.md)             | Safe Markdown to HTML (CommonMark/GFM subset, escaped raw HTML)     | None                                 |
+| [bpl-log](bpl-log/README.md)                       | Structured JSON-lines/logfmt logging with context and redaction     | None                                 |
+| [bpl-websocket](bpl-websocket/README.md)           | RFC 6455 WebSocket server connections for bpl-express routes        | Uses bpl-express                     |
 
 Start with the [college task board](../examples/college_web/README.md). Handler
 signatures follow the familiar Express/Gin pattern: `frame handler(req:
@@ -46,8 +54,9 @@ defers capture values. For a mutable owner, defer through a pointer to the live
 object (`local owner: *StringBuilder = &sb; defer owner.destroy();`) so cleanup
 observes buffer growth and changed fields.
 
-Current limits are material: the HTTP backend is Linux IPv4 without
-keep-alive, HTTP/2, or multipart uploads. Native HTTPS is available through
+Current limits are material: the HTTP backend is Linux IPv4 without HTTP/2;
+keep-alive is opt-in (`app.keepAlive`) and plain-HTTP only, and multipart
+uploads are buffered in memory within the request size limit. Native HTTPS is available through
 `listenTLS` / `listenTLSWorkers`; certificate provisioning and renewal remain external. `listen` is sequential; `listenWorkers`
 provides bounded process concurrency with private worker memory. The optional
 bpl-auth package supplies password/session/CSRF handling; application queries
@@ -62,7 +71,8 @@ not establish parity with mature frameworks or guarantee a bug-free deployment.
 Run package regressions with:
 
 ```bash
-bun test tests/WebPackages.test.ts tests/WebAuthCrypto.test.ts tests/WebWorkerPool.test.ts tests/WebJsonInputLimits.test.ts tests/WebCSVPackage.test.ts tests/WebValidationPackage.test.ts tests/WebMiddlewarePackage.test.ts tests/WebSQLitePackage.test.ts tests/WebCollegeExample.test.ts tests/WebPackageCompilerRegressions.test.ts tests/PackageManifestSchema.test.ts
+bun test tests/WebPackages.test.ts tests/WebAuthCrypto.test.ts tests/WebWorkerPool.test.ts tests/WebJsonInputLimits.test.ts tests/WebCSVPackage.test.ts tests/WebValidationPackage.test.ts tests/WebMiddlewarePackage.test.ts tests/WebSQLitePackage.test.ts tests/WebCollegeExample.test.ts tests/WebPackageCompilerRegressions.test.ts tests/PackageManifestSchema.test.ts tests/WebCookies.test.ts tests/WebKeepAlive.test.ts tests/WebMultipart.test.ts
+bun test tests/JsonPackage.test.ts tests/JsonSchemaPackage.test.ts tests/JwtPackage.test.ts tests/CachePackage.test.ts tests/MetricsPackage.test.ts tests/MarkdownPackage.test.ts tests/LogPackage.test.ts tests/WebSocketPackage.test.ts tests/PackageEcosystem.test.ts
 ```
 
 Socket tests require Linux; SQLite tests skip when the runtime library is absent.

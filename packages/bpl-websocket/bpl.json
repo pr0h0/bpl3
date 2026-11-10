@@ -1,0 +1,11 @@
+{
+  "name": "bpl-websocket",
+  "version": "0.1.0",
+  "description": "RFC 6455 WebSocket server connections for bpl-express",
+  "main": "index.bpl",
+  "license": "MIT",
+  "dependencies": {
+    "bpl-express": "file:../bpl-express/bpl-express-0.1.0.tgz",
+    "bpl-tls": "file:../bpl-tls/bpl-tls-0.1.0.tgz"
+  }
+}

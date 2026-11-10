@@ -1,0 +1,10 @@
+{
+  "name": "bpl-json-schema",
+  "version": "0.1.0",
+  "description": "JSON Schema (draft 2020-12 subset) validation with JSON Pointer error paths",
+  "main": "index.bpl",
+  "license": "MIT",
+  "dependencies": {
+    "bpl-json": "file:../bpl-json/bpl-json-0.1.0.tgz"
+  }
+}

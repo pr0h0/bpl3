@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "name": "bpl-cache",
+  "version": "0.1.0",
+  "archiveFile": "bpl-cache-0.1.0.tgz",
+  "archiveSha256": "6eb5696e0eefe29a9c2fb2441c5ce502339e47bca108743ddad2f06bdc057012",
+  "packageHash": "5520db002e09752ef58c828262e7a2446f95d84eeb5371ac93d57ca31a4f157b",
+  "sizeBytes": 4430,
+  "createdAt": "2026-11-10T12:28:33.525Z",
+  "manifest": {
+    "name": "bpl-cache",
+    "version": "0.1.0",
+    "description": "In-memory LRU cache with per-entry TTL and a byte budget",
+    "main": "index.bpl",
+    "license": "MIT"
+  }
+}

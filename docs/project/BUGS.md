@@ -1066,6 +1066,76 @@ expression as written instead of the wrapper used for the lookup, giving
 pointer receivers were never mapped and read as before.
 `tests/MemberErrorTypeName.test.ts` covers four primitives and a struct.
 
+## Package ecosystem (2026-11-10)
+
+Found while extending `packages/` (new packages bpl-json, bpl-json-schema,
+bpl-jwt, bpl-cache, bpl-metrics, bpl-markdown, bpl-log and bpl-websocket, and
+the bpl-express/bpl-web-middleware/bpl-validation additions).
+
+### BUG-700: The bpl-validation README example did not compile
+
+**Status**: Fixed · **Priority**: P3
+
+The example declared `local page: Option<int>` without using it, which is a
+compile error (unused local). No test compiled package README examples.
+
+**Resolution**: the example uses the value, and
+`tests/PackageEcosystem.test.ts` type-checks every complete README example of
+the new and extended packages.
+
+### BUG-701: TODO.md said bpl-csv parses CSV
+
+**Status**: Fixed · **Priority**: P3
+
+`docs/project/TODO.md` listed "CSV parsing/writing in the bundled `bpl-csv`
+package"; the package only writes CSV (its README says so).
+
+**Resolution**: TODO.md says the package writes CSV and does not parse it.
+
+### BUG-702: A struct with methods allocated with `malloc` crashes on its first method call
+
+**Status**: Open · **Priority**: P3 (developer experience)
+
+A struct that declares methods carries a hidden vtable pointer (R-STRUCT-5),
+and calls through a pointer dispatch through it (R-STRUCT-7). Storage from
+`malloc` leaves the pointer unset, so the first method call jumps through
+garbage:
+
+```bpl
+extern malloc(size: long) ret *void;
+struct Node {
+    value: int,
+    frame get(this: *Node) ret int {
+        return this.value;
+    }
+}
+frame main() ret int {
+    local node: *Node = cast<*Node>(malloc(sizeof<Node>()));
+    node.value = 1;
+    return node.get(); # SIGSEGV at a wild address
+}
+```
+
+Field access works, which makes the failure look unrelated to allocation.
+Packages work around it by building a local value and copying it
+(`local init: Node; ...; *node = init;`), as `lib/arg_parser.bpl`'s
+`alloc_with_vtable` and `packages/bpl-db` do. Calls to methods that are never
+overridden could be dispatched statically, or the language could offer an
+allocation helper that installs the vtable; at least the spec and the memory
+guides should state the rule.
+
+### BUG-703: Calling a method through a null pointer is a bare SIGSEGV
+
+**Status**: Open · **Priority**: P3 (developer experience)
+
+`local node: *Node = nullptr; node.get();` crashes with `SIGSEGV`, address
+`(nil)` and no BPL frame, even when `get` begins with `if (this == nullptr)`,
+because the vtable is read before the call. Field access through a null
+pointer reports the same signal. A null check before virtual dispatch (as for
+array bounds) would turn this into a catchable error naming the method;
+statically dispatching non-overridden methods would also let null-tolerant
+methods work.
+
 ## Language conformance audit (2026-11-10)
 
 Two auditors probed every rule of `docs/LANGUAGE_SPEC.md` and the guides with
@@ -1384,6 +1454,35 @@ when used.
 literals evaluate left to right.
 
 **Resolution**: fields are evaluated as written. R-STRUCT-3. `tests/ConformanceAuditRegressions.test.ts`.
+
+### BUG-549: `is` and `as` on a spec pointer ignored the object's type
+
+**Status**: Fixed · **Priority**: P2
+
+`local sp: *Shape = &circle; sp is Circle` was `false`, and `sp as *Circle`
+treated the `{ data, vtable }` pair as the object, because the type test read
+the first field of the value it was given.
+
+**Resolution**: for a `*Spec` operand, `is` and `as` read the vtable pointer
+of the object the data pointer points at and compare it with the struct's
+vtable; a null spec pointer is no match. tests/SpecPointerValues.test.ts.
+
+### BUG-550: Spec pointers could not be returned or stored
+
+**Status**: Fixed · **Priority**: P2
+
+A `*Spec` lowered to a pointer to a `{ data, vtable }` pair on the stack of
+the converting frame, so returning one, or keeping it in a global, field,
+tuple or generic container, left a dangling pointer, and the checker rejected
+those positions with `BPL_SPEC_POINTER_ESCAPES`.
+
+**Resolution**: a `*Spec` is now the pair itself, held by value like a
+lambda (`sizeof(*Shape)` is 16). The escape check and its code are removed,
+lambda captures no longer special-case spec pointers, `nullptr` converts to
+a pair without a method table, `==`/`!=` compare data pointers, and
+`cast<*void>` extracts the data pointer. A `*Spec` converts to its first
+parent spec chain, whose methods lead its table. A `*Spec` cannot cross an
+`extern` boundary (`BPL_EXTERN_ABI_UNSUPPORTED`). tests/SpecPointerValues.test.ts.
 
 ### BUG-548: Minor declaration diagnostics
 

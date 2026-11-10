@@ -35,15 +35,6 @@ const COMPOUND_BINARY_OPERATORS: Partial<Record<TokenType, TokenType>> = {
 };
 
 export abstract class ExpressionGenerator extends UnaryExpressionGenerator {
-  /** Whether a type is a `*Spec`, which lowers to a pointer to a stack pair. */
-  protected isSpecPointerType(type: AST.TypeNode | undefined): boolean {
-    if (type?.kind !== "BasicType" || type.pointerDepth !== 1) return false;
-    if (type.arrayDimensions.length > 0) return false;
-    return (
-      this.getSpecDeclarationForType({ ...type, pointerDepth: 0 }) !== undefined
-    );
-  }
-
   protected abstract generateBlock(block: AST.BlockStmt): void;
   protected abstract generateThrow(stmt: AST.ThrowStmt): void;
 
@@ -289,15 +280,6 @@ export abstract class ExpressionGenerator extends UnaryExpressionGenerator {
       const layout = new Map<string, number>();
       const fieldTypes: string[] = [];
 
-      // A spec pointer points at a `{ data, vtable }` pair in this frame, so
-      // the context holds the pair itself (see captureInfo.specPair).
-      const specPairs = expr.capturedVariables.map((decl) =>
-        this.isSpecPointerType(
-          (("typeAnnotation" in decl ? decl.typeAnnotation : undefined) ||
-            ("type" in decl ? decl.type : undefined) ||
-            decl.resolvedType)!,
-        ),
-      );
       expr.capturedVariables.forEach((decl, i) => {
         layout.set(decl.name as string, i);
         if ("typeAnnotation" in decl && decl.typeAnnotation) {
@@ -319,9 +301,6 @@ export abstract class ExpressionGenerator extends UnaryExpressionGenerator {
         }
       });
 
-      specPairs.forEach((isPair, i) => {
-        if (isPair) fieldTypes[i] = fieldTypes[i]!.replace(/\*$/, "");
-      });
       this.structLayouts.set(captureStructName, layout);
 
       // Emit struct declaration
@@ -375,12 +354,7 @@ export abstract class ExpressionGenerator extends UnaryExpressionGenerator {
           `  ${fieldPtr} = getelementptr inbounds ${captureStructType}, ${captureStructType}* ${structPtr}, i32 0, i32 ${i}`,
         );
         const fieldType = fieldTypes[i];
-        let stored = val;
-        if (specPairs[i]) {
-          stored = this.newRegister();
-          this.emit(`  ${stored} = load ${fieldType}, ${fieldType}* ${val}`);
-        }
-        this.emit(`  store ${fieldType} ${stored}, ${fieldType}* ${fieldPtr}`);
+        this.emit(`  store ${fieldType} ${val}, ${fieldType}* ${fieldPtr}`);
       });
 
       ctxPtr = mallocReg;

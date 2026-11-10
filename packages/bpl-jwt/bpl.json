@@ -1,0 +1,10 @@
+{
+  "name": "bpl-jwt",
+  "version": "0.1.0",
+  "description": "JSON Web Tokens signed and verified with HS256/HS512",
+  "main": "index.bpl",
+  "license": "MIT",
+  "dependencies": {
+    "bpl-json": "file:../bpl-json/bpl-json-0.1.0.tgz"
+  }
+}

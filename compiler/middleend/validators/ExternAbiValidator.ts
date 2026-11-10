@@ -110,6 +110,9 @@ function isVoidValue(type: AST.TypeNode): boolean {
 
 function isScalarOrPointer(type: AST.TypeNode): boolean {
   if (type.kind !== "BasicType") return false;
+  // `*Spec` is a `{ data, vtable }` pair held by value, not a C pointer.
+  if (type.pointerDepth === 1 && type.resolvedDeclaration?.kind === "SpecDecl")
+    return false;
   if (type.pointerDepth > 0) {
     return (
       type.isPointerToArray === true ||
@@ -159,6 +162,14 @@ function cCompatibilityProblem(
   }
   if (type.arrayDimensions.includes(null)) {
     return "slice fields (pass a pointer and length separately)";
+  }
+  // `*Spec` is a `{ data, vtable }` pair held by value, not a C pointer.
+  if (
+    type.pointerDepth === 1 &&
+    resolveDeclaration({ ...type, pointerDepth: 0 }, resolve)?.kind ===
+      "SpecDecl"
+  ) {
+    return `spec pointer '*${type.name}' (pass the implementing struct's pointer)`;
   }
   if (type.pointerDepth > 0) return undefined;
   if (type.arrayDimensions.length > 0) {

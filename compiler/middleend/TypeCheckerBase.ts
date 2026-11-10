@@ -51,7 +51,6 @@ export const INCREMENT_OPERAND_TYPE_MISMATCH_CODE =
   "BPL_INCREMENT_OPERAND_TYPE_MISMATCH";
 export const GENERIC_ARITY_MISMATCH_CODE = "BPL_GENERIC_ARITY_MISMATCH";
 export const TYPE_NOT_FOUND_CODE = "BPL_TYPE_NOT_FOUND";
-export const SPEC_POINTER_ESCAPES_CODE = "BPL_SPEC_POINTER_ESCAPES";
 export const CAPTURED_VALUE_ASSIGNED_CODE = "BPL_CAPTURED_VALUE_ASSIGNED";
 export const AUTO_DESTROY_ENUM_PAYLOAD_CODE = "BPL_AUTO_DESTROY_ENUM_PAYLOAD";
 export const OWNING_VALUE_COPIED_CODE = "BPL_OWNING_VALUE_COPIED";
@@ -2364,6 +2363,32 @@ export abstract class TypeCheckerBase {
       }
     }
 
+    // A `*Spec` lists its first parent's methods first in its method table,
+    // so it converts to that parent, and to the parent's first parent, as is
+    // (R-SPEC-4). Other parents would need a different table.
+    if (childSymbol.kind === "Spec") {
+      const seen = new Set<AST.SpecDecl>();
+      let spec = childSymbol.declaration as AST.SpecDecl;
+      while (!seen.has(spec)) {
+        seen.add(spec);
+        const first = spec.extends?.[0];
+        if (!first || first.kind !== "BasicType") return false;
+        const resolved = this.resolveType(first, false);
+        if (resolved.kind !== "BasicType") return false;
+        if (
+          resolved.name === parent.name &&
+          !haveDistinctNominalDeclarations(resolved, parent)
+        )
+          return true;
+        const next =
+          recordedDeclarationSymbol(resolved) ??
+          this.currentScope.resolve(resolved.name);
+        if (next?.kind !== "Spec") return false;
+        spec = next.declaration as AST.SpecDecl;
+      }
+      return false;
+    }
+
     if (childSymbol.kind !== "Struct") return false;
 
     // Check implicit inheritance from Type
@@ -2479,11 +2504,7 @@ export abstract class TypeCheckerBase {
     }
   }
 
-  /**
-   * A `*Spec` value points at a method table built where the conversion
-   * happens, which lives in that frame. Storing one somewhere that outlives
-   * the frame would leave a dangling pointer, so those positions are rejected.
-   */
+  /** Whether `type` is `*Spec`, which holds `{ data, vtable }` by value. */
   public isSpecPointerType(type: AST.TypeNode | undefined): boolean {
     if (!type || type.kind !== "BasicType" || type.pointerDepth < 1) {
       return false;
@@ -2492,44 +2513,6 @@ export abstract class TypeCheckerBase {
       type.resolvedDeclaration ??
       this.currentScope.resolve(type.name)?.declaration;
     return declaration?.kind === "SpecDecl";
-  }
-
-  /**
-   * A `*Spec` anywhere a value holds it: directly, in a tuple element, or as
-   * a generic argument, which a field of the instantiated struct stores.
-   */
-  private containsSpecPointer(
-    type: AST.TypeNode | undefined,
-    seen = new Set<AST.TypeNode>(),
-  ): boolean {
-    if (!type || seen.has(type)) return false;
-    seen.add(type);
-    if (this.isSpecPointerType(type)) return true;
-    if (type.kind === "TupleType")
-      return type.types.some((element) =>
-        this.containsSpecPointer(element, seen),
-      );
-    if (type.kind === "BasicType")
-      return type.genericArgs.some((argument) =>
-        this.containsSpecPointer(argument, seen),
-      );
-    return false;
-  }
-
-  public rejectEscapingSpecPointer(
-    type: AST.TypeNode | undefined,
-    position: string,
-    location: AST.ASTNode["location"],
-  ): void {
-    if (!this.containsSpecPointer(type)) return;
-    this.addError(
-      new CompilerError(
-        `A spec pointer cannot be used as ${position}`,
-        "A spec pointer refers to a method table created in the current frame. Pass it as a parameter, or keep it in a local or a local array.",
-        location,
-        SPEC_POINTER_ESCAPES_CODE,
-      ),
-    );
   }
 
   public resolveMemberWithContext(

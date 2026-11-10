@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "name": "bpl-json-schema",
+  "version": "0.1.0",
+  "archiveFile": "bpl-json-schema-0.1.0.tgz",
+  "archiveSha256": "7ac9f954c9c68691050a7082385d4c0896dd5d4c3056687d6b24cc213a8a6b56",
+  "packageHash": "1366072e003f24977de493f6a5d291b4fc1ea446ddafe1c6bca928b517963441",
+  "sizeBytes": 10473,
+  "createdAt": "2026-11-10T12:22:58.117Z",
+  "manifest": {
+    "name": "bpl-json-schema",
+    "version": "0.1.0",
+    "description": "JSON Schema (draft 2020-12 subset) validation with JSON Pointer error paths",
+    "main": "index.bpl",
+    "license": "MIT",
+    "dependencies": {
+      "bpl-json": "file:../bpl-json/bpl-json-0.1.0.tgz"
+    }
+  }
+}
