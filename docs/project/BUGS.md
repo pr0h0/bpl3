@@ -944,6 +944,76 @@ expression as written instead of the wrapper used for the lookup, giving
 pointer receivers were never mapped and read as before.
 `tests/MemberErrorTypeName.test.ts` covers four primitives and a struct.
 
+## Package ecosystem (2026-11-10)
+
+Found while extending `packages/` (new packages bpl-json, bpl-json-schema,
+bpl-jwt, bpl-cache, bpl-metrics, bpl-markdown, bpl-log and bpl-websocket, and
+the bpl-express/bpl-web-middleware/bpl-validation additions).
+
+### BUG-700: The bpl-validation README example did not compile
+
+**Status**: Fixed · **Priority**: P3
+
+The example declared `local page: Option<int>` without using it, which is a
+compile error (unused local). No test compiled package README examples.
+
+**Resolution**: the example uses the value, and
+`tests/PackageEcosystem.test.ts` type-checks every complete README example of
+the new and extended packages.
+
+### BUG-701: TODO.md said bpl-csv parses CSV
+
+**Status**: Fixed · **Priority**: P3
+
+`docs/project/TODO.md` listed "CSV parsing/writing in the bundled `bpl-csv`
+package"; the package only writes CSV (its README says so).
+
+**Resolution**: TODO.md says the package writes CSV and does not parse it.
+
+### BUG-702: A struct with methods allocated with `malloc` crashes on its first method call
+
+**Status**: Open · **Priority**: P3 (developer experience)
+
+A struct that declares methods carries a hidden vtable pointer (R-STRUCT-5),
+and calls through a pointer dispatch through it (R-STRUCT-7). Storage from
+`malloc` leaves the pointer unset, so the first method call jumps through
+garbage:
+
+```bpl
+extern malloc(size: long) ret *void;
+struct Node {
+    value: int,
+    frame get(this: *Node) ret int {
+        return this.value;
+    }
+}
+frame main() ret int {
+    local node: *Node = cast<*Node>(malloc(sizeof<Node>()));
+    node.value = 1;
+    return node.get(); # SIGSEGV at a wild address
+}
+```
+
+Field access works, which makes the failure look unrelated to allocation.
+Packages work around it by building a local value and copying it
+(`local init: Node; ...; *node = init;`), as `lib/arg_parser.bpl`'s
+`alloc_with_vtable` and `packages/bpl-db` do. Calls to methods that are never
+overridden could be dispatched statically, or the language could offer an
+allocation helper that installs the vtable; at least the spec and the memory
+guides should state the rule.
+
+### BUG-703: Calling a method through a null pointer is a bare SIGSEGV
+
+**Status**: Open · **Priority**: P3 (developer experience)
+
+`local node: *Node = nullptr; node.get();` crashes with `SIGSEGV`, address
+`(nil)` and no BPL frame, even when `get` begins with `if (this == nullptr)`,
+because the vtable is read before the call. Field access through a null
+pointer reports the same signal. A null check before virtual dispatch (as for
+array bounds) would turn this into a catchable error naming the method;
+statically dispatching non-overridden methods would also let null-tolerant
+methods work.
+
 ## Language conformance audit (2026-11-10)
 
 Two auditors probed every rule of `docs/LANGUAGE_SPEC.md` and the guides with
