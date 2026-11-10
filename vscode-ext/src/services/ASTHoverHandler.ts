@@ -102,7 +102,6 @@ export class ASTHoverHandler {
           return this.handlePatternEnum(
             node as
               AST.PatternEnum | AST.PatternEnumTuple | AST.PatternEnumStruct,
-            filePath,
             params.position.line,
             params.position.character,
           );
@@ -1241,7 +1240,6 @@ export class ASTHoverHandler {
    */
   private handlePatternEnum(
     node: AST.PatternEnum | AST.PatternEnumTuple | AST.PatternEnumStruct,
-    filePath: string,
     line: number,
     character: number,
   ): Hover | null {

@@ -47,7 +47,7 @@ Import every exported symbol under a namespace:
 import * as math from "./math.bpl";
 ```
 
-Import a module for side effects:
+Import every exported name of a module (R-MOD-6):
 
 ```bpl
 import "std/errors.bpl";

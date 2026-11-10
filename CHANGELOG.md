@@ -12,6 +12,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   `"\xF0"` is one byte, not the two-byte UTF-8 encoding of U+00F0, so strings
   can hold any byte sequence. `\uHHHH` still encodes the character as UTF-8.
   Character literals accept `'\xHH'` and, up to `\u007F`, `'\uHHHH'`.
+- The stdlib fuzz lane checks `std/hash` (FNV-1a, CRC-32, Adler-32) and
+  `std/otp` against reference models and puts `f32` fields in reflected
+  structs. The language-server fuzzer checks that the call hierarchy is
+  symmetric and that the unused-variable and typo quick fixes keep a program's
+  output. TypeScript's `noUnusedParameters` is enabled.
+- The guides now match the compiler: postfix `++`/`--`, chained assignment and
+  `p.x` through a pointer work, `is` matches the exact type, a branch may be a
+  single statement, out-of-bounds indexing throws `IndexOutOfBoundsError`, and
+  the precedence table lists `is`/`as` and the conditional operator.
 - The generated-program fuzzer covers operator methods on structs, tuple
   assignment and swaps, methods bound to lambdas including value receivers,
   a generic enum, arrays of structs, and byte reads of strings holding escapes,
@@ -63,6 +72,49 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Fixed
 
+- Found by a language conformance audit (2026-11-10):
+  - On an integer `switch`, a case value must fit the subject's type, and
+    `case 'a':` duplicates `case 97:`; both used to pass `bpl check` and fail
+    in clang (BUG-518). `fallthrough` in the last case is an error (BUG-528).
+  - `bpl check` names an import cycle, including a self-import, instead of
+    reporting a missing export (BUG-519).
+  - Inline `intel`/`att` asm operands can name globals, including imported
+    ones (BUG-520); an output operand cannot name a constant (BUG-521).
+  - `(a, b) = ...` on captured variables in a lambda or `defer` is rejected
+    like `a = ...` (BUG-522), and `%=` on floating-point values like `%`
+    (BUG-523).
+  - `bpl check` rejects a by-value extern of a struct another struct inherits
+    from, as `bpl build` does (BUG-524).
+  - `-l` libraries follow the program on the link line, so static archives
+    link (BUG-525).
+  - `bpl bindgen` keeps C enum values: an enum not numbered 0, 1, 2, ...
+    becomes an `int` alias with one constant per enumerator, instead of a BPL
+    enum passing the wrong values. Consecutive plain enums are all translated,
+    and the output exports every declaration (BUG-526).
+  - A tuple `match` arm covered by an earlier arm, such as `(0, 0)` after
+    `(x, y)`, is rejected as unreachable (BUG-527).
+  - `bpl lint --fix` keeps comments inside a rewritten import and leaves no
+    stray indentation where it removes one of two imports on a line (BUG-529).
+  - `JSON.stringify<T>` and `JSON.parse<T>` support `f32` fields, which were
+    `null` and a parse error (BUG-531).
+  - A `*Spec` inside a returned tuple or generic argument is
+    `BPL_SPEC_POINTER_ESCAPES`, and a lambda keeps its own copy of a captured
+    `*Spec`; both used to crash (BUG-532). Capturing an `@[auto_destroy]`
+    value in a lambda is `BPL_OWNING_VALUE_COPIED` (BUG-533).
+  - `local x: T` and `local a: T[2]` in a generic function run `T`'s implicit
+    constructor and set its vtables, and a zeroed owning local keeps zero
+    fields at -O2 (BUG-534, BUG-535).
+  - A struct implementing `spec Fancy : Named` must implement `Named` too,
+    `Named`'s methods can be called through `*Fancy` and `T: Fancy`, and
+    specs extending each other are an error (BUG-536). A spec method using
+    `Self` beyond its receiver cannot be called through a `*Spec` (BUG-537).
+  - `arr + n` on a fixed array is an error instead of invalid IR, `ptr is T`
+    on a null pointer is false instead of a crash, and a constant array no
+    longer converts to a writable pointer or slice (BUG-538 to BUG-540).
+  - `sizeof(int[5])` and `sizeof(*int)` work, an unknown generic constraint
+    is reported at its declaration, a child struct cannot reuse an inherited
+    field's name, mutually recursive aliases are reported, and struct literal
+    fields are evaluated as written (BUG-541, BUG-542, BUG-545 to BUG-547).
 - A type name used as a value, `~` on an array, and a method whose `this` has
   an unrelated type are compile errors instead of invalid IR (BUG-493, BUG-494,
   BUG-495). The last reports `BPL_METHOD_RECEIVER_TYPE_MISMATCH`.

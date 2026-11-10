@@ -223,6 +223,10 @@ Different types are converted to strings in different ways:
 | `bool`   | Converts to `"true"` or `"false"` |
 | `char`   | Single character string           |
 
+`i8` and `u8` are the same types as `char` and `uchar` (R-TYPE-4), so they
+interpolate as characters too; cast to `int` for the number. An `f32` has no
+wrapper and is rejected; write `${cast<float>(value)}`.
+
 ```bpl
 import [String] from "std";
 extern printf(fmt: string, ...);

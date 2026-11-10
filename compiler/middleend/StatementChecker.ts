@@ -16,6 +16,7 @@ import type { Symbol, SymbolTable } from "./SymbolTable";
 import { CaptureAnalyzer } from "./CaptureAnalyzer";
 import { evaluateConstantInitializer } from "../common/ConstantInitializer";
 import {
+  ASSIGNMENT_TARGET_CONSTANT_CODE,
   CAPTURED_VALUE_ASSIGNED_CODE,
   BREAK_OUTSIDE_CONTEXT_CODE,
   CONDITION_TYPE_MISMATCH_CODE,
@@ -1090,6 +1091,12 @@ export function checkSwitch(this: CheckerContext, stmt: AST.SwitchStmt): void {
     }
 
     const seenValues = new Set<string>();
+    // An integer subject compares labels as values of its own type: `case 300`
+    // cannot match a `u8`, and `case 'a'` is `case 97`.
+    const integerSubject =
+      valueType && TypeUtils.isIntegerType(this.resolveType(valueType))
+        ? this.resolveType(valueType)
+        : undefined;
 
     for (const caseItem of stmt.cases) {
       // As written, for messages: `E.A` rather than its index `0`.
@@ -1114,6 +1121,9 @@ export function checkSwitch(this: CheckerContext, stmt: AST.SwitchStmt): void {
           SWITCH_CASE_TYPE_MISMATCH_CODE,
         );
       }
+
+      if (integerSubject)
+        this.checkIntegerConstantRange(caseItem.value, integerSubject);
 
       // Check for duplicate cases
       // We need to evaluate the constant value of the case expression
@@ -1164,9 +1174,25 @@ export function checkSwitch(this: CheckerContext, stmt: AST.SwitchStmt): void {
         );
       }
       if (valStr !== undefined) {
+        const shownLabel = valStr.replace(/^char:/, "");
+        // Two spellings of one value are duplicates: `'a'` and `97`, `-1`
+        // and `255` on a `u8`.
+        if (integerSubject) {
+          const literal = caseItem.value as AST.LiteralExpr;
+          const numeric =
+            constVal ??
+            (caseItem.value.kind === "Literal" && literal.type === "char"
+              ? BigInt(String(literal.value).charCodeAt(0))
+              : undefined);
+          if (numeric !== undefined)
+            valStr = BigInt.asUintN(
+              8 * TypeUtils.getIntegerSize(integerSubject),
+              numeric,
+            ).toString();
+        }
         if (seenValues.has(valStr)) {
           throw new CompilerError(
-            `Duplicate case value '${writtenLabel ?? valStr.replace(/^char:/, "")}'`,
+            `Duplicate case value '${writtenLabel ?? shownLabel}'`,
             "Switch cases must have unique values.",
             caseItem.value.location,
           );
@@ -1195,9 +1221,48 @@ export function checkSwitch(this: CheckerContext, stmt: AST.SwitchStmt): void {
         );
       }
     }
+
+    // The last body has no next case for `fallthrough` to continue with.
+    const lastBody = stmt.defaultCase ?? stmt.cases.at(-1)?.body;
+    const stray = lastBody && findFallthrough(lastBody);
+    if (stray) {
+      throw new CompilerError(
+        "'fallthrough' in the last case of a switch has no next case",
+        "Use 'break' to leave the switch.",
+        stray.location,
+        FALLTHROUGH_OUTSIDE_SWITCH_CODE,
+      );
+    }
   } finally {
     this.switchDepth--;
   }
+}
+
+/** A `fallthrough` of this switch body, not of a nested switch or function. */
+function findFallthrough(node: unknown): AST.FallthroughStmt | undefined {
+  if (!node || typeof node !== "object") return undefined;
+  if (Array.isArray(node)) {
+    for (const item of node) {
+      const found = findFallthrough(item);
+      if (found) return found;
+    }
+    return undefined;
+  }
+  const kind = (node as { kind?: unknown }).kind;
+  if (kind === "Fallthrough") return node as AST.FallthroughStmt;
+  if (
+    kind === "Switch" ||
+    kind === "LambdaExpression" ||
+    kind === "FunctionDecl"
+  )
+    return undefined;
+  for (const [key, value] of Object.entries(node)) {
+    // Checker annotations link to declarations elsewhere in the program.
+    if (key === "location" || /^resolved|declaration/i.test(key)) continue;
+    const found = findFallthrough(value);
+    if (found) return found;
+  }
+  return undefined;
 }
 
 /**
@@ -1760,14 +1825,42 @@ export function checkAsm(this: CheckerContext, stmt: AST.AsmBlockStmt): void {
   const regex = /\((=?)(&?)(\w+)(?::\s*"([^"]+)")?\)/g;
   let match;
   while ((match = regex.exec(stmt.content)) !== null) {
-    const varName = match[3];
-    const symbol = this.currentScope.resolve(varName!);
+    const varName = match[3]!;
+    const symbol = this.currentScope.resolve(varName);
     if (!symbol) {
       throw new CompilerError(
         `Undefined variable '${varName}' in asm block`,
         "Variables used in asm blocks must be defined in the current scope.",
         stmt.location,
       );
+    }
+    const declaration = symbol.declaration as AST.VariableDecl;
+    const isConst =
+      symbol.isConst ||
+      (declaration.kind === "VariableDecl" && declaration.isConst);
+    // An output operand is stored back after the block, like an assignment.
+    if (isConst && match[1] === "=") {
+      throw new CompilerError(
+        `Cannot assign to constant '${varName}'`,
+        "Constants cannot be modified, including by an asm output operand.",
+        stmt.location,
+        ASSIGNMENT_TARGET_CONSTANT_CODE,
+      );
+    }
+    if (
+      declaration.kind === "VariableDecl" &&
+      declaration.isGlobal &&
+      typeof declaration.name === "string"
+    ) {
+      const type = declaration.typeAnnotation ?? declaration.resolvedType;
+      if (type) {
+        stmt.globalOperands ??= {};
+        stmt.globalOperands[varName] = {
+          name: declaration.name,
+          type,
+          isConst: declaration.isConst === true,
+        };
+      }
     }
   }
 }

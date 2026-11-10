@@ -1,11 +1,13 @@
 /**
  * Random programs that exercise the standard library against exact models:
  * JavaScript strings, arrays, maps, sets, dates, JSON and regular expressions,
- * arbitrary-precision BigInt, and Node's codecs, hashes and POSIX paths. Each block of operations prints what it
+ * arbitrary-precision BigInt, and Node's codecs, hashes, checksums, one-time
+ * passwords and POSIX paths. Each block of operations prints what it
  * observes, so the first differing line names the failing operation.
  */
 import { createHash, createHmac } from "crypto";
 import { posix } from "path";
+import { crc32 } from "zlib";
 
 import { EXPECT_MARKER, type GeneratedProgram } from "./programGenerator";
 
@@ -984,6 +986,76 @@ export function generateStdlibProgram(rng: () => number): GeneratedProgram {
     };
   };
 
+  /** `std/hash` checksums and `std/otp` codes against FNV-1a, zlib and RFC 4226. */
+  const checksumBlock = (): Block => {
+    const code: string[] = [];
+    const output: string[] = [];
+    const bytes = (value: string) => Buffer.from(value, "latin1");
+    const fnv32 = (value: string) =>
+      bytes(value).reduce(
+        (hash, byte) => Math.imul(hash ^ byte, 16777619) >>> 0,
+        2166136261,
+      );
+    const fnv64 = (value: string) =>
+      bytes(value).reduce(
+        (hash, byte) =>
+          ((hash ^ BigInt(byte)) * 1099511628211n) & 0xffffffffffffffffn,
+        14695981039346656037n,
+      );
+    const adler32 = (value: string) => {
+      let [a, b] = [1, 0];
+      for (const byte of bytes(value)) {
+        a = (a + byte) % 65521;
+        b = (b + a) % 65521;
+      }
+      return b * 65536 + a;
+    };
+    for (let index = int(2, 5); index > 0; index--) {
+      const message = text('abcXYZ019 -_"', 40);
+      const split = int(0, message.length);
+      const text0 = literal(message);
+      const tail = literal(message.slice(split));
+      code.push(
+        `printf("fnv=%u %lu sum=%u\\n", Hash.fnv1a32(${text0}), Hash.fnv1a64(${text0}), Hash.checksum32(${text0}));`,
+        `printf("crc=%u %u adler=%u\\n", Hash.crc32String(${text0}), Hash.crc32Update(Hash.crc32(cast<*u8>(${text0}), ${split}), cast<*u8>(${tail}), ${message.length - split}), Hash.adler32(cast<*u8>(${text0}), ${message.length}));`,
+      );
+      const crc = crc32(bytes(message)) >>> 0;
+      output.push(
+        `fnv=${fnv32(message)} ${fnv64(message)} sum=${bytes(message).reduce((a, b) => a + b, 0)}`,
+        `crc=${crc} ${crc} adler=${adler32(message)}`,
+      );
+    }
+    const [left, right] = [int(0, 0xffffffff), int(0, 0xffffffff)];
+    code.push(`printf("combine=%u\\n", Hash.combine32(${left}, ${right}));`);
+    output.push(
+      `combine=${(left ^ ((right + 2654435769 + ((left << 6) >>> 0) + (left >>> 2)) >>> 0)) >>> 0}`,
+    );
+    const key = text("abcXYZ019 -_", 70) || "k";
+    for (let index = int(1, 3); index > 0; index--) {
+      const counter = pick([0, 1, int(0, 1 << 30), int(0, 2 ** 40)]);
+      const digits = int(5, 10);
+      code.push(
+        `printf("hotp=%d\\n", Otp.hotp(cast<*u8>(${literal(key)}), ${key.length}, ${counter}, ${digits}));`,
+      );
+      const message = Buffer.alloc(8);
+      message.writeBigUInt64BE(BigInt(counter));
+      const mac = createHmac("sha1", key).update(message).digest();
+      const offset = mac[19]! & 0x0f;
+      const value = mac.readUInt32BE(offset) & 0x7fffffff;
+      output.push(
+        `hotp=${digits < 6 || digits > 9 ? -1 : value % 10 ** digits}`,
+      );
+    }
+    return {
+      imports: [
+        'import [Hash] from "std/hash.bpl";',
+        'import [Otp] from "std/otp.bpl";',
+      ],
+      code,
+      output,
+    };
+  };
+
   const pathBlock = (): Block => {
     const code: string[] = [];
     const output: string[] = [];
@@ -1802,6 +1874,17 @@ export function generateStdlibProgram(rng: () => number): GeneratedProgram {
             align: 8,
           };
         },
+        () => {
+          // Sixteenths are exact in binary32; JSON prints them with "%.9g".
+          const value = (int(-800, 800) * 2 + 1) / 16;
+          return {
+            type: "f32",
+            expr: `cast<f32>(${value})`,
+            json: String(Number(value.toPrecision(9))),
+            size: 4,
+            align: 4,
+          };
+        },
         stringField,
       ])();
     const field = (depth: number): Reflected => {
@@ -2002,6 +2085,7 @@ export function generateStdlibProgram(rng: () => number): GeneratedProgram {
     bitsBlock,
     parseBlock,
     hashBlock,
+    checksumBlock,
     pathBlock,
     urlBlock,
     utf8Block,

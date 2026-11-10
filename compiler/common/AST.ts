@@ -623,6 +623,14 @@ export interface AsmBlockStmt extends ASTNode {
   content: string;
   flavor?: string;
   clobbers?: string[];
+  /**
+   * Set by the checker for operands naming a global: its linker name, type
+   * and constness, keyed by the name as written.
+   */
+  globalOperands?: Record<
+    string,
+    { name: string; type: TypeNode; isConst: boolean }
+  >;
 }
 
 export interface TryStmt extends ASTNode {

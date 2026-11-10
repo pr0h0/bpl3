@@ -20,7 +20,7 @@ export class DocumentSymbolProvider {
    * Handle document symbol request
    */
   handle(
-    params: DocumentSymbolParams,
+    _params: DocumentSymbolParams,
     document: TextDocument,
   ): DocumentSymbol[] | null {
     const filePath = fileURLToPath(document.uri);

@@ -85,6 +85,11 @@ frame main() ret int {
         code: "BPL_MODULO_OPERAND_TYPE_MISMATCH",
       },
       {
+        name: "float-modulo-assignment",
+        source: main('local f: double = 5.5; f %= 2.0; printf("%f", f);'),
+        code: "BPL_MODULO_OPERAND_TYPE_MISMATCH",
+      },
+      {
         name: "integer-logical",
         source: main(
           'local a: int = 1; local b: bool = a && true; printf("%d", b);',
@@ -233,6 +238,17 @@ frame main() ret int {
   local f: Lambda<void>() = || { k++; };
   f();
   return k;
+}`,
+        code: "BPL_CAPTURED_VALUE_ASSIGNED",
+      },
+      {
+        name: "lambda-tuple-assign-capture",
+        source: `frame main() ret int {
+  local k: int = 1;
+  local j: int = 1;
+  local f: Lambda<void>() = || { (k, j) = (7, 8); };
+  f();
+  return k + j;
 }`,
         code: "BPL_CAPTURED_VALUE_ASSIGNED",
       },

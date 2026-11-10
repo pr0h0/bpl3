@@ -28,7 +28,7 @@ function safeStringify(obj: any): string {
   const seen = new WeakSet();
   return JSON.stringify(
     obj,
-    (key, value) => {
+    (_key, value) => {
       if (typeof value === "bigint") {
         return value.toString();
       }

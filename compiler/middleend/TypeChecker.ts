@@ -27,6 +27,7 @@ import {
   ASSIGNMENT_TYPE_MISMATCH_CODE,
   BITWISE_OPERAND_TYPE_MISMATCH_CODE,
   CALL_ARGUMENT_TYPE_MISMATCH_CODE,
+  MODULO_OPERAND_TYPE_MISMATCH_CODE,
   BUILTIN_TYPE_REDEFINITION_CODE,
   ENUM_VARIANT_FIELD_TYPE_MISMATCH_CODE,
   ENUM_VARIANT_FIELD_UNKNOWN_CODE,
@@ -38,6 +39,7 @@ import {
   RESERVED_BUILTIN_TYPE_NAMES,
   SYMBOL_ALREADY_DEFINED_CODE,
   TUPLE_DESTRUCTURE_TARGET_INVALID_CODE,
+  TYPE_NOT_FOUND_CODE,
   TYPE_RECURSION_CYCLE_CODE,
   TypeCheckerBase,
   resolveQualifiedTypeSymbol,
@@ -347,6 +349,10 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
   private importHandler: ImportHandler;
   private overloadResolver: OverloadResolver;
   private implicitPrimitiveWrappersLoaded = false;
+  /** Names of structs that another struct lists as its parent. */
+  private readonly inheritedNames = new Set<string>();
+  /** Externs awaiting the whole-program parent-struct check. */
+  private readonly checkedExterns: AST.ExternDecl[] = [];
   private implicitPrimitiveWrappersLoading = false;
   public matchContext: {
     expectedType?: AST.TypeNode;
@@ -506,6 +512,21 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
       this.addError(error),
     );
 
+    // A struct gains a vtable when any struct in the program inherits from
+    // it, so by-value externs are checked again once every struct is known.
+    for (const extern of this.checkedExterns.splice(0)) {
+      try {
+        validateExternSignature(
+          extern,
+          (type) => this.resolveType(type),
+          this.inheritedNames,
+        );
+      } catch (e) {
+        if (e instanceof CompilerError) this.addError(e);
+        else throw e;
+      }
+    }
+
     // Generic enum payloads are checked once the arguments of every use are
     // known, which the declaration alone cannot show.
     this.checkRecordedEnumInstantiations();
@@ -603,6 +624,9 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
   public hoistDeclaration(stmt: AST.Statement): void {
     switch (stmt.kind) {
       case "StructDecl":
+        for (const parent of stmt.inheritanceList) {
+          if (parent.kind === "BasicType") this.inheritedNames.add(parent.name);
+        }
         this.ensureNotBuiltinTypeRedefinition(stmt.name, stmt.location);
         const structType: AST.TypeNode = {
           kind: "MetaType",
@@ -814,6 +838,7 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
         break;
       case "Extern":
         validateExternSignature(stmt, (type) => this.resolveType(type));
+        this.checkedExterns.push(stmt);
         break;
     }
   }
@@ -1127,6 +1152,7 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
       );
     }
 
+    this.checkGenericConstraints(decl.genericParams, decl.location);
     this.checkFunctionAttributes(decl, parentStruct);
 
     // Validate signature names before value parameters can shadow type names.
@@ -1314,7 +1340,10 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
     structDecl: AST.StructDecl,
     specDecl: AST.SpecDecl,
     specType: AST.BasicTypeNode,
+    visited = new Set<AST.SpecDecl>(),
   ): void {
+    if (visited.has(specDecl)) return;
+    visited.add(specDecl);
     const genericMap = new Map<string, AST.TypeNode>();
     if (specDecl.genericParams.length > 0 && specType.genericArgs.length > 0) {
       for (let i = 0; i < specDecl.genericParams.length; i++) {
@@ -1408,6 +1437,25 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
           );
         }
       }
+    }
+
+    // Implementing a spec implements the specs it extends.
+    for (const parent of specDecl.extends) {
+      if (parent.kind !== "BasicType") continue;
+      const parentType =
+        genericMap.size > 0
+          ? (this.substituteType(parent, genericMap) as AST.BasicTypeNode)
+          : parent;
+      const parentDecl =
+        parent.resolvedDeclaration ??
+        this.currentScope.resolve(parent.name)?.declaration;
+      if (parentDecl?.kind === "SpecDecl")
+        this.checkSpecImplementation(
+          structDecl,
+          parentDecl as AST.SpecDecl,
+          parentType,
+          visited,
+        );
     }
   }
 
@@ -1815,6 +1863,75 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
     }
   }
 
+  /** A constraint (`<T: Shape>`) must name a declared spec or type. */
+  private checkGenericConstraints(
+    params: readonly AST.GenericParam[],
+    location: AST.ASTNode["location"],
+  ): void {
+    for (const param of params) {
+      const constraint = param.constraint;
+      if (constraint?.kind !== "BasicType") continue;
+      if (!this.currentScope.resolve(constraint.name)) {
+        this.addError(
+          new CompilerError(
+            `Unknown constraint '${constraint.name}' on generic parameter '${param.name}'`,
+            "A constraint names a spec the type argument must implement, or a type it must match.",
+            constraint.location ?? location,
+            TYPE_NOT_FOUND_CODE,
+          ),
+        );
+      }
+    }
+  }
+
+  /**
+   * A child's field cannot reuse a name its ancestors declare, and a child
+   * method cannot reuse an inherited field's name: either would leave two
+   * members behind one name. A method may override an inherited method.
+   */
+  private checkInheritedMemberNames(decl: AST.StructDecl): void {
+    const inherited = new Map<string, { kind: string; owner: string }>();
+    const visited = new Set<AST.StructDecl>([decl]);
+    let parent = this.parentStructOf(decl);
+    while (parent && !visited.has(parent)) {
+      visited.add(parent);
+      for (const member of parent.members) {
+        if (!inherited.has(member.name))
+          inherited.set(member.name, {
+            kind: member.kind === "FunctionDecl" ? "method" : "field",
+            owner: parent.name,
+          });
+      }
+      parent = this.parentStructOf(parent);
+    }
+    for (const member of decl.members) {
+      const previous = inherited.get(member.name);
+      if (!previous) continue;
+      const kind = member.kind === "FunctionDecl" ? "method" : "field";
+      if (kind === "method" && previous.kind === "method") continue;
+      this.addError(
+        new CompilerError(
+          `${kind === "field" ? "Field" : "Method"} '${member.name}' of struct '${decl.name}' reuses the name of a ${previous.kind} inherited from '${previous.owner}'`,
+          "Rename it; a child struct cannot hide an inherited member.",
+          member.location ?? decl.location,
+          SYMBOL_ALREADY_DEFINED_CODE,
+        ),
+      );
+    }
+  }
+
+  private parentStructOf(decl: AST.StructDecl): AST.StructDecl | undefined {
+    for (const parent of decl.inheritanceList) {
+      if (parent.kind !== "BasicType") continue;
+      const declaration =
+        parent.resolvedDeclaration ??
+        this.currentScope.resolve(parent.name)?.declaration;
+      if (declaration?.kind === "StructDecl")
+        return declaration as AST.StructDecl;
+    }
+    return undefined;
+  }
+
   private checkStructBodyInScope(decl: AST.StructDecl): void {
     this.currentScope = this.currentScope.enterScope();
 
@@ -1875,6 +1992,8 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
         fieldNames.add(member.name);
       }
     }
+
+    this.checkInheritedMemberNames(decl);
 
     // Check for infinite size cycles in struct fields
     this.detectValueCycle(decl);
@@ -2230,6 +2349,35 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
   // ========== Spec Body Checking ==========
 
   private checkSpecBody(decl: AST.SpecDecl): void {
+    // `spec A : B` and `spec B : A` would each require the other's methods.
+    // Naming itself directly is reported where parents are resolved.
+    const pending = decl.extends.filter(
+      (parent) => parent.kind !== "BasicType" || parent.name !== decl.name,
+    );
+    const seen = new Set<AST.SpecDecl>();
+    while (pending.length > 0) {
+      const parent = pending.pop()!;
+      if (parent.kind !== "BasicType") continue;
+      const parentDecl =
+        parent.resolvedDeclaration ??
+        this.currentScope.resolve(parent.name)?.declaration;
+      if (
+        parentDecl?.kind !== "SpecDecl" ||
+        seen.has(parentDecl as AST.SpecDecl)
+      )
+        continue;
+      if (parentDecl === decl) {
+        throw new CompilerError(
+          `Spec '${decl.name}' cannot extend itself`,
+          "Remove the cycle from the specs' extends lists.",
+          decl.location,
+          TYPE_RECURSION_CYCLE_CODE,
+        );
+      }
+      seen.add(parentDecl as AST.SpecDecl);
+      pending.push(...(parentDecl as AST.SpecDecl).extends);
+    }
+
     // Spec dispatch (vtable slots, thunks, conformance) is keyed by method
     // name, so overloads would silently share or collide (BUG-470).
     const seenMethods = new Set<string>();
@@ -2423,6 +2571,32 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
 
   private checkTypeAlias(decl: AST.TypeAliasDecl): void {
     this.ensureNotBuiltinTypeRedefinition(decl.name, decl.location);
+
+    // `type A = B; type B = A;` names no type. Hoisting resolves `A` before
+    // `B` exists, so the chain of plain renames is followed here.
+    const chain = [decl.name];
+    let target: AST.TypeNode = decl.type;
+    while (
+      target.kind === "BasicType" &&
+      target.pointerDepth === 0 &&
+      target.arrayDimensions.length === 0 &&
+      target.genericArgs.length === 0
+    ) {
+      const next = this.currentScope.resolve(target.name)?.declaration;
+      if (next?.kind !== "TypeAlias") break;
+      const alias = next as AST.TypeAliasDecl;
+      if (alias.name === decl.name) {
+        throw new CompilerError(
+          `Recursive type alias '${decl.name}' detected`,
+          `Cycle: ${[...chain, decl.name].join(" -> ")}. Type aliases cannot reference themselves directly or indirectly without a pointer indirection.`,
+          decl.location,
+          TYPE_RECURSION_CYCLE_CODE,
+        );
+      }
+      if (chain.includes(alias.name)) break;
+      chain.push(alias.name);
+      target = alias.type;
+    }
 
     const previousScope = this.currentScope;
     try {
@@ -2694,6 +2868,26 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
           "Ensure both operands are integers.",
           expr.location,
           BITWISE_OPERAND_TYPE_MISMATCH_CODE,
+        );
+      }
+      // `a %= b` is `a = a % b`, which needs integers like `%` does.
+      if (
+        expr.operator.type === TokenType.PercentEqual &&
+        [targetType, valueType].some((type) => {
+          const resolved = this.resolveType(type);
+          return (
+            TypeUtils.isNumericType(resolved) &&
+            !TypeUtils.isIntegerType(resolved)
+          );
+        })
+      ) {
+        throw new CompilerError(
+          `Modulo operator requires integer operands, got ${this.formatDiagnosticType(
+            targetType,
+          )} and ${this.formatDiagnosticType(valueType)}`,
+          "Ensure both operands are integers.",
+          expr.location,
+          MODULO_OPERAND_TYPE_MISMATCH_CODE,
         );
       }
       if (
@@ -3230,21 +3424,41 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
   // ========== Match Pattern Checking ==========
 
   /**
-   * An arm after an unguarded catch-all (`_` or a binding), or an unguarded
-   * literal arm repeating an earlier one, can never be selected.
+   * An arm is never selected when one earlier unguarded arm matches every
+   * value it matches: `_` or a binding, the same literal, or a tuple whose
+   * elements each do so (`(x, y)` before `(0, 0)`).
    */
   private checkNonEnumArmsReachable(expr: AST.MatchExpr): void {
-    const seen = new Set<string>();
-    let catchAll = false;
+    const literalKey = (pattern: AST.Pattern) =>
+      pattern.kind === "PatternLiteral"
+        ? `${pattern.value.type}:${String(pattern.value.value)}`
+        : undefined;
+    const irrefutable = (pattern: AST.Pattern): boolean =>
+      pattern.kind === "PatternWildcard" ||
+      pattern.kind === "PatternIdentifier" ||
+      (pattern.kind === "PatternTuple" && pattern.patterns.every(irrefutable));
+    const subsumes = (earlier: AST.Pattern, later: AST.Pattern): boolean => {
+      if (irrefutable(earlier)) return true;
+      if (earlier.kind === "PatternTuple" && later.kind === "PatternTuple") {
+        return (
+          earlier.patterns.length === later.patterns.length &&
+          earlier.patterns.every((element, index) =>
+            subsumes(element, later.patterns[index]!),
+          )
+        );
+      }
+      const key = literalKey(earlier);
+      return key !== undefined && key === literalKey(later);
+    };
+    const earlier: AST.Pattern[] = [];
     for (const arm of expr.arms) {
       const pattern = arm.pattern;
-      const key =
-        pattern.kind === "PatternLiteral"
-          ? `${pattern.value.type}:${String(pattern.value.value)}`
-          : undefined;
-      if (catchAll || (key !== undefined && !arm.guard && seen.has(key))) {
+      const covering = earlier.find((candidate) =>
+        subsumes(candidate, pattern),
+      );
+      if (covering) {
         throw new CompilerError(
-          catchAll
+          irrefutable(covering)
             ? "Unreachable match arm: an earlier arm matches every value"
             : `Unreachable match arm: ${pattern.kind === "PatternLiteral" ? pattern.value.raw : "this value"} is already matched by an earlier arm`,
           "Remove the arm, or move it before the arm that already matches its values.",
@@ -3252,15 +3466,7 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
           MATCH_EXHAUSTIVENESS_MISMATCH_CODE,
         );
       }
-      if (arm.guard) continue;
-      if (
-        pattern.kind === "PatternWildcard" ||
-        pattern.kind === "PatternIdentifier"
-      ) {
-        catchAll = true;
-      } else if (key !== undefined) {
-        seen.add(key);
-      }
+      if (!arm.guard) earlier.push(pattern);
     }
   }
 

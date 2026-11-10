@@ -1,6 +1,9 @@
 # Struct Primitive Inheritance
 
-BPL allows structs to inherit from primitive types, enabling you to create specialized types that behave like primitives but can have additional methods and fields.
+BPL allows structs to inherit from primitive types, creating specialized types
+that convert to the primitive where one is expected and can have additional
+methods and fields. They are not primitives themselves: arithmetic such as
+`value + 1` needs a conversion first, `cast<int>(value) + 1`.
 
 ## Syntax
 

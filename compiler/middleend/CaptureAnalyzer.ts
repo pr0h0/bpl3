@@ -365,6 +365,11 @@ export class CaptureAnalyzer {
         // `*pointer = value` reaches the value the pointer refers to.
         case "Unary":
           return;
+        // `(a, b) = value` writes each element.
+        case "TupleLiteral":
+          for (const element of (current as AST.TupleLiteralExpr).elements)
+            this.noteCapturedAssignment(element);
+          return;
 
         case "Identifier": {
           const identifier = current as AST.IdentifierExpr;

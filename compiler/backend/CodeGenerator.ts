@@ -1835,7 +1835,7 @@ export class CodeGenerator extends StatementGenerator {
     let captureInfo:
       | {
           name: string;
-          fields: { name: string; type: string }[];
+          fields: { name: string; type: string; specPair?: boolean }[];
           releaseOnEntry?: boolean;
         }
       | undefined;
@@ -1845,14 +1845,20 @@ export class CodeGenerator extends StatementGenerator {
       captureInfo = {
         name: captureStructName,
         releaseOnEntry: expr.isDeferred,
-        fields: expr.capturedVariables.map((decl) => ({
-          name: decl.name as string,
-          type: this.resolveType(
-            (("typeAnnotation" in decl ? decl.typeAnnotation : undefined) ||
-              ("type" in decl ? decl.type : undefined) ||
-              decl.resolvedType)!,
-          ),
-        })),
+        fields: expr.capturedVariables.map((decl) => {
+          const type = (("typeAnnotation" in decl
+            ? decl.typeAnnotation
+            : undefined) ||
+            ("type" in decl ? decl.type : undefined) ||
+            decl.resolvedType)!;
+          const specPair = this.isSpecPointerType(type);
+          const llvmType = this.resolveType(type);
+          return {
+            name: decl.name as string,
+            type: specPair ? llvmType.replace(/\*$/, "") : llvmType,
+            specPair,
+          };
+        }),
       };
     }
 

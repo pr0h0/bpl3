@@ -18,7 +18,7 @@ export class FoldingRangeProvider {
    * Handle folding range request
    */
   handle(
-    params: FoldingRangeParams,
+    _params: FoldingRangeParams,
     document: TextDocument,
   ): FoldingRange[] | null {
     const filePath = fileURLToPath(document.uri);

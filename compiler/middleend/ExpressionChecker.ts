@@ -666,10 +666,12 @@ export function checkBinary(
     }
   }
 
-  // Pointer arithmetic: pointer +/- integer
+  // Pointer arithmetic: pointer +/- integer. A fixed array decays to a
+  // pointer only into a `*T` destination (R-CONV-4), so `arr + 1` is not
+  // pointer arithmetic; `&arr[1]` is.
   if (
     leftType.kind === "BasicType" &&
-    (leftType.pointerDepth > 0 || leftType.arrayDimensions.length > 0) &&
+    leftType.pointerDepth > 0 &&
     (op === TokenType.Plus || op === TokenType.Minus)
   ) {
     // BUG-127: Check for void pointer arithmetic
@@ -690,7 +692,7 @@ export function checkBinary(
     if (
       op === TokenType.Minus &&
       rightType.kind === "BasicType" &&
-      (rightType.pointerDepth > 0 || rightType.arrayDimensions.length > 0)
+      rightType.pointerDepth > 0
     ) {
       if (!this.areTypesCompatible(leftType, rightType)) {
         throw new CompilerError(
@@ -1731,6 +1733,49 @@ export function checkCast(
 /**
  * Check a sizeof expression
  */
+/**
+ * The type an expression spells when its root identifier names a type rather
+ * than a value: `int[5]`, `*int`, `**Point[2]`.
+ */
+function sizeofExpressionAsType(
+  checker: CheckerContext,
+  expr: AST.Expression,
+): AST.BasicTypeNode | undefined {
+  const dimensions: number[] = [];
+  let pointerDepth = 0;
+  let current = expr;
+  while (current.kind === "Unary" && current.operator.type === TokenType.Star) {
+    pointerDepth++;
+    current = current.operand;
+  }
+  while (current.kind === "Index") {
+    const size = TypeUtils.getIntegerConstantValue(current.index);
+    if (size === undefined || size <= 0n) return undefined;
+    dimensions.unshift(Number(size));
+    current = current.object;
+  }
+  if (current.kind !== "Identifier") return undefined;
+  if (pointerDepth === 0 && dimensions.length === 0) return undefined;
+  const symbol = checker.currentScope.resolve(current.name);
+  const isType =
+    symbol === undefined
+      ? getPrimitiveType(current.name) !== undefined ||
+        current.name === "string"
+      : symbol.kind === "Struct" ||
+        symbol.kind === "Enum" ||
+        symbol.kind === "Spec" ||
+        symbol.kind === "TypeAlias";
+  if (!isType) return undefined;
+  return {
+    kind: "BasicType",
+    name: current.name,
+    genericArgs: [],
+    pointerDepth,
+    arrayDimensions: dimensions,
+    location: expr.location,
+  };
+}
+
 export function checkSizeof(
   this: CheckerContext,
   expr: AST.SizeofExpr,
@@ -1772,7 +1817,15 @@ export function checkSizeof(
       targetType = this.resolveType(target as AST.TypeNode);
     }
   } else {
-    targetType = this.checkExpression(target as AST.Expression);
+    // `sizeof(int[5])` and `sizeof(*int)` parse as indexing and dereferencing
+    // a value named `int`; when the name is a type, they are that type.
+    const asType = sizeofExpressionAsType(this, target as AST.Expression);
+    if (asType) {
+      expr.target = asType;
+      targetType = this.resolveType(asType);
+    } else {
+      targetType = this.checkExpression(target as AST.Expression);
+    }
   }
 
   // `sizeof(void)` reaches here as the type name `void`.
@@ -2508,6 +2561,25 @@ function checkLambdaBody(
   const analyzer = new CaptureAnalyzer(expr);
   const capturedVars = analyzer.analyze();
   expr.capturedVariables = capturedVars;
+
+  // A capture copies the value into the lambda, which can outlive the frame
+  // whose destructor frees it.
+  for (const captured of capturedVars) {
+    const type =
+      ("typeAnnotation" in captured ? captured.typeAnnotation : undefined) ??
+      ("type" in captured ? captured.type : undefined) ??
+      captured.resolvedType;
+    this.rejectOwningCopy(
+      {
+        kind: "Identifier",
+        name: captured.name as string,
+        location: expr.location,
+      } as AST.IdentifierExpr,
+      type,
+      "into a lambda capture",
+      expr.location,
+    );
+  }
 
   // A capture is a copy, so a write that does not go through a pointer is
   // discarded when the lambda returns. Reject it instead of losing the value.

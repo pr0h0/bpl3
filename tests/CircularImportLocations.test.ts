@@ -49,6 +49,23 @@ for (const selfImport of [false, true]) {
         file: selfImport ? entry : dependency,
         start: { line: selfImport ? 3 : 5, column: 1 },
       });
+      // `bpl check` names the cycle too, rather than a missing export of the
+      // module that is still loading.
+      const check = spawnSync(
+        "bun",
+        [join(import.meta.dir, "../index.ts"), "check", entry],
+        {
+          encoding: "utf8",
+          env: { ...process.env, NO_COLOR: "1" },
+          timeout: 15000,
+        },
+      );
+      expect(check.status).toBe(1);
+      expect(check.stdout + check.stderr).toContain(
+        selfImport
+          ? "Circular dependency detected: main.bpl -> main.bpl"
+          : "Circular dependency detected: main.bpl -> other.bpl -> main.bpl",
+      );
     } finally {
       rmSync(directory, { recursive: true, force: true });
     }

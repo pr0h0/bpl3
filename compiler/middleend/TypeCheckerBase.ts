@@ -34,6 +34,7 @@ import {
   lowerImplicitConversion,
 } from "./lowering/ImplicitConversions";
 import { getArrayAliasPointer } from "../common/ArrayAliasPointer";
+import { isConstantArrayStorage } from "../common/ArrayElementStorage";
 
 function formatSymbolKind(kind: SymbolKind): string {
   return kind === "TypeAlias" ? "type alias" : kind.toLowerCase();
@@ -1711,6 +1712,8 @@ export abstract class TypeCheckerBase {
     targetType: AST.TypeNode,
     location: SourceLocation = expr.location,
   ): void {
+    // Every destination-typed value passes through here.
+    this.rejectConstantArrayView(expr, targetType, location);
     while (expr.kind === "Group") expr = expr.expression;
     if (expr.kind === "Match") {
       for (const arm of expr.arms) {
@@ -1771,6 +1774,40 @@ export abstract class TypeCheckerBase {
       location,
       INTEGER_LITERAL_OVERFLOW_CODE,
     );
+  }
+
+  /**
+   * A constant array converts to a pointer or slice only through which it
+   * could be written, so the implicit conversion is rejected, as `&arr[0]`
+   * is (R-DECL-7).
+   */
+  private rejectConstantArrayView(
+    expr: AST.Expression,
+    targetType: AST.TypeNode,
+    location: SourceLocation,
+  ): void {
+    if (!expr.resolvedType) return;
+    let conversion;
+    try {
+      conversion = lowerImplicitConversion(
+        this.resolveType(targetType),
+        this.resolveType(expr.resolvedType),
+      );
+    } catch {
+      return;
+    }
+    if (
+      (conversion.kind === "array-to-pointer" ||
+        conversion.kind === "array-to-slice") &&
+      isConstantArrayStorage(expr, (type) => this.resolveType(type))
+    ) {
+      throw new CompilerError(
+        "Cannot convert a constant array to a mutable pointer or slice",
+        "Writes through the view would change the constant. Copy the array to mutable storage first.",
+        location,
+        ADDRESS_OF_CONSTANT_CODE,
+      );
+    }
   }
 
   public getIntegerSize(type: AST.TypeNode): number {
@@ -2397,12 +2434,34 @@ export abstract class TypeCheckerBase {
     return declaration?.kind === "SpecDecl";
   }
 
+  /**
+   * A `*Spec` anywhere a value holds it: directly, in a tuple element, or as
+   * a generic argument, which a field of the instantiated struct stores.
+   */
+  private containsSpecPointer(
+    type: AST.TypeNode | undefined,
+    seen = new Set<AST.TypeNode>(),
+  ): boolean {
+    if (!type || seen.has(type)) return false;
+    seen.add(type);
+    if (this.isSpecPointerType(type)) return true;
+    if (type.kind === "TupleType")
+      return type.types.some((element) =>
+        this.containsSpecPointer(element, seen),
+      );
+    if (type.kind === "BasicType")
+      return type.genericArgs.some((argument) =>
+        this.containsSpecPointer(argument, seen),
+      );
+    return false;
+  }
+
   public rejectEscapingSpecPointer(
     type: AST.TypeNode | undefined,
     position: string,
     location: AST.ASTNode["location"],
   ): void {
-    if (!this.isSpecPointerType(type)) return;
+    if (!this.containsSpecPointer(type)) return;
     this.addError(
       new CompilerError(
         `A spec pointer cannot be used as ${position}`,
@@ -2510,6 +2569,30 @@ export abstract class TypeCheckerBase {
       }
 
       return { decl, members, genericMap };
+    }
+
+    // A spec has the methods of the specs it extends.
+    if (decl.kind === "SpecDecl") {
+      const specGenerics = new Map<string, AST.TypeNode>();
+      decl.genericParams.forEach((parameter, index) => {
+        const argument = baseType.genericArgs[index];
+        if (argument) specGenerics.set(parameter.name, argument);
+      });
+      for (const parent of (decl as AST.SpecDecl).extends) {
+        if (parent.kind !== "BasicType" || parent.name === baseType.name)
+          continue;
+        const parentType =
+          specGenerics.size > 0
+            ? (this.substituteType(parent, specGenerics) as AST.BasicTypeNode)
+            : parent;
+        const found = this.resolveMemberWithContext(parentType, memberName);
+        // `Self` stays the spec the member is reached through.
+        if (found)
+          return {
+            ...found,
+            genericMap: new Map(found.genericMap).set("Self", baseType),
+          };
+      }
     }
 
     // Check parent struct via inheritanceList

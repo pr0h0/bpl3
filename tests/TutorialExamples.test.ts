@@ -316,7 +316,7 @@ describe("BPL Tutorial Examples", () => {
     expect(collectTutorialSnippetExterns()).toEqual([]);
   });
 
-  testableCode.forEach((item, index) => {
+  testableCode.forEach((item) => {
     const testName = `Tutorial ${item.tutorialOrder}: ${item.tutorialTitle} - ${item.sectionTitle}`;
 
     it(testName, async () => {

@@ -983,7 +983,7 @@ export abstract class StatementGenerator extends AsmGenerator {
     parentStruct?: AST.StructDecl | AST.EnumDecl,
     captureInfo?: {
       name: string;
-      fields: { name: string; type: string }[];
+      fields: { name: string; type: string; specPair?: boolean }[];
       releaseOnEntry?: boolean;
     },
   ): AST.IfStmt | undefined {
@@ -2126,6 +2126,23 @@ export abstract class StatementGenerator extends AsmGenerator {
     return "undef";
   }
 
+  /**
+   * A local's declared type with the current generic instantiation applied,
+   * so `local x: T` with `T = K` finds K's constructor and vtable.
+   */
+  private instantiatedLocalType(type: AST.TypeNode): AST.TypeNode {
+    if (this.currentTypeMap.size === 0) return type;
+    const concrete = this.substituteType(type, this.currentTypeMap);
+    if (
+      concrete.kind === "BasicType" &&
+      concrete.resolvedDeclaration === undefined
+    ) {
+      const declaration = this.structMap.get(concrete.name);
+      if (declaration) return { ...concrete, resolvedDeclaration: declaration };
+    }
+    return concrete;
+  }
+
   protected generateVariableDecl(decl: AST.VariableDecl) {
     if (typeof decl.name !== "string") {
       // Tuple destructuring: local (a, b, c) = expr;
@@ -2328,11 +2345,11 @@ export abstract class StatementGenerator extends AsmGenerator {
     // A destructor must never observe uninitialized storage. Locals are
     // otherwise left undefined, so zero the ones whose cleanup will read them
     // before any default value, vtable, or constructor writes to the storage.
-    if (
+    const zeroed =
       !decl.initializer &&
       !type.endsWith("*") &&
-      this.ownsAutoDestroy(decl.resolvedType || decl.typeAnnotation)
-    ) {
+      this.ownsAutoDestroy(decl.resolvedType || decl.typeAnnotation);
+    if (zeroed) {
       this.emit(`  store ${type} zeroinitializer, ${type}* ${addr}`);
     }
 
@@ -2342,8 +2359,13 @@ export abstract class StatementGenerator extends AsmGenerator {
       type.startsWith("%struct.") &&
       !type.endsWith("*")
     ) {
-      const structTypeNode = decl.resolvedType || decl.typeAnnotation!;
-      const defaultVal = this.generateDefaultValue(structTypeNode);
+      const structTypeNode = this.instantiatedLocalType(
+        decl.resolvedType || decl.typeAnnotation!,
+      );
+      // Storage already zeroed keeps its zero fields; only vtables are added.
+      const defaultVal = zeroed
+        ? (this.zeroConstantWithVTables(type) ?? "undef")
+        : this.generateDefaultValue(structTypeNode);
       if (defaultVal !== "undef") {
         this.emit(`  store ${type} ${defaultVal}, ${type}* ${addr}`);
       }
@@ -2409,7 +2431,9 @@ export abstract class StatementGenerator extends AsmGenerator {
 
     // Initialize uninitialized array variables if elements need construction or vtable initialization
     if (!decl.initializer && type.startsWith("[")) {
-      const arrayTypeNode = decl.resolvedType || decl.typeAnnotation!;
+      const arrayTypeNode = this.instantiatedLocalType(
+        decl.resolvedType || decl.typeAnnotation!,
+      );
       if (
         arrayTypeNode.kind === "BasicType" &&
         arrayTypeNode.arrayDimensions.length > 0 &&
@@ -2440,20 +2464,21 @@ export abstract class StatementGenerator extends AsmGenerator {
             matchingNew,
           );
         } else {
-          // No new() method, but if struct has vtable we still need to initialize it
-          // Check if struct has any methods (which means it has a vtable)
-          const hasMethods = structDecl.members.some(
-            (m) => m.kind === "FunctionDecl",
+          // No new() method, but a struct with a vtable (from methods or
+          // inheritance) still needs it in every element. This returns early
+          // when the struct has none.
+          this.generateArrayVTableInitialization(
+            addr,
+            type,
+            arrayTypeNode as AST.BasicTypeNode,
+            structDecl,
           );
-          if (hasMethods) {
-            this.generateArrayVTableInitialization(
-              addr,
-              type,
-              arrayTypeNode as AST.BasicTypeNode,
-              structDecl,
-            );
-          }
         }
+      } else {
+        // An element type from a generic parameter (`T[2]`) has no resolved
+        // declaration; its instantiated LLVM type still names the struct.
+        const vtables = this.zeroConstantWithVTables(type);
+        if (vtables) this.emit(`  store ${type} ${vtables}, ${type}* ${addr}`);
       }
     }
 
@@ -3100,7 +3125,7 @@ export abstract class StatementGenerator extends AsmGenerator {
     parentStruct?: AST.StructDecl | AST.EnumDecl,
     captureInfo?: {
       name: string;
-      fields: { name: string; type: string }[];
+      fields: { name: string; type: string; specPair?: boolean }[];
       releaseOnEntry?: boolean;
     },
   ) {
@@ -3406,8 +3431,20 @@ export abstract class StatementGenerator extends AsmGenerator {
             `  ${val} = load ${field.type}, ${field.type}* ${fieldPtr}`,
           );
 
-          const alloca = this.allocateStack(field.name, field.type);
-          this.emit(`  store ${field.type} ${val}, ${field.type}* ${alloca}`);
+          let alloca: string;
+          if (field.specPair) {
+            // The context holds the spec pointer's `{ data, vtable }` pair;
+            // the local points at a copy in this frame.
+            const pair = this.allocateStack(`${field.name}_pair`, field.type);
+            this.emit(`  store ${field.type} ${val}, ${field.type}* ${pair}`);
+            alloca = this.allocateStack(field.name, `${field.type}*`);
+            this.emit(
+              `  store ${field.type}* ${pair}, ${field.type}** ${alloca}`,
+            );
+          } else {
+            alloca = this.allocateStack(field.name, field.type);
+            this.emit(`  store ${field.type} ${val}, ${field.type}* ${alloca}`);
+          }
 
           this.locals.add(field.name);
           this.localPointers.set(field.name, alloca);

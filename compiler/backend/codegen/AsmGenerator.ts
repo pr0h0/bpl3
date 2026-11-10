@@ -15,6 +15,22 @@ import * as AST from "../../common/AST";
 import { ExceptionGenerator } from "./ExceptionGenerator";
 
 export abstract class AsmGenerator extends ExceptionGenerator {
+  /** The storage of a global operand, declared when another module owns it. */
+  private globalOperandPointer(global: {
+    name: string;
+    type: AST.TypeNode;
+    isConst: boolean;
+  }): string {
+    if (!this.globals.has(global.name)) {
+      const keyword = global.isConst ? "constant" : "global";
+      this.emitDeclaration(
+        `@${global.name} = external ${keyword} ${this.resolveType(global.type)}`,
+      );
+      this.globals.add(global.name);
+    }
+    return `@${global.name}`;
+  }
+
   protected generateAsm(stmt: AST.AsmBlockStmt) {
     // "raw" is an alias for the default "llvm" flavor and shares its quote
     // stripping and variable interpolation (see the final branch below).
@@ -83,6 +99,24 @@ export abstract class AsmGenerator extends ExceptionGenerator {
               }
               return `__BPL_ASM_OP_${key}__`;
             }
+          }
+          // A global operand works like a local one through its storage.
+          const global = stmt.globalOperands?.[name];
+          if (global) {
+            const isOutput = eq === "=";
+            const isPtr = amp === "&";
+            const key = getKey(name, isPtr, isOutput);
+            if (!uniqueOperands.has(key)) {
+              uniqueOperands.set(key, {
+                name,
+                ptr: this.globalOperandPointer(global),
+                type: global.type,
+                isPtr,
+                isOutput,
+                constraint,
+              });
+            }
+            return `__BPL_ASM_OP_${key}__`;
           }
           return match;
         },
@@ -247,6 +281,8 @@ export abstract class AsmGenerator extends ExceptionGenerator {
               }
             }
             // Check if it's a global variable
+            const global = stmt.globalOperands?.[name];
+            if (global) return this.globalOperandPointer(global);
             if (this.globals.has(name)) {
               return `@${name}`;
             }

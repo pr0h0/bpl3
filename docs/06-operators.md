@@ -71,8 +71,8 @@ local remainder: int = a % b;  # 1 (modulo)
   case and report an integer overflow runtime error
 - Ordinary fixed-width integer addition, subtraction, and multiplication wrap
   modulo the type width unless a future checked-arithmetic feature is used
-- Modulo requires integer operands
-- Float modulo uses `fmod` semantics
+- Modulo (`%` and `%=`) requires integer operands; floating-point operands are
+  rejected with `BPL_MODULO_OPERAND_TYPE_MISMATCH`
 
 ### Unary Arithmetic
 
@@ -86,14 +86,16 @@ local y: int = -x;  # Negation: -5
 local count: int = 0;
 ++count;  # Pre-increment: count = 1
 --count;  # Pre-decrement: count = 0
-
-# Note: Post-increment (count++) and post-decrement (count--) are NOT supported.
+count++;  # Post-increment: count = 1
+count--;  # Post-decrement: count = 0
 ```
 
 **Behavior:**
 
 - `++x`: Increment then return new value
 - `--x`: Decrement then return new value
+- `x++`: Increment then return the previous value
+- `x--`: Decrement then return the previous value
 
 ### Type Promotion
 
@@ -301,10 +303,8 @@ local a: int;
 local b: int;
 local c: int;
 
-# Chain assignments are not supported
-c = 5;
-b = c;
-a = b;
+# Assignment is a right-associative expression, so it chains
+a = b = c = 5;
 
 # Assignment in condition
 local x: int;
@@ -479,13 +479,14 @@ local sum: int = p.x + p.y;
 
 ### Pointer Access
 
-To access members of a struct pointer, dereference it first:
+Member access through a struct pointer dereferences it, so `p_ptr.x` and
+`(*p_ptr).x` name the same field:
 
 ```bpl
 struct Point { x: int, y: int }
 local p: Point;
 local p_ptr: *Point = &p;
-(*p_ptr).x = 30;
+p_ptr.x = 30;
 (*p_ptr).y = 40;
 ```
 
@@ -530,7 +531,8 @@ if (match<Option.Some>(opt)) {
 
 ### Runtime Type Check (`is`)
 
-The `is` operator checks if a struct pointer's runtime type matches or is derived from a target type.
+The `is` operator checks whether a struct pointer's runtime type is exactly the
+target type. A value of a type derived from the target does not match.
 
 ```bpl
 struct Animal { name: string }
@@ -625,6 +627,8 @@ local off_y: int = offsetof(Point, y); # 4 (if int is i32)
 
 - Evaluated at compile-time.
 - Returns the offset in bytes from the start of the struct.
+- Names a field declared directly in the struct; an inherited field is not
+  accepted, so ask the struct that declares it.
 - Useful for low-level memory operations, serialization, or FFI.
 
 ## Typeof Operator
