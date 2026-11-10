@@ -4924,6 +4924,35 @@ Exports:
 
 ```bpl
 export [Url];
+export [ParsedUrl];
+export [QueryParam];
+```
+
+### QueryParam
+
+```bpl
+struct QueryParam
+key: String
+value: String
+hasValue: bool
+```
+
+### ParsedUrl
+
+```bpl
+struct ParsedUrl
+scheme: String
+userinfo: String
+host: String
+port: int
+path: String
+query: String
+fragment: String
+hasAuthority: bool
+frame destroy(this: *ParsedUrl)
+frame destroyPartial(this: *ParsedUrl)
+frame effectivePort(this: *ParsedUrl) ret int
+frame toString(this: *ParsedUrl) ret String
 ```
 
 ### Url
@@ -4938,6 +4967,11 @@ frame isUnreserved(c: int) ret bool
 frame hexValue(c: int) ret int
 frame encode(text: string, spaceAsPlus: bool) ret string
 frame decodeWith(text: string, plusAsSpace: bool) ret string
+frame parse(text: string) ret Option<ParsedUrl>
+frame parseQuery(query: string) ret Array<QueryParam>
+frame queryValue(query: string, key: string) ret Option<String>
+frame buildQuery(params: *Array<QueryParam>) ret String
+frame destroyParams(params: *Array<QueryParam>)
 ```
 
 ## std/utf8.bpl

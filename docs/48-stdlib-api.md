@@ -374,6 +374,16 @@ decoders return `nullptr` for a `%` without two hex digits after it and for
 - `Url.encodeForm(text: string) ret string`
 - `Url.decode(text: string) ret string`
 - `Url.decodeForm(text: string) ret string`
+- `Url.parse(text) ret Option<ParsedUrl>` — RFC 3986 components (`scheme`,
+  `userinfo`, `host`, `port` or -1, `path`, `query`, `fragment`; owned
+  Strings, scheme and host lower-cased, not percent-decoded);
+  `effectivePort()` adds the defaults for http, https, ws, wss and ftp, and
+  `toString()` reassembles it. `None` for an invalid scheme, IPv6 literal or
+  port.
+- `Url.parseQuery(query) ret Array<QueryParam>` — decoded `key`/`value`
+  pairs (`+` is a space, `hasValue` distinguishes `flag` from `flag=`);
+  release with `Url.destroyParams(&params)`. `Url.queryValue(query, key)`
+  returns the first value and `Url.buildQuery(&params)` form-encodes pairs.
 
 ### Parse (`std/parse.bpl`)
 
