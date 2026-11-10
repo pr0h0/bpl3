@@ -216,3 +216,104 @@ pq.push(20);
 local min: int = pq.pop().unwrap(); # 10
 pq.destroy();
 ```
+
+## RingBuffer<T>
+
+`std/ring_buffer.bpl` is a fixed-capacity circular FIFO whose storage is
+allocated once. `push` returns `false` when full; `pushOverwrite` drops and
+returns the oldest value instead, which suits "last N" histories. It also has
+`pushFront`, `pop`, `popBack`, `front`, `back`, checked `get`/`set` (index 0 is
+the oldest), `toArray`, `iterator`, `clear` and `destroy`.
+
+## LruCache<K, V>
+
+`std/lru_cache.bpl` is a bounded map that evicts the least recently used
+entry, with O(1) average `get`, `put` and `remove`. `get` marks an entry as
+used; `peek` does not. `put` returns whether an entry was evicted, and
+`putEvicting(key, value, &oldKey, &oldValue)` also hands back the evicted
+entry so owned keys or values can be released. `keysByRecency` lists keys from
+most to least recently used and `oldestKey` names the next eviction. Keys use
+`Map` hashing and equality, so `string` keys compare by content.
+
+```bpl
+import [LruCache] from "std/lru_cache.bpl";
+extern printf(fmt: string, ...);
+
+frame main() ret int {
+    local cache: LruCache<string, int> = LruCache<string, int>.new(2);
+    cache.put("a", 1);
+    cache.put("b", 2);
+    cache.get("a");
+    cache.put("c", 3); # evicts "b"
+    printf("%d %d\n", cache.has("b"), cache.len()); # 0 2
+    cache.destroy();
+    return 0;
+}
+```
+
+## TreeMap<K, V>
+
+`std/tree_map.bpl` is an ordered map backed by an AVL tree. It takes a
+comparator `Lambda<int>(K, K)`; `compareInts`, `compareLongs` and
+`compareStrings` are provided. `put`, `get`, `getOr`, `has` and `remove` are
+O(log n). Ordered queries are `minKey`, `maxKey`, `floorKey` (greatest key
+`<=`), `ceilingKey` (smallest key `>=`), `keys`, `values`, `keysInRange(low,
+high)`, `forEach` and `forEachInRange`, all in ascending order over the
+half-open range `[low, high)`.
+
+## Trie<V>
+
+`std/trie.bpl` maps null-terminated string keys to values byte by byte.
+Besides `insert`, `get`, `has` and `remove` (which frees empty branches), it
+answers `hasPrefix`, `countPrefix`, `keysWithPrefix` (ordered `String` keys the
+caller destroys) and `longestPrefixOf(text)` (the byte length of the longest
+stored key that prefixes `text`, or -1).
+
+## UnionFind
+
+`std/union_find.bpl` tracks disjoint sets of `0..n-1` with union by size and
+path halving: `find`, `union` (false when already joined), `connected`,
+`setSize` and `setCount`.
+
+## Graph
+
+`std/graph.bpl` stores a weighted directed or undirected graph over vertices
+`0..n-1` (`Graph.directedGraph(n)`, `Graph.undirectedGraph(n)`, `addVertex`,
+`addEdge(source, target, weight)`, `connect` for weight 1). Algorithms return
+new arrays owned by the caller:
+
+| Method                                         | Result                                                                |
+| ---------------------------------------------- | --------------------------------------------------------------------- |
+| `bfs(start)`, `dfs(start)`                     | Visit order, following edges in insertion order                       |
+| `bfsDistances(start)`                          | Edge counts, -1 when unreachable                                      |
+| `dijkstra(start)`, `dijkstraWith(start, &pre)` | Distances (`GRAPH_UNREACHABLE` when unreachable), predecessors        |
+| `shortestPath(source, target)`                 | Vertices of a shortest path, empty when unreachable                   |
+| `bellmanFord(start)`                           | Distances with negative weights; `None` on a reachable negative cycle |
+| `topologicalSort()`                            | Smallest-ready-first order, `None` when cyclic                        |
+| `hasCycle()`                                   | Directed or undirected cycle detection                                |
+| `connectedComponents(&count)`                  | A label per vertex, edges treated as undirected                       |
+| `stronglyConnectedComponents(&count)`          | Kosaraju labels in topological order of the condensation              |
+| `minimumSpanningTree(&total)`                  | Kruskal's edges and total weight                                      |
+| `isBipartite()`                                | Two-colourability                                                     |
+
+`neighbors`, `outDegree`, `hasEdge` and `edgeCount` inspect the structure.
+Dijkstra throws on a negative weight.
+
+```bpl
+import [Graph] from "std/graph.bpl";
+import [Array] from "std/array.bpl";
+extern printf(fmt: string, ...);
+
+frame main() ret int {
+    local graph: Graph = Graph.directedGraph(4);
+    graph.addEdge(0, 1, cast<long>(5));
+    graph.addEdge(0, 2, cast<long>(1));
+    graph.addEdge(2, 1, cast<long>(1));
+    graph.addEdge(1, 3, cast<long>(1));
+    local distances: Array<long> = graph.dijkstra(0);
+    printf("%ld\n", distances.get(3)); # 3
+    distances.destroy();
+    graph.destroy();
+    return 0;
+}
+```

@@ -2,7 +2,7 @@
 
 Generated from parsed library declarations with `bun run docs:stdlib`. Do not edit by hand.
 
-This index covers all 78 BPL modules under `lib/`, including memory and low-level modules.
+This index covers all 84 BPL modules under `lib/`, including memory and low-level modules.
 It lists explicit exports and declarations defined in each source file. Re-exported symbols
 are listed under exports; their definitions are in the originating modules. Inherited members
 are not repeated. An exported type's declared members include implementation helpers and fields;
@@ -41,6 +41,7 @@ platform has been validated. C/POSIX extern declarations retain their native ABI
 - [std/errors.bpl](../lib/errors.bpl)
 - [std/fmt.bpl](../lib/fmt.bpl)
 - [std/fs.bpl](../lib/fs.bpl)
+- [std/graph.bpl](../lib/graph.bpl)
 - [std/hash.bpl](../lib/hash.bpl)
 - [std/hex.bpl](../lib/hex.bpl)
 - [std/hmac.bpl](../lib/hmac.bpl)
@@ -51,6 +52,7 @@ platform has been validated. C/POSIX extern declarations retain their native ABI
 - [std/json.bpl](../lib/json.bpl)
 - [std/linked_list.bpl](../lib/linked_list.bpl)
 - [std/log.bpl](../lib/log.bpl)
+- [std/lru_cache.bpl](../lib/lru_cache.bpl)
 - [std/map.bpl](../lib/map.bpl)
 - [std/math.bpl](../lib/math.bpl)
 - [std/memory/allocator.bpl](../lib/memory/allocator.bpl)
@@ -73,6 +75,7 @@ platform has been validated. C/POSIX extern declarations retain their native ABI
 - [std/reflection.bpl](../lib/reflection.bpl)
 - [std/regex.bpl](../lib/regex.bpl)
 - [std/result.bpl](../lib/result.bpl)
+- [std/ring_buffer.bpl](../lib/ring_buffer.bpl)
 - [std/scope_stack.bpl](../lib/scope_stack.bpl)
 - [std/set.bpl](../lib/set.bpl)
 - [std/sha1.bpl](../lib/sha1.bpl)
@@ -88,7 +91,10 @@ platform has been validated. C/POSIX extern declarations retain their native ABI
 - [std/sync.bpl](../lib/sync.bpl)
 - [std/thread.bpl](../lib/thread.bpl)
 - [std/time.bpl](../lib/time.bpl)
+- [std/tree_map.bpl](../lib/tree_map.bpl)
+- [std/trie.bpl](../lib/trie.bpl)
 - [std/type.bpl](../lib/type.bpl)
+- [std/union_find.bpl](../lib/union_find.bpl)
 - [std/url.bpl](../lib/url.bpl)
 - [std/utf8.bpl](../lib/utf8.bpl)
 - [std/uuid.bpl](../lib/uuid.bpl)
@@ -1290,6 +1296,69 @@ frame listDir(path: string) ret Array<String>
 frame listDirChecked(path: string) ret Array<String>
 ```
 
+## std/graph.bpl
+
+[Source](../lib/graph.bpl)
+
+Exports:
+
+```bpl
+export [Graph];
+export [GraphEdge];
+export GRAPH_UNREACHABLE;
+```
+
+```bpl
+global GRAPH_UNREACHABLE: long = 9223372036854775807
+```
+
+### GraphEdge
+
+```bpl
+struct GraphEdge
+source: int
+target: int
+weight: long
+next: int
+```
+
+### Graph
+
+```bpl
+struct Graph
+vertexCount: int
+directed: bool
+head: Array<int>
+edges: Array<GraphEdge>
+frame new(vertexCount: int, directed: bool) ret Graph
+frame directedGraph(vertexCount: int) ret Graph
+frame undirectedGraph(vertexCount: int) ret Graph
+frame destroy(this: *Graph)
+frame _check(this: *Graph, vertex: int)
+frame _link(this: *Graph, source: int, target: int, weight: long)
+frame addVertex(this: *Graph) ret int
+frame addEdge(this: *Graph, source: int, target: int, weight: long)
+frame connect(this: *Graph, source: int, target: int)
+frame len(this: *Graph) ret int
+frame edgeCount(this: *Graph) ret int
+frame hasEdge(this: *Graph, source: int, target: int) ret bool
+frame neighbors(this: *Graph, vertex: int) ret Array<int>
+frame outDegree(this: *Graph, vertex: int) ret int
+frame bfs(this: *Graph, start: int) ret Array<int>
+frame bfsDistances(this: *Graph, start: int) ret Array<int>
+frame dfs(this: *Graph, start: int) ret Array<int>
+frame dijkstraWith(this: *Graph, start: int, previous: *Array<int>) ret Array<long>
+frame dijkstra(this: *Graph, start: int) ret Array<long>
+frame shortestPath(this: *Graph, source: int, target: int) ret Array<int>
+frame bellmanFord(this: *Graph, start: int) ret Option<Array<long>>
+frame topologicalSort(this: *Graph) ret Option<Array<int>>
+frame hasCycle(this: *Graph) ret bool
+frame connectedComponents(this: *Graph, count: *int) ret Array<int>
+frame stronglyConnectedComponents(this: *Graph, count: *int) ret Array<int>
+frame minimumSpanningTree(this: *Graph, total: *long) ret Array<GraphEdge>
+frame isBipartite(this: *Graph) ret bool
+```
+
 ## std/hash.bpl
 
 [Source](../lib/hash.bpl)
@@ -1971,6 +2040,50 @@ frame setPrefix(enabled: bool)
 frame setTimestamps(enabled: bool)
 frame useStderr(enabled: bool)
 frame levelFromEnv() ret bool
+```
+
+## std/lru_cache.bpl
+
+[Source](../lib/lru_cache.bpl)
+
+Exports:
+
+```bpl
+export [LruCache];
+```
+
+### LruCache
+
+```bpl
+struct LruCache<K, V>
+index: Map<K, int>
+keys: *K
+values: *V
+prev: *int
+next: *int
+head: int
+tail: int
+freeHead: int
+count: int
+cap: int
+frame new(capacity: int) ret LruCache<K, V>
+frame _reset(this: *LruCache<K, V>)
+frame destroy(this: *LruCache<K, V>)
+frame len(this: *LruCache<K, V>) ret int
+frame capacity(this: *LruCache<K, V>) ret int
+frame isEmpty(this: *LruCache<K, V>) ret bool
+frame _unlink(this: *LruCache<K, V>, slot: int)
+frame _pushFront(this: *LruCache<K, V>, slot: int)
+frame _touch(this: *LruCache<K, V>, slot: int)
+frame has(this: *LruCache<K, V>, key: K) ret bool
+frame get(this: *LruCache<K, V>, key: K) ret Option<V>
+frame peek(this: *LruCache<K, V>, key: K) ret Option<V>
+frame putEvicting(this: *LruCache<K, V>, key: K, value: V, evictedKey: *K, evictedValue: *V) ret bool
+frame put(this: *LruCache<K, V>, key: K, value: V) ret bool
+frame remove(this: *LruCache<K, V>, key: K) ret bool
+frame oldestKey(this: *LruCache<K, V>) ret Option<K>
+frame keysByRecency(this: *LruCache<K, V>) ret Array<K>
+frame clear(this: *LruCache<K, V>)
 ```
 
 ## std/map.bpl
@@ -3025,6 +3138,55 @@ frame __ne__(this: *Result<T, E>, other: *Result<T, E>) ret bool
 frame clone(this: *Result<T, E>) ret Result<T, E>
 ```
 
+## std/ring_buffer.bpl
+
+[Source](../lib/ring_buffer.bpl)
+
+Exports:
+
+```bpl
+export [RingBuffer];
+export [RingBufferIterator];
+```
+
+### RingBufferIterator
+
+```bpl
+struct RingBufferIterator<T>: Iterator<T>
+buffer: *RingBuffer<T>
+index: int
+frame next(this: *RingBufferIterator<T>) ret Option<T>
+```
+
+### RingBuffer
+
+```bpl
+struct RingBuffer<T>
+data: *T
+cap: int
+head: int
+length: int
+frame new(capacity: int) ret RingBuffer<T>
+frame destroy(this: *RingBuffer<T>)
+frame len(this: *RingBuffer<T>) ret int
+frame capacity(this: *RingBuffer<T>) ret int
+frame isEmpty(this: *RingBuffer<T>) ret bool
+frame isFull(this: *RingBuffer<T>) ret bool
+frame _slot(this: *RingBuffer<T>, index: int) ret int
+frame push(this: *RingBuffer<T>, value: T) ret bool
+frame pushOverwrite(this: *RingBuffer<T>, value: T) ret Option<T>
+frame pushFront(this: *RingBuffer<T>, value: T) ret bool
+frame pop(this: *RingBuffer<T>) ret Option<T>
+frame popBack(this: *RingBuffer<T>) ret Option<T>
+frame front(this: *RingBuffer<T>) ret Option<T>
+frame back(this: *RingBuffer<T>) ret Option<T>
+frame get(this: *RingBuffer<T>, index: int) ret T
+frame set(this: *RingBuffer<T>, index: int, value: T)
+frame clear(this: *RingBuffer<T>)
+frame toArray(this: *RingBuffer<T>) ret Array<T>
+frame iterator(this: *RingBuffer<T>) ret RingBufferIterator<T>
+```
+
 ## std/scope_stack.bpl
 
 [Source](../lib/scope_stack.bpl)
@@ -3871,6 +4033,108 @@ frame formatTimestamp(timestamp: long) ret string
 frame measure(action: Lambda<void>()) ret long
 ```
 
+## std/tree_map.bpl
+
+[Source](../lib/tree_map.bpl)
+
+Exports:
+
+```bpl
+export [TreeMap];
+export compareInts;
+export compareLongs;
+export compareStrings;
+```
+
+```bpl
+frame compareInts(a: int, b: int) ret int
+```
+
+```bpl
+frame compareLongs(a: long, b: long) ret int
+```
+
+```bpl
+frame compareStrings(a: string, b: string) ret int
+```
+
+### TreeMap
+
+```bpl
+struct TreeMap<K, V>
+root: *_TreeNode<K, V>
+count: int
+compare: Lambda<int>(K, K)
+frame new(compare: Lambda<int>(K, K)) ret TreeMap<K, V>
+frame _cmp(this: *TreeMap<K, V>, a: K, b: K) ret int
+frame _height(node: *_TreeNode<K, V>) ret int
+frame _update(node: *_TreeNode<K, V>)
+frame _rotateRight(node: *_TreeNode<K, V>) ret *_TreeNode<K, V>
+frame _rotateLeft(node: *_TreeNode<K, V>) ret *_TreeNode<K, V>
+frame _balance(node: *_TreeNode<K, V>) ret *_TreeNode<K, V>
+frame _insert(this: *TreeMap<K, V>, node: *_TreeNode<K, V>, key: K, value: V, added: *bool) ret *_TreeNode<K, V>
+frame put(this: *TreeMap<K, V>, key: K, value: V) ret bool
+frame _find(this: *TreeMap<K, V>, key: K) ret *_TreeNode<K, V>
+frame get(this: *TreeMap<K, V>, key: K) ret Option<V>
+frame getOr(this: *TreeMap<K, V>, key: K, fallback: V) ret V
+frame has(this: *TreeMap<K, V>, key: K) ret bool
+frame _removeMin(node: *_TreeNode<K, V>, removed: **_TreeNode<K, V>) ret *_TreeNode<K, V>
+frame _remove(this: *TreeMap<K, V>, node: *_TreeNode<K, V>, key: K, removed: *bool) ret *_TreeNode<K, V>
+frame remove(this: *TreeMap<K, V>, key: K) ret bool
+frame len(this: *TreeMap<K, V>) ret int
+frame isEmpty(this: *TreeMap<K, V>) ret bool
+frame height(this: *TreeMap<K, V>) ret int
+frame minKey(this: *TreeMap<K, V>) ret Option<K>
+frame maxKey(this: *TreeMap<K, V>) ret Option<K>
+frame floorKey(this: *TreeMap<K, V>, key: K) ret Option<K>
+frame ceilingKey(this: *TreeMap<K, V>, key: K) ret Option<K>
+frame _collect(this: *TreeMap<K, V>, bounded: bool, low: K, high: K) ret Array<*_TreeNode<K, V>>
+frame _visit(nodes: Array<*_TreeNode<K, V>>, visit: Lambda<void>(K, V))
+frame forEach(this: *TreeMap<K, V>, visit: Lambda<void>(K, V))
+frame forEachInRange(this: *TreeMap<K, V>, low: K, high: K, visit: Lambda<void>(K, V))
+frame _keysOf(nodes: Array<*_TreeNode<K, V>>) ret Array<K>
+frame keys(this: *TreeMap<K, V>) ret Array<K>
+frame values(this: *TreeMap<K, V>) ret Array<V>
+frame keysInRange(this: *TreeMap<K, V>, low: K, high: K) ret Array<K>
+frame _freeAll(node: *_TreeNode<K, V>)
+frame clear(this: *TreeMap<K, V>)
+frame destroy(this: *TreeMap<K, V>)
+```
+
+## std/trie.bpl
+
+[Source](../lib/trie.bpl)
+
+Exports:
+
+```bpl
+export [Trie];
+```
+
+### Trie
+
+```bpl
+struct Trie<V>
+root: *_TrieNode<V>
+count: int
+frame new() ret Trie<V>
+frame _node(byte: u8) ret *_TrieNode<V>
+frame _freeNode(node: *_TrieNode<V>)
+frame destroy(this: *Trie<V>)
+frame len(this: *Trie<V>) ret int
+frame isEmpty(this: *Trie<V>) ret bool
+frame _childOf(node: *_TrieNode<V>, byte: u8) ret *_TrieNode<V>
+frame _walk(this: *Trie<V>, key: string) ret *_TrieNode<V>
+frame insert(this: *Trie<V>, key: string, value: V) ret bool
+frame get(this: *Trie<V>, key: string) ret Option<V>
+frame has(this: *Trie<V>, key: string) ret bool
+frame hasPrefix(this: *Trie<V>, prefix: string) ret bool
+frame countPrefix(this: *Trie<V>, prefix: string) ret int
+frame remove(this: *Trie<V>, key: string) ret bool
+frame keysWithPrefix(this: *Trie<V>, prefix: string) ret Array<String>
+frame longestPrefixOf(this: *Trie<V>, text: string) ret int
+```
+
 ## std/type.bpl
 
 [Source](../lib/type.bpl)
@@ -3897,6 +4161,35 @@ frame destroy(this: *Type)
 struct Any
 type_info: *TypeInfo
 data: u64
+```
+
+## std/union_find.bpl
+
+[Source](../lib/union_find.bpl)
+
+Exports:
+
+```bpl
+export [UnionFind];
+```
+
+### UnionFind
+
+```bpl
+struct UnionFind
+parent: *int
+sizes: *int
+count: int
+sets: int
+frame new(count: int) ret UnionFind
+frame destroy(this: *UnionFind)
+frame _check(this: *UnionFind, element: int)
+frame find(this: *UnionFind, element: int) ret int
+frame union(this: *UnionFind, a: int, b: int) ret bool
+frame connected(this: *UnionFind, a: int, b: int) ret bool
+frame setSize(this: *UnionFind, element: int) ret int
+frame setCount(this: *UnionFind) ret int
+frame len(this: *UnionFind) ret int
 ```
 
 ## std/url.bpl
