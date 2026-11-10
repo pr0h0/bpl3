@@ -133,11 +133,6 @@ export interface CheckerContext {
     declaration: AST.ASTNode;
     genericArgs?: AST.TypeNode[];
   };
-  rejectEscapingSpecPointer(
-    type: AST.TypeNode | undefined,
-    position: string,
-    location: AST.ASTNode["location"],
-  ): void;
   rejectOwningCopy(
     expr: AST.Expression | undefined,
     type: AST.TypeNode | undefined,

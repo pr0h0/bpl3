@@ -63,6 +63,23 @@ frame main() ret int {
         expectedStdout: "7 7 9 9 1 dog\n",
       },
       {
+        // R-SPEC-4
+        name: "spec-pointer-in-returned-tuple-and-generic",
+        validateLlvm: true,
+        source: `${SPEC}struct H<T> { p: T, }
+frame mk(c: *C) ret (*Sp, int) { return (c, 1); }
+frame mkh(c: *C) ret H<*Sp> { return H<*Sp> { p: c }; }
+frame main() ret int {
+    local c: C = C { c: 7 };
+    local t: (*Sp, int) = mk(&c);
+    local h: H<*Sp> = mkh(&c);
+    printf("%d %d %d %d\\n", clobber(0), t.0.s(), t.1, h.p.s());
+    return 0;
+}
+`,
+        expectedStdout: "5 7 1 7\n",
+      },
+      {
         name: "zeroed-owning-local-keeps-zero-fields",
         validateLlvm: true,
         source: `extern printf(fmt: string, ...);
@@ -158,22 +175,6 @@ describe("conformance audit: rejected programs", () => {
   // spec: R-SPEC-4, R-CONV-4, R-DECL-7, R-FN-9, R-STRUCT-4
   test("reports each misuse instead of crashing or miscompiling", () => {
     expectCheckDiagnostics([
-      {
-        // R-SPEC-4
-        name: "spec-pointer-in-returned-tuple",
-        source: `${SPEC}frame mk(c: *C) ret (*Sp, int) { return (c, 1); }
-frame main() ret int { local c: C = C { c: 7 }; local t: (*Sp, int) = mk(&c); return t.1 + clobber(0); }
-`,
-        code: "BPL_SPEC_POINTER_ESCAPES",
-      },
-      {
-        name: "spec-pointer-as-returned-generic-argument",
-        source: `${SPEC}struct H<T> { p: T, }
-frame mk(c: *C) ret H<*Sp> { return H<*Sp> { p: c }; }
-frame main() ret int { local c: C = C { c: 7 }; local h: H<*Sp> = mk(&c); return h.p.s() + clobber(0); }
-`,
-        code: "BPL_SPEC_POINTER_ESCAPES",
-      },
       {
         name: "lambda-captures-owning-value",
         source: `struct R {

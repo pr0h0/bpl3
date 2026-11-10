@@ -458,7 +458,8 @@ class ProgramBuilder {
    * `spec VK { frame val(this: *Self, d: int) ret long; }`, implemented by
    * some structs, and `totK<T: VK>(p: *T, d: int) ret long` calling it.
    */
-  private spec: { name: string; total: string } | undefined;
+  private spec:
+    { name: string; total: string; pick: string; holder: string } | undefined;
   /** `struct OK { x: T, inner: S, arr: E[4] }` locals and its `mk` fields. */
   private outer:
     | {
@@ -4293,10 +4294,15 @@ class ProgramBuilder {
     if (this.chance(0.5)) {
       const name = `V${this.fresh("")}`;
       const total = this.fresh("tot");
-      this.spec = { name, total };
+      const pick = this.fresh("pickV");
+      const holder = `${name}Holder`;
+      this.spec = { name, total, pick, holder };
+      // A `*Spec` is a value: it can be returned and kept in a field.
       lines.push(
         `spec ${name} {\n    frame val(this: *Self, d: int) ret long;\n}`,
         `frame ${total}<T: ${name}>(p: *T, d: int) ret long {\n    return p.val(d) + cast<long>(1);\n}`,
+        `frame ${pick}(a: *${name}, b: *${name}, first: bool) ret *${name} {\n    if (first) {\n        return a;\n    }\n    return b;\n}`,
+        `struct ${holder} {\n    p: *${name},\n}`,
       );
     }
     for (let index = this.int(0, 2); index > 0; index--) {
@@ -4675,6 +4681,17 @@ class ProgramBuilder {
           name: `${name}[1]`,
           instance: second.instance,
         });
+        const first2 = this.chance(0.5);
+        const picked = this.fresh("vp");
+        const held = this.fresh("vh");
+        decls.push(
+          `    local ${picked}: *${spec} = ${this.spec.pick}(&${first.instance.name}, ${second.name}, ${first2});`,
+          `    local ${held}: ${this.spec.holder} = ${this.spec.holder} { p: ${picked} };`,
+        );
+        const target = first2 ? first.instance : second.instance;
+        this.specObjects.push({ name: picked, targets: [target] });
+        this.specObjects.push({ name: `${held}.p`, targets: [target] });
+        printedSpecObjects.push({ name: `${held}.p`, instance: target });
       }
       // A pointer that is never called would be an unused local.
       for (const { name, instance } of objects) {

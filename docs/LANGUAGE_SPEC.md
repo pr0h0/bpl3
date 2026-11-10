@@ -554,12 +554,17 @@ arguments; tuple, callable, pointer and array types cannot be spec parents.
   implementing struct converts to `*Spec` in arguments, local initializers and
   assignments, local array elements, array literals stored into a `*Spec` array
   (`local items: *Shape[2] = [&circle, &square];`, whose elements need not
-  share one struct type), and explicit `cast<*Spec>`. The method
-  table is built in the frame performing the conversion, so `*Spec` cannot be a
-  return type, a global type, or a struct field type, also inside a tuple or as
-  a generic argument (`ret (*Spec, int)`, `ret Box<*Spec>`); those are rejected
-  with `BPL_SPEC_POINTER_ESCAPES`. A lambda that captures a `*Spec` keeps its
-  own copy, so it may outlive the frame. A spec method that names `Self`
+  share one struct type), and explicit `cast<*Spec>`. A `*Spec` is a value of
+  two pointers (`sizeof(*Shape)` is 16 on 64-bit targets) whose method table is
+  a global, so it may be returned, stored in globals, struct fields, tuples and
+  generic containers, and captured; like any pointer it must not outlive the
+  object it points at. `nullptr` converts to a `*Spec`, `==` and `!=` compare
+  the objects pointed at, and `cast<*void>` takes the object pointer.
+  `value is T` and `value as *T` test the object's exact struct type. A `*Spec`
+  converts to its first parent spec, and that spec's first parent, because
+  their methods lead its method table; other parents are not reachable that
+  way. A `*Spec` is not a C pointer and cannot cross an `extern` boundary
+  (`BPL_EXTERN_ABI_UNSUPPORTED`). A spec method that names `Self`
   outside its receiver (`eq(this: *Self, o: *Self)`, `ret Self`) cannot be
   called through a `*Spec`, which does not know the implementing type
   (`BPL_INSTANCE_METHOD_NOT_COMPATIBLE`); call it through a generic parameter

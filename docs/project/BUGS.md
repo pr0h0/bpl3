@@ -1385,6 +1385,35 @@ literals evaluate left to right.
 
 **Resolution**: fields are evaluated as written. R-STRUCT-3. `tests/ConformanceAuditRegressions.test.ts`.
 
+### BUG-549: `is` and `as` on a spec pointer ignored the object's type
+
+**Status**: Fixed · **Priority**: P2
+
+`local sp: *Shape = &circle; sp is Circle` was `false`, and `sp as *Circle`
+treated the `{ data, vtable }` pair as the object, because the type test read
+the first field of the value it was given.
+
+**Resolution**: for a `*Spec` operand, `is` and `as` read the vtable pointer
+of the object the data pointer points at and compare it with the struct's
+vtable; a null spec pointer is no match. tests/SpecPointerValues.test.ts.
+
+### BUG-550: Spec pointers could not be returned or stored
+
+**Status**: Fixed · **Priority**: P2
+
+A `*Spec` lowered to a pointer to a `{ data, vtable }` pair on the stack of
+the converting frame, so returning one, or keeping it in a global, field,
+tuple or generic container, left a dangling pointer, and the checker rejected
+those positions with `BPL_SPEC_POINTER_ESCAPES`.
+
+**Resolution**: a `*Spec` is now the pair itself, held by value like a
+lambda (`sizeof(*Shape)` is 16). The escape check and its code are removed,
+lambda captures no longer special-case spec pointers, `nullptr` converts to
+a pair without a method table, `==`/`!=` compare data pointers, and
+`cast<*void>` extracts the data pointer. A `*Spec` converts to its first
+parent spec chain, whose methods lead its table. A `*Spec` cannot cross an
+`extern` boundary (`BPL_EXTERN_ABI_UNSUPPORTED`). tests/SpecPointerValues.test.ts.
+
 ### BUG-548: Minor declaration diagnostics
 
 **Status**: Fixed · **Priority**: P4
