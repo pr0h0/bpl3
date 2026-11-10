@@ -17,6 +17,7 @@ import curveHandler, bondHandler, swapHandler, capHandler, swaptionHandler, shor
 import fourierHandler, carrMadanHandler, sabrHandler, sviHandler, surfaceHandler from "./handlers_vol.bpl";
 import garchHandler, arimaHandler, stationarityHandler, kalmanHandler, pairHandler from "./handlers_tsa.bpl";
 import lpHandler, constrainedPortfolioHandler from "./handlers_optim.bpl";
+import queryHandler, queryCsvHandler from "./handlers_query.bpl";
 import symbolsHandler, createSymbolHandler, submitOrderHandler, getOrderHandler, cancelOrderHandler, replaceOrderHandler, bookHandler, quoteHandler, tradesHandler, tradesCsvHandler, simulateHandler, engineStatsHandler, endOfDayHandler, validateBookHandler from "./handlers_market.bpl";
 
 export runServer;
@@ -229,6 +230,9 @@ frame registerRoutes() {
     route(HttpMethod.GET, "/tsa/pair", pairHandler, "cointegration and Kalman hedge ratio (?a=&b=)");
     route(HttpMethod.POST, "/math/lp", lpHandler, "linear program {objective, constraints:[{a, op, b}], sense}");
     route(HttpMethod.GET, "/risk/constrained", constrainedPortfolioHandler, "mean-variance with weight bounds (?symbols=&max_weight=&min_weight=&risk_aversion=)");
+    route(HttpMethod.GET, "/query", queryHandler, "QQL query over trades, bars('SYM'), orders, symbols (?q=SELECT ...)");
+    route(HttpMethod.POST, "/query", queryHandler, "QQL query {q}");
+    route(HttpMethod.GET, "/query.csv", queryCsvHandler, "QQL query as CSV");
     api_router.useNotFound(notFound);
 }
 

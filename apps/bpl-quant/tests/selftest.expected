@@ -199,4 +199,5 @@ arma.adf_ar1_stat = -24.3870
 == box_qp
 box_qp.capped_w0 = 0.300000
 box_qp.capped_w2 = 0.100000
-selftest: 587 passed, 0 failed
+== qql
+selftest: 631 passed, 0 failed
