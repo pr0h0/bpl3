@@ -457,7 +457,7 @@ Each campaign iteration picks one input lane:
   They also exercise operator methods, tuple assignment, bound methods, a
   generic enum, arrays of structs, byte reads of UTF-8 strings, type aliases,
   `T[2][2]` arrays, global structs, nested generics, `Func` fields, closures
-  returned from closures, spec dispatch through pointers, three-level
+  returned from closures, spec dispatch through pointers (including spec pointers returned from functions and kept in struct fields), three-level
   inheritance, nested enums, arrays of tuples, slices, heap lists, automatic
   destructors and implicit `new` constructors. Every fifth `--oracle-only`
   iteration is a multi-file program from `fuzz/moduleProgramGenerator.ts`: a
