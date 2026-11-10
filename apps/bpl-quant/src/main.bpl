@@ -23,6 +23,7 @@ import runMicroTests from "./selftest/micro_tests.bpl";
 import runMlTests from "./selftest/ml_tests.bpl";
 import runScenarioTests from "./selftest/scenario_tests.bpl";
 import runProtoTests from "./selftest/proto_tests.bpl";
+import runOpsTests from "./selftest/ops_tests.bpl";
 import [Text] from "./core/text.bpl";
 import [Env] from "std/env.bpl";
 import runServer, defaultConfig from "./api/server.bpl";
@@ -56,6 +57,7 @@ frame runSelftest() ret int {
     runMlTests(&c);
     runScenarioTests(&c);
     runProtoTests(&c);
+    runOpsTests(&c);
     return c.summary() == 0 ? 0 : 1;
 }
 

@@ -259,4 +259,17 @@ itch.adds = 7996
 itch.executions = 10761
 itch.deletes = 1860
 itch.dropped = 177
-selftest: 842 passed, 0 failed
+== risk_limits
+risk_limits.breaches = 11
+risk_limits.last_breach = kill_switch
+== journal
+journal.snapshot_seq = 3006
+journal.snapshot_bytes = 234
+journal.records = 5507
+journal.journal_bytes = 144030
+journal.open_orders = 26
+journal.trades = 1514
+journal.torn_error = torn record
+journal.crc_error = CRC mismatch
+journal.snapshot_corrupt = snapshot CRC mismatch
+selftest: 893 passed, 0 failed

@@ -23,6 +23,8 @@ import storeStatsHandler, storeFlushHandler, storeSaveBarsHandler, storeLoadBars
 import accountsHandler, accountHandler, auctionHandler, algoHandler, makerHandler from "./handlers_micro.bpl";
 import pcaHandler, factorHandler, clusterHandler, directionHandler, bootstrapHandler, cdsHandler, mertonHandler, portfolioLossHandler, fxHandler from "./handlers_ml.bpl";
 import importBarsHandler, bookScenarioHandler, qmcHandler from "./handlers_scenario.bpl";
+import omsSubmitHandler, omsCancelHandler, omsReplaceHandler, omsOrdersHandler, omsPositionsHandler, omsBreachesHandler, omsGetLimitsHandler, omsSetLimitsHandler, omsKillHandler, omsReviveHandler, omsRestrictHandler, omsJournalHandler, omsSnapshotHandler, omsRecoverHandler, omsCompactHandler, omsStatsHandler from "./handlers_oms.bpl";
+import fixParseHandler, fixOrderHandler, fixCancelHandler, fixLogHandler, feedReplayHandler, feedSampleHandler from "./handlers_proto.bpl";
 import symbolsHandler, createSymbolHandler, submitOrderHandler, getOrderHandler, cancelOrderHandler, replaceOrderHandler, bookHandler, quoteHandler, tradesHandler, tradesCsvHandler, simulateHandler, engineStatsHandler, endOfDayHandler, validateBookHandler from "./handlers_market.bpl";
 
 export runServer;
@@ -269,7 +271,34 @@ frame registerRoutes() {
     route(HttpMethod.POST, "/bars/:symbol/import", importBarsHandler, "replace bars from a CSV body (time, open, high, low, close[, volume])");
     route(HttpMethod.POST, "/risk/book", bookScenarioHandler, "option book Greeks and spot/vol scenario grid {underlyings, positions}");
     route(HttpMethod.GET, "/price/qmc", qmcHandler, "Sobol quasi-Monte Carlo European price (?points=)");
+    registerOpsRoutes();
     api_router.useNotFound(notFound);
+}
+
+# Order desk, protocol and feed routes.
+frame registerOpsRoutes() {
+    route(HttpMethod.POST, "/oms/orders", omsSubmitHandler, "risk-checked journaled order {symbol, account, side, type, tif, price, stop_price, qty}; 403 with the breached rule");
+    route(HttpMethod.GET, "/oms/orders", omsOrdersHandler, "open desk orders in book priority (?filter=&sort=&order=&offset=&limit=)");
+    route(HttpMethod.DELETE, "/oms/orders/:id", omsCancelHandler, "cancel a desk order");
+    route(HttpMethod.PATCH, "/oms/orders/:id", omsReplaceHandler, "risk-checked cancel/replace {price, qty}");
+    route(HttpMethod.GET, "/oms/positions", omsPositionsHandler, "positions, open exposure, cash and P&L per account and symbol (?filter=&sort=&offset=&limit=)");
+    route(HttpMethod.GET, "/oms/breaches", omsBreachesHandler, "recent pre-trade rejections and counts by rule (?filter=&sort=&order=&limit=)");
+    route(HttpMethod.GET, "/oms/limits/:account", omsGetLimitsHandler, "limits and live risk usage of an account");
+    route(HttpMethod.PUT, "/oms/limits/:account", omsSetLimitsHandler, "update limits {max_order_qty, max_order_notional, max_position, max_gross_notional, max_open_orders, rate_per_sec, burst, collar_bps, max_loss}");
+    route(HttpMethod.POST, "/oms/kill/:account", omsKillHandler, "kill switch: disable the account and cancel its open orders");
+    route(HttpMethod.POST, "/oms/revive/:account", omsReviveHandler, "re-enable an account after a kill");
+    route(HttpMethod.POST, "/oms/restrict/:symbol", omsRestrictHandler, "add or remove a symbol from the restricted list (?restricted=true|false)");
+    route(HttpMethod.GET, "/oms/journal", omsJournalHandler, "journal records (?filter=&order=desc&offset=&limit=)");
+    route(HttpMethod.POST, "/oms/snapshot", omsSnapshotHandler, "snapshot the desk engine at the current journal sequence");
+    route(HttpMethod.POST, "/oms/recover", omsRecoverHandler, "rebuild the desk from snapshot + journal in a scratch engine and compare state hashes (?snapshot=)");
+    route(HttpMethod.POST, "/oms/compact", omsCompactHandler, "drop journal records covered by the snapshot");
+    route(HttpMethod.GET, "/oms/stats", omsStatsHandler, "desk, journal, risk and FIX gateway counters");
+    route(HttpMethod.POST, "/fix/parse", fixParseHandler, "validate and decode a FIX message ('|' or SOH delimited)");
+    route(HttpMethod.POST, "/fix/order", fixOrderHandler, "send a NewOrderSingle through the desk's FIX session {clordid, symbol, side, qty, type, price, tif}");
+    route(HttpMethod.POST, "/fix/cancel", fixCancelHandler, "send an OrderCancelRequest {orig_clordid, clordid}");
+    route(HttpMethod.GET, "/fix/log", fixLogHandler, "FIX traffic of the desk session (?filter=&order=&offset=&limit=)");
+    route(HttpMethod.GET, "/feed/replay", feedReplayHandler, "ITCH-style feed: publish, replay with packet loss, compare books (?events=&symbols=&drop_every=&packet_bytes=&seed=)");
+    route(HttpMethod.GET, "/feed/sample", feedSampleHandler, "first packets of a generated feed, hex and decoded (?events=&packets=&seed=)");
 }
 
 frame initializeWorker() {

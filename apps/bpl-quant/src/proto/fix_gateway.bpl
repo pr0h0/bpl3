@@ -16,6 +16,7 @@ import [Engine], [OrderRequest], [ExecReport] from "../market/engine.bpl";
 import [Order], [Trade], [Side], [OrderType], [TimeInForce], [OrderStatus], [RejectReason], [Ticks] from "../market/order.bpl";
 import [FixMessage], [FixBuilder] from "./fix.bpl";
 import [FixSession] from "./fix_session.bpl";
+import [JournaledEngine] from "../journal/journal.bpl";
 
 export [FixGateway];
 export [GwOrder];
@@ -51,6 +52,8 @@ struct GatewayStats {
 
 struct FixGateway {
     engine: *Engine,
+    # When set, engine actions go through the journal.
+    venue: *JournaledEngine,
     account: int,
     clids: StrIndex,
     orders: *GwOrder,
@@ -65,6 +68,7 @@ struct FixGateway {
 
     frame init(this: *FixGateway, engine: *Engine, account_name: string) {
         this.engine = engine;
+        this.venue = nullptr;
         this.account = engine.accountId(account_name);
         this.clids = StrIndex.new(64);
         this.cap = 64;
@@ -84,6 +88,31 @@ struct FixGateway {
         this.orders = nullptr;
         this.by_clid.destroy();
         this.by_order.destroy();
+    }
+
+    frame useJournal(this: *FixGateway, venue: *JournaledEngine) {
+        this.venue = venue;
+    }
+
+    frame doSubmit(this: *FixGateway, req: *OrderRequest) ret ExecReport {
+        if (this.venue != nullptr) {
+            return this.venue.submit(req);
+        }
+        return this.engine.submit(req);
+    }
+
+    frame doCancel(this: *FixGateway, id: long) ret bool {
+        if (this.venue != nullptr) {
+            return this.venue.cancel(id);
+        }
+        return this.engine.cancel(id);
+    }
+
+    frame doReplace(this: *FixGateway, id: long, price: long, qty: long) ret ExecReport {
+        if (this.venue != nullptr) {
+            return this.venue.replace(id, price, qty);
+        }
+        return this.engine.replace(id, price, qty);
     }
 
     frame addOrder(this: *FixGateway, o: GwOrder) ret int {
@@ -344,7 +373,7 @@ struct FixGateway {
             return;
         }
         this.stats.orders = this.stats.orders + 1;
-        local r: ExecReport = this.engine.submit(&req);
+        local r: ExecReport = this.doSubmit(&req);
         if ((r.status == OrderStatus.Rejected) && (r.order_id == 0)) {
             this.rejectNew(s, m, FixGateway.rejectCode(r.reason), Ticks.rejectName(r.reason));
             return;
@@ -384,7 +413,7 @@ struct FixGateway {
             return;
         }
         local g: *GwOrder = this.orders + gi;
-        if (!g.open || !this.engine.cancel(g.order_id)) {
+        if (!g.open || !this.doCancel(g.order_id)) {
             this.cancelReject(s, m, "1", "order not open");
             return;
         }
@@ -416,7 +445,7 @@ struct FixGateway {
             this.cancelReject(s, m, "2", veto);
             return;
         }
-        local r: ExecReport = this.engine.replace(g.order_id, price, qty);
+        local r: ExecReport = this.doReplace(g.order_id, price, qty);
         if (r.status == OrderStatus.Rejected) {
             this.cancelReject(s, m, "2", Ticks.rejectName(r.reason));
             return;
