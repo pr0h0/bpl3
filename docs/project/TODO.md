@@ -128,8 +128,9 @@ all related enhancements or platform support are complete.
 - [x] Bundled general-purpose packages: dynamic JSON values (`bpl-json`), JSON
       Schema 2020-12 subset validation (`bpl-json-schema`), HS256/HS512 JWTs
       (`bpl-jwt`), an LRU/TTL cache (`bpl-cache`), Prometheus metrics
-      (`bpl-metrics`), safe Markdown rendering (`bpl-markdown`) and structured
-      logging (`bpl-log`). Remote
+      (`bpl-metrics`), safe Markdown rendering (`bpl-markdown`), structured
+      logging (`bpl-log`) and RFC 6455 WebSocket server connections
+      (`bpl-websocket`, one connection per worker process). Remote
       JSON Schema references, asymmetric JWT algorithms, reference-style
       Markdown links and cross-process caches remain open.
 - [x] Local package init/pack/install/list, manifest validation, cache checks,

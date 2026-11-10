@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "name": "bpl-websocket",
+  "version": "0.1.0",
+  "archiveFile": "bpl-websocket-0.1.0.tgz",
+  "archiveSha256": "626876d54dd0e50f70e23ccc2d49eb3ab510bc49854a314c7fa3c20871047142",
+  "packageHash": "00b41d8d9901a7ecfca8c037086ad25735002ef889ad4ef508b57931e1377e31",
+  "sizeBytes": 7424,
+  "createdAt": "2026-11-10T13:01:48.501Z",
+  "manifest": {
+    "name": "bpl-websocket",
+    "version": "0.1.0",
+    "description": "RFC 6455 WebSocket server connections for bpl-express",
+    "main": "index.bpl",
+    "license": "MIT",
+    "dependencies": {
+      "bpl-express": "file:../bpl-express/bpl-express-0.1.0.tgz",
+      "bpl-tls": "file:../bpl-tls/bpl-tls-0.1.0.tgz"
+    }
+  }
+}
