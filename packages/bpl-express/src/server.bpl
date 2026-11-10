@@ -8,7 +8,7 @@ import getpeername, inet_ntop from "./libc.bpl";
 import [Map] from "std/map.bpl";
 import [Router], [RouteHandler] from "./router.bpl";
 import [Request], [Response], [HttpMethod] from "./http.bpl";
-import socket, bind, listen, accept, read, close, setsockopt, htons, printf, memset, strncmp, strlen, open, lseek, malloc, free, strcmp, realpath, inet_addr from "./libc.bpl";
+import socket, bind, listen, accept, read, close, setsockopt, htons, printf, sprintf, memset, strncmp, strlen, open, lseek, malloc, free, strcmp, realpath, inet_addr from "./libc.bpl";
 import kill, fork, waitpid, getpid, getppid, prctl, _exit, usleep, clock_gettime, poll, __errno_location, [timespec], [pollfd] from "./libc.bpl";
 import [sockaddr_in], [timeval] from "./libc.bpl";
 import [HttpParser], [ParsedRequest] from "bpl-http-parser";
@@ -35,6 +35,8 @@ struct App {
     static_url: string,
     static_dir: string,
     static_middleware: RouteHandler,
+    # Cache-Control max-age for static files in seconds; negative omits it.
+    static_max_age: long,
     timeout_seconds: long,
     request_timeout_seconds: long,
     frame new() ret App {
@@ -50,6 +52,7 @@ struct App {
         app.static_url = "";
         app.static_dir = "";
         app.static_middleware = defaultStaticMiddleware;
+        app.static_max_age = -1;
         app.timeout_seconds = 5;
         app.request_timeout_seconds = 10;
         return app;
@@ -76,6 +79,15 @@ struct App {
     frame useStatic(this: *App, url: string, dir: string) {
         this.static_url = url;
         this.static_dir = dir;
+    }
+    # Sends "Cache-Control: public, max-age=N" with static files (0 to one
+    # year; 0 means revalidate every time using the ETag). Static
+    # middleware can still override the header.
+    frame staticMaxAge(this: *App, seconds: long) {
+        if ((seconds < 0) || (seconds > 31536000)) {
+            throw "Static max-age must be 0 to 31536000 seconds";
+        }
+        this.static_max_age = seconds;
     }
     frame useStaticMiddleware(this: *App, handler: RouteHandler) {
         this.static_middleware = handler;
@@ -590,6 +602,33 @@ struct App {
             return;
         }
     }
+    # Content-Type for a static file name (by extension, case-insensitive);
+    # unknown extensions are application/octet-stream.
+    frame mimeType(path: string) ret string {
+        local types: string[38] = [".html", "text/html; charset=utf-8", ".htm", "text/html; charset=utf-8", ".css", "text/css; charset=utf-8", ".js", "text/javascript; charset=utf-8", ".mjs", "text/javascript; charset=utf-8", ".json", "application/json", ".map", "application/json", ".txt", "text/plain; charset=utf-8", ".csv", "text/csv; charset=utf-8", ".xml", "application/xml", ".svg", "image/svg+xml", ".png", "image/png", ".jpg", "image/jpeg", ".jpeg", "image/jpeg", ".gif", "image/gif", ".webp", "image/webp", ".ico", "image/x-icon", ".wasm", "application/wasm", ".woff2", "font/woff2"];
+        local length: long = cast<long>(strlen(path));
+        loop (local i: int = 0; i < 38; i = i + 2) {
+            local ext: string = types[i];
+            local size: long = cast<long>(strlen(ext));
+            if (length >= size) {
+                local same: bool = true;
+                loop (local j: long = 0; j < size; j = j + 1) {
+                    local c: char = path[(length - size) + j];
+                    if ((c >= 'A') && (c <= 'Z')) {
+                        c = c + cast<char>(32);
+                    }
+                    if (c != ext[j]) {
+                        same = false;
+                        break;
+                    }
+                }
+                if (same) {
+                    return types[i + 1];
+                }
+            }
+        }
+        return "application/octet-stream";
+    }
     frame tryServeStatic(this: *App, req: *Request, res: *Response) ret bool {
         local prefix: long = cast<long>(strlen(this.static_url));
         if ((prefix == 0) || ((req.method != HttpMethod.GET) && (req.method != HttpMethod.HEAD))) {
@@ -674,16 +713,16 @@ struct App {
             }
             got = got + n;
         }
-        res.setHeader("Content-Type", "application/octet-stream");
-        local path_len: long = cast<long>(strlen(path));
-        if ((path_len >= 5) && (strcmp((path + path_len) - 5, ".html") == 0)) {
-            res.setHeader("Content-Type", "text/html; charset=utf-8");
-        } else if ((path_len >= 4) && (strcmp((path + path_len) - 4, ".css") == 0)) {
-            res.setHeader("Content-Type", "text/css");
-        } else if ((path_len >= 3) && (strcmp((path + path_len) - 3, ".js") == 0)) {
-            res.setHeader("Content-Type", "application/javascript");
-        }
+        res.setHeader("Content-Type", App.mimeType(path));
         res.setHeader("X-Content-Type-Options", "nosniff");
+        if (this.static_max_age >= 0) {
+            local cache: char[64];
+            sprintf(cast<string>(&cache[0]), "public, max-age=%ld", this.static_max_age);
+            if (this.static_max_age == 0) {
+                sprintf(cast<string>(&cache[0]), "no-cache");
+            }
+            res.setHeader("Cache-Control", cast<string>(&cache[0]));
+        }
         req.setState("request.route", "[static]");
         this.static_middleware(req, res);
         if (!res.body_sent) {

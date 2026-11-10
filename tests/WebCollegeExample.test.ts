@@ -171,7 +171,7 @@ test.skipIf(
       );
       expect(await home.text()).toContain("Project board");
       expect((await request("/app.js")).headers.get("content-type")).toBe(
-        "application/javascript",
+        "text/javascript; charset=utf-8",
       );
       expect((await request("/api/tasks")).status).toBe(401);
       const alice = await register("alice");

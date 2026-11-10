@@ -107,6 +107,16 @@ struct Router {
         route.handler = handler;
         this.routes.push(route);
     }
+    # Registers `handler` for GET, POST, PUT, DELETE, PATCH and OPTIONS (HEAD
+    # falls back to GET).
+    frame all(this: *Router, path: string, handler: RouteHandler) {
+        this.on(HttpMethod.GET, path, handler);
+        this.on(HttpMethod.POST, path, handler);
+        this.on(HttpMethod.PUT, path, handler);
+        this.on(HttpMethod.DELETE, path, handler);
+        this.on(HttpMethod.PATCH, path, handler);
+        this.on(HttpMethod.OPTIONS, path, handler);
+    }
     frame patch(this: *Router, path: string, handler: RouteHandler) {
         this.on(HttpMethod.PATCH, path, handler);
     }
@@ -230,8 +240,10 @@ struct Router {
         local r_len: int = cast<int>(strlen(routePath));
         local q_len: int = cast<int>(strlen(reqPath));
 
+        local wildcard: int = -1;
         loop ((r_idx < r_len) && (q_idx < q_len)) {
             if ((routePath[r_idx] == '*') && (r_idx == (r_len - 1))) {
+                wildcard = q_idx;
                 r_idx = r_len;
                 q_idx = q_len;
                 break;
@@ -269,6 +281,7 @@ struct Router {
         # Check for trailing *
         if (r_idx < r_len) {
             if ((routePath[r_idx] == '*') && (r_idx == (r_len - 1))) {
+                wildcard = q_idx;
                 r_idx = r_len;
                 q_idx = q_len;
             }
@@ -277,12 +290,19 @@ struct Router {
         if ((r_idx != r_len) || (q_idx != q_len)) {
             return false;
         }
+        if (wildcard >= 0) {
+            local rest: string = HttpParser.decode(&reqPath[wildcard], cast<long>(q_len - wildcard), false);
+            if (rest == nullptr) {
+                return false;
+            }
+            free(rest);
+        }
         # Pass 2: Extract params
         r_idx = 0;
         q_idx = 0;
         loop ((r_idx < r_len) && (q_idx < q_len)) {
             if ((routePath[r_idx] == '*') && (r_idx == (r_len - 1))) {
-                return true;
+                break;
             }
             if (routePath[r_idx] == ':') {
                 r_idx = r_idx + 1; # Skip ':'
@@ -330,7 +350,16 @@ struct Router {
                 q_idx = q_idx + 1;
             }
         }
-
+        # A trailing wildcard captures the (decoded) rest of the path as "*".
+        if (wildcard >= 0) {
+            local key: string = malloc(2);
+            if (key == nullptr) {
+                throw "Route parameter allocation failed";
+            }
+            key[0] = '*';
+            key[1] = '\0';
+            HttpParser.put(params, key, HttpParser.decode(&reqPath[wildcard], cast<long>(q_len - wildcard), false));
+        }
         return true;
     }
 }
