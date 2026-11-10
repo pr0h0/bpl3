@@ -18,7 +18,9 @@ import runSurfaceTests from "./selftest/surface_tests.bpl";
 import runTsaTests from "./selftest/tsa_tests.bpl";
 import runOptimTests from "./selftest/optim_tests.bpl";
 import runSqlTests from "./selftest/sql_tests.bpl";
+import runStoreTests from "./selftest/store_tests.bpl";
 import [Text] from "./core/text.bpl";
+import [Env] from "std/env.bpl";
 import runServer, defaultConfig from "./api/server.bpl";
 import runBench from "./bench/kernels.bpl";
 import runLoadgen from "./bench/loadgen.bpl";
@@ -45,6 +47,7 @@ frame runSelftest() ret int {
     runTsaTests(&c);
     runOptimTests(&c);
     runSqlTests(&c);
+    runStoreTests(&c);
     return c.summary() == 0 ? 0 : 1;
 }
 
@@ -64,6 +67,18 @@ frame main(argc: int, argv: *string) ret int {
         }
         if (argc > 3) {
             config.workers = Text.parseIntOr(argv[3], -1);
+        }
+        local db: string = Env.getOr("BPLQUANT_DB", "");
+        if (!Text.isEmpty(db)) {
+            config.db_path = db;
+            config.persist = true;
+        }
+        config.rate_limit = Env.getInt("BPLQUANT_RATE_LIMIT", 0);
+        config.rate_window = Env.getInt("BPLQUANT_RATE_WINDOW", 60);
+        config.access_log = Env.getBool("BPLQUANT_ACCESS_LOG", false);
+        if ((config.rate_limit > 0) && !config.persist) {
+            printf("serve: BPLQUANT_RATE_LIMIT needs BPLQUANT_DB (counters are shared through SQLite)\n");
+            return 2;
         }
         if ((config.port < 1) || (config.port > 65535) || (config.workers < 1) || (config.workers > 8)) {
             printf("serve: port must be 1-65535 and workers 1-8\n");

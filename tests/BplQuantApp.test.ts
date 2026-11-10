@@ -9,12 +9,20 @@ import { createServer } from "node:net";
 // golden output, then (on Linux) starts the HTTP API on an ephemeral port.
 
 const appDir = resolve("apps/bpl-quant");
+// The app persists through bpl-sqlite, so it links the SQLite runtime.
+const sqlitePath =
+  spawnSync("clang", ["-print-file-name=libsqlite3.so.0"], {
+    encoding: "utf8",
+    timeout: 10000,
+  }).stdout?.trim() ?? "";
+const hasSqlite = sqlitePath.includes("/");
 let workDir = "";
 let exe = "";
 let buildOutput = "";
 let buildStatus: number | null = null;
 
 beforeAll(() => {
+  if (!hasSqlite) return;
   workDir = mkdtempSync(join(tmpdir(), "bpl-quant-"));
   exe = join(workDir, "bpl-quant");
   const build = spawnSync(
@@ -25,6 +33,7 @@ beforeAll(() => {
       join(appDir, "src/main.bpl"),
       "-O",
       "2",
+      "--clang-flag=-l:libsqlite3.so.0",
       "-o",
       exe,
     ],
@@ -34,11 +43,31 @@ beforeAll(() => {
   buildOutput = (build.stdout ?? "") + (build.stderr ?? "");
 }, 180000);
 
+async function freePort(): Promise<number> {
+  const probe = createServer();
+  await new Promise<void>((done) => probe.listen(0, "127.0.0.1", done));
+  const address = probe.address();
+  if (!address || typeof address === "string") throw new Error("no port");
+  await new Promise<void>((done) => probe.close(() => done()));
+  return address.port;
+}
+
+async function waitReady(base: string): Promise<void> {
+  for (let i = 0; i < 100; i++) {
+    try {
+      if ((await fetch(base + "/health")).ok) return;
+    } catch {
+      await Bun.sleep(50);
+    }
+  }
+  throw new Error("server did not become ready");
+}
+
 afterAll(() => {
   if (workDir) rmSync(workDir, { recursive: true, force: true });
 });
 
-describe("bpl-quant", () => {
+describe.skipIf(!hasSqlite)("bpl-quant", () => {
   test("builds", () => {
     expect(buildStatus, buildOutput).toBe(0);
   });
@@ -58,15 +87,64 @@ describe("bpl-quant", () => {
   });
 
   test.skipIf(process.platform !== "linux")(
+    "persists trades to SQLite, rate limits, and survives a load run",
+    async () => {
+      expect(buildStatus, buildOutput).toBe(0);
+      const port = await freePort();
+      const db = join(workDir, "quant.sqlite");
+      const child = Bun.spawn([exe, "serve", String(port), "2"], {
+        env: {
+          ...process.env,
+          BPLQUANT_DB: db,
+          BPLQUANT_RATE_LIMIT: "100000",
+        },
+        stdout: "pipe",
+        stderr: "pipe",
+      });
+      const base = `http://127.0.0.1:${port}/api`;
+      try {
+        await waitReady(base);
+        // Each worker persists its own trades; flush until one has written.
+        let written = 0;
+        for (let i = 0; i < 20 && written === 0; i++) {
+          await fetch(`${base}/sim/ACME?events=500&seed=${i + 1}`, {
+            method: "POST",
+          });
+          const flush = await fetch(`${base}/store/flush`, { method: "POST" });
+          written = ((await flush.json()) as { written: number }).written;
+        }
+        expect(written).toBeGreaterThan(0);
+        const stats = (await (await fetch(`${base}/store/stats`)).json()) as {
+          trades: number;
+          integrity_ok: boolean;
+        };
+        expect(stats.trades).toBeGreaterThanOrEqual(written);
+        expect(stats.integrity_ok).toBe(true);
+        const limited = await fetch(`${base}/symbols`);
+        expect(limited.headers.get("ratelimit-limit")).toBe("100000");
+        const load = spawnSync(
+          exe,
+          ["loadgen", String(port), "400", "4", "read"],
+          {
+            encoding: "utf8",
+            timeout: 60000,
+          },
+        );
+        expect(load.status, load.stdout + load.stderr).toBe(0);
+        expect(load.stdout).toContain("2xx/3xx=400");
+      } finally {
+        child.kill();
+        await child.exited;
+      }
+    },
+    90000,
+  );
+
+  test.skipIf(process.platform !== "linux")(
     "serves the JSON API on an ephemeral port",
     async () => {
       expect(buildStatus, buildOutput).toBe(0);
-      const probe = createServer();
-      await new Promise<void>((done) => probe.listen(0, "127.0.0.1", done));
-      const address = probe.address();
-      if (!address || typeof address === "string") throw new Error("no port");
-      const port = address.port;
-      await new Promise<void>((done) => probe.close(() => done()));
+      const port = await freePort();
       const child = Bun.spawn([exe, "serve", String(port)], {
         stdout: "pipe",
         stderr: "pipe",
@@ -80,15 +158,7 @@ describe("bpl-quant", () => {
         return { status: res.status, body };
       };
       try {
-        let ready = false;
-        for (let i = 0; i < 100 && !ready; i++) {
-          try {
-            ready = (await fetch(base + "/health")).ok;
-          } catch {
-            await Bun.sleep(50);
-          }
-        }
-        expect(ready).toBe(true);
+        await waitReady(base);
         const routes = await getJson("/routes");
         expect(routes.body.count).toBeGreaterThanOrEqual(50);
 

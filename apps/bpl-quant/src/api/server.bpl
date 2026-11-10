@@ -3,6 +3,7 @@
 import [App], [Router], [Request], [Response], [HttpMethod] from "bpl-express";
 import securityHeaders from "bpl-web-middleware";
 import printf from "std/c.bpl";
+import getpid from "bpl-express/src/libc.bpl";
 import [Env] from "std/env.bpl";
 import [Clock] from "../core/clock.bpl";
 import [Text] from "../core/text.bpl";
@@ -18,6 +19,7 @@ import fourierHandler, carrMadanHandler, sabrHandler, sviHandler, surfaceHandler
 import garchHandler, arimaHandler, stationarityHandler, kalmanHandler, pairHandler from "./handlers_tsa.bpl";
 import lpHandler, constrainedPortfolioHandler from "./handlers_optim.bpl";
 import queryHandler, queryCsvHandler from "./handlers_query.bpl";
+import storeStatsHandler, storeFlushHandler, storeSaveBarsHandler, storeLoadBarsHandler, storeTradesHandler from "./handlers_store.bpl";
 import symbolsHandler, createSymbolHandler, submitOrderHandler, getOrderHandler, cancelOrderHandler, replaceOrderHandler, bookHandler, quoteHandler, tradesHandler, tradesCsvHandler, simulateHandler, engineStatsHandler, endOfDayHandler, validateBookHandler from "./handlers_market.bpl";
 
 export runServer;
@@ -57,6 +59,15 @@ frame notFound(_req: *Request, res: *Response) {
 
 frame startTimer(_req: *Request, _res: *Response) {
     appState().request_start_ns = Clock.nowNs();
+}
+
+# Rate limit API requests per socket peer (health and metrics are exempt).
+frame throttle(req: *Request, res: *Response) {
+    local s: *AppState = appState();
+    if (!s.rate_limited || Text.equals(req.path, "/api/health") || Text.equals(req.path, "/health") || Text.equals(req.path, "/metrics")) {
+        return;
+    }
+    s.limiter.apply(req, res, "api", s.config.rate_limit, s.config.rate_window);
 }
 
 # Collapses ids and symbols in a path so metrics group by route shape.
@@ -233,14 +244,21 @@ frame registerRoutes() {
     route(HttpMethod.GET, "/query", queryHandler, "QQL query over trades, bars('SYM'), orders, symbols (?q=SELECT ...)");
     route(HttpMethod.POST, "/query", queryHandler, "QQL query {q}");
     route(HttpMethod.GET, "/query.csv", queryCsvHandler, "QQL query as CSV");
+    route(HttpMethod.GET, "/store/stats", storeStatsHandler, "SQLite row counts and integrity (needs BPLQUANT_DB)");
+    route(HttpMethod.POST, "/store/flush", storeFlushHandler, "persist new trades from the tape");
+    route(HttpMethod.GET, "/store/trades", storeTradesHandler, "persisted trades from every worker (?symbol=&limit=)");
+    route(HttpMethod.POST, "/store/bars/:symbol/save", storeSaveBarsHandler, "persist a symbol's bars");
+    route(HttpMethod.POST, "/store/bars/:symbol/load", storeLoadBarsHandler, "replace a symbol's bars from the database");
     api_router.useNotFound(notFound);
 }
 
 frame initializeWorker() {
-    worker_counter = worker_counter + 1;
+    # Each forked worker gets a distinct id (its pid) for persisted trade keys.
+    worker_counter = getpid();
     local s: *AppState = AppState.create(server_config);
     s.worker_id = worker_counter;
     setAppState(s);
+    s.openStorage();
 }
 
 frame runServer(config: AppConfig) ret int {
@@ -249,6 +267,7 @@ frame runServer(config: AppConfig) ret int {
     local app: App = App.new();
     app.beforeRequest(startTimer);
     app.beforeRequest(securityHeaders);
+    app.beforeRequest(throttle);
     app.afterRequest(observe);
     app.useRouter("/api", &api_router);
     app.router.get("/metrics", metricsHandler);

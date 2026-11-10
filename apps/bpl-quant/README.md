@@ -19,7 +19,7 @@ Work in progress. Current modules:
 From the repository root:
 
 ```bash
-bun index.ts build apps/bpl-quant/src/main.bpl -O 2 -o apps/bpl-quant/out/bpl-quant
+bun index.ts build apps/bpl-quant/src/main.bpl -O 2 --clang-flag=-l:libsqlite3.so.0 -o apps/bpl-quant/out/bpl-quant
 apps/bpl-quant/out/bpl-quant selftest
 bun test tests/BplQuantApp.test.ts
 ```

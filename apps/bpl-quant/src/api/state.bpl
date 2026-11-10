@@ -11,6 +11,10 @@ import [BarSeries] from "../series/bars.bpl";
 import [Metrics] from "./metrics.bpl";
 import [Clock] from "../core/clock.bpl";
 import [Ticks] from "../market/order.bpl";
+import [Store] from "../store/db.bpl";
+import [SQLite] from "bpl-sqlite";
+import [RateLimiter] from "bpl-rate-limit";
+import [Text] from "../core/text.bpl";
 
 export [AppState];
 export [AppConfig];
@@ -38,6 +42,10 @@ struct AppState {
     request_start_ns: long,
     worker_id: int,
     persisted_trades: long,
+    store: Store,
+    rate_db: SQLite,
+    limiter: RateLimiter,
+    rate_limited: bool,
 
     frame create(config: AppConfig) ret *AppState {
         local s: *AppState = cast<*AppState>(malloc(sizeof(AppState)));
@@ -51,6 +59,7 @@ struct AppState {
         s.request_start_ns = 0;
         s.worker_id = 0;
         s.persisted_trades = 0;
+        s.rate_limited = false;
         if (config.seed_symbols) {
             s.seed();
         }
@@ -59,6 +68,22 @@ struct AppState {
 
     frame init(this: *AppState) {
         this.worker_id = 0;
+        this.rate_limited = false;
+        this.store.init();
+    }
+
+    # Opens worker-local SQLite connections (call after fork).
+    frame openStorage(this: *AppState) {
+        if (!this.config.persist) {
+            return;
+        }
+        this.store.connect(this.config.db_path, this.worker_id);
+        if (this.config.rate_limit > 0) {
+            this.rate_db = SQLite.open(this.config.db_path);
+            this.rate_db.setBusyTimeout(5000);
+            this.limiter = RateLimiter.new(&this.rate_db);
+            this.rate_limited = true;
+        }
     }
 
     # Default listing: a few symbols with a year of synthetic daily bars.
