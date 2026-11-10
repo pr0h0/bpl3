@@ -146,6 +146,8 @@ struct WebSocket {
     fd: int,
     tls: *TlsConnection,
     open: bool,
+    # Set while close() waits for the peer's close frame.
+    closing: bool,
     # Largest accepted message (after joining fragments), in bytes.
     max_message: long,
     # Milliseconds receive() waits for a message; Timeout is returned after.
@@ -213,6 +215,7 @@ struct WebSocket {
         socket.fd = res.client_fd;
         socket.tls = res.tls;
         socket.open = true;
+        socket.closing = false;
         socket.max_message = 1048576;
         socket.read_timeout_ms = 60000;
         socket.capacity = 4096;
@@ -360,7 +363,23 @@ struct WebSocket {
             }
             headerSize = 10;
         }
-        if (!this.writeAll(cast<string>(&header[0]), cast<long>(headerSize)) || ((size > 0) && !this.writeAll(data, size))) {
+        # Small frames go out in one write: some clients mishandle a control
+        # frame whose header and payload arrive in separate segments.
+        if (size <= 4096) {
+            local whole: u8[4106];
+            loop (local i: int = 0; i < headerSize; i = i + 1) {
+                whole[i] = header[i];
+            }
+            if (size > 0) {
+                memcpy(cast<string>(&whole[headerSize]), data, cast<ulong>(size));
+            }
+            if (!this.writeAll(cast<string>(&whole[0]), cast<long>(headerSize) + size)) {
+                this.open = false;
+                return false;
+            }
+            return true;
+        }
+        if (!this.writeAll(cast<string>(&header[0]), cast<long>(headerSize)) || !this.writeAll(data, size)) {
             this.open = false;
             return false;
         }
@@ -386,12 +405,37 @@ struct WebSocket {
         }
         return this.writeFrame(9, data, size);
     }
-    # Sends a close frame (code 1000-4999, reason up to 123 bytes) and stops
-    # the socket. The peer's reply is not awaited.
+    # Sends a close frame (code 1000-4999, reason up to 123 bytes), then reads
+    # and discards frames until the peer's close frame arrives or one second
+    # passes (RFC 6455 7.1.1), so the peer sees the code before the
+    # connection ends.
     frame close(this: *WebSocket, code: int, reason: string) {
         if (!this.open) {
             return;
         }
+        this.sendClose(code, reason);
+        if (!this.open) {
+            return;
+        }
+        this.closing = true;
+        local savedTimeout: long = this.read_timeout_ms;
+        if (this.read_timeout_ms > 1000) {
+            this.read_timeout_ms = 1000;
+        }
+        loop (local attempts: int = 0; attempts < 64; attempts++) {
+            local reply: WsMessage = this.receive();
+            local finished: bool = reply.ended() || (reply.kind == WsKind.Timeout);
+            reply.destroy();
+            if (finished) {
+                break;
+            }
+        }
+        this.read_timeout_ms = savedTimeout;
+        this.closing = false;
+        this.open = false;
+    }
+    # Sends a close frame without waiting for the reply.
+    frame sendClose(this: *WebSocket, code: int, reason: string) {
         if ((code < 1000) || (code > 4999) || (code == 1004) || (code == 1005) || (code == 1006) || (code == 1015)) {
             throw "Invalid WebSocket close code";
         }
@@ -408,12 +452,13 @@ struct WebSocket {
         loop (local i: long = 0; i < length; i = i + 1) {
             payload[2 + i] = cast<u8>(reason[i]);
         }
-        this.writeFrame(8, cast<string>(&payload[0]), length + 2);
-        this.open = false;
+        if (!this.writeFrame(8, cast<string>(&payload[0]), length + 2)) {
+            this.open = false;
+        }
     }
     frame fail(this: *WebSocket, code: int) ret WsMessage {
-        if (this.open) {
-            this.close(code, "");
+        if (this.open && !this.closing) {
+            this.sendClose(code, "");
         }
         this.open = false;
         local message: WsMessage;
@@ -556,6 +601,11 @@ struct WebSocket {
                 message.data[message.size] = 0;
                 this.consume(start + length);
                 free(assembled);
+                if (this.closing) {
+                    # The reply to our own close frame: nothing to echo.
+                    this.open = false;
+                    return message;
+                }
                 # Echo the close (RFC 6455 5.5.1), then stop.
                 local reply: u8[2];
                 local replyCode: int = code;

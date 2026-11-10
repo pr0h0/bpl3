@@ -66,7 +66,9 @@ frame main() {
 - `sendText(text)` (throws on invalid UTF-8), `sendBinary(data, size)` and
   `ping(payload)` return false once the connection failed.
   `close(code, reason)` sends a close frame (1000 to 4999, excluding the
-  reserved 1004-1006 and 1015; reason up to 123 bytes).
+  reserved 1004-1006 and 1015; reason up to 123 bytes), then waits up to one
+  second for the peer's close frame, discarding other frames, so the peer
+  receives the code before the connection ends (RFC 6455 7.1.1).
 - `setMaxMessage(bytes)` limits a whole (reassembled) message, 125 bytes to
   64 MiB, default 1 MiB.
 - `destroy()` frees the socket's buffers; bpl-express closes the connection
