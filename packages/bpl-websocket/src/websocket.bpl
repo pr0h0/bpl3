@@ -16,6 +16,7 @@ extern strcmp(a: string, b: string) ret int;
 extern memcpy(dest: *void, src: *void, size: ulong) ret *void;
 extern send(fd: int, data: string, size: ulong, flags: int) ret long;
 extern read(fd: int, data: string, size: ulong) ret long;
+extern shutdown(fd: int, how: int) ret int;
 extern __errno_location() ret *int;
 
 export [WebSocket];
@@ -456,9 +457,47 @@ struct WebSocket {
             this.open = false;
         }
     }
+    # After a protocol error the peer may still be sending. Closing with
+    # unread input makes the kernel reset the connection, which can destroy
+    # the close frame before the peer reads it, so stop writing and discard
+    # input until the peer closes or 500 ms pass.
+    frame lingerClose(this: *WebSocket) {
+        if (this.tls != nullptr) {
+            return;
+        }
+        shutdown(this.fd, 1);
+        local scratch: char[4096];
+        local deadline: long = TlsConnection.milliseconds() + 500;
+        loop {
+            local remaining: long = deadline - TlsConnection.milliseconds();
+            if (remaining <= 0) {
+                break;
+            }
+            local ready: pollfd;
+            ready.fd = this.fd;
+            ready.events = 1;
+            ready.revents = 0;
+            local available: int = poll(&ready, 1, cast<int>(remaining));
+            if (available == 0) {
+                break;
+            }
+            if (available < 0) {
+                local error: *int = __errno_location();
+                if (error[0] == 4) {
+                    continue;
+                }
+                break;
+            }
+            if (read(this.fd, cast<string>(&scratch[0]), 4096) <= 0) {
+                break;
+            }
+        }
+    }
     frame fail(this: *WebSocket, code: int) ret WsMessage {
-        if (this.open && !this.closing) {
+        # 1006 reports a lost connection; it is never sent on the wire.
+        if (this.open && !this.closing && (code != 1006)) {
             this.sendClose(code, "");
+            this.lingerClose();
         }
         this.open = false;
         local message: WsMessage;
