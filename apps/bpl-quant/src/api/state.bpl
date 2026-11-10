@@ -15,6 +15,8 @@ import [Store] from "../store/db.bpl";
 import [SQLite] from "bpl-sqlite";
 import [RateLimiter] from "bpl-rate-limit";
 import [Text] from "../core/text.bpl";
+import [Desk] from "../oms/desk.bpl";
+import [ColumnarCatalog] from "../cache/catalog.bpl";
 
 export [AppState];
 export [AppConfig];
@@ -46,6 +48,9 @@ struct AppState {
     rate_db: SQLite,
     limiter: RateLimiter,
     rate_limited: bool,
+    # Risk-checked, journaled order desk (separate from the simulator engine).
+    desk: *Desk,
+    columnar: *ColumnarCatalog,
 
     frame create(config: AppConfig) ret *AppState {
         local s: *AppState = cast<*AppState>(malloc(sizeof(AppState)));
@@ -60,6 +65,8 @@ struct AppState {
         s.worker_id = 0;
         s.persisted_trades = 0;
         s.rate_limited = false;
+        s.desk = Desk.create();
+        s.columnar = ColumnarCatalog.create();
         if (config.seed_symbols) {
             s.seed();
         }

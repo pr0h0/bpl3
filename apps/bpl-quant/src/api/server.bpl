@@ -23,6 +23,15 @@ import storeStatsHandler, storeFlushHandler, storeSaveBarsHandler, storeLoadBars
 import accountsHandler, accountHandler, auctionHandler, algoHandler, makerHandler from "./handlers_micro.bpl";
 import pcaHandler, factorHandler, clusterHandler, directionHandler, bootstrapHandler, cdsHandler, mertonHandler, portfolioLossHandler, fxHandler from "./handlers_ml.bpl";
 import importBarsHandler, bookScenarioHandler, qmcHandler from "./handlers_scenario.bpl";
+import omsSubmitHandler, omsCancelHandler, omsReplaceHandler, omsOrdersHandler, omsPositionsHandler, omsBreachesHandler, omsGetLimitsHandler, omsSetLimitsHandler, omsKillHandler, omsReviveHandler, omsRestrictHandler, omsJournalHandler, omsSnapshotHandler, omsRecoverHandler, omsCompactHandler, omsStatsHandler from "./handlers_oms.bpl";
+import stressScenariosHandler, stressRunHandler, stressDemoHandler, brinsonHandler, linkHandler, rebalanceHandler, rebalanceSimulateHandler from "./handlers_portfolio.bpl";
+import columnarQueryHandler, columnarStatsHandler from "./handlers_columnar.bpl";
+import moreIndicatorHandler, moreIndicatorListHandler, performanceHandler, sampleTestsHandler from "./handlers_analytics.bpl";
+import scheduleHandler, impactHandler, shortfallHandler, surveillanceHandler from "./handlers_execution.bpl";
+import strategyHandler, templatesHandler, regimeHandler, adjustHandler, liquidityHandler, spanHandler from "./handlers_structure.bpl";
+import wsFeedHandler from "./handlers_ws.bpl";
+import modelsHandler, immunizeHandler, pairsHandler, sizingHandler from "./handlers_models.bpl";
+import fixParseHandler, fixOrderHandler, fixCancelHandler, fixLogHandler, feedReplayHandler, feedSampleHandler from "./handlers_proto.bpl";
 import symbolsHandler, createSymbolHandler, submitOrderHandler, getOrderHandler, cancelOrderHandler, replaceOrderHandler, bookHandler, quoteHandler, tradesHandler, tradesCsvHandler, simulateHandler, engineStatsHandler, endOfDayHandler, validateBookHandler from "./handlers_market.bpl";
 
 export runServer;
@@ -269,7 +278,63 @@ frame registerRoutes() {
     route(HttpMethod.POST, "/bars/:symbol/import", importBarsHandler, "replace bars from a CSV body (time, open, high, low, close[, volume])");
     route(HttpMethod.POST, "/risk/book", bookScenarioHandler, "option book Greeks and spot/vol scenario grid {underlyings, positions}");
     route(HttpMethod.GET, "/price/qmc", qmcHandler, "Sobol quasi-Monte Carlo European price (?points=)");
+    registerOpsRoutes();
     api_router.useNotFound(notFound);
+}
+
+# Order desk, protocol and feed routes.
+frame registerOpsRoutes() {
+    route(HttpMethod.POST, "/oms/orders", omsSubmitHandler, "risk-checked journaled order {symbol, account, side, type, tif, price, stop_price, qty}; 403 with the breached rule");
+    route(HttpMethod.GET, "/oms/orders", omsOrdersHandler, "open desk orders in book priority (?filter=&sort=&order=&offset=&limit=)");
+    route(HttpMethod.DELETE, "/oms/orders/:id", omsCancelHandler, "cancel a desk order");
+    route(HttpMethod.PATCH, "/oms/orders/:id", omsReplaceHandler, "risk-checked cancel/replace {price, qty}");
+    route(HttpMethod.GET, "/oms/positions", omsPositionsHandler, "positions, open exposure, cash and P&L per account and symbol (?filter=&sort=&offset=&limit=)");
+    route(HttpMethod.GET, "/oms/breaches", omsBreachesHandler, "recent pre-trade rejections and counts by rule (?filter=&sort=&order=&limit=)");
+    route(HttpMethod.GET, "/oms/limits/:account", omsGetLimitsHandler, "limits and live risk usage of an account");
+    route(HttpMethod.PUT, "/oms/limits/:account", omsSetLimitsHandler, "update limits {max_order_qty, max_order_notional, max_position, max_gross_notional, max_open_orders, rate_per_sec, burst, collar_bps, max_loss}");
+    route(HttpMethod.POST, "/oms/kill/:account", omsKillHandler, "kill switch: disable the account and cancel its open orders");
+    route(HttpMethod.POST, "/oms/revive/:account", omsReviveHandler, "re-enable an account after a kill");
+    route(HttpMethod.POST, "/oms/restrict/:symbol", omsRestrictHandler, "add or remove a symbol from the restricted list (?restricted=true|false)");
+    route(HttpMethod.GET, "/oms/journal", omsJournalHandler, "journal records (?filter=&order=desc&offset=&limit=)");
+    route(HttpMethod.POST, "/oms/snapshot", omsSnapshotHandler, "snapshot the desk engine at the current journal sequence");
+    route(HttpMethod.POST, "/oms/recover", omsRecoverHandler, "rebuild the desk from snapshot + journal in a scratch engine and compare state hashes (?snapshot=)");
+    route(HttpMethod.POST, "/oms/compact", omsCompactHandler, "drop journal records covered by the snapshot");
+    route(HttpMethod.GET, "/oms/stats", omsStatsHandler, "desk, journal, risk and FIX gateway counters");
+    route(HttpMethod.POST, "/fix/parse", fixParseHandler, "validate and decode a FIX message ('|' or SOH delimited)");
+    route(HttpMethod.POST, "/fix/order", fixOrderHandler, "send a NewOrderSingle through the desk's FIX session {clordid, symbol, side, qty, type, price, tif}");
+    route(HttpMethod.POST, "/fix/cancel", fixCancelHandler, "send an OrderCancelRequest {orig_clordid, clordid}");
+    route(HttpMethod.GET, "/fix/log", fixLogHandler, "FIX traffic of the desk session (?filter=&order=&offset=&limit=)");
+    route(HttpMethod.GET, "/feed/replay", feedReplayHandler, "ITCH-style feed: publish, replay with packet loss, compare books (?events=&symbols=&drop_every=&packet_bytes=&seed=)");
+    route(HttpMethod.GET, "/stress/scenarios", stressScenariosHandler, "built-in historical stress scenarios");
+    route(HttpMethod.POST, "/stress/run", stressRunHandler, "stress a multi-asset book {underlyings, currencies, positions, scenario?, reverse_loss?} (?mc_paths=)");
+    route(HttpMethod.GET, "/stress/demo", stressDemoHandler, "stress a book of live symbols with a put and a bond ladder (?symbols=&mc_paths=)");
+    route(HttpMethod.POST, "/attribution/brinson", brinsonHandler, "Brinson-Fachler or BHB sector attribution {method, sectors:[{name, wp, wb, rp, rb}]}");
+    route(HttpMethod.POST, "/attribution/link", linkHandler, "Carino/Menchero multi-period linking {portfolio, benchmark, effects?, method}");
+    route(HttpMethod.POST, "/rebalance", rebalanceHandler, "whole-lot rebalance to targets with bands, min trade, turnover cap and costs");
+    route(HttpMethod.GET, "/rebalance/simulate", rebalanceSimulateHandler, "buy-and-hold vs calendar vs threshold rebalancing (?symbols=&weights=&period=&band=)");
+    route(HttpMethod.GET, "/columnar/stats", columnarStatsHandler, "columnar tables (rows, blocks, encoded size) and result-cache counters");
+    route(HttpMethod.GET, "/columnar/:table", columnarQueryHandler, "zone-mapped columnar aggregate over trades or bars (?where=&group=&aggs=sum(qty),vwap(price,qty)&limit=&cache=)");
+    route(HttpMethod.GET, "/indicators2", moreIndicatorListHandler, "names of the second indicator set");
+    route(HttpMethod.GET, "/indicators2/:symbol", moreIndicatorHandler, "zlema, alma, t3, tsi, kst, vortex, choppiness, supertrend, pivots, ... (?name=&period=&tail=&multiplier=)");
+    route(HttpMethod.GET, "/stats/:symbol/performance", performanceHandler, "omega, calmar, kappa, probabilistic/deflated Sharpe, tail index, Cornish-Fisher VaR, normality tests, drawdown table");
+    route(HttpMethod.POST, "/stats/tests", sampleTestsHandler, "two-sample KS, Mann-Whitney, Kendall tau and Anderson-Darling {a, b}");
+    route(HttpMethod.GET, "/tca/schedule", scheduleHandler, "Almgren-Chriss optimal liquidation and efficient frontier (?shares=&periods=&horizon=&sigma=&eta=&gamma=&epsilon=&lambda=)");
+    route(HttpMethod.GET, "/tca/impact", impactHandler, "square-root market impact (?qty=&adv=&daily_vol=&y=&minutes=)");
+    route(HttpMethod.POST, "/tca/shortfall", shortfallHandler, "implementation shortfall decomposition and benchmark slippage {side, target, decision, arrival, close, fills}");
+    route(HttpMethod.GET, "/oms/surveillance", surveillanceHandler, "spoofing, wash trades, order-to-trade, quote stuffing and marking-the-close alerts over the desk journal");
+    route(HttpMethod.GET, "/options/templates", templatesHandler, "named multi-leg option strategies");
+    route(HttpMethod.GET, "/options/strategy", strategyHandler, "analyse a template (?template=&spot=&vol=&rate=&expiry=&width=&points=)");
+    route(HttpMethod.POST, "/options/strategy", strategyHandler, "analyse custom legs {spot, vol, rate, legs:[{type, strike, expiry, qty, premium?}]}: breakevens, max P&L, probability of profit, Greeks");
+    route(HttpMethod.GET, "/tsa/:symbol/regime", regimeHandler, "Gaussian HMM regimes by Baum-Welch with Viterbi path (?states=&max_iter=&tail=)");
+    route(HttpMethod.POST, "/bars/:symbol/adjust", adjustHandler, "splits and dividends: total return, yield, optional back-adjustment {actions, apply}");
+    route(HttpMethod.GET, "/liquidity/:symbol", liquidityHandler, "Amihud, Roll, Corwin-Schultz, VPIN and Kyle's lambda (?buckets=)");
+    route(HttpMethod.POST, "/risk/span", spanHandler, "SPAN-style scenario margin with risk arrays and inter-commodity credits {products, options}");
+    route(HttpMethod.GET, "/ws/feed", wsFeedHandler, "WebSocket push feed: JSON book/trade updates with subscribe/sim/snapshot commands, or ?format=itch for binary ITCH packets");
+    route(HttpMethod.GET, "/price/models", modelsHandler, "one contract priced by every model plug-in: Black-Scholes, Bachelier, CRR, Merton, Reiner-Rubinstein barrier (?barrier=&barrier_type=)");
+    route(HttpMethod.POST, "/rates/immunize", immunizeHandler, "PV- and duration-matched two-bond hedge of liabilities with Redington check {rate, liabilities, bonds}");
+    route(HttpMethod.GET, "/pairs/backtest", pairsHandler, "rolling-hedge pairs trading backtest (?a=&b=&window=&entry=&exit=&stop=&cost_bps=)");
+    route(HttpMethod.GET, "/sizing/:symbol", sizingHandler, "Kelly, volatility-target leverage and fixed-fractional size (?target_vol=&risk_fraction=&stop_pct=)");
+    route(HttpMethod.GET, "/feed/sample", feedSampleHandler, "first packets of a generated feed, hex and decoded (?events=&packets=&seed=)");
 }
 
 frame initializeWorker() {

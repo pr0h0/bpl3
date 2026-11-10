@@ -15,13 +15,13 @@ export routesHandler;
 export registerRoute;
 export routeCount;
 
-global route_methods: string[128];
-global route_paths: string[128];
-global route_docs: string[128];
+global route_methods: string[256];
+global route_paths: string[256];
+global route_docs: string[256];
 global route_total: int;
 
 frame registerRoute(method: string, path: string, doc: string) {
-    if (route_total < 128) {
+    if (route_total < 256) {
         route_methods[route_total] = method;
         route_paths[route_total] = path;
         route_docs[route_total] = doc;
