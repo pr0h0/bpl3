@@ -15,6 +15,8 @@ import varHandler, optimizeHandler, covarianceHandler, frontierHandler, backtest
 import runScriptHandler, checkScriptHandler, backtestHandler, optimizeStrategyHandler, builtinsHandler from "./handlers_strategy.bpl";
 import curveHandler, bondHandler, swapHandler, capHandler, swaptionHandler, shortRateHandler from "./handlers_rates.bpl";
 import fourierHandler, carrMadanHandler, sabrHandler, sviHandler, surfaceHandler from "./handlers_vol.bpl";
+import garchHandler, arimaHandler, stationarityHandler, kalmanHandler, pairHandler from "./handlers_tsa.bpl";
+import lpHandler, constrainedPortfolioHandler from "./handlers_optim.bpl";
 import symbolsHandler, createSymbolHandler, submitOrderHandler, getOrderHandler, cancelOrderHandler, replaceOrderHandler, bookHandler, quoteHandler, tradesHandler, tradesCsvHandler, simulateHandler, engineStatsHandler, endOfDayHandler, validateBookHandler from "./handlers_market.bpl";
 
 export runServer;
@@ -220,6 +222,13 @@ frame registerRoutes() {
     route(HttpMethod.POST, "/vol/sabr", sabrHandler, "calibrate SABR {forward, expiry, beta, strikes, vols}");
     route(HttpMethod.POST, "/vol/svi", sviHandler, "calibrate raw SVI {forward, expiry, strikes, vols}");
     route(HttpMethod.GET, "/vol/surface", surfaceHandler, "SVI surface: implied/local vol and prices (?strike=&expiry=)");
+    route(HttpMethod.GET, "/tsa/:symbol/garch", garchHandler, "GARCH/GJR/EGARCH fit and volatility forecast (?model=&horizon=)");
+    route(HttpMethod.GET, "/tsa/:symbol/arima", arimaHandler, "ARIMA(p,d,q) fit and forecast (?p=&d=&q=&auto=)");
+    route(HttpMethod.GET, "/tsa/:symbol/stationarity", stationarityHandler, "ADF/KPSS tests, ACF/PACF of returns");
+    route(HttpMethod.GET, "/tsa/:symbol/kalman", kalmanHandler, "local-level Kalman filter and smoother (?q=&auto=)");
+    route(HttpMethod.GET, "/tsa/pair", pairHandler, "cointegration and Kalman hedge ratio (?a=&b=)");
+    route(HttpMethod.POST, "/math/lp", lpHandler, "linear program {objective, constraints:[{a, op, b}], sense}");
+    route(HttpMethod.GET, "/risk/constrained", constrainedPortfolioHandler, "mean-variance with weight bounds (?symbols=&max_weight=&min_weight=&risk_aversion=)");
     api_router.useNotFound(notFound);
 }
 

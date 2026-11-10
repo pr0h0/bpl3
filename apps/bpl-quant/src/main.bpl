@@ -15,6 +15,8 @@ import runRiskTests from "./selftest/risk_tests.bpl";
 import runDslTests from "./selftest/dsl_tests.bpl";
 import runRatesTests from "./selftest/rates_tests.bpl";
 import runSurfaceTests from "./selftest/surface_tests.bpl";
+import runTsaTests from "./selftest/tsa_tests.bpl";
+import runOptimTests from "./selftest/optim_tests.bpl";
 import [Text] from "./core/text.bpl";
 import runServer, defaultConfig from "./api/server.bpl";
 import runBench from "./bench/kernels.bpl";
@@ -39,6 +41,8 @@ frame runSelftest() ret int {
     runDslTests(&c);
     runRatesTests(&c);
     runSurfaceTests(&c);
+    runTsaTests(&c);
+    runOptimTests(&c);
     return c.summary() == 0 ? 0 : 1;
 }
 

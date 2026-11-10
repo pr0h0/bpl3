@@ -105,6 +105,25 @@ approach), at least above a size threshold.
 **Workaround in the app**: `Compiler.init(this)` and `Vm.init(this, ...)`
 initialize in place.
 
+### BUG-804: `bpl build` loses the location of parse errors in imported modules
+
+**Status**: Open · **Priority**: P2 (diagnostics)
+
+When an imported module fails to parse (for example `local ret: int`), `bpl
+build` and `bpl run` report the error at the entry file's `import` statement:
+`error[main.bpl:8:1]: Failed to resolve import './middle.bpl': Failed to
+resolve import './helper.bpl': 'ret' is a reserved word and cannot be used as a
+name`, with the snippet of the import line and no file, line or column for the
+offending token. This happens for a direct import too (`direct.bpl:1:1`).
+`bpl check` on the same entry file reports `helper.bpl:6:11` with the right
+snippet. While building the app (60+ modules) every such mistake had to be
+found by searching for the keyword. Repro: `apps/bpl-quant/repros/bug804/`
+(`main.bpl` imports `middle.bpl` which imports `helper.bpl`; `direct.bpl`
+imports `helper.bpl`).
+
+Suggested fix: make the build path attach the imported module's diagnostic
+(file and span) the way `check` does, keeping the import chain as context.
+
 ## Open audit findings (2026-10-28)
 
 Found by a repository-wide audit. Each compiler item was reproduced with a probe

@@ -185,4 +185,18 @@ sabr.atm_vol = 0.17857520
 == svi
 svi.surface_vol_90_075 = 0.23436989
 svi.local_vol_100_1 = 0.18881845
-selftest: 542 passed, 0 failed
+== garch
+garch.log_likelihood = 7842.8263
+garch.long_run_vol = 0.011334
+garch.egarch_aic = -15663.5339
+== arma
+arma.arma_aic = 8555.5985
+arma.selected_p = 2
+arma.selected_q = 1
+arma.adf_ar1_stat = -24.3870
+== kalman
+== simplex
+== box_qp
+box_qp.capped_w0 = 0.300000
+box_qp.capped_w2 = 0.100000
+selftest: 587 passed, 0 failed
