@@ -1318,8 +1318,9 @@ describe("Parser", () => {
     expect(postfixTailAfterTriviaHelper).toContain(
       "input.charCodeAt(peg$currPos) !== 123",
     );
-    expect(postfixTailAfterTriviaHelper).toContain(
-      "return peg$f120(memberProperty)",
+    // The action index shifts whenever an earlier grammar action is added.
+    expect(postfixTailAfterTriviaHelper).toMatch(
+      /return peg\$f\d+\(memberProperty\)/,
     );
     expect(postfixTailAfterTriviaHelper).toContain("peg$currPos = memberStart");
     expect(generatedSource).not.toContain("tail.startPos = peg$savedPos;");

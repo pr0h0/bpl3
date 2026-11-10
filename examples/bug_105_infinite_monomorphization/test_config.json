@@ -1,8 +1,11 @@
 {
-  "expectedOutput": ["Infinite monomorphization detected"],
+  "expectedOutput": [
+    "BPL_TYPE_RECURSION_CYCLE",
+    "instantiates itself with ever larger type arguments"
+  ],
   "exitCode": 1,
   "args": [],
   "env": {},
   "input": "",
-  "description": "Infinite monomorphization - this test is expected to fail gracefully with a compiler error"
+  "description": "Infinite monomorphization - this test is rejected by the checker before code generation"
 }
