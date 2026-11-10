@@ -38,6 +38,17 @@ words.sortBy(|a: string, b: string| ret int {
 propagate the original exception. Elements are shallow values: callbacks remain
 responsible for any separately allocated resources they create.
 
+### More Array methods
+
+`reserve`, `extend(&other)` (also with itself), `first`/`last` (Options),
+`reverse`, `swap`, `slice(start, end)` (clamped, new array), `retain(keep)`
+and `dedup`/`dedupBy(same)` (return the number removed; `dedup` compares
+strings by content), `swapRemove` (O(1), unordered), `truncate`, `fill`,
+`rotateLeft` (negative rotates right), `lastIndexOf`, `countWhere`,
+`isSortedBy`, `binarySearchBy(probe)` (index, or `-(insertion point) - 1`),
+`partitionPoint(before)` (lower bound), `minBy`/`maxBy` and `shrinkToFit`.
+Elements are copied shallowly and never destroyed.
+
 ## Map<K, V>
 
 A key-value store backed by hash buckets and collision chains. Insertion grows
@@ -89,6 +100,16 @@ Hash and equality callbacks must not mutate the map while it is operating.
 `set` throws `"Map node allocation failed"` if a new entry cannot be allocated.
 Existing entries and the entry count remain intact; bucket capacity may already
 have grown. Updating an existing key does not allocate a node.
+
+### More Map methods
+
+`getRef(key)` returns a pointer to the stored value (null when absent) that
+stays valid until the entry is removed; `getOrInsert(key, value)` inserts
+first when needed. `update(key, initial, transform)` applies a function to
+the current value, which makes counting concise:
+`counts.update(word, 0, |n: int| ret int { return n + 1; })`. Also
+`entries()` (an `Array<Pair<K, V>>`), `forEach(visit)`, `retain(keep)`,
+`merge(&other)` (other's values win) and `isEmpty()`.
 
 ## Set<T>
 

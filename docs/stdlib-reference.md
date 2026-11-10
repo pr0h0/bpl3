@@ -387,6 +387,29 @@ frame contains(this: *Array<T>, value: T) ret bool
 frame findIndex(this: *Array<T>, predicate: Lambda<bool>(T)) ret Option<int>
 frame __lshift__(this: *Array<T>, value: T) ret *Array<T>
 frame __rshift__(this: *Array<T>, dest: *T) ret *Array<T>
+frame reserve(this: *Array<T>, capacity: int)
+frame extend(this: *Array<T>, other: *Array<T>)
+frame first(this: *Array<T>) ret Option<T>
+frame last(this: *Array<T>) ret Option<T>
+frame reverse(this: *Array<T>)
+frame swap(this: *Array<T>, a: int, b: int)
+frame slice(this: *Array<T>, start: int, end: int) ret Array<T>
+frame retain(this: *Array<T>, keep: Lambda<bool>(T)) ret int
+frame dedup(this: *Array<T>) ret int
+frame dedupBy(this: *Array<T>, same: Lambda<bool>(T, T)) ret int
+frame swapRemove(this: *Array<T>, index: int) ret T
+frame truncate(this: *Array<T>, length: int)
+frame fill(this: *Array<T>, value: T)
+frame rotateLeft(this: *Array<T>, count: int)
+frame _reverseRange(data: *T, low: int, high: int)
+frame lastIndexOf(this: *Array<T>, value: T) ret int
+frame countWhere(this: *Array<T>, predicate: Lambda<bool>(T)) ret int
+frame isSortedBy(this: *Array<T>, compare: Lambda<int>(T, T)) ret bool
+frame binarySearchBy(this: *Array<T>, probe: Lambda<int>(T)) ret int
+frame partitionPoint(this: *Array<T>, before: Lambda<bool>(T)) ret int
+frame minBy(this: *Array<T>, compare: Lambda<int>(T, T)) ret Option<T>
+frame maxBy(this: *Array<T>, compare: Lambda<int>(T, T)) ret Option<T>
+frame shrinkToFit(this: *Array<T>)
 ```
 
 ## std/assert.bpl
@@ -2435,6 +2458,14 @@ frame clear(this: *Map<K, V>)
 frame __eq__(this: *Map<K, V>, other: *Map<K, V>) ret bool
 frame __ne__(this: *Map<K, V>, other: *Map<K, V>) ret bool
 frame destroy(this: *Map<K, V>)
+frame getRef(this: *Map<K, V>, key: K) ret *V
+frame getOrInsert(this: *Map<K, V>, key: K, value: V) ret *V
+frame update(this: *Map<K, V>, key: K, initial: V, transform: Lambda<V>(V)) ret V
+frame entries(this: *Map<K, V>) ret Array<Pair<K, V>>
+frame forEach(this: *Map<K, V>, visit: Lambda<void>(K, V))
+frame retain(this: *Map<K, V>, keep: Lambda<bool>(K, V)) ret int
+frame merge(this: *Map<K, V>, other: *Map<K, V>)
+frame isEmpty(this: *Map<K, V>) ret bool
 ```
 
 ## std/math.bpl

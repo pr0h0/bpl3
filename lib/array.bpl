@@ -439,4 +439,331 @@ struct Array<T>: Iterable<T>, Cloneable<Array<T>>, Destructible {
         *dest = this.pop();
         return this;
     }
+    /#
+        Additional sequence operations. Elements are copied shallowly and
+        never destroyed by these methods.
+    #/
+
+    # Ensures room for at least `capacity` elements.
+    frame reserve(this: *Array<T>, capacity: int) {
+        if (capacity <= this.capacity) {
+            return;
+        }
+        local size: long = cast<long>(capacity) * sizeof<T>();
+        local grown: *T = cast<*T>(malloc(size));
+        if (grown == nullptr) {
+            throw "Array allocation failed";
+        }
+        if (this.data != nullptr) {
+            if (this.length > 0) {
+                memcpy(cast<*void>(grown), cast<*void>(this.data), cast<long>(this.length) * sizeof<T>());
+            }
+            free(cast<*void>(this.data));
+        }
+        this.data = grown;
+        this.capacity = capacity;
+    }
+
+    # Appends every element of `other` (which may be this array).
+    frame extend(this: *Array<T>, other: *Array<T>) {
+        local count: int = other.length;
+        if (count == 0) {
+            return;
+        }
+        this.reserve(this.length + count);
+        loop (local i: int = 0; i < count; i = i + 1) {
+            this.data[this.length + i] = other.data[i];
+        }
+        this.length = this.length + count;
+    }
+
+    # The first element, if any.
+    frame first(this: *Array<T>) ret Option<T> {
+        if (this.length == 0) {
+            return Option<T>.None;
+        }
+        return Option<T>.Some(this.data[0]);
+    }
+
+    # The last element, if any.
+    frame last(this: *Array<T>) ret Option<T> {
+        if (this.length == 0) {
+            return Option<T>.None;
+        }
+        return Option<T>.Some(this.data[this.length - 1]);
+    }
+
+    # Reverses the elements in place.
+    frame reverse(this: *Array<T>) {
+        local i: int = 0;
+        local j: int = this.length - 1;
+        loop (i < j) {
+            local temp: T = this.data[i];
+            this.data[i] = this.data[j];
+            this.data[j] = temp;
+            i = i + 1;
+            j = j - 1;
+        }
+    }
+
+    # Exchanges two elements; throws when either index is outside.
+    frame swap(this: *Array<T>, a: int, b: int) {
+        if ((a < 0) || (a >= this.length)) {
+            throw IndexOutOfBoundsError.new(a, this.length);
+        }
+        if ((b < 0) || (b >= this.length)) {
+            throw IndexOutOfBoundsError.new(b, this.length);
+        }
+        local temp: T = this.data[a];
+        this.data[a] = this.data[b];
+        this.data[b] = temp;
+    }
+
+    # A new array with the elements in [start, end); the bounds are clamped
+    # to the array.
+    frame slice(this: *Array<T>, start: int, end: int) ret Array<T> {
+        if (start < 0) {
+            start = 0;
+        }
+        if (end > this.length) {
+            end = this.length;
+        }
+        local count: int = end - start;
+        if (count < 0) {
+            count = 0;
+        }
+        local result: Array<T> = Array<T>.new(count);
+        loop (local i: int = 0; i < count; i = i + 1) {
+            result.data[i] = this.data[start + i];
+        }
+        result.length = count;
+        return result;
+    }
+
+    # Keeps only the elements for which `keep` is true, preserving order.
+    # Returns the number removed.
+    frame retain(this: *Array<T>, keep: Lambda<bool>(T)) ret int {
+        local write: int = 0;
+        loop (local read: int = 0; read < this.length; read = read + 1) {
+            if (keep(this.data[read])) {
+                this.data[write] = this.data[read];
+                write = write + 1;
+            }
+        }
+        local removed: int = this.length - write;
+        this.length = write;
+        return removed;
+    }
+
+    # Removes consecutive duplicate elements (strings by content). Sort
+    # first to remove every duplicate. Returns the number removed.
+    frame dedup(this: *Array<T>) ret int {
+        if (this.length < 2) {
+            return 0;
+        }
+        local write: int = 1;
+        loop (local read: int = 1; read < this.length; read = read + 1) {
+            if (!_arrayElementsEqual<T>(this.data[read], this.data[write - 1])) {
+                this.data[write] = this.data[read];
+                write = write + 1;
+            }
+        }
+        local removed: int = this.length - write;
+        this.length = write;
+        return removed;
+    }
+
+    # Like `dedup`, with a custom equality.
+    frame dedupBy(this: *Array<T>, same: Lambda<bool>(T, T)) ret int {
+        if (this.length < 2) {
+            return 0;
+        }
+        local write: int = 1;
+        loop (local read: int = 1; read < this.length; read = read + 1) {
+            if (!same(this.data[write - 1], this.data[read])) {
+                this.data[write] = this.data[read];
+                write = write + 1;
+            }
+        }
+        local removed: int = this.length - write;
+        this.length = write;
+        return removed;
+    }
+
+    # Removes the element at `index` by moving the last element into its
+    # place (O(1), does not preserve order) and returns it.
+    frame swapRemove(this: *Array<T>, index: int) ret T {
+        if ((index < 0) || (index >= this.length)) {
+            throw IndexOutOfBoundsError.new(index, this.length);
+        }
+        local value: T = this.data[index];
+        this.length = this.length - 1;
+        this.data[index] = this.data[this.length];
+        return value;
+    }
+
+    # Shortens the array to at most `length` elements.
+    frame truncate(this: *Array<T>, length: int) {
+        if ((length >= 0) && (length < this.length)) {
+            this.length = length;
+        }
+    }
+
+    # Sets every element to `value`.
+    frame fill(this: *Array<T>, value: T) {
+        loop (local i: int = 0; i < this.length; i = i + 1) {
+            this.data[i] = value;
+        }
+    }
+
+    # Rotates left by `count` (negative rotates right).
+    frame rotateLeft(this: *Array<T>, count: int) {
+        local n: int = this.length;
+        if (n < 2) {
+            return;
+        }
+        local shift: int = count % n;
+        if (shift < 0) {
+            shift = shift + n;
+        }
+        if (shift == 0) {
+            return;
+        }
+        # Three reversals rotate in place.
+        Array<T>._reverseRange(this.data, 0, shift - 1);
+        Array<T>._reverseRange(this.data, shift, n - 1);
+        Array<T>._reverseRange(this.data, 0, n - 1);
+    }
+
+    frame _reverseRange(data: *T, low: int, high: int) {
+        local i: int = low;
+        local j: int = high;
+        loop (i < j) {
+            local temp: T = data[i];
+            data[i] = data[j];
+            data[j] = temp;
+            i = i + 1;
+            j = j - 1;
+        }
+    }
+
+    # The index of the last occurrence of `value`, or -1.
+    frame lastIndexOf(this: *Array<T>, value: T) ret int {
+        loop (local i: int = this.length - 1; i >= 0; i = i - 1) {
+            if (_arrayElementsEqual<T>(this.data[i], value)) {
+                return i;
+            }
+        }
+        return -1;
+    }
+
+    # The number of elements satisfying `predicate`.
+    frame countWhere(this: *Array<T>, predicate: Lambda<bool>(T)) ret int {
+        local total: int = 0;
+        loop (local i: int = 0; i < this.length; i = i + 1) {
+            if (predicate(this.data[i])) {
+                total = total + 1;
+            }
+        }
+        return total;
+    }
+
+    # Whether the elements are in non-decreasing order under `compare`.
+    frame isSortedBy(this: *Array<T>, compare: Lambda<int>(T, T)) ret bool {
+        loop (local i: int = 1; i < this.length; i = i + 1) {
+            if (compare(this.data[i - 1], this.data[i]) > 0) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /#
+        Binary search in an array sorted by `compare`. `probe(element)` must
+        return negative when the element is before the target, zero on a
+        match and positive after it. Returns the index of a match, or
+        -(insertionPoint) - 1 when there is none.
+    #/
+    frame binarySearchBy(this: *Array<T>, probe: Lambda<int>(T)) ret int {
+        local low: int = 0;
+        local high: int = this.length - 1;
+        loop (low <= high) {
+            local middle: int = low + ((high - low) / 2);
+            local order: int = probe(this.data[middle]);
+            if (order < 0) {
+                low = middle + 1;
+            } else if (order > 0) {
+                high = middle - 1;
+            } else {
+                return middle;
+            }
+        }
+        return -(low + 1);
+    }
+
+    # The first index whose element does not satisfy `before` in an array
+    # partitioned so that every `before` element comes first (lower bound).
+    frame partitionPoint(this: *Array<T>, before: Lambda<bool>(T)) ret int {
+        local low: int = 0;
+        local high: int = this.length;
+        loop (low < high) {
+            local middle: int = low + ((high - low) / 2);
+            if (before(this.data[middle])) {
+                low = middle + 1;
+            } else {
+                high = middle;
+            }
+        }
+        return low;
+    }
+
+    # The smallest element under `compare` (the first of equal minima).
+    frame minBy(this: *Array<T>, compare: Lambda<int>(T, T)) ret Option<T> {
+        if (this.length == 0) {
+            return Option<T>.None;
+        }
+        local best: T = this.data[0];
+        loop (local i: int = 1; i < this.length; i = i + 1) {
+            if (compare(this.data[i], best) < 0) {
+                best = this.data[i];
+            }
+        }
+        return Option<T>.Some(best);
+    }
+
+    # The largest element under `compare` (the last of equal maxima).
+    frame maxBy(this: *Array<T>, compare: Lambda<int>(T, T)) ret Option<T> {
+        if (this.length == 0) {
+            return Option<T>.None;
+        }
+        local best: T = this.data[0];
+        loop (local i: int = 1; i < this.length; i = i + 1) {
+            if (compare(this.data[i], best) >= 0) {
+                best = this.data[i];
+            }
+        }
+        return Option<T>.Some(best);
+    }
+
+    # Releases unused capacity.
+    frame shrinkToFit(this: *Array<T>) {
+        if (this.capacity == this.length) {
+            return;
+        }
+        if (this.length == 0) {
+            free(cast<*void>(this.data));
+            this.data = nullptr;
+            this.capacity = 0;
+            return;
+        }
+        local size: long = cast<long>(this.length) * sizeof<T>();
+        local shrunk: *T = cast<*T>(malloc(size));
+        if (shrunk == nullptr) {
+            return;
+        }
+        memcpy(cast<*void>(shrunk), cast<*void>(this.data), size);
+        free(cast<*void>(this.data));
+        this.data = shrunk;
+        this.capacity = this.length;
+    }
 }
