@@ -3307,15 +3307,23 @@ export abstract class StatementGenerator extends AsmGenerator {
 
     const firstParam = params[0]!;
     const firstType = this.resolveType(paramTypes[0]!);
-    let result = `${firstType} %${firstParam.name}`;
+    let result = `${firstType} ${this.parameterRegister(firstParam.name)}`;
 
     for (let i = 1; i < params.length; i++) {
       const param = params[i]!;
       const type = this.resolveType(paramTypes[i]!);
-      result += `, ${type} %${param.name}`;
+      result += `, ${type} ${this.parameterRegister(param.name)}`;
     }
 
     return result;
+  }
+
+  /**
+   * The LLVM value of a parameter. Values and blocks share one namespace, so
+   * a parameter named like the `entry` block gets another name (BUG-601).
+   */
+  private parameterRegister(name: string): string {
+    return name === "entry" ? "%param.entry" : `%${name}`;
   }
 
   private getMethodBaseName(functionName: string): string {
@@ -3676,7 +3684,7 @@ export abstract class StatementGenerator extends AsmGenerator {
         this.locals.add(param.name);
         this.localTypes.set(param.name, effectiveFuncType.paramTypes[i]!);
         const type = this.resolveType(effectiveFuncType.paramTypes[i]!);
-        let paramReg = `%${param.name}`;
+        let paramReg = this.parameterRegister(param.name);
         if (name === "main") {
           paramReg = i === 0 ? "%argc" : "%argv";
         }

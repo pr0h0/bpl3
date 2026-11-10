@@ -1328,7 +1328,12 @@ export abstract class CallExpressionGenerator extends BinaryExpressionGenerator 
       const objType = memberExpr.object.resolvedType as AST.BasicTypeNode;
       if (objType && objType.kind === "BasicType") {
         let structName = objType.name;
-        if (this.currentTypeMap.has(structName)) {
+        // Layouts are keyed by the instantiated name (`Holder_i32`), so a
+        // generic receiver such as `*Holder<T>` is resolved first (BUG-600).
+        if (
+          this.currentTypeMap.has(structName) ||
+          objType.genericArgs.length > 0
+        ) {
           const typeStr = this.resolveType(objType); // %struct.Name
           if (typeStr.startsWith("%struct.")) {
             structName = typeStr.substring(8);
@@ -1486,6 +1491,34 @@ export abstract class CallExpressionGenerator extends BinaryExpressionGenerator 
         expr.location,
       );
     }
+    // The checker's callee type is already instantiated (`id<Wrap<T>>` has
+    // parameter `Wrap<T>`). Applying the call's map {T: Wrap<T>} to it again
+    // would give `Wrap<Wrap<T>>` when the callee's parameter is also named T
+    // (BUG-603), so the map is applied to the declared signature instead.
+    const calleeDeclaration = funcType?.declaration as
+      AST.FunctionDecl | undefined;
+    // A method's declared signature also lists `this`, which the call's type
+    // omits, so only free and static calls use it.
+    // Only when a type argument mentions one of the callee's own parameter
+    // names: other calls keep the checker's type, which also carries resolved
+    // array aliases (`select<Row>(grid, 2)` with `type Row = int[2]`).
+    const calleeParameterNames = new Set(
+      (calleeDeclaration?.genericParams ?? []).map((param) => param.name),
+    );
+    const declaredSignature =
+      !isInstanceCall &&
+      calleeDeclaration?.kind === "FunctionDecl" &&
+      calleeDeclaration.genericParams.length > 0 &&
+      calleeDeclaration.genericParams.every((param) =>
+        callSubstitutionMap.has(param.name),
+      ) &&
+      [...callSubstitutionMap.values()].some((argument) =>
+        typeMentionsName(argument, calleeParameterNames),
+      ) &&
+      calleeDeclaration.resolvedType?.kind === "FunctionType"
+        ? (calleeDeclaration.resolvedType as AST.FunctionTypeNode)
+        : undefined;
+    const signature: AST.FunctionTypeNode = declaredSignature ?? funcType;
 
     if (
       funcType.declaration &&
@@ -1543,11 +1576,11 @@ export abstract class CallExpressionGenerator extends BinaryExpressionGenerator 
           } else {
             targetTypeNode = arg.resolvedType;
           }
-        } else if (i - 1 < funcType.paramTypes.length) {
-          targetTypeNode = funcType.paramTypes[i - 1];
+        } else if (i - 1 < signature.paramTypes.length) {
+          targetTypeNode = signature.paramTypes[i - 1];
         }
-      } else if (i < funcType.paramTypes.length) {
-        targetTypeNode = funcType.paramTypes[i];
+      } else if (i < signature.paramTypes.length) {
+        targetTypeNode = signature.paramTypes[i];
       }
 
       if (targetTypeNode) {
@@ -2186,7 +2219,7 @@ export abstract class CallExpressionGenerator extends BinaryExpressionGenerator 
         }
 
         paramTypes.push(
-          ...funcType.paramTypes.map((t, _i) => {
+          ...signature.paramTypes.map((t, _i) => {
             let resolved = t;
             if (callSubstitutionMap.size > 0) {
               resolved = this.substituteType(t, callSubstitutionMap);
@@ -2223,7 +2256,7 @@ export abstract class CallExpressionGenerator extends BinaryExpressionGenerator 
 
         const substitutedRet =
           callSubstitutionMap.size > 0
-            ? this.substituteType(funcType.returnType, callSubstitutionMap)
+            ? this.substituteType(signature.returnType, callSubstitutionMap)
             : funcType.returnType;
 
         let retTypeStr: string;
@@ -2435,5 +2468,26 @@ export abstract class CallExpressionGenerator extends BinaryExpressionGenerator 
     this.definedFunctions.add(lowered.wrapperName);
     this.cAbiWrappers.set(decl.name, lowered.wrapperName);
     return lowered.wrapperName;
+  }
+}
+
+/** Whether `type` names any of `names`, at any depth. */
+function typeMentionsName(type: AST.TypeNode, names: Set<string>): boolean {
+  switch (type.kind) {
+    case "BasicType":
+      return (
+        names.has(type.name) ||
+        type.genericArgs.some((argument) => typeMentionsName(argument, names))
+      );
+    case "TupleType":
+      return type.types.some((element) => typeMentionsName(element, names));
+    case "FunctionType":
+    case "LambdaType":
+      return (
+        typeMentionsName(type.returnType, names) ||
+        type.paramTypes.some((param) => typeMentionsName(param, names))
+      );
+    default:
+      return false;
   }
 }
