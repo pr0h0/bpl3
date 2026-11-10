@@ -28,6 +28,7 @@ packages/package-name -o packages/package-name` before distributing them.
 | [bpl-jwt](bpl-jwt/README.md)                       | HS256/HS512 JSON Web Tokens with pinned algorithms and claim checks | None                                 |
 | [bpl-cache](bpl-cache/README.md)                   | In-memory LRU cache with TTLs, byte budget and compute-on-miss      | None                                 |
 | [bpl-metrics](bpl-metrics/README.md)               | Prometheus counters, gauges and histograms for a /metrics route     | None                                 |
+| [bpl-markdown](bpl-markdown/README.md)             | Safe Markdown to HTML (CommonMark/GFM subset, escaped raw HTML)     | None                                 |
 
 Start with the [college task board](../examples/college_web/README.md). Handler
 signatures follow the familiar Express/Gin pattern: `frame handler(req:
