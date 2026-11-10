@@ -2,6 +2,35 @@
 
 This file tracks bugs and edge cases found during comprehensive testing.
 
+## bpl-quant application (2026-11-10)
+
+Found while writing `apps/bpl-quant`, a ~50k-line BPL application. Each item
+has a minimal reproduction under `apps/bpl-quant/repros/`. Priority scale as in
+the audit section below.
+
+### BUG-800: Method calls on malloc'd structs crash through a null vtable
+
+**Status**: Open · **Priority**: P2
+
+A struct that declares any method gets a hidden vtable word (R-STRUCT-5), and a
+call through a pointer reads it even when the struct has no parent and no
+children, so the call has a single possible target. Storage from `malloc`
+(+ `memset`) leaves the word zero, and the first method call crashes with
+SIGSEGV at a small address (0x18 in the app), with an empty BPL call stack and
+no diagnostic. Field access works, so the failure appears far from its cause.
+The behavior is not documented in the language guides; only BUG-454's
+`alloc_with_vtable` and the implicit vtable store in `init` methods hint at it.
+Repro: `apps/bpl-quant/repros/bug800_heap_vtable.bpl` (prints `field 21`, then
+crashes at -O0 and -O2).
+
+Suggested fix: call methods of structs without children (and without
+`*Spec` conversion) directly, as for values, and document heap allocation of
+structs with methods in docs/22-manual-memory.md. A null-vtable check before an
+indirect call would at least turn the crash into a diagnosable runtime error.
+
+**Workaround in the app**: `Order` has an `init` method that the order pool calls
+on every fresh slot; the compiler stores the vtable in `init` bodies.
+
 ## Open audit findings (2026-10-28)
 
 Found by a repository-wide audit. Each compiler item was reproduced with a probe

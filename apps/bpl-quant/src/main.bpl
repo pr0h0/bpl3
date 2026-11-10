@@ -9,6 +9,7 @@ import printf, strcmp from "std/c.bpl";
 import [Check] from "./selftest/check.bpl";
 import runMathTests from "./selftest/math_tests.bpl";
 import runPricingTests from "./selftest/pricing_tests.bpl";
+import runMarketTests from "./selftest/market_tests.bpl";
 import [Text] from "./core/text.bpl";
 
 frame usage() {
@@ -23,6 +24,7 @@ frame runSelftest() ret int {
     local c: Check = Check.new();
     runMathTests(&c);
     runPricingTests(&c);
+    runMarketTests(&c);
     return c.summary() == 0 ? 0 : 1;
 }
 

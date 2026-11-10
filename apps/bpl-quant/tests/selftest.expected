@@ -50,4 +50,29 @@ monte_carlo.longstaff_schwartz = 5.957635
 monte_carlo.heston = 10.314259
 monte_carlo.merton_series = 11.661675
 monte_carlo.basket = 15.426415
-selftest: 227 passed, 0 failed
+== hashmap
+== matching
+== cancel_replace
+== stops
+== simulation
+simulation.orders = 37451
+simulation.cancels = 2292
+simulation.replaces = 3784
+simulation.trades = 29623
+simulation.volume = 3757610
+simulation.rejected = 3331
+simulation.stops_triggered = 323
+simulation.self_trades_prevented = 598
+simulation.open_orders = 2730
+simulation.tape_total = 29623
+simulation.bid_levels = 118
+simulation.ask_levels = 155
+simulation.best_bid = 994100
+simulation.best_ask = 995000
+simulation.vwap = 99.990024
+simulation.microprice = 99.493136
+simulation.imbalance = 0.855122
+simulation.final_fair = 98.577890
+simulation.order_flow = -43490
+simulation.impact_buy_1000 = 99.615500
+selftest: 297 passed, 0 failed
