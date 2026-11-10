@@ -2,7 +2,7 @@
 
 Generated from parsed library declarations with `bun run docs:stdlib`. Do not edit by hand.
 
-This index covers all 77 BPL modules under `lib/`, including memory and low-level modules.
+This index covers all 78 BPL modules under `lib/`, including memory and low-level modules.
 It lists explicit exports and declarations defined in each source file. Re-exported symbols
 are listed under exports; their definitions are in the originating modules. Inherited members
 are not repeated. An exported type's declared members include implementation helpers and fields;
@@ -25,6 +25,7 @@ platform has been validated. C/POSIX extern declarations retain their native ABI
 - [std/base64.bpl](../lib/base64.bpl)
 - [std/bigint.bpl](../lib/bigint.bpl)
 - [std/binary.bpl](../lib/binary.bpl)
+- [std/bits.bpl](../lib/bits.bpl)
 - [std/bitset.bpl](../lib/bitset.bpl)
 - [std/c.bpl](../lib/c.bpl)
 - [std/c_runtime.bpl](../lib/c_runtime.bpl)
@@ -488,6 +489,58 @@ frame writeU32LE(this: *ByteWriter, value: u32) ret bool
 frame writeU32BE(this: *ByteWriter, value: u32) ret bool
 frame writeU64LE(this: *ByteWriter, value: u64) ret bool
 frame writeU64BE(this: *ByteWriter, value: u64) ret bool
+```
+
+## std/bits.bpl
+
+[Source](../lib/bits.bpl)
+
+Exports:
+
+```bpl
+export [Bits];
+```
+
+### Bits
+
+```bpl
+struct Bits
+frame popCount32(value: uint) ret int
+frame popCount64(value: ulong) ret int
+frame leadingZeros32(value: uint) ret int
+frame leadingZeros64(value: ulong) ret int
+frame trailingZeros32(value: uint) ret int
+frame trailingZeros64(value: ulong) ret int
+frame rotateLeft32(value: uint, count: int) ret uint
+frame rotateRight32(value: uint, count: int) ret uint
+frame rotateLeft64(value: ulong, count: int) ret ulong
+frame rotateRight64(value: ulong, count: int) ret ulong
+frame byteSwap32(value: uint) ret uint
+frame byteSwap64(value: ulong) ret ulong
+frame reverseBits32(value: uint) ret uint
+frame reverseBits64(value: ulong) ret ulong
+frame parity32(value: uint) ret int
+frame parity64(value: ulong) ret int
+frame isPowerOfTwo64(value: ulong) ret bool
+frame nextPowerOfTwo64(value: ulong) ret ulong
+frame highestBit32(value: uint) ret int
+frame highestBit64(value: ulong) ret int
+frame lowestBit32(value: uint) ret int
+frame lowestBit64(value: ulong) ret int
+frame isolateLowest64(value: ulong) ret ulong
+frame mask64(width: int) ret ulong
+frame extract64(value: ulong, offset: int, width: int) ret ulong
+frame insert64(value: ulong, offset: int, width: int, field: ulong) ret ulong
+frame testBit64(value: ulong, index: int) ret bool
+frame setBit64(value: ulong, index: int) ret ulong
+frame clearBit64(value: ulong, index: int) ret ulong
+frame toggleBit64(value: ulong, index: int) ret ulong
+frame signExtend64(value: ulong, width: int) ret long
+frame interleave(x: uint, y: uint) ret ulong
+frame _spread(value: uint) ret ulong
+frame toGray64(value: ulong) ret ulong
+frame fromGray64(gray: ulong) ret ulong
+frame toBinary64(value: ulong, width: int) ret string
 ```
 
 ## std/bitset.bpl
@@ -1259,6 +1312,17 @@ frame crc32(data: *u8, length: long) ret uint
 frame crc32Update(crc: uint, data: *u8, length: long) ret uint
 frame crc32String(input: string) ret uint
 frame adler32(data: *u8, length: long) ret uint
+frame fnv1a32Bytes(data: *u8, length: long) ret uint
+frame fnv1a64Bytes(data: *u8, length: long) ret ulong
+frame djb2(input: string) ret uint
+frame crc32c(data: *u8, length: long) ret uint
+frame crc32cUpdate(crc: uint, data: *u8, length: long) ret uint
+frame murmur3_32(data: *u8, length: long, seed: uint) ret uint
+frame xxhash32(data: *u8, length: long, seed: uint) ret uint
+frame xxhash64(data: *u8, length: long, seed: ulong) ret ulong
+frame xxhash32String(input: string) ret uint
+frame xxhash64String(input: string) ret ulong
+frame siphash24(key0: ulong, key1: ulong, data: *u8, length: long) ret ulong
 ```
 
 ## std/hex.bpl
@@ -2631,6 +2695,8 @@ Exports:
 
 ```bpl
 export [Rand];
+export [SplitMix64];
+export [Xoshiro256];
 ```
 
 ### Rand
@@ -2654,6 +2720,45 @@ frame shuffle<T>(this: *Rand, arr: *Array<T>)
 frame choice<T>(this: *Rand, arr: *Array<T>, output: *T) ret bool
 frame fillBytes(this: *Rand, buf: *u8, len: int)
 frame weightedChoice(this: *Rand, weights: *Array<int>) ret int
+frame nextBelow(this: *Rand, bound: ulong) ret ulong
+frame rangeLong(this: *Rand, min: long, max: long) ret long
+frame nextUnit(this: *Rand) ret float
+frame nextBernoulli(this: *Rand, p: float) ret bool
+frame nextNormal(this: *Rand, mean: float, stddev: float) ret float
+frame nextExponential(this: *Rand, lambda: float) ret float
+frame nextPoisson(this: *Rand, mean: float) ret int
+frame nextBinomial(this: *Rand, trials: int, p: float) ret int
+frame sample<T>(this: *Rand, arr: *Array<T>, count: int) ret Array<T>
+```
+
+### SplitMix64
+
+```bpl
+struct SplitMix64
+state: ulong
+frame seed(seed: ulong) ret SplitMix64
+frame next(this: *SplitMix64) ret ulong
+```
+
+### Xoshiro256
+
+```bpl
+struct Xoshiro256
+s0: ulong
+s1: ulong
+s2: ulong
+s3: ulong
+frame seed(seed: ulong) ret Xoshiro256
+frame _rotl(value: ulong, count: ulong) ret ulong
+frame nextULong(this: *Xoshiro256) ret ulong
+frame nextLong(this: *Xoshiro256) ret long
+frame nextUInt(this: *Xoshiro256) ret uint
+frame nextFloat(this: *Xoshiro256) ret float
+frame nextBool(this: *Xoshiro256) ret bool
+frame nextBelow(this: *Xoshiro256, bound: ulong) ret ulong
+frame range(this: *Xoshiro256, min: int, max: int) ret int
+frame jump(this: *Xoshiro256)
+frame shuffle<T>(this: *Xoshiro256, arr: *Array<T>)
 ```
 
 ## std/range.bpl
