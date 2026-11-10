@@ -75,6 +75,59 @@ export abstract class CallExpressionGenerator extends BinaryExpressionGenerator 
 
   protected noteDirectFunctionCall(_name: string): void {}
 
+  private descendantBaseNames: Set<string> | undefined;
+  private descendantBaseNamesSize = -1;
+
+  /** Whether any struct lists `name` (a struct or generic base name) as a parent. */
+  protected structHasDescendants(name: string): boolean {
+    if (
+      !this.descendantBaseNames ||
+      this.descendantBaseNamesSize !== this.structMap.size
+    ) {
+      const names = new Set<string>();
+      for (const decl of this.structMap.values()) {
+        for (const parent of decl.inheritanceList ?? []) {
+          if (parent.kind !== "BasicType") continue;
+          names.add(parent.name);
+          // A concrete generic parent (`struct C : Box<int>`) is also known
+          // by its instantiated name; a generic child's parent mentions the
+          // child's own parameters, and its base name above covers it.
+          if (
+            parent.genericArgs.length > 0 &&
+            (decl.genericParams ?? []).length === 0
+          ) {
+            try {
+              const resolved = this.resolveType({
+                ...parent,
+                pointerDepth: 0,
+                arrayDimensions: [],
+              });
+              if (resolved.startsWith("%struct."))
+                names.add(resolved.slice("%struct.".length));
+            } catch {
+              // An unresolvable parent cannot have been instantiated.
+            }
+          }
+        }
+      }
+      this.descendantBaseNames = names;
+      this.descendantBaseNamesSize = this.structMap.size;
+    }
+    return this.descendantBaseNames.has(name);
+  }
+
+  protected staticVTableFor(
+    structName: string,
+    typeName?: string,
+  ): { global: string; type: string } | undefined {
+    if (this.structHasDescendants(structName)) return undefined;
+    if (typeName && this.structHasDescendants(typeName)) return undefined;
+    const global = this.vtableGlobalNames.get(structName);
+    const methods = this.vtableLayouts.get(structName);
+    if (!global || !methods || methods.length === 0) return undefined;
+    return { global, type: `[${methods.length} x i8*]` };
+  }
+
   /**
    * Generate virtual method call through vtable
    */

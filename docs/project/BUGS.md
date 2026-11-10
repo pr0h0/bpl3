@@ -107,7 +107,7 @@ the audit section below.
 
 ### BUG-800: Method calls on malloc'd structs crash through a null vtable
 
-**Status**: Open · **Priority**: P2
+**Status**: Fixed · **Priority**: P2
 
 A struct that declares any method gets a hidden vtable word (R-STRUCT-5), and a
 call through a pointer reads it even when the struct has no parent and no
@@ -128,9 +128,11 @@ indirect call would at least turn the crash into a diagnosable runtime error.
 **Workaround in the app**: `Order` has an `init` method that the order pool calls
 on every fresh slot; the compiler stores the vtable in `init` bodies.
 
+**Resolution**: a method call on a struct that no struct inherits from (checked across all modules, including concrete generic parents) loads the target from the struct's constant vtable global instead of the object's vtable word, so malloc'd storage works. Structs with descendants still dispatch through the object, as they must; docs/22-manual-memory.md describes initializing them. tests/DirectMethodCalls.test.ts.
+
 ### BUG-801: Small methods and functions are never inlined at -O2
 
-**Status**: Open · **Priority**: P2 (performance)
+**Status**: Fixed · **Priority**: P2 (performance)
 
 Two code-generation choices keep LLVM from inlining accessor-sized calls:
 
@@ -158,9 +160,11 @@ call-graph cycle, or keep the guard but allow inlining).
 **Workaround in the app**: none applied yet; hot loops index raw buffers
 directly where it matters.
 
+**Resolution**: (1) the constant vtable load folds to a direct call at -O2, and (2) from -O2 a trivial leaf function that only reads through pointers (`return this.data[i];`, `return p.x;`) skips the stack-depth hooks. The repro now runs method 94 ms, function 91 ms, field 92 ms (was 481/335/92). A crash inside such an accessor omits that innermost frame from the BPL stack trace at -O2 and above; -O0/-O1 keep it.
+
 ### BUG-802: A method named after a keyword gets a whole-struct "Unexpected syntax"
 
-**Status**: Open · **Priority**: P3 (diagnostics)
+**Status**: Fixed · **Priority**: P3 (diagnostics)
 
 `frame global(this: *Registry)` inside a struct is rejected, which is correct,
 but the error points at the `struct` line and echoes the struct's source up to
@@ -175,6 +179,8 @@ Suggested fix: apply the reserved-word check to method (and field) names
 before falling back to the generic syntax error.
 
 **Workaround in the app**: the method was renamed (`globalSlot`).
+
+**Resolution**: already covered by the reserved-word recovery added for BUG-548 (`frame global(` reports `'global' is a reserved word` at the word).
 
 ### BUG-803: Returning a large struct by value makes LLVM codegen very slow
 
@@ -199,12 +205,19 @@ Suggested fix: lower large struct returns through an `sret` pointer and
 copies through `llvm.memcpy` instead of aggregate loads/stores (Clang's
 approach), at least above a size threshold.
 
+**Analysis (2026-11-10)**: zero-initializing the same struct is fast (0.7 s
+for `Slot[4096]`); the cost is the by-value return path (aggregate `load`,
+`ret`, `call` and the caller's `store`): 60 s at `Slot[4096]`. An `sret`
+convention changes every function signature, direct, virtual, spec and
+indirect call, `Func`/`Lambda` lowering and the adapter thunks, so it is left
+for a separate change.
+
 **Workaround in the app**: `Compiler.init(this)` and `Vm.init(this, ...)`
 initialize in place.
 
 ### BUG-804: `bpl build` loses the location of parse errors in imported modules
 
-**Status**: Open · **Priority**: P2 (diagnostics)
+**Status**: Fixed · **Priority**: P2 (diagnostics)
 
 When an imported module fails to parse (for example `local ret: int`), `bpl
 build` and `bpl run` report the error at the entry file's `import` statement:
@@ -220,6 +233,8 @@ imports `helper.bpl`).
 
 Suggested fix: make the build path attach the imported module's diagnostic
 (file and span) the way `check` does, keeping the import chain as context.
+
+**Resolution**: ModuleResolver rethrows a dependency's error unchanged when it is located inside that module, so `bpl build` reports `helper.bpl:6:11` like `bpl check`; resolution failures are still reported at the import. tests/DirectMethodCalls.test.ts.
 
 ## Open audit findings (2026-10-28)
 
@@ -1191,7 +1206,7 @@ package"; the package only writes CSV (its README says so).
 
 ### BUG-702: A struct with methods allocated with `malloc` crashes on its first method call
 
-**Status**: Open · **Priority**: P3 (developer experience)
+**Status**: Fixed · **Priority**: P3 (developer experience)
 
 A struct that declares methods carries a hidden vtable pointer (R-STRUCT-5),
 and calls through a pointer dispatch through it (R-STRUCT-7). Storage from
@@ -1221,9 +1236,11 @@ overridden could be dispatched statically, or the language could offer an
 allocation helper that installs the vtable; at least the spec and the memory
 guides should state the rule.
 
+**Resolution**: the same cause as BUG-800, fixed with it: methods of a struct that nothing inherits from are called without reading the hidden vtable word. A struct with descendants still needs initialized storage (docs/22-manual-memory.md).
+
 ### BUG-703: Calling a method through a null pointer is a bare SIGSEGV
 
-**Status**: Open · **Priority**: P3 (developer experience)
+**Status**: Partly fixed · **Priority**: P3 (developer experience)
 
 `local node: *Node = nullptr; node.get();` crashes with `SIGSEGV`, address
 `(nil)` and no BPL frame, even when `get` begins with `if (this == nullptr)`,
@@ -1232,6 +1249,8 @@ pointer reports the same signal. A null check before virtual dispatch (as for
 array bounds) would turn this into a catchable error naming the method;
 statically dispatching non-overridden methods would also let null-tolerant
 methods work.
+
+**Resolution**: since BUG-800, a call on a struct that nothing inherits from no longer reads the object, so a method that checks `this == nullptr` works (`missing.valueOr(5)` returns 5). A struct with descendants still reads the vtable word and crashes on a null receiver.
 
 ## Language conformance audit (2026-11-10)
 

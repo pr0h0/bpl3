@@ -101,6 +101,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Fixed
 
+- A method call on a struct that nothing inherits from is a direct call: it
+  no longer reads the object's vtable word, so `malloc`'d structs work
+  (BUG-800), and from -O2 small accessors are inlined, because leaf functions
+  that only read through pointers skip the stack-depth hooks (BUG-801; a
+  method accessor benchmark went from 481 ms to 94 ms).
+- `bpl build` reports a parse error in an imported module at its own location
+  instead of at the import (BUG-804).
+
 - An `@[auto_destroy]` local is destroyed when a function it calls throws and
   a caller catches the exception. Each owning local registers a stack node on
   the runtime defer list, so this needs no allocation, and destructors in
