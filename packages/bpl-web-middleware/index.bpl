@@ -83,3 +83,7 @@ import [Compression], [CompressedBytes], compression from "./compression.bpl";
 export [Compression];
 export [CompressedBytes];
 export compression;
+
+import [Multipart], [MultipartPart] from "./multipart.bpl";
+export [Multipart];
+export [MultipartPart];

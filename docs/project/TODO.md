@@ -102,7 +102,7 @@ all related enhancements or platform support are complete.
       stacks, priority queues, and collection iteration specs.
 - [x] Base64, Base32 and Hex codecs in `lib/base64.bpl`, `lib/base32.bpl` and
       `lib/hex.bpl`, UTF-8 helpers,
-      and CSV parsing/writing in the bundled `bpl-csv` package.
+      and CSV writing in the bundled `bpl-csv` package (it does not parse CSV).
 - [x] Environment access through `Env`; shell-free `run`/`runWith` (argv,
       separate stdout/stderr, stdin, process-group timeouts), quoted shell
       execution, trusted-text shell execution, and sleep through
@@ -111,15 +111,28 @@ all related enhancements or platform support are complete.
 - [x] Leveled logging in `lib/log.bpl`: a minimum level (also from
       `BPL_LOG_LEVEL`), level prefixes, UTC timestamps, and standard output or
       standard error.
-      Structured formatters and other output targets remain open.
+      Structured JSON-lines/logfmt output lives in the bundled `bpl-log`
+      package; other output targets (files with rotation, syslog) remain open.
 - [x] Explicit arena/page/pool/stack allocators in `lib/memory/`, including arena
       reset/reuse (`tests/StdlibArenaReset.test.ts`). Allocation remains manual;
       compiler-enforced regions and ownership are not implemented.
-- [x] Bundled web packages: HTTP parser/server framework, synchronous HTTP/HTTPS
-      client, optional TLS, middleware, validation, rate limiting, authentication,
-      database/SQLite, templates, and CSV; see [packages/README.md](../../packages/README.md).
-      The socket stack targets Linux IPv4. Broader networking and portability
-      remain open; see each package's limits before deployment.
+- [x] Bundled web packages: HTTP parser/server framework (cookies, opt-in
+      plain-HTTP keep-alive with pipelining, wildcard captures, static caching
+      headers), synchronous HTTP/HTTPS client, optional TLS, middleware
+      (including buffered multipart/form-data), validation, rate limiting,
+      authentication, database/SQLite, templates, and CSV; see
+      [packages/README.md](../../packages/README.md).
+      The socket stack targets Linux IPv4. HTTP/2, keep-alive over TLS,
+      streaming uploads, broader networking and portability remain open; see
+      each package's limits before deployment.
+- [x] Bundled general-purpose packages: dynamic JSON values (`bpl-json`), JSON
+      Schema 2020-12 subset validation (`bpl-json-schema`), HS256/HS512 JWTs
+      (`bpl-jwt`), an LRU/TTL cache (`bpl-cache`), Prometheus metrics
+      (`bpl-metrics`), safe Markdown rendering (`bpl-markdown`), structured
+      logging (`bpl-log`) and RFC 6455 WebSocket server connections
+      (`bpl-websocket`, one connection per worker process). Remote
+      JSON Schema references, asymmetric JWT algorithms, reference-style
+      Markdown links and cross-process caches remain open.
 - [x] Local package init/pack/install/list, manifest validation, cache checks,
       binary links, `bpl.lock`, exact restore, and `install --locked` verification.
       Cache-based version constraints are supported; full dependency graph

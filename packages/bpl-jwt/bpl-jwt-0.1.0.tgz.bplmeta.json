@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "name": "bpl-jwt",
+  "version": "0.1.0",
+  "archiveFile": "bpl-jwt-0.1.0.tgz",
+  "archiveSha256": "4cb9a3dd5f046e49dc019d90c2dcef232f65e036ae04431cf2acb1c87c33d066",
+  "packageHash": "0512a3e6a8b1a95d765c56cbfbc8deba9db35838be2f4da1e4e8b3ffb86b33db",
+  "sizeBytes": 5221,
+  "createdAt": "2026-11-10T12:26:32.892Z",
+  "manifest": {
+    "name": "bpl-jwt",
+    "version": "0.1.0",
+    "description": "JSON Web Tokens signed and verified with HS256/HS512",
+    "main": "index.bpl",
+    "license": "MIT",
+    "dependencies": {
+      "bpl-json": "file:../bpl-json/bpl-json-0.1.0.tgz"
+    }
+  }
+}

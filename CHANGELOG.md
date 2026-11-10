@@ -6,6 +6,26 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Added
+
+- New bundled packages (each with a packed archive, README and native tests;
+  see `packages/README.md`): `bpl-json` (dynamic JSON values with strict
+  parsing, editing and serialization), `bpl-json-schema` (JSON Schema 2020-12
+  subset validation with JSON Pointer errors; unsupported keywords are
+  rejected), `bpl-jwt` (HS256/HS512 tokens with verifier-pinned algorithms and
+  claim checks), `bpl-cache` (LRU cache with TTLs and a byte budget),
+  `bpl-metrics` (Prometheus counters, gauges and histograms), `bpl-markdown`
+  (safe Markdown to HTML), `bpl-log` (JSON-lines/logfmt structured logging with
+  redaction) and `bpl-websocket` (RFC 6455 server connections).
+- `bpl-express`: a `Cookies` API (parsing, validated `Set-Cookie`
+  attributes and prefix rules, signed values), opt-in plain-HTTP keep-alive
+  with pipelining (`app.keepAlive`), `router.all`, the `*` wildcard
+  parameter, a static MIME table and `app.staticMaxAge`. JavaScript files are
+  now served as `text/javascript; charset=utf-8`.
+- `bpl-web-middleware`: `Multipart` parsing of `multipart/form-data` bodies.
+- `bpl-validation`: `chars`, `number`, `boolean`, `email`, `url`, `uuid`,
+  `date`, `matches`, `same`, `check`, `error` and `count`.
+
 ### Changed
 
 - **Breaking:** a `*Spec` holds its object pointer and method table by value

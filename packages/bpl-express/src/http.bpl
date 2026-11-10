@@ -114,6 +114,8 @@ struct Response {
     head_only: bool,
     io_failed: bool,
     handler_failed: bool,
+    # Advertise and allow a persistent connection (set by the server).
+    keep_alive: bool,
     frame new(fd: int) ret Response {
         local res: Response;
         res.client_fd = fd;
@@ -130,6 +132,7 @@ struct Response {
         res.head_only = false;
         res.io_failed = false;
         res.handler_failed = false;
+        res.keep_alive = false;
         return res;
     }
     frame status(this: *Response, code: int) ret *Response {
@@ -219,7 +222,11 @@ struct Response {
         sprintf(cast<string>(&number[0]), "%d", this.status_code);
         sb.append("HTTP/1.1 ");
         sb.append(cast<string>(&number[0]));
-        sb.append(" Response\r\nConnection: close\r\n");
+        if (this.keep_alive) {
+            sb.append(" Response\r\nConnection: keep-alive\r\n");
+        } else {
+            sb.append(" Response\r\nConnection: close\r\n");
+        }
         if ((this.status_code != 204) && (this.status_code != 304)) {
             if ((size < 0) && !this.head_only) {
                 sb.append("Transfer-Encoding: chunked\r\n");
