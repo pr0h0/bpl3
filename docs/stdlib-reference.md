@@ -2,7 +2,7 @@
 
 Generated from parsed library declarations with `bun run docs:stdlib`. Do not edit by hand.
 
-This index covers all 90 BPL modules under `lib/`, including memory and low-level modules.
+This index covers all 91 BPL modules under `lib/`, including memory and low-level modules.
 It lists explicit exports and declarations defined in each source file. Re-exported symbols
 are listed under exports; their definitions are in the originating modules. Inherited members
 are not repeated. An exported type's declared members include implementation helpers and fields;
@@ -33,6 +33,7 @@ platform has been validated. C/POSIX extern declarations retain their native ABI
 - [std/c_runtime.bpl](../lib/c_runtime.bpl)
 - [std/char_utils.bpl](../lib/char_utils.bpl)
 - [std/complex.bpl](../lib/complex.bpl)
+- [std/compress.bpl](../lib/compress.bpl)
 - [std/core_specs.bpl](../lib/core_specs.bpl)
 - [std/csv.bpl](../lib/csv.bpl)
 - [std/date.bpl](../lib/date.bpl)
@@ -887,6 +888,30 @@ frame __div__(this: *Complex, other: *Complex) ret Complex
 frame __eq__(this: *Complex, other: *Complex) ret bool
 frame __ne__(this: *Complex, other: *Complex) ret bool
 frame __neg__(this: *Complex) ret Complex
+```
+
+## std/compress.bpl
+
+[Source](../lib/compress.bpl)
+
+Exports:
+
+```bpl
+export [Deflate];
+```
+
+### Deflate
+
+```bpl
+struct Deflate
+frame inflate(data: *u8, length: long) ret Array<u8>
+frame deflate(data: *u8, length: long, level: int) ret Array<u8>
+frame zlibCompress(data: *u8, length: long, level: int) ret Array<u8>
+frame zlibDecompress(data: *u8, length: long) ret Array<u8>
+frame gzipCompress(data: *u8, length: long, level: int) ret Array<u8>
+frame gzipDecompress(data: *u8, length: long) ret Array<u8>
+frame _gzipMember(data: *u8, length: long, start: long, out: *Array<u8>) ret long
+frame gzipString(text: string, level: int) ret Array<u8>
 ```
 
 ## std/core_specs.bpl

@@ -165,7 +165,8 @@ Concrete defects are tracked in [BUGS.md](BUGS.md) (BUG-423 onward).
 - [ ] [7] Remote package registry/publishing and richer dependency resolution.
 - [ ] [7] Structured logging, broader portable networking and OS
       APIs, cryptographic hashes beyond SHA-256, SHA-512, HMAC-SHA256 and
-      HMAC-SHA512, regex captures, and compression/archiving.
+      HMAC-SHA512, regex captures, and archiving (DEFLATE/zlib/gzip compression
+      exists in `lib/compress.bpl`; its encoder emits fixed-Huffman blocks only).
 - [ ] [8] Async/await. Native threads (`lib/thread.bpl`) and synchronization
       (`lib/sync.bpl`: atomics, locks, condition variables, channels) are
       implemented on pthreads; there is no async runtime or WebAssembly threading.
