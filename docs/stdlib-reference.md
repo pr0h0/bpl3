@@ -2403,6 +2403,49 @@ frame factorial(n: int) ret long
 frame fibonacci(n: int) ret long
 frame isEven(x: int) ret bool
 frame isOdd(x: int) ret bool
+frame isFinite(x: float) ret bool
+frame trunc(x: float) ret float
+frame fract(x: float) ret float
+frame fma(a: float, b: float, c: float) ret float
+frame approxEqual(a: float, b: float, relTol: float, absTol: float) ret bool
+frame cbrt(x: float) ret float
+frame hypot(x: float, y: float) ret float
+frame exp2(x: float) ret float
+frame expm1(x: float) ret float
+frame log1p(x: float) ret float
+frame logBase(x: float, base: float) ret float
+frame powInt(x: float, n: int) ret float
+frame sinh(x: float) ret float
+frame cosh(x: float) ret float
+frame tanh(x: float) ret float
+frame asinh(x: float) ret float
+frame acosh(x: float) ret float
+frame atanh(x: float) ret float
+frame erf(x: float) ret float
+frame erfc(x: float) ret float
+frame lgamma(x: float) ret float
+frame tgamma(x: float) ret float
+frame smoothstep(edge0: float, edge1: float, x: float) ret float
+frame inverseLerp(a: float, b: float, x: float) ret float
+frame remap(x: float, inMin: float, inMax: float, outMin: float, outMax: float) ret float
+frame wrapAngle(radians: float) ret float
+frame gcdLong(a: long, b: long) ret long
+frame lcmLong(a: long, b: long) ret long
+frame _magnitude(value: long) ret ulong
+frame mulMod(a: ulong, b: ulong, m: ulong) ret ulong
+frame powMod(base: ulong, exponent: ulong, m: ulong) ret ulong
+frame modInverse(a: long, m: long) ret long
+frame isqrt(n: long) ret long
+frame isPrime(n: long) ret bool
+frame primesUpTo(limit: int) ret Array<int>
+frame binomial(n: int, k: int) ret long
+frame floorDiv(a: long, b: long) ret long
+frame floorMod(a: long, b: long) ret long
+frame clampLong(x: long, minVal: long, maxVal: long) ret long
+frame checkedAdd(a: long, b: long) ret long
+frame checkedMul(a: long, b: long) ret long
+frame saturatingAdd(a: long, b: long) ret long
+frame digitCount(n: long) ret int
 ```
 
 ## std/memory/allocator.bpl
