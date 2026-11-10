@@ -75,4 +75,66 @@ simulation.imbalance = 0.855122
 simulation.final_fair = 98.577890
 simulation.order_flow = -43490
 simulation.impact_buy_1000 = 99.615500
-selftest: 297 passed, 0 failed
+== rolling
+== moving_averages
+== indicators
+indicators.last_close = 138.458580
+indicators.macd_last = -0.948804
+indicators.signal_last = -2.208298
+indicators.bb_upper = 137.003150
+indicators.bb_lower = 123.592852
+indicators.atr_last = 2.584132
+indicators.keltner_upper = 136.194014
+indicators.stoch_k = 98.052527
+indicators.stoch_d = 97.950710
+indicators.williams_r = -1.947473
+indicators.cci = 185.453677
+indicators.adx = 25.824993
+indicators.plus_di = 38.837884
+indicators.minus_di = 20.903060
+indicators.obv = 387790.00
+indicators.mfi = 56.367631
+indicators.vwap = 126.303305
+indicators.rolling_vwap = 130.247098
+indicators.trix = -0.255935
+indicators.aroon_up = 100.000000
+indicators.aroon_down = 80.000000
+indicators.chaikin_osc = 20192.04
+indicators.psar = 125.336321
+indicators.tenkan = 131.595975
+indicators.kijun = 131.595975
+indicators.span_a = 140.757948
+indicators.span_b = 141.442557
+indicators.hma = 130.327946
+indicators.kama = 131.284765
+indicators.realized_vol = 0.255330
+indicators.parkinson_vol = 0.193020
+indicators.garman_klass_vol = 0.165159
+indicators.sma_crossings = 14
+indicators.zscore = 2.372490
+== aggregation
+== covariance
+covariance.avg_corr = 0.351554
+covariance.ledoit_wolf_delta = 0.001573
+covariance.single_index_00 = 1.028753
+== var
+var.historical_99 = 23288.33
+var.historical_es = 27041.78
+var.filtered_historical = 29930.56
+var.backtest_exceptions = 4
+var.backtest_zone = green
+var.kupiec_p = 0.380484
+var.undersized_zone = red
+var.rolling_last = 0.022315
+var.portfolio_var = 24074.05
+== portfolio
+portfolio.gmv_w0 = 0.545427
+portfolio.gmv_vol = 0.00830349
+portfolio.tangency_sharpe = 0.046585
+portfolio.long_only_w2 = 0.122236
+portfolio.risk_parity_w0 = 0.324880
+portfolio.frontier_top_vol = 0.01770830
+portfolio.bl_view_asset = 14.791667
+portfolio.tracking_error = 0.00627411
+portfolio.diversification_ratio = 1.369227
+selftest: 392 passed, 0 failed

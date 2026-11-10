@@ -10,6 +10,8 @@ import [Check] from "./selftest/check.bpl";
 import runMathTests from "./selftest/math_tests.bpl";
 import runPricingTests from "./selftest/pricing_tests.bpl";
 import runMarketTests from "./selftest/market_tests.bpl";
+import runSeriesTests from "./selftest/series_tests.bpl";
+import runRiskTests from "./selftest/risk_tests.bpl";
 import [Text] from "./core/text.bpl";
 
 frame usage() {
@@ -25,6 +27,8 @@ frame runSelftest() ret int {
     runMathTests(&c);
     runPricingTests(&c);
     runMarketTests(&c);
+    runSeriesTests(&c);
+    runRiskTests(&c);
     return c.summary() == 0 ? 0 : 1;
 }
 
