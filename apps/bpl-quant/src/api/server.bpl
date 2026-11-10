@@ -29,6 +29,7 @@ import columnarQueryHandler, columnarStatsHandler from "./handlers_columnar.bpl"
 import moreIndicatorHandler, moreIndicatorListHandler, performanceHandler, sampleTestsHandler from "./handlers_analytics.bpl";
 import scheduleHandler, impactHandler, shortfallHandler, surveillanceHandler from "./handlers_execution.bpl";
 import strategyHandler, templatesHandler, regimeHandler, adjustHandler, liquidityHandler, spanHandler from "./handlers_structure.bpl";
+import wsFeedHandler from "./handlers_ws.bpl";
 import fixParseHandler, fixOrderHandler, fixCancelHandler, fixLogHandler, feedReplayHandler, feedSampleHandler from "./handlers_proto.bpl";
 import symbolsHandler, createSymbolHandler, submitOrderHandler, getOrderHandler, cancelOrderHandler, replaceOrderHandler, bookHandler, quoteHandler, tradesHandler, tradesCsvHandler, simulateHandler, engineStatsHandler, endOfDayHandler, validateBookHandler from "./handlers_market.bpl";
 
@@ -327,6 +328,7 @@ frame registerOpsRoutes() {
     route(HttpMethod.POST, "/bars/:symbol/adjust", adjustHandler, "splits and dividends: total return, yield, optional back-adjustment {actions, apply}");
     route(HttpMethod.GET, "/liquidity/:symbol", liquidityHandler, "Amihud, Roll, Corwin-Schultz, VPIN and Kyle's lambda (?buckets=)");
     route(HttpMethod.POST, "/risk/span", spanHandler, "SPAN-style scenario margin with risk arrays and inter-commodity credits {products, options}");
+    route(HttpMethod.GET, "/ws/feed", wsFeedHandler, "WebSocket push feed: JSON book/trade updates with subscribe/sim/snapshot commands, or ?format=itch for binary ITCH packets");
     route(HttpMethod.GET, "/feed/sample", feedSampleHandler, "first packets of a generated feed, hex and decoded (?events=&packets=&seed=)");
 }
 
