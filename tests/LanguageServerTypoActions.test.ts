@@ -11,6 +11,7 @@ import {
   StreamMessageWriter,
 } from "vscode-jsonrpc/node";
 import { TextDocument } from "vscode-languageserver-textdocument";
+import { diagnosticText } from "../vscode-ext/src/services/utils";
 import type {
   CodeAction,
   Diagnostic,
@@ -69,7 +70,7 @@ test("live typo actions use compiler hints rather than comments, strings and unr
         });
         const diagnostics = await initial;
         const diagnostic = diagnostics.find((item) =>
-          item.message.includes("Undefined symbol 'calcuateSum'"),
+          diagnosticText(item).includes("Undefined symbol 'calcuateSum'"),
         );
         expect(diagnostic).toBeDefined();
         expect(diagnostic!.message).toContain("Did you mean 'calculateSum'?");
@@ -108,7 +109,9 @@ test("live typo actions use compiler hints rather than comments, strings and unr
           ],
         });
         const missing = (await noHint).find((item) =>
-          item.message.includes("Undefined symbol 'missingIdentifierZ'"),
+          diagnosticText(item).includes(
+            "Undefined symbol 'missingIdentifierZ'",
+          ),
         );
         expect(missing).toBeDefined();
         expect(missing!.message).not.toContain("Did you mean");

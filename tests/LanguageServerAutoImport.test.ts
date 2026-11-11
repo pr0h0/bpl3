@@ -11,6 +11,7 @@ import {
   StreamMessageWriter,
 } from "vscode-jsonrpc/node";
 import { TextDocument } from "vscode-languageserver-textdocument";
+import { diagnosticText } from "../vscode-ext/src/services/utils";
 import type {
   CodeAction,
   Diagnostic,
@@ -76,7 +77,7 @@ test("live auto-import action resolves the server's Undefined type diagnostic", 
         });
         const diagnostics = await initial;
         const diagnostic = diagnostics.find((item) =>
-          item.message.includes("Undefined type 'Widget'"),
+          diagnosticText(item).includes("Undefined type 'Widget'"),
         );
         expect(diagnostic).toBeDefined();
         const actions = await connection.sendRequest<CodeAction[]>(

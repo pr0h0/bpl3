@@ -56,7 +56,7 @@ jobs:
             smoke: false
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Set up Bun
         uses: oven-sh/setup-bun@v2
@@ -64,7 +64,7 @@ jobs:
           bun-version-file: .bun-version
 
       - name: Cache dependencies
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: ~/.bun/install/cache
           key: deps-bun-${{ runner.os }}-${{ hashFiles('.bun-version', 'bun.lock') }}
@@ -90,7 +90,7 @@ jobs:
           [ "$output" = "release smoke ok" ]
 
       - name: Upload the executable
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: bpl-${{ matrix.asset }}
           path: dist/bpl-${{ matrix.asset }}
@@ -106,7 +106,7 @@ jobs:
       contents: write
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Validate patch-only release version
         run: |
@@ -116,7 +116,7 @@ jobs:
           [ "v$version" = "$tag" ] || { echo "Tag $tag does not match package.json $version" >&2; exit 1; }
 
       - name: Download the executables
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           path: dist
           merge-multiple: true

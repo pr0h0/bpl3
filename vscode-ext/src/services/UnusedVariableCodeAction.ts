@@ -2,6 +2,7 @@ import { Range, TextEdit, type Diagnostic } from "vscode-languageserver/node";
 import type { TextDocument } from "vscode-languageserver-textdocument";
 import { lexWithGrammar } from "../../../compiler/frontend/GrammarLexer";
 import { TokenType } from "../../../compiler/frontend/TokenType";
+import { diagnosticText } from "./utils";
 
 /** Locate the declared name without replacing its type, initializer or comments. */
 export function unusedVariableEdit(
@@ -9,8 +10,12 @@ export function unusedVariableEdit(
   diagnostic: Diagnostic,
 ): TextEdit | null {
   const name =
-    /\bunused variable '([A-Za-z_]\w*)'/i.exec(diagnostic.message)?.[1] ??
-    /\bvariable '([A-Za-z_]\w*)' is unused/i.exec(diagnostic.message)?.[1];
+    /\bunused variable '([A-Za-z_]\w*)'/i.exec(
+      diagnosticText(diagnostic),
+    )?.[1] ??
+    /\bvariable '([A-Za-z_]\w*)' is unused/i.exec(
+      diagnosticText(diagnostic),
+    )?.[1];
   if (!name || name.startsWith("_")) return null;
   try {
     const tokens = lexWithGrammar(

@@ -7,8 +7,20 @@ import * as fs from "fs";
 import * as path from "path";
 import { fileURLToPath, pathToFileURL } from "url";
 import type { TextDocument } from "vscode-languageserver-textdocument";
-import type { TextDocuments } from "vscode-languageserver/node";
+import type { Diagnostic, TextDocuments } from "vscode-languageserver/node";
 import type * as AST from "../../../compiler/common/AST";
+
+/**
+ * LSP 3.18 allows a diagnostic message to be markup. The server only publishes
+ * plain strings, but code actions read client-sent diagnostics, so take the
+ * text of either form.
+ */
+export function diagnosticText(
+  diagnostic: Pick<Diagnostic, "message">,
+): string {
+  const { message } = diagnostic;
+  return typeof message === "string" ? message : message.value;
+}
 
 /**
  * Language-server trace logging is opt-in because raw stdout writes are noisy in
