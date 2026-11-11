@@ -58,6 +58,7 @@ import { WorkspaceSymbolProvider } from "./services/WorkspaceSymbolProvider";
 import { CodeLensProvider } from "./services/CodeLensProvider";
 import { DocumentLinkProvider } from "./services/DocumentLinkProvider";
 import { DiagnosticsProvider } from "./services/DiagnosticsProvider";
+import { diagnosticText } from "./services/utils";
 
 // Create a connection for the server, using Node's IPC as a transport.
 // Also include all preview / proposed LSP features.
@@ -696,7 +697,7 @@ connection.onCodeAction((params) => {
 
     // 2. Undefined symbol (function/variable) suggestions
     const unknownSymbolMatch = /Undefined symbol '(\w+)'/.exec(
-      diagnostic.message,
+      diagnosticText(diagnostic),
     );
     if (unknownSymbolMatch) {
       const symbolName = unknownSymbolMatch[1];

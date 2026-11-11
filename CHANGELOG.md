@@ -28,6 +28,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Changed
 
+- Dependencies: commander 15, ESLint 10 with typescript-eslint 8.72, and
+  vscode-languageserver/-client 11. The VS Code extension now builds with
+  TypeScript 7 and vsce 4 and needs VS Code 1.91 or newer, the minimum of
+  vscode-languageclient 11. Peggy stays pinned at exactly 5.0.6 because
+  `tools/generate_peggy_parser.ts` rewrites that version's output; 5.1 emits
+  different code. CI uses actions/checkout v7, cache v6, upload-artifact v7
+  and download-artifact v8.
+
 - Large native builds use less memory and every core. IR of 4 MB or more is
   split into parts that clang compiles in parallel, with small callees copied
   into each part so they still inline. Projects with 256 KB or more of

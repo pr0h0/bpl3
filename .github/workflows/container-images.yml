@@ -33,12 +33,12 @@ jobs:
       version: ${{ steps.version.outputs.version }}
       revision: ${{ steps.version.outputs.revision }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version-file: .bun-version
       - name: Cache dependencies
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: ~/.bun/install/cache
           key: deps-bun-${{ runner.os }}-${{ hashFiles('.bun-version', 'bun.lock') }}
@@ -85,7 +85,7 @@ jobs:
         run: docker save bpl-compiler:ci bpl-playground:ci | gzip -1 > "$RUNNER_TEMP/bpl-images.tar.gz"
       - name: Upload tested image artifact
         if: (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') && github.event.deleted != true) || (github.event_name == 'workflow_dispatch' && inputs.publish)
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: bpl-tested-images
           path: ${{ runner.temp }}/bpl-images.tar.gz
@@ -110,7 +110,7 @@ jobs:
       BPL_REVISION: ${{ needs.verify.outputs.revision }}
     steps:
       - name: Download tested images
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: bpl-tested-images
           path: ${{ runner.temp }}

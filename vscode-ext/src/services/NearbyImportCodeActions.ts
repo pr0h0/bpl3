@@ -9,13 +9,16 @@ import {
 } from "vscode-languageserver/node";
 import type { TextDocument } from "vscode-languageserver-textdocument";
 import { Parser } from "../../../compiler/frontend/Parser";
+import { diagnosticText } from "./utils";
 
 /** Discard after the code-action request, including failed parse results. */
 export type NearbyImportCache = Map<string, ReturnType<Parser["parse"]> | null>;
 
 /** Both spellings are emitted by compiler type-resolution paths. */
 export function importableTypeName(diagnostic: Diagnostic): string | undefined {
-  return /(?:Unknown|Undefined) type '(\w+)'/.exec(diagnostic.message)?.[1];
+  return /(?:Unknown|Undefined) type '(\w+)'/.exec(
+    diagnosticText(diagnostic),
+  )?.[1];
 }
 
 /** Suggest actual nearby exports, rather than matching comments or string data. */
