@@ -102,7 +102,7 @@ use the CLI without writing to the installed toolchain.
 The Container images workflow builds and tests both targets on pushes/PRs.
 Publication uses an artifact containing the exact images that passed CI, rather
 than rebuilding untested copies. Pushing or updating a version tag such as
-`v0.1.2` automatically publishes both images after these checks pass. The tag must equal `v` followed by the version in
+`v0.1.3` automatically publishes both images after these checks pass. The tag must equal `v` followed by the version in
 `package.json`; only canonical `0.1.x` patch versions are accepted. Image tags omit
 the leading `v`. Tag deletions do not publish anything. Ordinary branch pushes and
 pull requests only build and test the images.
@@ -114,10 +114,10 @@ runs verification, but publishing a different commit requires a new patch versio
 A retry at the same commit can finish a partially completed two-image publication.
 Annotated and lightweight tags identify the checked-out commit in image metadata.
 
-The 0.1.2 release images are published as:
+The 0.1.3 release images are published as:
 
-- ghcr.io/pr0h0/bpl3-compiler:0.1.2
-- ghcr.io/pr0h0/bpl3-playground:0.1.2
+- ghcr.io/pr0h0/bpl3-compiler:0.1.3
+- ghcr.io/pr0h0/bpl3-playground:0.1.3
 
 Substitute these references for the local tags in the commands above. The
 published playground image is built with its own versioned image reference for

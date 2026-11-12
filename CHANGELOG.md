@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+## [0.1.3] - 2026-11-12
+
 ### Added
 
 - New bundled packages (each with a packed archive, README and native tests;
