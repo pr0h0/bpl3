@@ -85,6 +85,11 @@ frame main() ret int {
         code: "BPL_MODULO_OPERAND_TYPE_MISMATCH",
       },
       {
+        name: "float-modulo-assignment",
+        source: main('local f: double = 5.5; f %= 2.0; printf("%f", f);'),
+        code: "BPL_MODULO_OPERAND_TYPE_MISMATCH",
+      },
+      {
         name: "integer-logical",
         source: main(
           'local a: int = 1; local b: bool = a && true; printf("%d", b);',
@@ -236,11 +241,43 @@ frame main() ret int {
 }`,
         code: "BPL_CAPTURED_VALUE_ASSIGNED",
       },
+      {
+        name: "lambda-tuple-assign-capture",
+        source: `frame main() ret int {
+  local k: int = 1;
+  local j: int = 1;
+  local f: Lambda<void>() = || { (k, j) = (7, 8); };
+  f();
+  return k + j;
+}`,
+        code: "BPL_CAPTURED_VALUE_ASSIGNED",
+      },
     ]);
   }, 120000);
 });
 
 describe("language specification: pattern matching", () => {
+  // spec: R-MATCH-2
+  test("a name starting with an underscore binds in a pattern", () => {
+    expectCorrectnessSuite([
+      {
+        name: "underscore-pattern-binding",
+        validateLlvm: true,
+        source: `extern printf(fmt: string, ...);
+enum E { A(int), B }
+frame main() ret int {
+  local e: E = E.A(3);
+  printf("%d\\n", match (e) { E.A(_x) => 1, E.B => 2 });
+  printf("%d\\n", match (e) { E.A(_value) => _value + 1, E.B => 2 });
+  printf("%d\\n", match (5) { _n if _n > 9 => 1, _other => _other * 2 });
+  return 0;
+}
+`,
+        expectedStdout: "1\n4\n10\n",
+      },
+    ]);
+  });
+
   // spec: R-MATCH-1, R-MATCH-2, R-MATCH-4
   test("literal, binding, tuple, enum, and block-arm patterns", () => {
     expectCorrectnessSuite([

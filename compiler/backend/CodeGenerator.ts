@@ -1,3 +1,4 @@
+import { traceMemory } from "../common/MemoryTrace";
 import {
   getCExportFunctions,
   C_EXPORT_CONFLICT_CODE,
@@ -338,7 +339,7 @@ export class CodeGenerator extends StatementGenerator {
     // Exception Handling Primitives
     // Defer Node
     this.emitDeclaration(
-      `%struct.DeferNode = type { i8*, i8*, %struct.DeferNode* }`,
+      `%struct.DeferNode = type { i8*, i8*, %struct.DeferNode*, i64 }`,
     );
     this.emitDeclaration(
       `@defer_top = external ${runtimeStorage} %struct.DeferNode*`,
@@ -438,6 +439,7 @@ export class CodeGenerator extends StatementGenerator {
     do {
       while (
         this.pendingLambdas.length > 0 ||
+        this.pendingUnwindThunks.length > 0 ||
         this.pendingGenerations.length > 0
       ) {
         if (this.pendingGenerations.length > 0) {
@@ -458,6 +460,7 @@ export class CodeGenerator extends StatementGenerator {
           );
         }
         this.processPendingLambdas();
+        this.generatePendingUnwindThunks();
 
         // Process one batch of pending generations
         // We use a while loop here to process all currently pending generations
@@ -469,6 +472,7 @@ export class CodeGenerator extends StatementGenerator {
         }
       }
     } while (this.emitReferencedDeferredMethods());
+    traceMemory(`emitted ${this.output.length} IR lines`);
 
     if (this.usedLlvmMemIntrinsics.has("memcpy")) {
       this.emitDeclaration(
@@ -515,6 +519,15 @@ export class CodeGenerator extends StatementGenerator {
         this.declarationsOutput.push(`%struct.${structName} = type opaque`);
       }
     }
+
+    // Type definitions come first: LLVM rejects a function type naming a
+    // struct that is defined only later, as a vtable constant can.
+    const isTypeDefinition = (line: string) =>
+      line.startsWith("%struct.") || line.startsWith("%enum.");
+    this.declarationsOutput = [
+      ...this.declarationsOutput.filter(isTypeDefinition),
+      ...this.declarationsOutput.filter((line) => !isTypeDefinition(line)),
+    ];
 
     const cExports = getCExportFunctions(program);
     const linkerGlobals = new Set<string>();
@@ -564,6 +577,7 @@ export class CodeGenerator extends StatementGenerator {
       this.emitDeclaration("declare void @__bpl_install_signal_handlers()");
     }
     const generatedBody = this.joinCompactedLines(this.output);
+    traceMemory("joined the function bodies");
     const generatedBodyReferences =
       this.collectFinalPruningLlvmReferences(generatedBody);
     this.pruneUnusedInternalRuntimeDeclarations(generatedBodyReferences);
@@ -1696,6 +1710,8 @@ export class CodeGenerator extends StatementGenerator {
           llvmType === "float" ? "float" : "double",
         );
       case "bool":
+        // A `bool` constant may initialize an integer global.
+        if (llvmType !== "i1") return value.value ? "1" : "0";
         return value.value ? "true" : "false";
       case "literal":
         return this.generateLiteral(value.expr);
@@ -1751,6 +1767,8 @@ export class CodeGenerator extends StatementGenerator {
         }
         init = this.formatGlobalConstant(value, type, decl);
       }
+      // `nullptr` for a `*Spec` global is a pair of null pointers.
+      if (init === "null" && !type.endsWith("*")) init = "zeroinitializer";
     } else if (
       type === "i64" ||
       type === "i32" ||
@@ -1761,6 +1779,7 @@ export class CodeGenerator extends StatementGenerator {
       init = "0";
     else if (type === "double") init = "0.0";
     else if (type.endsWith("*")) init = "null";
+    else init = this.zeroConstantWithVTables(type) ?? init;
     const keyword = decl.isConst ? "constant" : "global";
 
     let dbgSuffix = "";
@@ -1833,14 +1852,17 @@ export class CodeGenerator extends StatementGenerator {
       captureInfo = {
         name: captureStructName,
         releaseOnEntry: expr.isDeferred,
-        fields: expr.capturedVariables.map((decl) => ({
-          name: decl.name as string,
-          type: this.resolveType(
-            (("typeAnnotation" in decl ? decl.typeAnnotation : undefined) ||
-              ("type" in decl ? decl.type : undefined) ||
-              decl.resolvedType)!,
-          ),
-        })),
+        fields: expr.capturedVariables.map((decl) => {
+          const type = (("typeAnnotation" in decl
+            ? decl.typeAnnotation
+            : undefined) ||
+            ("type" in decl ? decl.type : undefined) ||
+            decl.resolvedType)!;
+          return {
+            name: decl.name as string,
+            type: this.resolveType(type),
+          };
+        }),
       };
     }
 

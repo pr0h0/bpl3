@@ -67,7 +67,7 @@ describe("CodeGen - Stack Overflow", () => {
     expect(ir).not.toContain("call void @__bpl_exit_stack_frame()");
     expect(ir).not.toContain("declare void @__bpl_enter_stack_frame()");
     expect(ir).not.toContain("declare void @__bpl_exit_stack_frame()");
-    expect(ir).toContain("call void @printf");
+    expect(ir).toMatch(/call (void|i32) @printf/);
   });
 
   it("should use stacksave stack-limit probes for optimized native non-tail recursion", () => {
@@ -428,6 +428,6 @@ describe("CodeGen - Stack Overflow", () => {
     expect(ir).not.toContain("declare void @__bpl_throw_stack_overflow()");
     expect(ir).not.toContain("call void @__bpl_throw_stack_overflow()");
     expect(ir).not.toContain("alloca i8");
-    expect(ir).toContain("call void @printf");
+    expect(ir).toMatch(/call (void|i32) @printf/);
   });
 });

@@ -33,6 +33,8 @@ import {
   isImplicitIntegerToBool,
   lowerImplicitConversion,
 } from "./lowering/ImplicitConversions";
+import { getArrayAliasPointer } from "../common/ArrayAliasPointer";
+import { isConstantArrayStorage } from "../common/ArrayElementStorage";
 
 function formatSymbolKind(kind: SymbolKind): string {
   return kind === "TypeAlias" ? "type alias" : kind.toLowerCase();
@@ -40,9 +42,15 @@ function formatSymbolKind(kind: SymbolKind): string {
 
 export const SYMBOL_ALREADY_DEFINED_CODE = "BPL_SYMBOL_ALREADY_DEFINED";
 export const TYPE_RECURSION_CYCLE_CODE = "BPL_TYPE_RECURSION_CYCLE";
+export const UNUSED_VARIABLE_CODE = "BPL_UNUSED_VARIABLE";
+export const SWITCH_CASE_DUPLICATE_CODE = "BPL_SWITCH_CASE_DUPLICATE";
+export const SWITCH_CASE_TERMINATOR_MISSING_CODE =
+  "BPL_SWITCH_CASE_TERMINATOR_MISSING";
+export const ASM_FLAVOR_UNKNOWN_CODE = "BPL_ASM_FLAVOR_UNKNOWN";
+export const INCREMENT_OPERAND_TYPE_MISMATCH_CODE =
+  "BPL_INCREMENT_OPERAND_TYPE_MISMATCH";
 export const GENERIC_ARITY_MISMATCH_CODE = "BPL_GENERIC_ARITY_MISMATCH";
 export const TYPE_NOT_FOUND_CODE = "BPL_TYPE_NOT_FOUND";
-export const SPEC_POINTER_ESCAPES_CODE = "BPL_SPEC_POINTER_ESCAPES";
 export const CAPTURED_VALUE_ASSIGNED_CODE = "BPL_CAPTURED_VALUE_ASSIGNED";
 export const AUTO_DESTROY_ENUM_PAYLOAD_CODE = "BPL_AUTO_DESTROY_ENUM_PAYLOAD";
 export const OWNING_VALUE_COPIED_CODE = "BPL_OWNING_VALUE_COPIED";
@@ -94,6 +102,8 @@ export const MATCH_TUPLE_PATTERN_TYPE_MISMATCH_CODE =
   "BPL_MATCH_TUPLE_PATTERN_TYPE_MISMATCH";
 export const MATCH_TUPLE_PATTERN_ARITY_MISMATCH_CODE =
   "BPL_MATCH_TUPLE_PATTERN_ARITY_MISMATCH";
+export const MATCH_LITERAL_PATTERN_TYPE_MISMATCH_CODE =
+  "BPL_MATCH_LITERAL_PATTERN_TYPE_MISMATCH";
 export const TYPE_QUERY_ENUM_NOT_FOUND_CODE = "BPL_TYPE_QUERY_ENUM_NOT_FOUND";
 export const TYPE_QUERY_TYPE_NOT_FOUND_CODE = "BPL_TYPE_QUERY_TYPE_NOT_FOUND";
 export const BREAK_OUTSIDE_CONTEXT_CODE = "BPL_BREAK_OUTSIDE_CONTEXT";
@@ -122,6 +132,9 @@ export const ADDRESS_OF_CONSTANT_CODE = "BPL_ADDRESS_OF_CONSTANT";
 export const ADDRESS_OF_TARGET_INVALID_CODE = "BPL_ADDRESS_OF_TARGET_INVALID";
 export const LOGICAL_NOT_OPERAND_TYPE_MISMATCH_CODE =
   "BPL_LOGICAL_NOT_OPERAND_TYPE_MISMATCH";
+export const EXCEPTION_TYPE_UNSUPPORTED_CODE = "BPL_EXCEPTION_TYPE_UNSUPPORTED";
+export const METHOD_RECEIVER_TYPE_MISMATCH_CODE =
+  "BPL_METHOD_RECEIVER_TYPE_MISMATCH";
 export const BITWISE_NOT_OPERAND_TYPE_MISMATCH_CODE =
   "BPL_BITWISE_NOT_OPERAND_TYPE_MISMATCH";
 export const UNARY_NEGATION_OPERAND_TYPE_MISMATCH_CODE =
@@ -145,6 +158,8 @@ export const STRUCT_LITERAL_UNKNOWN_STRUCT_CODE =
   "BPL_STRUCT_LITERAL_UNKNOWN_STRUCT";
 export const STRUCT_LITERAL_FIELD_MISSING_CODE =
   "BPL_STRUCT_LITERAL_FIELD_MISSING";
+export const STRUCT_LITERAL_FIELD_DUPLICATE_CODE =
+  "BPL_STRUCT_LITERAL_FIELD_DUPLICATE";
 export const STRUCT_LITERAL_FIELD_UNKNOWN_CODE =
   "BPL_STRUCT_LITERAL_FIELD_UNKNOWN";
 export const STRUCT_LITERAL_FIELD_TYPE_MISMATCH_CODE =
@@ -205,6 +220,7 @@ export const TYPE_CHECKER_FAILURE_CODES = [
   MATCH_EXHAUSTIVENESS_MISMATCH_CODE,
   MATCH_TUPLE_PATTERN_TYPE_MISMATCH_CODE,
   MATCH_TUPLE_PATTERN_ARITY_MISMATCH_CODE,
+  MATCH_LITERAL_PATTERN_TYPE_MISMATCH_CODE,
   TYPE_QUERY_ENUM_NOT_FOUND_CODE,
   TYPE_QUERY_TYPE_NOT_FOUND_CODE,
   BREAK_OUTSIDE_CONTEXT_CODE,
@@ -227,6 +243,8 @@ export const TYPE_CHECKER_FAILURE_CODES = [
   ADDRESS_OF_TARGET_INVALID_CODE,
   LOGICAL_NOT_OPERAND_TYPE_MISMATCH_CODE,
   BITWISE_NOT_OPERAND_TYPE_MISMATCH_CODE,
+  METHOD_RECEIVER_TYPE_MISMATCH_CODE,
+  EXCEPTION_TYPE_UNSUPPORTED_CODE,
   UNARY_NEGATION_OPERAND_TYPE_MISMATCH_CODE,
   UNARY_PLUS_UNSUPPORTED_CODE,
   ARRAY_INDEX_TYPE_MISMATCH_CODE,
@@ -242,6 +260,7 @@ export const TYPE_CHECKER_FAILURE_CODES = [
   MEMBER_NOT_FOUND_CODE,
   STRUCT_LITERAL_UNKNOWN_STRUCT_CODE,
   STRUCT_LITERAL_FIELD_MISSING_CODE,
+  STRUCT_LITERAL_FIELD_DUPLICATE_CODE,
   STRUCT_LITERAL_FIELD_UNKNOWN_CODE,
   STRUCT_LITERAL_FIELD_TYPE_MISMATCH_CODE,
   FUNCTION_ATTRIBUTE_UNKNOWN_CODE,
@@ -639,6 +658,59 @@ export abstract class TypeCheckerBase {
   public currentFunctionReturnType: AST.TypeNode | undefined;
   /** Value-producing match block returns, excluding independent lambda bodies. */
   public matchYieldValues = new WeakMap<AST.BlockStmt, AST.Expression[]>();
+  /** Element types for array literals stored into arrays of spec pointers. */
+  public specArrayLiteralTargets = new WeakMap<
+    AST.ArrayLiteralExpr,
+    AST.BasicTypeNode
+  >();
+
+  /** Generic function names that a call or `<...>` instantiates. */
+  public instantiatedGenericReferences = new WeakSet<AST.Expression>();
+  /** Declared function types for identifiers naming overloaded functions. */
+  public functionValueTargets = new WeakMap<
+    AST.IdentifierExpr,
+    AST.FunctionTypeNode | AST.LambdaTypeNode
+  >();
+
+  /**
+   * Before `value` is checked against a declared `target`, record what the
+   * target tells the value: an array literal converts each element to a
+   * `*Spec` element type, so its elements may point at different structs
+   * (R-SPEC-4), and an overloaded function name picks the overload whose
+   * signature the target names (R-FN-6).
+   */
+  public noteValueTarget(value: AST.Expression, target: AST.TypeNode): void {
+    while (value.kind === "Group") value = value.expression;
+    if (value.kind === "Identifier") {
+      const resolvedTarget = this.resolveType(target);
+      if (
+        resolvedTarget.kind === "FunctionType" ||
+        resolvedTarget.kind === "LambdaType"
+      )
+        this.functionValueTargets.set(value, resolvedTarget);
+      return;
+    }
+    if (value.kind !== "ArrayLiteral") return;
+    const resolved = this.resolveType(target);
+    if (
+      resolved.kind !== "BasicType" ||
+      resolved.arrayDimensions.length === 0 ||
+      (resolved.arrayDimensions[0] !== null &&
+        resolved.arrayDimensions[0] !== value.elements.length)
+    )
+      return;
+    const element: AST.BasicTypeNode = {
+      ...resolved,
+      arrayDimensions: resolved.arrayDimensions.slice(1),
+      location: value.location,
+    };
+    if (element.arrayDimensions.length > 0) {
+      for (const inner of value.elements) this.noteValueTarget(inner, element);
+      return;
+    }
+    if (this.isSpecPointerType(element))
+      this.specArrayLiteralTargets.set(value, element);
+  }
   public modules: Map<string, SymbolTable> = new Map();
   public skipImportResolution: boolean;
   public preLoadedModules: Map<string, AST.Program> = new Map();
@@ -1699,6 +1771,8 @@ export abstract class TypeCheckerBase {
     targetType: AST.TypeNode,
     location: SourceLocation = expr.location,
   ): void {
+    // Every destination-typed value passes through here.
+    this.rejectConstantArrayView(expr, targetType, location);
     while (expr.kind === "Group") expr = expr.expression;
     if (expr.kind === "Match") {
       for (const arm of expr.arms) {
@@ -1759,6 +1833,40 @@ export abstract class TypeCheckerBase {
       location,
       INTEGER_LITERAL_OVERFLOW_CODE,
     );
+  }
+
+  /**
+   * A constant array converts to a pointer or slice only through which it
+   * could be written, so the implicit conversion is rejected, as `&arr[0]`
+   * is (R-DECL-7).
+   */
+  private rejectConstantArrayView(
+    expr: AST.Expression,
+    targetType: AST.TypeNode,
+    location: SourceLocation,
+  ): void {
+    if (!expr.resolvedType) return;
+    let conversion;
+    try {
+      conversion = lowerImplicitConversion(
+        this.resolveType(targetType),
+        this.resolveType(expr.resolvedType),
+      );
+    } catch {
+      return;
+    }
+    if (
+      (conversion.kind === "array-to-pointer" ||
+        conversion.kind === "array-to-slice") &&
+      isConstantArrayStorage(expr, (type) => this.resolveType(type))
+    ) {
+      throw new CompilerError(
+        "Cannot convert a constant array to a mutable pointer or slice",
+        "Writes through the view would change the constant. Copy the array to mutable storage first.",
+        location,
+        ADDRESS_OF_CONSTANT_CODE,
+      );
+    }
   }
 
   public getIntegerSize(type: AST.TypeNode): number {
@@ -2029,6 +2137,21 @@ export abstract class TypeCheckerBase {
         }
       }
 
+      // `*int[2]` is an array of pointers; `&row` is a pointer to an array.
+      // Their modifiers match, but the layouts do not.
+      if (
+        rt1.pointerDepth > 0 &&
+        rt2.pointerDepth > 0 &&
+        rt1.arrayDimensions.length > 0 &&
+        rt2.arrayDimensions.length > 0 &&
+        (rt1.isPointerToArray === true ||
+          getArrayAliasPointer(rt1) !== undefined) !==
+          (rt2.isPointerToArray === true ||
+            getArrayAliasPointer(rt2) !== undefined)
+      ) {
+        return false;
+      }
+
       if (
         rt1.pointerDepth !== rt2.pointerDepth ||
         !areArrayDimensionsAssignable(rt1.arrayDimensions, rt2.arrayDimensions)
@@ -2240,6 +2363,32 @@ export abstract class TypeCheckerBase {
       }
     }
 
+    // A `*Spec` lists its first parent's methods first in its method table,
+    // so it converts to that parent, and to the parent's first parent, as is
+    // (R-SPEC-4). Other parents would need a different table.
+    if (childSymbol.kind === "Spec") {
+      const seen = new Set<AST.SpecDecl>();
+      let spec = childSymbol.declaration as AST.SpecDecl;
+      while (!seen.has(spec)) {
+        seen.add(spec);
+        const first = spec.extends?.[0];
+        if (!first || first.kind !== "BasicType") return false;
+        const resolved = this.resolveType(first, false);
+        if (resolved.kind !== "BasicType") return false;
+        if (
+          resolved.name === parent.name &&
+          !haveDistinctNominalDeclarations(resolved, parent)
+        )
+          return true;
+        const next =
+          recordedDeclarationSymbol(resolved) ??
+          this.currentScope.resolve(resolved.name);
+        if (next?.kind !== "Spec") return false;
+        spec = next.declaration as AST.SpecDecl;
+      }
+      return false;
+    }
+
     if (childSymbol.kind !== "Struct") return false;
 
     // Check implicit inheritance from Type
@@ -2355,11 +2504,7 @@ export abstract class TypeCheckerBase {
     }
   }
 
-  /**
-   * A `*Spec` value points at a method table built where the conversion
-   * happens, which lives in that frame. Storing one somewhere that outlives
-   * the frame would leave a dangling pointer, so those positions are rejected.
-   */
+  /** Whether `type` is `*Spec`, which holds `{ data, vtable }` by value. */
   public isSpecPointerType(type: AST.TypeNode | undefined): boolean {
     if (!type || type.kind !== "BasicType" || type.pointerDepth < 1) {
       return false;
@@ -2368,22 +2513,6 @@ export abstract class TypeCheckerBase {
       type.resolvedDeclaration ??
       this.currentScope.resolve(type.name)?.declaration;
     return declaration?.kind === "SpecDecl";
-  }
-
-  public rejectEscapingSpecPointer(
-    type: AST.TypeNode | undefined,
-    position: string,
-    location: AST.ASTNode["location"],
-  ): void {
-    if (!this.isSpecPointerType(type)) return;
-    this.addError(
-      new CompilerError(
-        `A spec pointer cannot be used as ${position}`,
-        "A spec pointer refers to a method table created in the current frame. Pass it as a parameter, or keep it in a local or a local array.",
-        location,
-        SPEC_POINTER_ESCAPES_CODE,
-      ),
-    );
   }
 
   public resolveMemberWithContext(
@@ -2483,6 +2612,30 @@ export abstract class TypeCheckerBase {
       }
 
       return { decl, members, genericMap };
+    }
+
+    // A spec has the methods of the specs it extends.
+    if (decl.kind === "SpecDecl") {
+      const specGenerics = new Map<string, AST.TypeNode>();
+      decl.genericParams.forEach((parameter, index) => {
+        const argument = baseType.genericArgs[index];
+        if (argument) specGenerics.set(parameter.name, argument);
+      });
+      for (const parent of (decl as AST.SpecDecl).extends) {
+        if (parent.kind !== "BasicType" || parent.name === baseType.name)
+          continue;
+        const parentType =
+          specGenerics.size > 0
+            ? (this.substituteType(parent, specGenerics) as AST.BasicTypeNode)
+            : parent;
+        const found = this.resolveMemberWithContext(parentType, memberName);
+        // `Self` stays the spec the member is reached through.
+        if (found)
+          return {
+            ...found,
+            genericMap: new Map(found.genericMap).set("Self", baseType),
+          };
+      }
     }
 
     // Check parent struct via inheritanceList

@@ -6,6 +6,7 @@ import { TextDocument } from "vscode-languageserver-textdocument";
 import { DiagnosticsProvider } from "../services/DiagnosticsProvider";
 import { SymbolIndex } from "../services/SymbolIndex";
 import { unusedVariableEdit } from "../services/UnusedVariableCodeAction";
+import { diagnosticText } from "../services/utils";
 
 for (const declaration of [
   "local unusedValue: int = 42;",
@@ -23,7 +24,9 @@ for (const declaration of [
     const provider = new DiagnosticsProvider(new SymbolIndex());
     const diagnostic = provider
       .validate(document)
-      .find((item) => item.message.includes("Unused variable 'unusedValue'"));
+      .find((item) =>
+        diagnosticText(item).includes("Unused variable 'unusedValue'"),
+      );
     expect(diagnostic).toBeDefined();
     const edit = unusedVariableEdit(document, diagnostic!);
     expect(edit).not.toBeNull();

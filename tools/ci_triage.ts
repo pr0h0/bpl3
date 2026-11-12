@@ -536,6 +536,8 @@ const UNARY_OPERATOR_MISUSE_STEP_PATTERN = new RegExp(
     "BPL_DEREFERENCE_TARGET_INVALID",
     "BPL_LOGICAL_NOT_OPERAND_TYPE_MISMATCH",
     "BPL_BITWISE_NOT_OPERAND_TYPE_MISMATCH",
+    "BPL_METHOD_RECEIVER_TYPE_MISMATCH",
+    "BPL_EXCEPTION_TYPE_UNSUPPORTED",
     "BPL_UNARY_NEGATION_OPERAND_TYPE_MISMATCH",
     "BPL_UNARY_PLUS_UNSUPPORTED",
     "unary operator misuse",
@@ -646,6 +648,7 @@ const STRUCT_LITERAL_DIAGNOSTIC_STEP_PATTERN = new RegExp(
     "BPL_STRUCT_LITERAL_UNKNOWN_STRUCT",
     "BPL_STRUCT_LITERAL_FIELD_MISSING",
     "BPL_STRUCT_LITERAL_FIELD_UNKNOWN",
+    "BPL_STRUCT_LITERAL_FIELD_DUPLICATE",
     "BPL_STRUCT_LITERAL_FIELD_TYPE_MISMATCH",
     "struct literal diagnostics",
     "struct literal diagnostic",
@@ -713,6 +716,15 @@ const TUPLE_PATTERN_DIAGNOSTIC_STEP_PATTERN = new RegExp(
     "Tuple pattern has [0-9]+ elements, but type has [0-9]+",
     "Expected tuple type, got",
     "Pattern and type must have the same number of elements",
+  ].join("|"),
+  "i",
+);
+const LITERAL_PATTERN_DIAGNOSTIC_STEP_PATTERN = new RegExp(
+  [
+    "BPL_MATCH_LITERAL_PATTERN_TYPE_MISMATCH",
+    "literal match pattern",
+    "literal pattern diagnostics",
+    "Literal pattern .* cannot match a value of type",
   ].join("|"),
   "i",
 );
@@ -1960,6 +1972,11 @@ const EXCLUSIVE_STEP_REPRO_COMMANDS: Array<[RegExp, string]> = [
     'bun test tests/MarkdownDocs.test.ts -t "tuple match pattern diagnostic"',
   ],
   [TUPLE_PATTERN_DIAGNOSTIC_STEP_PATTERN, "bun run check"],
+  [
+    LITERAL_PATTERN_DIAGNOSTIC_STEP_PATTERN,
+    "bun test tests/MatchLiteralPatterns.test.ts",
+  ],
+  [LITERAL_PATTERN_DIAGNOSTIC_STEP_PATTERN, "bun run check"],
   [
     TYPE_QUERY_DIAGNOSTIC_STEP_PATTERN,
     "bun test tests/TypeCheckerTypeQueryDiagnostics.test.ts",

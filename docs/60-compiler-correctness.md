@@ -420,12 +420,29 @@ Each campaign iteration picks one input lane:
 - **structured**: valid templates. Their IR must also pass the LLVM verifier.
 - **generated** (`fuzz/programGenerator.ts`): random well-typed programs with
   globals, structs with methods and copies, by-value struct parameters,
+  struct-returning functions (assigned to struct locals and thrown as
+  exceptions),
   inheritance with virtual dispatch (direct, through `*Parent`, and on a sliced
   copy), tuples returned and destructured, pointers and pointer-writing
-  helpers, arrays, enums with payloads and `match`, generic functions and
-  structs, capturing lambdas, recursion, loops with `break`/`continue` and
-  `defer`, `switch`, mixed-width integer arithmetic, and `double`/`f32`
-  arithmetic, conversions and comparisons (printed as IEEE bit patterns). They
+  helpers, arrays (copied when passed by value, written through slices,
+  read with pointer arithmetic), struct `==`/`!=`, chained assignment,
+  nested structs (a struct and an array as fields, a static constructor,
+  whole-value copies and assignments), `sizeof` of primitives, `is *Child` on parent pointers, lambdas passed as
+  arguments, shifts by up to the operand width, negative divisors,
+  enums with payloads and `match`, generic functions and
+  structs, a generic function constrained by a spec that some structs
+  implement, capturing lambdas, recursion, while, C-style and infinite loops
+  with `break`/`continue` and `defer`, `switch` on integers, enum values
+  and strings with `fallthrough`, `match` on integers (negative literals and
+  guards), `bool`, `double` and tuples, `defer` blocks writing through pointers
+  and to globals, lambdas writing through captured pointers, global arrays, nested `try`/`catch` with exceptions thrown directly
+  or from a called function, through intermediate functions that run a
+  `defer` or rethrow as another type (including typed clauses that do not
+  match and rethrows from a catch body), calls through `Func` pointer
+  locals, overloaded functions selected by argument type, `++`/`--` inside
+  expressions (on counters nothing else reads, so their final values show
+  how often short-circuit operands, ternary branches, `match` arms and
+  guards, and `switch` subjects ran), mixed-width integer arithmetic, and `double`/`f32` arithmetic, conversions and comparisons (printed as IEEE bit patterns). They
   are valid by construction, so each one must type-check, produce IR that
   passes the LLVM verifier, and survive a formatter round trip (same meaning,
   idempotent output). A rejection or a formatter defect is reported as a crash.
@@ -437,7 +454,38 @@ Each campaign iteration picks one input lane:
   catches miscompiles and wrong constant folds that are identical at both
   levels, which O0/O3 comparison alone misses. Oracle and generated artifacts
   are not token-minimized, because minimizing would drop the expectation.
+  They also exercise operator methods, tuple assignment, bound methods, a
+  generic enum, arrays of structs, byte reads of UTF-8 strings, type aliases,
+  `T[2][2]` arrays, global structs, nested generics, `Func` fields, closures
+  returned from closures, spec dispatch through pointers (including spec pointers returned from functions and kept in struct fields), three-level
+  inheritance, nested enums, arrays of tuples, slices, heap lists, automatic
+  destructors and implicit `new` constructors. Every fifth `--oracle-only`
+  iteration is a multi-file program from `fuzz/moduleProgramGenerator.ts`: a
+  diamond of modules sharing globals, with private names repeated across
+  modules. Its companion files are `# fuzz-module:` comments in the main source,
+  so a saved failure stays one replayable file. Another fifth comes from
+  `fuzz/stdlibProgramGenerator.ts`, which checks strings, collections, `BigInt`,
+  `Rational`, `Parse`, dates, paths, URLs, UTF-8, regular expressions, JSON
+  (including `JSON.stringify<T>`, `JSON.parse<T>` and `TypeInfo` on random
+  structs), the codecs, the SHA-2 and HMAC hashes, the `std/hash` checksums
+  (FNV-1a, CRC-32, Adler-32) and `std/otp` codes against exact JavaScript and
+  Node models. A further
+  fifth comes from `fuzz/typeMutation.ts`, which damages valid programs: the
+  checker must reject the result, or it must compile to valid IR, so an error
+  from code generation is a bug.
+  `--oracle-only` (or `FUZZ_ORACLE_ONLY=1`) makes every iteration an oracle
+  program, for a local campaign aimed at miscompiles:
+  `bun run fuzz -- --oracle-only --iterations 2000 --seeds 0x1,0x2`.
+  `--wasm` (or `FUZZ_WASM=1`) marks the programs with `# fuzz-target: wasm`
+  and also builds them for `wasm32-unknown-unknown` with the hosted runtime
+  and runs them with the playground's host adapter; that output must match
+  too. It needs `wasm-ld`, and is skipped without it.
 - **differential**: templates whose O0 and O3 behavior must match.
+- **language server**: `bun run fuzz:language-server [from] [to] [renames]`
+  sends hover, definition, completion, signature help and the other requests
+  to generated programs and damaged copies of them. No request may throw, and
+  renaming a symbol must leave the program compiling and printing the same
+  output.
 
 To find which statement of a failing generated program diverges, regenerate it
 with tracing, which prints every value after each top-level statement. Use the

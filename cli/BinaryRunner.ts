@@ -36,10 +36,26 @@ import {
   formatRequiredWasmLinkerError,
   getWasmLinkerCandidates,
   getWasmLinkerProbeTimeoutMs,
+  supportsWasmExceptions,
 } from "./WasmToolchain";
 import { resolveNativeRuntimeFiles } from "./NativeRuntimeFiles";
+import { splitLlvmModule } from "./IrSplitter";
+import * as os from "os";
 
 const log = new Logger("BinaryRunner");
+
+/**
+ * The exception tag `__c_longjmp` thrown by the runtime's `__wasm_longjmp`.
+ * LLVM 22 and newer leave it undefined, and earlier versions emit it in every
+ * module that uses it, so it is defined weakly in a module of its own, which
+ * clang reads from stdin.
+ */
+const WASM_EH_TAG_ASSEMBLY = `.globl __c_longjmp
+.weak __c_longjmp
+.tagtype __c_longjmp i32
+__c_longjmp:
+`;
+const WASM_EH_TAG_STDIN_ARG = "-";
 
 export function isWasmTarget(target?: string): boolean {
   return isCompilerDriverWasmTarget(target);
@@ -155,6 +171,7 @@ export function compileToBinary(
   let tempExecPath: string;
   let clangArgs: string[];
   let sanitizedIR: string | undefined;
+  let splitDirectory: string | undefined;
   try {
     assertReadableCompileInput(irPath, "LLVM IR input");
     assertWritableFileOutputPath(execPath);
@@ -186,9 +203,23 @@ export function compileToBinary(
       }
       compileIR = sanitizedIR;
     }
-    clangArgs = buildClangArgs(compileIR, tempExecPath, options, hostDefaults);
+    const parallel = compileInParallelParts(compileIR, options, hostDefaults);
+    if (parallel && "error" in parallel) {
+      if (sanitizedIR) removeBestEffort(sanitizedIR);
+      return { success: false, error: parallel.error };
+    }
+    splitDirectory = parallel?.directory;
+    clangArgs = buildClangArgs(
+      compileIR,
+      tempExecPath,
+      options,
+      hostDefaults,
+      parallel ? parallel.objects : [compileIR],
+    );
   } catch (error) {
     if (sanitizedIR) removeBestEffort(sanitizedIR);
+    if (splitDirectory)
+      fs.rmSync(splitDirectory, { recursive: true, force: true });
     return {
       success: false,
       error: error instanceof Error ? error.message : String(error),
@@ -208,12 +239,17 @@ export function compileToBinary(
 
   let compileResult: ReturnType<typeof spawnSync>;
   try {
+    const readsStdin = clangArgs.includes(WASM_EH_TAG_STDIN_ARG);
+    const verboseStdin = readsStdin ? "pipe" : "inherit";
     compileResult = spawnSync(clangCommand, clangArgs, {
-      stdio: options.verbose ? "inherit" : "pipe",
+      stdio: options.verbose ? [verboseStdin, "inherit", "inherit"] : "pipe",
+      input: readsStdin ? WASM_EH_TAG_ASSEMBLY : undefined,
       timeout: getCompilerDriverTimeoutMs(),
     });
   } finally {
     if (sanitizedIR) removeBestEffort(sanitizedIR);
+    if (splitDirectory)
+      fs.rmSync(splitDirectory, { recursive: true, force: true });
   }
 
   if (compileResult.status !== 0) {
@@ -375,11 +411,118 @@ export function compileBinaryAndRun(
 /**
  * Build clang command line arguments
  */
+/** IR below this size compiles quickly enough as one module. */
+const PARALLEL_SPLIT_MIN_IR_BYTES = 4 * 1024 * 1024;
+/** Roughly the IR each parallel part should hold. */
+const PARALLEL_SPLIT_PART_BYTES = 2 * 1024 * 1024;
+
+/**
+ * Compiles a large native module as several parts in parallel (see
+ * IrSplitter.ts) and returns their object files, or undefined to compile the
+ * module whole. `BPL_SPLIT_IR=0` disables it; `BPL_SPLIT_IR=force` splits
+ * any module that the splitter accepts, for testing.
+ */
+function compileInParallelParts(
+  irPath: string,
+  options: CompileOptions,
+  hostDefaults: HostDefaults,
+): { directory: string; objects: string[] } | { error: string } | undefined {
+  const mode = process.env.BPL_SPLIT_IR;
+  if (mode === "0") return undefined;
+  const target = options.target ?? hostDefaults.target;
+  const flags = normalizeArrayOption(options.clangFlag);
+  if (
+    process.platform === "win32" ||
+    isWasmTarget(target) ||
+    options.dwarf ||
+    options.shared ||
+    // A bare argument is an extra input (a C file or object) or the value of
+    // the previous flag; either way the parts must not receive it.
+    flags.some((flag) => !flag.startsWith("-")) ||
+    flags.some((flag) =>
+      /^-f(no-)?lto|^-flto|^-save-temps|^-S$|^-c$|^-E$/.test(flag),
+    )
+  )
+    return undefined;
+  const size = fs.statSync(irPath).size;
+  if (mode !== "force" && size < PARALLEL_SPLIT_MIN_IR_BYTES) return undefined;
+  const cpus =
+    typeof os.availableParallelism === "function"
+      ? os.availableParallelism()
+      : os.cpus().length;
+  const parts = Math.min(
+    8,
+    Math.max(cpus, mode === "force" ? 2 : 1),
+    mode === "force"
+      ? Math.max(2, cpus)
+      : Math.floor(size / PARALLEL_SPLIT_PART_BYTES),
+  );
+  if (parts < 2) return undefined;
+  const modules = splitLlvmModule(fs.readFileSync(irPath, "utf8"), parts);
+  if (!modules) return undefined;
+
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), "bpl-split-"));
+  const compileArgs = [
+    "-Wno-override-module",
+    "-Wno-unused-command-line-argument",
+  ];
+  if (options.O) compileArgs.push(`-O${options.O}`);
+  if (target) compileArgs.push("-target", target);
+  if (options.sysroot) compileArgs.push("--sysroot", options.sysroot);
+  if (options.cpu) compileArgs.push(`-mcpu=${options.cpu}`);
+  if (options.march) compileArgs.push(`-march=${options.march}`);
+  compileArgs.push(...flags.filter((flag) => !/^-l|^-L|^-Wl,/.test(flag)));
+  const quote = (value: string) => `'${value.replace(/'/g, "'\\''")}'`;
+  const driver = quote(getCompilerDriver(target));
+  const objects: string[] = [];
+  const commands: string[] = [];
+  modules.forEach((module, index) => {
+    const source = path.join(directory, `part${index}.ll`);
+    const object = path.join(directory, `part${index}.o`);
+    fs.writeFileSync(source, module);
+    objects.push(object);
+    commands.push(
+      `( ${driver} ${[...compileArgs, "-c", source, "-o", object].map(quote).join(" ")} > ${quote(`${object}.log`)} 2>&1; echo $? > ${quote(`${object}.status`)} ) &`,
+    );
+  });
+  const result = spawnSync("sh", ["-c", `${commands.join("\n")}\nwait`], {
+    stdio: "pipe",
+    timeout: getCompilerDriverTimeoutMs(),
+  });
+  const failures = objects.filter((object) => {
+    try {
+      return fs.readFileSync(`${object}.status`, "utf8").trim() !== "0";
+    } catch {
+      return true;
+    }
+  });
+  if (result.error || failures.length > 0) {
+    const logs = failures
+      .map((object) => {
+        try {
+          return fs.readFileSync(`${object}.log`, "utf8");
+        } catch {
+          return "";
+        }
+      })
+      .join("\n");
+    fs.rmSync(directory, { recursive: true, force: true });
+    return {
+      error: `Failed to compile LLVM IR with ${getCompilerDriver(target)}${logs || result.error ? `\n${logs || String(result.error)}` : ""}`,
+    };
+  }
+  if (options.verbose) {
+    log.info(`Compiled the module as ${parts} parallel parts`);
+  }
+  return { directory, objects };
+}
+
 function buildClangArgs(
   irPath: string,
   execPath: string,
   options: CompileOptions,
   hostDefaults: HostDefaults,
+  inputs: string[] = [irPath],
 ): string[] {
   const args: string[] = ["-Wno-override-module"];
   const target = options.target ?? hostDefaults.target;
@@ -424,6 +567,13 @@ function buildClangArgs(
   }
 
   if (wasmTarget) {
+    // try/catch lowers to setjmp/longjmp, which WebAssembly implements with
+    // its exception-handling instructions (see lib/runtime_wasm.ll). The
+    // runtime uses those instructions, so the feature is always enabled.
+    args.push("-fwasm-exceptions", "-mexception-handling");
+    if (supportsWasmExceptions(getCompilerDriver(target))) {
+      args.push("-mllvm", "-wasm-enable-sjlj");
+    }
     if (linkWasm) {
       args.push(
         "-nostdlib",
@@ -456,15 +606,6 @@ function buildClangArgs(
   // Library paths
   for (const p of normalizeArrayOption(options.libPath)) {
     args.push(`-L${p}`);
-  }
-
-  // Libraries to link
-  for (const l of normalizeArrayOption(options.lib)) {
-    args.push(`-l${l}`);
-  }
-
-  if (!wasmTarget) {
-    args.push(...getNativeLinkerFlags(hostDefaults.os));
   }
 
   // Additional clang flags
@@ -502,6 +643,9 @@ function buildClangArgs(
 
     if (linkWasm && !alreadyLinked) {
       args.push(runtimeWasmPath);
+      if (supportsWasmExceptions(getCompilerDriver(target))) {
+        args.push("-x", "assembler", WASM_EH_TAG_STDIN_ARG, "-x", "none");
+      }
     }
 
     if (wasmRuntimeMode === "host") {
@@ -525,8 +669,18 @@ function buildClangArgs(
     }
   }
 
-  // Input and output
-  args.push(irPath, "-o", execPath);
+  args.push(...inputs);
+
+  // Libraries follow every input: a linker reads a static archive once, in
+  // order, and takes only the members that earlier inputs need.
+  for (const l of normalizeArrayOption(options.lib)) {
+    args.push(`-l${l}`);
+  }
+  if (!wasmTarget) {
+    args.push(...getNativeLinkerFlags(hostDefaults.os));
+  }
+
+  args.push("-o", execPath);
 
   return args;
 }

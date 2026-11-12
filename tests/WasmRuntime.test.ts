@@ -14,6 +14,7 @@ import {
   formatOptionalWasmRuntimeSkipMessage,
   formatRequiredWasmLinkerError,
   getWasmLinkerCandidates,
+  supportsWasmExceptions,
 } from "../cli/WasmToolchain";
 import {
   WASM_FREESTANDING_EXAMPLES,
@@ -60,6 +61,9 @@ const REQUIRE_WASM_LINKER = /^(1|true)$/i.test(
 
 const standaloneWasmLinker = findWasmLinker();
 const wasmIt = standaloneWasmLinker ? it : it.skip;
+// Exceptions need clang 19 or newer; older clang keeps trapping on `throw`.
+const wasmExceptionsIt =
+  standaloneWasmLinker && supportsWasmExceptions() ? it : it.skip;
 
 async function compileWasmSource(
   source: string,
@@ -686,6 +690,178 @@ frame main() ret int {
       expect(host.stderr()).toBe("");
     },
   );
+
+  wasmExceptionsIt("catches exceptions across frames with defers", async () => {
+    const host = createHostImports();
+    const exports = await compileWasmSource(
+      `
+extern printf(fmt: string, ...) ret int;
+
+struct Err {
+    code: int,
+}
+
+frame thrower(x: int) ret int {
+    defer printf("unwind %d\\n", x);
+    if (x > 2) {
+        throw Err { code: x * 10 };
+    }
+    return x;
+}
+
+frame relay(x: int) ret int {
+    try {
+        return thrower(x);
+    } catch (e: long) {
+        return cast<int>(e);
+    }
+}
+
+frame main() ret int {
+    local kept: int = 1;
+    try {
+        kept = relay(1) + 4;
+        kept = relay(3);
+    } catch (e: Err) {
+        printf("caught %d kept %d\\n", e.code, kept);
+    }
+    try {
+        throw 7;
+    } catch (e: int) {
+        return e - 7;
+    }
+    return 1;
+}
+`,
+      { wasmRuntime: "host", imports: host.imports },
+    );
+    host.attach(exports);
+
+    expect(getMain(exports)(0, 0)).toBe(0);
+    expect(host.stdout()).toBe("unwind 1\nunwind 3\ncaught 30 kept 5\n");
+  });
+
+  wasmExceptionsIt("catches checked runtime errors inside a try", async () => {
+    const host = createHostImports();
+    const exports = await compileWasmSource(
+      `
+extern printf(fmt: string, ...) ret int;
+
+struct P {
+    x: int,
+}
+
+frame main() ret int {
+    local zero: int = 0;
+    local a: int[2] = [1, 2];
+    try {
+        printf("%d\\n", a[zero + 5]);
+    } catch (e: IndexOutOfBoundsError) {
+        printf("index\\n");
+    }
+    try {
+        local p: *P = cast<*P>(nullptr);
+        printf("%d\\n", p.x);
+    } catch (e: NullAccessError) {
+        printf("null\\n");
+    }
+    try {
+        printf("%d\\n", 10 / zero);
+    } catch (e: DivisionByZeroError) {
+        printf("division\\n");
+    }
+    return 0;
+}
+`,
+      { wasmRuntime: "host", imports: host.imports },
+    );
+    host.attach(exports);
+
+    expect(getMain(exports)(0, 0)).toBe(0);
+    expect(host.stdout()).toBe("index\nnull\ndivision\n");
+  });
+
+  // BUG-486: at -O0 LLVM selected a 64-bit address for a global array indexed
+  // with an i64, so the module failed WebAssembly validation.
+  wasmIt("indexes global arrays in unoptimized wasm32 builds", async () => {
+    const host = createHostImports();
+    const exports = await compileWasmSource(
+      `
+extern printf(fmt: string, ...) ret int;
+
+global bytes: u8[4] = [cast<u8>(1), cast<u8>(2), cast<u8>(3), cast<u8>(4)];
+global longs: long[2] = [cast<long>(5), cast<long>(6)];
+
+frame main() ret int {
+    local i: int = 2;
+    bytes[i & 3] = bytes[(i + 1) & 3] + cast<u8>(1);
+    longs[i & 1] = longs[(i + 1) & 1] * cast<long>(2);
+    printf("%d %lld\\n", cast<int>(bytes[2]), longs[0]);
+    return 0;
+}
+`,
+      { wasmRuntime: "host", imports: host.imports },
+    );
+    host.attach(exports);
+
+    expect(getMain(exports)(0, 0)).toBe(0);
+    expect(host.stdout()).toBe("5 12\n");
+  });
+
+  // Hosted printf reads `%i`, `%u` and 64-bit `%l`/`%ll` conversions; it
+  // used to print them literally without consuming their arguments.
+  wasmIt(
+    "formats hosted wasm printf 64-bit, unsigned and %i arguments",
+    async () => {
+      const host = createHostImports();
+      const exports = await compileWasmSource(
+        `
+extern printf(fmt: string, ...) ret int;
+
+frame main() ret int {
+    local minLong: long = cast<long>(-9223372036854775807) - cast<long>(1);
+    local len: int = printf("%lld %llu %llx %llX %ld %lu %u %i|%lld %d\\n", minLong, cast<ulong>(18446744073709551615), cast<ulong>(3735928559), cast<ulong>(255), cast<long>(-42), cast<ulong>(42), cast<uint>(4294967295), -7, cast<long>(0), 9);
+    if (len != 79) {
+        return len;
+    }
+    return 0;
+}
+`,
+        { wasmRuntime: "host", imports: host.imports },
+      );
+      host.attach(exports);
+
+      expect(getMain(exports)(0, 0)).toBe(0);
+      expect(host.stdout()).toBe(
+        "-9223372036854775808 18446744073709551615 deadbeef FF -42 42 4294967295 -7|0 9\n",
+      );
+      expect(host.stderr()).toBe("");
+    },
+  );
+
+  // BUG-485: an extern declared without its C return type (`extern
+  // printf(fmt: string, ...);`) was called as `void`, which does not match
+  // the runtime's `i32` definition, so hosted wasm printed garbage or
+  // trapped. Known C functions keep their `int` return type (R-EXTERN-8).
+  wasmIt("calls printf declared without a return type", async () => {
+    const host = createHostImports();
+    const exports = await compileWasmSource(
+      `
+extern printf(fmt: string, ...);
+
+frame main() ret int {
+    printf("%d %s\\n", 5, "ok");
+    local n: int = printf("ab\\n");
+    return n - 3;
+}
+`,
+      { wasmRuntime: "host", imports: host.imports },
+    );
+    host.attach(exports);
+
+    expect(getMain(exports)(0, 0)).toBe(0);
+    expect(host.stdout()).toBe("5 ok\nab\n");
+  });
 
   wasmIt("keeps hosted wasm printf edge cases predictable", async () => {
     const host = createHostImports();

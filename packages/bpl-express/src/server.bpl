@@ -1,4 +1,5 @@
 extern __bpl_file_modified(fd: int, seconds: *long) ret int;
+extern memmove(dest: *void, src: *void, size: ulong) ret *void;
 import [Representation] from "./representation.bpl";
 import [String] from "std/string.bpl";
 import [ShutdownSignals] from "./shutdown.bpl";
@@ -6,9 +7,10 @@ import [TlsContext], [TlsConnection] from "bpl-tls";
 import [Array] from "std/array.bpl";
 import getpeername, inet_ntop from "./libc.bpl";
 import [Map] from "std/map.bpl";
+import [Option] from "std/option.bpl";
 import [Router], [RouteHandler] from "./router.bpl";
 import [Request], [Response], [HttpMethod] from "./http.bpl";
-import socket, bind, listen, accept, read, close, setsockopt, htons, printf, memset, strncmp, strlen, open, lseek, malloc, free, strcmp, realpath, inet_addr from "./libc.bpl";
+import socket, bind, listen, accept, read, close, setsockopt, htons, printf, sprintf, memset, strncmp, strlen, open, lseek, malloc, free, strcmp, realpath, inet_addr from "./libc.bpl";
 import kill, fork, waitpid, getpid, getppid, prctl, _exit, usleep, clock_gettime, poll, __errno_location, [timespec], [pollfd] from "./libc.bpl";
 import [sockaddr_in], [timeval] from "./libc.bpl";
 import [HttpParser], [ParsedRequest] from "bpl-http-parser";
@@ -35,8 +37,14 @@ struct App {
     static_url: string,
     static_dir: string,
     static_middleware: RouteHandler,
+    # Cache-Control max-age for static files in seconds; negative omits it.
+    static_max_age: long,
     timeout_seconds: long,
     request_timeout_seconds: long,
+    # Requests served per plain-HTTP connection; 1 (the default) disables
+    # keep-alive. Set with keepAlive().
+    keep_alive_requests: int,
+    keep_alive_idle_seconds: long,
     frame new() ret App {
         local app: App;
         app.router = Router.new();
@@ -50,9 +58,24 @@ struct App {
         app.static_url = "";
         app.static_dir = "";
         app.static_middleware = defaultStaticMiddleware;
+        app.static_max_age = -1;
         app.timeout_seconds = 5;
         app.request_timeout_seconds = 10;
+        app.keep_alive_requests = 1;
+        app.keep_alive_idle_seconds = 5;
         return app;
+    }
+    # Persistent plain-HTTP connections: up to `maxRequests` (2 to 10000)
+    # requests per connection, closing a connection idle for `idleSeconds`
+    # (1 to 300). Idle connections wait in the accept loop's pending set, so
+    # they do not block other clients. HTTPS connections still serve one
+    # request each.
+    frame keepAlive(this: *App, maxRequests: int, idleSeconds: long) {
+        if ((maxRequests < 2) || (maxRequests > 10000) || (idleSeconds < 1) || (idleSeconds > 300)) {
+            throw "Keep-alive needs 2 to 10000 requests and 1 to 300 idle seconds";
+        }
+        this.keep_alive_requests = maxRequests;
+        this.keep_alive_idle_seconds = idleSeconds;
     }
     frame beforeRequest(this: *App, handler: RouteHandler) {
         this.before_requests.push(handler);
@@ -76,6 +99,15 @@ struct App {
     frame useStatic(this: *App, url: string, dir: string) {
         this.static_url = url;
         this.static_dir = dir;
+    }
+    # Sends "Cache-Control: public, max-age=N" with static files (0 to one
+    # year; 0 means revalidate every time using the ETag). Static
+    # middleware can still override the header.
+    frame staticMaxAge(this: *App, seconds: long) {
+        if ((seconds < 0) || (seconds > 31536000)) {
+            throw "Static max-age must be 0 to 31536000 seconds";
+        }
+        this.static_max_age = seconds;
     }
     frame useStaticMiddleware(this: *App, handler: RouteHandler) {
         this.static_middleware = handler;
@@ -308,6 +340,9 @@ struct App {
         # Bytes read so far for each pending plain connection.
         local buffers: string[64];
         local used: long[64];
+        # Requests already served on each connection, and its idle limit.
+        local served: int[64];
+        local limits: long[64];
         local pending: int = 0;
         local idle_limit: long = this.request_timeout_seconds * 1000;
         loop {
@@ -329,7 +364,7 @@ struct App {
             loop (local i: int = 0; i < pending; i = i + 1) {
                 fds[2 + i].events = 1;
                 fds[2 + i].revents = 0;
-                local left: long = (accepted_at[i] + idle_limit) - now;
+                local left: long = (accepted_at[i] + limits[i]) - now;
                 if (left < 0) {
                     left = 0;
                 }
@@ -359,21 +394,54 @@ struct App {
                     if (this.tls != nullptr) {
                         serve = true;
                     } else {
+                        local before: long = used[i];
                         local state: int = this.assembleRequest(client, &buffers[i], &used[i]);
                         serve = state == 1;
                         drop = state == 2;
+                        if ((before == 0) && (used[i] > 0) && (served[i] > 0)) {
+                            # A kept connection's next request has started:
+                            # its deadline counts from the first byte.
+                            accepted_at[i] = now;
+                            limits[i] = idle_limit;
+                        }
                     }
-                } else if ((now - accepted_at[i]) >= idle_limit) {
+                } else if ((now - accepted_at[i]) >= limits[i]) {
                     # A partial request gets its 408; a silent one is closed.
                     serve = used[i] > 0;
                     drop = !serve;
                 }
                 if (serve) {
+                    local rest: string = nullptr;
+                    local rest_used: long = 0;
+                    local count: int = served[i];
+                    local keep: bool = false;
                     try {
-                        this.serveRequest(client, buffers[i], used[i], accepted_at[i]);
+                        keep = this.serveKept(client, buffers[i], used[i], accepted_at[i], count, &rest, &rest_used);
+                        # Pipelined requests already buffered are served now.
+                        loop (keep && App.requestReady(rest, rest_used)) {
+                            count = count + 1;
+                            local next: string = rest;
+                            rest = nullptr;
+                            keep = this.serveKept(client, next, rest_used, App.monotonicMilliseconds(), count, &rest, &rest_used);
+                        }
                     } catch {
+                        keep = false;
                     }
-                    close(client);
+                    if (keep) {
+                        fds[2 + kept].fd = client;
+                        accepted_at[kept] = App.monotonicMilliseconds();
+                        buffers[kept] = rest;
+                        used[kept] = rest_used;
+                        served[kept] = count + 1;
+                        limits[kept] = this.keep_alive_idle_seconds * 1000;
+                        if (rest_used > 0) {
+                            limits[kept] = idle_limit;
+                        }
+                        kept = kept + 1;
+                    } else {
+                        free(rest);
+                        close(client);
+                    }
                 } else if (drop) {
                     free(buffers[i]);
                     close(client);
@@ -382,6 +450,8 @@ struct App {
                     accepted_at[kept] = accepted_at[i];
                     buffers[kept] = buffers[i];
                     used[kept] = used[i];
+                    served[kept] = served[i];
+                    limits[kept] = limits[i];
                     kept = kept + 1;
                 }
             }
@@ -397,6 +467,8 @@ struct App {
                     accepted_at[pending] = App.monotonicMilliseconds();
                     buffers[pending] = nullptr;
                     used[pending] = 0;
+                    served[pending] = 0;
+                    limits[pending] = idle_limit;
                     pending = pending + 1;
                 }
             }
@@ -430,13 +502,74 @@ struct App {
         if (used[0] >= 1130496) {
             return 1;
         }
-        local parsed: ParsedRequest = HttpParser.parseBytes(buffer[0], used[0]);
-        local ready: bool = parsed.valid || (parsed.error_code != 0);
-        parsed.destroy();
-        if (ready) {
+        if (App.requestReady(buffer[0], used[0])) {
             return 1;
         }
         return 0;
+    }
+    # Whether `used` buffered bytes hold a complete or invalid request.
+    frame requestReady(buffer: string, used: long) ret bool {
+        if ((buffer == nullptr) || (used <= 0)) {
+            return false;
+        }
+        local parsed: ParsedRequest = HttpParser.parseBytes(buffer, used);
+        local ready: bool = parsed.valid || (parsed.error_code != 0);
+        parsed.destroy();
+        return ready;
+    }
+    frame releaseBuffer(buffer: *string) {
+        free(buffer[0]);
+        buffer[0] = nullptr;
+    }
+    # Whether the client allows reusing the connection: HTTP/1.1 unless
+    # "Connection: close", HTTP/1.0 only with "Connection: keep-alive".
+    frame clientKeepsAlive(buffer: string, used: long, req: *Request) ret bool {
+        local line: long = 0;
+        loop (((line + 1) < used) && !((buffer[line] == '\r') && (buffer[line + 1] == '\n'))) {
+            line = line + 1;
+        }
+        if (line < 8) {
+            return false;
+        }
+        local http11: bool = strncmp(buffer + (line - 8), "HTTP/1.1", 8) == 0;
+        local wanted: bool = http11;
+        local header: Option<string> = req.header("connection");
+        if (header.isSome()) {
+            local value: string = header.unwrap();
+            local i: long = 0;
+            loop (value[i] != 0) {
+                loop ((value[i] == ' ') || (value[i] == '\t') || (value[i] == ',')) {
+                    i = i + 1;
+                }
+                local start: long = i;
+                loop ((value[i] != 0) && (value[i] != ',') && (value[i] != ' ') && (value[i] != '\t')) {
+                    i = i + 1;
+                }
+                if (App.tokenIs(value, start, i, "close")) {
+                    return false;
+                }
+                if (App.tokenIs(value, start, i, "keep-alive")) {
+                    wanted = true;
+                }
+            }
+        }
+        return wanted;
+    }
+    frame tokenIs(text: string, start: long, end: long, word: string) ret bool {
+        local length: long = cast<long>(strlen(word));
+        if ((end - start) != length) {
+            return false;
+        }
+        loop (local i: long = 0; i < length; i = i + 1) {
+            local c: char = text[start + i];
+            if ((c >= 'A') && (c <= 'Z')) {
+                c = c + cast<char>(32);
+            }
+            if (c != word[i]) {
+                return false;
+            }
+        }
+        return true;
     }
     frame monotonicMilliseconds() ret long {
         local now: timespec;
@@ -453,14 +586,27 @@ struct App {
     # already read by acceptLoop (or is null) and is freed here; the request
     # deadline counts from `started`, the time the connection was accepted.
     frame serveRequest(this: *App, fd: int, initial: string, initial_used: long, started: long) {
+        local rest: string = nullptr;
+        local rest_used: long = 0;
+        if (this.serveKept(fd, initial, initial_used, started, this.keep_alive_requests, &rest, &rest_used)) {
+            free(rest);
+        }
+    }
+    # serveRequest for the `served`-th request of a connection. Returns true
+    # when the connection may serve another request; then the unread bytes
+    # stay in `rest` (owned by the caller, `rest_used` bytes).
+    frame serveKept(this: *App, fd: int, initial: string, initial_used: long, started: long, served: int, rest: *string, rest_used: *long) ret bool {
+        rest[0] = nullptr;
+        rest_used[0] = 0;
         local buffer: string = initial;
         if (buffer == nullptr) {
             buffer = malloc(1130497);
             if (buffer == nullptr) {
-                return;
+                return false;
             }
         }
-        defer free(buffer);
+        local owned: *string = &buffer;
+        defer App.releaseBuffer(owned);
         if ((this.timeout_seconds < 1) || (this.timeout_seconds > 300) || (this.request_timeout_seconds < 1) || (this.request_timeout_seconds > 300)) {
             throw "HTTP deadlines must be 1 to 300 seconds";
         }
@@ -475,7 +621,7 @@ struct App {
         defer cleanup_tls.destroy();
         if (this.tls != nullptr) {
             if (!tls.open(this.tls, fd, nullptr, deadline)) {
-                return;
+                return false;
             }
         }
         defer tls.shutdown(TlsConnection.deadline(this.timeout_seconds));
@@ -493,7 +639,7 @@ struct App {
             local remaining: long = deadline - App.monotonicMilliseconds();
             if (remaining <= 0) {
                 res.status(408).text("Request deadline exceeded");
-                return;
+                return false;
             }
             if (!read_more) {
                 read_more = true;
@@ -516,14 +662,14 @@ struct App {
                     local available: int = poll(&ready, 1, cast<int>(remaining));
                     if (available == 0) {
                         res.status(408).text("Request timed out");
-                        return;
+                        return false;
                     }
                     if (available < 0) {
                         local error: *int = __errno_location();
                         if (error[0] == 4) {
                             continue;
                         }
-                        return;
+                        return false;
                     }
                     count = read(fd, buffer + used, cast<ulong>(1130496 - used));
                 }
@@ -533,7 +679,7 @@ struct App {
                     } else {
                         res.status(400).text("Incomplete request");
                     }
-                    return;
+                    return false;
                 }
                 used = used + count;
                 buffer[used] = 0;
@@ -544,14 +690,15 @@ struct App {
                 parsed.destroy();
                 if (code != 0) {
                     res.status(code).text("Invalid request");
-                    return;
+                    return false;
                 }
                 if (used >= 1130496) {
                     res.status(413).text("Request too large");
-                    return;
+                    return false;
                 }
                 continue;
             }
+            local consumed: long = parsed.message_length;
             local req: Request = this.fromParsed(&parsed);
             local cleanup_req: *Request = &req;
             defer cleanup_req.destroy();
@@ -563,6 +710,7 @@ struct App {
             }
             defer this.complete(cleanup_req, cleanup_res);
             res.head_only = req.method == HttpMethod.HEAD;
+            res.keep_alive = (this.tls == nullptr) && ((served + 1) < this.keep_alive_requests) && (consumed > 0) && (consumed <= used) && App.clientKeepsAlive(buffer, used, &req);
             try {
                 loop (local i: int = 0; i < this.before_requests.len(); i = i + 1) {
                     local ware: RouteHandler = this.before_requests.get(i);
@@ -587,8 +735,47 @@ struct App {
                     res.end();
                 }
             }
-            return;
+            if (!res.keep_alive || res.io_failed || res.handler_failed || !res.body_sent) {
+                return false;
+            }
+            # Keep the bytes after this request (a pipelined request).
+            local left: long = used - consumed;
+            if (left > 0) {
+                memmove(buffer, buffer + consumed, cast<ulong>(left));
+            }
+            buffer[left] = 0;
+            rest[0] = buffer;
+            rest_used[0] = left;
+            buffer = nullptr;
+            return true;
         }
+    }
+    # Content-Type for a static file name (by extension, case-insensitive);
+    # unknown extensions are application/octet-stream.
+    frame mimeType(path: string) ret string {
+        local types: string[38] = [".html", "text/html; charset=utf-8", ".htm", "text/html; charset=utf-8", ".css", "text/css; charset=utf-8", ".js", "text/javascript; charset=utf-8", ".mjs", "text/javascript; charset=utf-8", ".json", "application/json", ".map", "application/json", ".txt", "text/plain; charset=utf-8", ".csv", "text/csv; charset=utf-8", ".xml", "application/xml", ".svg", "image/svg+xml", ".png", "image/png", ".jpg", "image/jpeg", ".jpeg", "image/jpeg", ".gif", "image/gif", ".webp", "image/webp", ".ico", "image/x-icon", ".wasm", "application/wasm", ".woff2", "font/woff2"];
+        local length: long = cast<long>(strlen(path));
+        loop (local i: int = 0; i < 38; i = i + 2) {
+            local ext: string = types[i];
+            local size: long = cast<long>(strlen(ext));
+            if (length >= size) {
+                local same: bool = true;
+                loop (local j: long = 0; j < size; j = j + 1) {
+                    local c: char = path[(length - size) + j];
+                    if ((c >= 'A') && (c <= 'Z')) {
+                        c = c + cast<char>(32);
+                    }
+                    if (c != ext[j]) {
+                        same = false;
+                        break;
+                    }
+                }
+                if (same) {
+                    return types[i + 1];
+                }
+            }
+        }
+        return "application/octet-stream";
     }
     frame tryServeStatic(this: *App, req: *Request, res: *Response) ret bool {
         local prefix: long = cast<long>(strlen(this.static_url));
@@ -674,16 +861,16 @@ struct App {
             }
             got = got + n;
         }
-        res.setHeader("Content-Type", "application/octet-stream");
-        local path_len: long = cast<long>(strlen(path));
-        if ((path_len >= 5) && (strcmp((path + path_len) - 5, ".html") == 0)) {
-            res.setHeader("Content-Type", "text/html; charset=utf-8");
-        } else if ((path_len >= 4) && (strcmp((path + path_len) - 4, ".css") == 0)) {
-            res.setHeader("Content-Type", "text/css");
-        } else if ((path_len >= 3) && (strcmp((path + path_len) - 3, ".js") == 0)) {
-            res.setHeader("Content-Type", "application/javascript");
-        }
+        res.setHeader("Content-Type", App.mimeType(path));
         res.setHeader("X-Content-Type-Options", "nosniff");
+        if (this.static_max_age >= 0) {
+            local cache: char[64];
+            sprintf(cast<string>(&cache[0]), "public, max-age=%ld", this.static_max_age);
+            if (this.static_max_age == 0) {
+                sprintf(cast<string>(&cache[0]), "no-cache");
+            }
+            res.setHeader("Cache-Control", cast<string>(&cache[0]));
+        }
         req.setState("request.route", "[static]");
         this.static_middleware(req, res);
         if (!res.body_sent) {

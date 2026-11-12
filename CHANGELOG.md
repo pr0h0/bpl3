@@ -6,6 +6,247 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+## [0.1.3] - 2026-11-12
+
+### Added
+
+- New bundled packages (each with a packed archive, README and native tests;
+  see `packages/README.md`): `bpl-json` (dynamic JSON values with strict
+  parsing, editing and serialization), `bpl-json-schema` (JSON Schema 2020-12
+  subset validation with JSON Pointer errors; unsupported keywords are
+  rejected), `bpl-jwt` (HS256/HS512 tokens with verifier-pinned algorithms and
+  claim checks), `bpl-cache` (LRU cache with TTLs and a byte budget),
+  `bpl-metrics` (Prometheus counters, gauges and histograms), `bpl-markdown`
+  (safe Markdown to HTML), `bpl-log` (JSON-lines/logfmt structured logging with
+  redaction) and `bpl-websocket` (RFC 6455 server connections).
+- `bpl-express`: a `Cookies` API (parsing, validated `Set-Cookie`
+  attributes and prefix rules, signed values), opt-in plain-HTTP keep-alive
+  with pipelining (`app.keepAlive`), `router.all`, the `*` wildcard
+  parameter, a static MIME table and `app.staticMaxAge`. JavaScript files are
+  now served as `text/javascript; charset=utf-8`.
+- `bpl-web-middleware`: `Multipart` parsing of `multipart/form-data` bodies.
+- `bpl-validation`: `chars`, `number`, `boolean`, `email`, `url`, `uuid`,
+  `date`, `matches`, `same`, `check`, `error` and `count`.
+
+### Changed
+
+- Dependencies: commander 15, ESLint 10 with typescript-eslint 8.72, and
+  vscode-languageserver/-client 11. The VS Code extension now builds with
+  TypeScript 7 and vsce 4 and needs VS Code 1.91 or newer, the minimum of
+  vscode-languageclient 11. Peggy stays pinned at exactly 5.0.6 because
+  `tools/generate_peggy_parser.ts` rewrites that version's output; 5.1 emits
+  different code. CI uses actions/checkout v7, cache v6, upload-artifact v7
+  and download-artifact v8.
+
+- Large native builds use less memory and every core. IR of 4 MB or more is
+  split into parts that clang compiles in parallel, with small callees copied
+  into each part so they still inline. Projects with 256 KB or more of
+  sources compile to IR in a worker that ends before clang runs, and the
+  compiler collects garbage between phases. On the 48k-line bpl-quant app the
+  `-O2` build went from 77 s and about 1.1 GB peak to about 30 s and 650 MB.
+  See "Large Builds" in docs/39-compiler-options.md.
+
+- **Breaking:** a `*Spec` holds its object pointer and method table by value
+  (16 bytes). It can be returned and stored in globals, struct fields, tuples
+  and generic containers; `BPL_SPEC_POINTER_ESCAPES` no longer exists. It
+  converts from `nullptr`, compares by object, converts to its first parent
+  spec, and supports `is`/`as` on the object's exact type (BUG-549, BUG-550).
+  It cannot be passed to `extern` functions.
+  The program fuzzer returns spec pointers from functions and keeps them in
+  struct fields.
+
+- **Breaking:** `\xHH` in a string literal is one raw byte, as in C and Go:
+  `"\xF0"` is one byte, not the two-byte UTF-8 encoding of U+00F0, so strings
+  can hold any byte sequence. `\uHHHH` still encodes the character as UTF-8.
+  Character literals accept `'\xHH'` and, up to `\u007F`, `'\uHHHH'`.
+- The stdlib fuzz lane checks `std/hash` (FNV-1a, CRC-32, Adler-32) and
+  `std/otp` against reference models and puts `f32` fields in reflected
+  structs. The language-server fuzzer checks that the call hierarchy is
+  symmetric and that the unused-variable and typo quick fixes keep a program's
+  output. TypeScript's `noUnusedParameters` is enabled.
+- The guides now match the compiler: postfix `++`/`--`, chained assignment and
+  `p.x` through a pointer work, `is` matches the exact type, a branch may be a
+  single statement, out-of-bounds indexing throws `IndexOutOfBoundsError`, and
+  the precedence table lists `is`/`as` and the conditional operator.
+- The generated-program fuzzer covers operator methods on structs, tuple
+  assignment and swaps, methods bound to lambdas including value receivers,
+  a generic enum, arrays of structs, and byte reads of strings holding escapes,
+  raw bytes and UTF-8 text. It also covers type aliases, constant locals, `T[2][2]`
+  arrays, global structs, two-parameter and nested generics, `Func` fields,
+  closures returned from closures, spec dispatch through pointers, three-level
+  inheritance, nested enums, arrays of tuples, slices, closure arrays, heap
+  lists, automatic destructors and implicit `new` constructors. Every fifth
+  `--oracle-only` iteration is a multi-file program: a diamond of modules
+  sharing globals, with private names repeated across modules and every import
+  form. Another fifth exercises the standard library against exact models:
+  JavaScript collections, arbitrary-precision integers and Node's codecs. A
+  further fifth damages a valid program's types, operators and call shapes: the
+  checker must reject the result or the backend must compile it.
+- An extern of a known C function that returns `int` (`printf`, `puts`,
+  `putchar`, `fprintf`, `dprintf`, `sprintf`, `snprintf`, `scanf`, `sscanf`)
+  has return type `int` when the declaration omits it (R-EXTERN-8).
+- Hosted WebAssembly `printf` supports `%i`, `%u` and 64-bit `%ld`/`%lld`,
+  `%lu`/`%llu` and `%lx`/`%llx` conversions.
+- `bun run fuzz -- --wasm` also runs the generated programs as hosted
+  WebAssembly against their expected output.
+- Exceptions work on WebAssembly: `try`/`catch`, `throw` and `defer` during
+  unwinding, and runtime errors inside a `try` are caught as on native
+  targets. Builds use WebAssembly exception handling and need clang 19 or
+  newer; with older clang a `throw` still traps.
+- Literal match patterns must have the matched value's type: `300` on a
+  `u8`, `"a"` or `1.0` on an integer, and `true` on an integer are rejected
+  (`BPL_MATCH_LITERAL_PATTERN_TYPE_MISMATCH` or
+  `BPL_INTEGER_LITERAL_OVERFLOW`), and a repeated literal arm is rejected as
+  unreachable. `300` used to match a `u8` holding 44 (BUG-482).
+- Number literal patterns may be negative: `match (x) { -1 => ..., _ => ... }`.
+- The generated-program fuzzer covers exceptions: nested `try`/`catch` with
+  values thrown directly or from a called function, typed clauses that do
+  not match, catch-all clauses, rethrows from a catch body, and exceptions
+  that pass through a function running a `defer` or one that rethrows them
+  as another type, and struct values thrown and caught by type. It also
+  generates struct-returning functions, calls through `Func` locals,
+  overloaded functions, `++`/`--` inside expressions, struct equality,
+  arrays passed by value and through slices, pointer arithmetic, chained
+  assignment, nested structs with static constructors, spec-constrained
+  generics, `match` on `bool`, `double` and tuples, `defer` blocks that write
+  through pointers, lambdas writing through captured pointers, global arrays, `sizeof`, `is`, lambdas passed as arguments, full-width shift
+  counts, negative divisors, C-style
+  and infinite loops, `switch` on integers, enum values and strings with
+  arms ending in `fallthrough`, and integer `match` expressions with
+  negative literal and guarded arms.
+- `bun run fuzz -- --oracle-only` (`FUZZ_ORACLE_ONLY=1`) runs only generated
+  programs against their expected output, for local miscompile hunts.
+
+### Fixed
+
+- A method call on a struct that nothing inherits from is a direct call: it
+  no longer reads the object's vtable word, so `malloc`'d structs work
+  (BUG-800), and from -O2 small accessors are inlined, because leaf functions
+  that only read through pointers skip the stack-depth hooks (BUG-801; a
+  method accessor benchmark went from 481 ms to 94 ms).
+- `bpl build` reports a parse error in an imported module at its own location
+  instead of at the import (BUG-804).
+- Calling a lambda field inside a generic struct (BUG-600), a parameter named
+  `entry` (BUG-601), and a generic call whose type argument mentions a type
+  parameter named like the callee's own (`id<Wrap<T>>` inside `outer<T>`,
+  BUG-603) now compile correctly.
+- An `@[auto_destroy]` local is destroyed when a function it calls throws and
+  a caller catches the exception. Each owning local registers a stack node on
+  the runtime defer list, so this needs no allocation, and destructors in
+  intermediate frames interleave with their `defer` blocks.
+- `local items: *Shape[2] = [&circle, &square];` accepts elements of different
+  implementing structs (BUG-543), and an overloaded function used as a value
+  picks the overload the destination type names (BUG-544).
+- A bare generic function used as a value is `BPL_GENERIC_ARITY_MISMATCH`
+  instead of a link failure (BUG-501), and generic recursion with ever larger
+  type arguments is rejected by `bpl check` (`BPL_TYPE_RECURSION_CYCLE`).
+- `local x;` reports `BPL_VARIABLE_TYPE_ANNOTATION_MISSING`, `frame ret()`
+  reports the reserved word, and `${value}` works for `f32` through the new
+  `Float32` wrapper (BUG-548). Diagnostics that had no code now have one:
+  `BPL_INCREMENT_OPERAND_TYPE_MISMATCH`, `BPL_UNUSED_VARIABLE`,
+  `BPL_SWITCH_CASE_DUPLICATE`, `BPL_SWITCH_CASE_TERMINATOR_MISSING`,
+  `BPL_ASM_FLAVOR_UNKNOWN` and `BPL_IMPORT_CYCLE` (BUG-530).
+- Inline `asm` operands are found by rename and references, and an undefined
+  operand is reported where it is written (BUG-516).
+
+- Found by a language conformance audit (2026-11-10):
+  - On an integer `switch`, a case value must fit the subject's type, and
+    `case 'a':` duplicates `case 97:`; both used to pass `bpl check` and fail
+    in clang (BUG-518). `fallthrough` in the last case is an error (BUG-528).
+  - `bpl check` names an import cycle, including a self-import, instead of
+    reporting a missing export (BUG-519).
+  - Inline `intel`/`att` asm operands can name globals, including imported
+    ones (BUG-520); an output operand cannot name a constant (BUG-521).
+  - `(a, b) = ...` on captured variables in a lambda or `defer` is rejected
+    like `a = ...` (BUG-522), and `%=` on floating-point values like `%`
+    (BUG-523).
+  - `bpl check` rejects a by-value extern of a struct another struct inherits
+    from, as `bpl build` does (BUG-524).
+  - `-l` libraries follow the program on the link line, so static archives
+    link (BUG-525).
+  - `bpl bindgen` keeps C enum values: an enum not numbered 0, 1, 2, ...
+    becomes an `int` alias with one constant per enumerator, instead of a BPL
+    enum passing the wrong values. Consecutive plain enums are all translated,
+    and the output exports every declaration (BUG-526).
+  - A tuple `match` arm covered by an earlier arm, such as `(0, 0)` after
+    `(x, y)`, is rejected as unreachable (BUG-527).
+  - `bpl lint --fix` keeps comments inside a rewritten import and leaves no
+    stray indentation where it removes one of two imports on a line (BUG-529).
+  - `JSON.stringify<T>` and `JSON.parse<T>` support `f32` fields, which were
+    `null` and a parse error (BUG-531).
+  - A `*Spec` inside a returned tuple or generic argument is
+    `BPL_SPEC_POINTER_ESCAPES`, and a lambda keeps its own copy of a captured
+    `*Spec`; both used to crash (BUG-532). Capturing an `@[auto_destroy]`
+    value in a lambda is `BPL_OWNING_VALUE_COPIED` (BUG-533).
+  - `local x: T` and `local a: T[2]` in a generic function run `T`'s implicit
+    constructor and set its vtables, and a zeroed owning local keeps zero
+    fields at -O2 (BUG-534, BUG-535).
+  - A struct implementing `spec Fancy : Named` must implement `Named` too,
+    `Named`'s methods can be called through `*Fancy` and `T: Fancy`, and
+    specs extending each other are an error (BUG-536). A spec method using
+    `Self` beyond its receiver cannot be called through a `*Spec` (BUG-537).
+  - `arr + n` on a fixed array is an error instead of invalid IR, `ptr is T`
+    on a null pointer is false instead of a crash, and a constant array no
+    longer converts to a writable pointer or slice (BUG-538 to BUG-540).
+  - `sizeof(int[5])` and `sizeof(*int)` work, an unknown generic constraint
+    is reported at its declaration, a child struct cannot reuse an inherited
+    field's name, mutually recursive aliases are reported, and struct literal
+    fields are evaluated as written (BUG-541, BUG-542, BUG-545 to BUG-547).
+- A type name used as a value, `~` on an array, and a method whose `this` has
+  an unrelated type are compile errors instead of invalid IR (BUG-493, BUG-494,
+  BUG-495). The last reports `BPL_METHOD_RECEIVER_TYPE_MISMATCH`.
+- A struct literal converts values of inherited fields, instead of producing
+  invalid IR for `C { x: 1 }` with `x` an inherited `long` (BUG-496).
+- These are now compile errors: setting a struct literal field twice
+  (`BPL_STRUCT_LITERAL_FIELD_DUPLICATE`, BUG-497), assigning to part of a
+  temporary and `++`/`--` through overloaded indexing (BUG-498), arithmetic on
+  arrays (BUG-499), and destructuring a non-tuple (BUG-500).
+- More misuse is now a compile error rather than invalid IR: `this` in a static
+  method (BUG-502), ordering structs or arrays without `__lt__` (BUG-503),
+  `*array` (BUG-504; use `a[0]`), and an enum pattern on an array of that enum
+  (BUG-505).
+- A method taking a later-declared struct with a vtable by value no longer
+  fails to build (BUG-506).
+- A non-zero integer constant no longer initializes a pointer, string, array
+  or struct (BUG-507). An integer global can take a constant `bool` expression
+  (BUG-508). Throwing or catching an array or tuple is a compile error
+  (`BPL_EXCEPTION_TYPE_UNSUPPORTED`, BUG-509).
+- `bpl check` now reports what a build reports for a field access on a primitive
+  (BUG-510) and an invalid `main` signature (BUG-511).
+- An integer constant no longer assigns or returns as a pointer, array or slice
+  (BUG-512); `p = 5` on a `*int` used to compile. Use `nullptr` or a `cast`.
+- Language server: completion works in functions with a nested destructuring
+  (BUG-513), hover and related requests no longer overflow the stack on a
+  `match` over a member (BUG-514), and rename updates references in `throw`
+  (BUG-515), every overload of a function, and a spec's implementations
+  (BUG-517).
+
+- A method call on a zero-initialized global struct, or on a struct element of
+  an array field, no longer crashes on a null vtable pointer (BUG-491).
+
+- Assigning a pointer to an array to an array of pointers is a type error
+  instead of an internal code generation failure (BUG-489).
+- `bpl bindgen` emits a compilable extern for a C matrix parameter, using a
+  generated row alias such as `CRow_int_3` (BUG-490).
+
+- A match pattern binding that starts with `_`, such as `E.A(_x)`, is no longer
+  a syntax error (BUG-487).
+- Tuple assignment accepts parenthesized targets: `((*p), x) = (x, *p);`
+  (BUG-488).
+
+- Formatting a `match` whose subject spans several lines no longer adds a
+  blank line before the first arm on the next pass (BUG-480).
+- A `defer` or lambda inside a `catch` clause can use the clause's variable.
+  It failed to compile with "Cannot resolve type for captured variable", or
+  produced invalid IR for a lambda (BUG-481).
+- Indexing a global array no longer produces an invalid WebAssembly module in
+  unoptimized wasm32 builds (BUG-486).
+- `extern printf(fmt: string, ...);` without `ret int` no longer makes hosted
+  WebAssembly print zeros or trap: the call now matches the runtime's
+  `int printf` (BUG-485).
+- `sizeof` of a type name such as `uint` inside a lambda no longer produces
+  invalid IR (the type name was captured like a variable) (BUG-483).
+
 ## [0.1.2] - 2026-11-06
 
 See [release notes](docs/releases/v0.1.2.md) for the release scope and validation.

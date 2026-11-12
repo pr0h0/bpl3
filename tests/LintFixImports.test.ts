@@ -46,6 +46,30 @@ test("keeps aliases and wrapped constants that are used, and CRLF lines", () => 
   );
 });
 
+test("keeps comments of a rewritten import and the layout around deleted ones", () => {
+  expect(
+    fix(`import printf, # used below
+    free from "std/c.bpl";
+import malloc from "std/c.bpl"; import puts as say from "std/c.bpl";
+import [Map] from "std"; # trailing
+frame main() ret int {
+    printf("x\\n");
+    say("y");
+    return 0;
+}
+`),
+  ).toBe(`# used below
+import printf from "std/c.bpl";
+import puts as say from "std/c.bpl";
+# trailing
+frame main() ret int {
+    printf("x\\n");
+    say("y");
+    return 0;
+}
+`);
+});
+
 test("returns undefined when every import is used, and leaves import * alone", () => {
   expect(
     fix(

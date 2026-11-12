@@ -39,6 +39,7 @@ export const IMPORT_STD_PATH_UNSAFE_CODE = "BPL_IMPORT_STD_PATH_UNSAFE";
 export const IMPORT_STD_PATH_UNSAFE_HINT =
   "Use std/<path> or std\\<path> without empty, '.', or '..' path segments.";
 
+export const IMPORT_CYCLE_CODE = "BPL_IMPORT_CYCLE";
 export const MODULE_RESOLUTION_FAILURE_CODES = [
   MODULE_NOT_FOUND_CODE,
   MODULE_FILE_NOT_FOUND_CODE,
@@ -518,6 +519,7 @@ export class ModuleResolver {
           endLine: 0,
           endColumn: 0,
         },
+        IMPORT_CYCLE_CODE,
       );
     }
     visited.add(modulePath);
@@ -555,6 +557,18 @@ export class ModuleResolver {
           // Recursively load dependency
           this.loadModule(depPath, new Set(visited));
         } catch (error) {
+          // An error located inside another module (a parse or declaration
+          // error there) already says where it is; wrapping it would point
+          // at this import instead (BUG-804). Resolution failures, which
+          // have no position in that module, are reported at the import.
+          if (
+            error instanceof CompilerError &&
+            error.location?.file &&
+            error.location.file !== modulePath &&
+            error.location.startLine > 0
+          ) {
+            throw error;
+          }
           throw new CompilerError(
             `Failed to resolve import '${importStmt.source}': ${
               error instanceof Error ? error.message : String(error)
@@ -681,6 +695,7 @@ export class ModuleResolver {
             endLine: 1,
             endColumn: 1,
           },
+          IMPORT_CYCLE_CODE,
         );
       }
 

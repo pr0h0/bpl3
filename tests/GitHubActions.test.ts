@@ -153,7 +153,7 @@ describe("GitHub Actions workflows", () => {
 
     expect(workflow).toContain("schedule:");
     expect(workflow).toContain("workflow_dispatch:");
-    expect(workflow).toContain("actions/checkout@v6");
+    expect(workflow).toContain("actions/checkout@v7");
     expect(workflow).not.toContain("actions/checkout@v4");
     expect(workflow).toContain("oven-sh/setup-bun@v2");
     expect(workflow).toContain("bun install --frozen-lockfile");
@@ -171,7 +171,7 @@ describe("GitHub Actions workflows", () => {
     expect(workflow).toContain("0xd1ff0,0xd1ff1,0xd1ff2");
     expect(workflow).toContain('FUZZ_MINIMIZE: "1"');
     expect(workflow).toContain("FUZZ_MINIMIZE_PASSES");
-    expect(workflow).toContain("actions/upload-artifact@v4");
+    expect(workflow).toContain("actions/upload-artifact@v7");
     expect(workflow).toContain("fuzz/crashes");
     expect(workflow).toContain("if: always()");
     expect(packageJson.scripts["fuzz:long"]).toContain("FUZZ_SEEDS");
@@ -245,7 +245,7 @@ describe("GitHub Actions workflows", () => {
       "BPL_RUNTIME_BUILD: ${{ matrix.runtime_build }}",
     );
     expect(workflow).toContain("CC: ${{ matrix.cc }}");
-    expect(workflow).toContain("actions/checkout@v6");
+    expect(workflow).toContain("actions/checkout@v7");
     expect(workflow).not.toContain("actions/checkout@v4");
     expect(workflow).toContain("oven-sh/setup-bun@v2");
     expect(workflow).toContain("bun install --frozen-lockfile");

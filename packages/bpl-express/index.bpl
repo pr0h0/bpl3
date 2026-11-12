@@ -23,3 +23,8 @@ import [Representation], [HttpDate], [ByteRange] from "./src/representation.bpl"
 export [Representation];
 export [HttpDate];
 export [ByteRange];
+
+import [Cookies], [CookieJar], [CookieOptions] from "./src/cookies.bpl";
+export [Cookies];
+export [CookieJar];
+export [CookieOptions];

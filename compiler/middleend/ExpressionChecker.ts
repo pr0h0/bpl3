@@ -32,6 +32,7 @@ import {
   ASSIGNMENT_TARGET_INVALID_CODE,
   ARITHMETIC_OPERAND_TYPE_MISMATCH_CODE,
   ARRAY_LITERAL_TYPE_MISMATCH_CODE,
+  INCREMENT_OPERAND_TYPE_MISMATCH_CODE,
   BINARY_OPERAND_TYPE_MISMATCH_CODE,
   BITWISE_OPERAND_TYPE_MISMATCH_CODE,
   BITWISE_NOT_OPERAND_TYPE_MISMATCH_CODE,
@@ -52,6 +53,7 @@ import {
   SIZEOF_VOID_INVALID_CODE,
   STRUCT_LITERAL_FIELD_MISSING_CODE,
   STRUCT_LITERAL_FIELD_TYPE_MISMATCH_CODE,
+  STRUCT_LITERAL_FIELD_DUPLICATE_CODE,
   STRUCT_LITERAL_FIELD_UNKNOWN_CODE,
   STRUCT_LITERAL_UNKNOWN_STRUCT_CODE,
   SYMBOL_NOT_FOUND_CODE,
@@ -472,7 +474,44 @@ export function checkIdentifier(
   this: CheckerContext,
   expr: AST.IdentifierExpr,
 ): AST.TypeNode | undefined {
-  const symbol = this.currentScope.resolve(expr.name);
+  let symbol = this.currentScope.resolve(expr.name);
+  // An overloaded name used as a value means the overload whose signature
+  // the destination declares (R-FN-6).
+  const wanted = this.functionValueTargets.get(expr);
+  if (symbol?.kind === "Function" && symbol.overloads?.length && wanted) {
+    const chosen = [symbol, ...symbol.overloads].find((candidate) => {
+      if (candidate.type?.kind !== "FunctionType") return false;
+      const type = this.resolveType(candidate.type, false) as
+        AST.FunctionTypeNode | undefined;
+      return (
+        type?.kind === "FunctionType" &&
+        type.paramTypes.length === wanted.paramTypes.length &&
+        type.paramTypes.every((param, index) =>
+          this.areTypesExactMatch(param, wanted.paramTypes[index]!),
+        ) &&
+        this.areTypesExactMatch(type.returnType, wanted.returnType)
+      );
+    });
+    if (chosen) symbol = chosen;
+  }
+  const genericDeclaration =
+    symbol?.kind === "Function" && symbol.declaration?.kind === "FunctionDecl"
+      ? (symbol.declaration as AST.FunctionDecl)
+      : undefined;
+  if (
+    genericDeclaration?.genericParams?.length &&
+    !this.instantiatedGenericReferences.has(expr)
+  ) {
+    // Nothing would instantiate it, so there is no function to point at.
+    throw new CompilerError(
+      `Generic function '${expr.name}' needs type arguments to be used as a value`,
+      `Instantiate it explicitly, for example '${expr.name}<${genericDeclaration.genericParams
+        .map(() => "int")
+        .join(", ")}>'.`,
+      expr.location,
+      GENERIC_ARITY_MISMATCH_CODE,
+    );
+  }
   if (!symbol) {
     if (this.shouldSuppressUndefinedIdentifier(expr.name, expr.location)) {
       return undefined;
@@ -516,7 +555,7 @@ export function checkIdentifier(
       location: expr.location,
     } as any;
   }
-  if (symbol.kind === "Enum") {
+  if (symbol.kind === "Enum" || symbol.kind === "TypeAlias") {
     return {
       kind: "MetaType",
       type: {
@@ -665,10 +704,12 @@ export function checkBinary(
     }
   }
 
-  // Pointer arithmetic: pointer +/- integer
+  // Pointer arithmetic: pointer +/- integer. A fixed array decays to a
+  // pointer only into a `*T` destination (R-CONV-4), so `arr + 1` is not
+  // pointer arithmetic; `&arr[1]` is.
   if (
     leftType.kind === "BasicType" &&
-    (leftType.pointerDepth > 0 || leftType.arrayDimensions.length > 0) &&
+    leftType.pointerDepth > 0 &&
     (op === TokenType.Plus || op === TokenType.Minus)
   ) {
     // BUG-127: Check for void pointer arithmetic
@@ -689,7 +730,7 @@ export function checkBinary(
     if (
       op === TokenType.Minus &&
       rightType.kind === "BasicType" &&
-      (rightType.pointerDepth > 0 || rightType.arrayDimensions.length > 0)
+      rightType.pointerDepth > 0
     ) {
       if (!this.areTypesCompatible(leftType, rightType)) {
         throw new CompilerError(
@@ -766,6 +807,27 @@ export function checkBinary(
         expr.location,
         COMPARISON_TYPE_MISMATCH_CODE,
       );
+    }
+    if (op !== TokenType.EqualEqual && op !== TokenType.BangEqual) {
+      for (const operand of [leftType, rightType]) {
+        const symbol =
+          operand.kind === "BasicType"
+            ? this.currentScope.resolve(operand.name)
+            : undefined;
+        if (
+          operand.kind !== "BasicType" ||
+          operand.arrayDimensions.length > 0 ||
+          (operand.pointerDepth === 0 &&
+            (symbol?.kind === "Struct" || symbol?.kind === "Enum"))
+        ) {
+          throw new CompilerError(
+            `Cannot order values of type ${this.formatDiagnosticType(operand)}`,
+            "Ordering works on numbers and pointers; a struct can declare '__lt__' and the other comparison methods.",
+            expr.location,
+            COMPARISON_TYPE_MISMATCH_CODE,
+          );
+        }
+      }
     }
     return {
       kind: "BasicType",
@@ -1053,15 +1115,6 @@ export function checkUnary(
           pointerDepth: operandType.pointerDepth - 1,
         };
       }
-      if (operandType.arrayDimensions.length > 0) {
-        // Dereferencing array gives element type
-        if (!operandType)
-          typeCheckerLog.debug("operandType is undefined in Star check 2");
-        return {
-          ...operandType,
-          arrayDimensions: operandType.arrayDimensions.slice(1),
-        };
-      }
     }
 
     throw new CompilerError(
@@ -1148,11 +1201,20 @@ export function checkUnary(
         ASSIGNMENT_TARGET_INVALID_CODE,
       );
     }
+    if (operand.kind === "Index" && operand.operatorOverload) {
+      throw new CompilerError(
+        `Operator '${expr.operator.lexeme}' through overloaded indexing is not supported`,
+        "Read the element, change it and assign it back with '[]='.",
+        operand.location,
+        ASSIGNMENT_TARGET_INVALID_CODE,
+      );
+    }
     if (!TypeUtils.isNumericType(operandType) || this.isBoolType(operandType)) {
       throw new CompilerError(
         `Operator '${expr.operator.lexeme}' cannot be applied to type '${this.formatDiagnosticType(operandType)}'`,
         "Increment and decrement require an integer or floating-point operand. Use explicit arithmetic for pointers.",
         expr.location,
+        INCREMENT_OPERAND_TYPE_MISMATCH_CODE,
       );
     }
     this.checkIsMutable(operand);
@@ -1188,6 +1250,10 @@ export function checkArrayLiteral(
     );
   }
 
+  // A literal declared as an array of spec pointers converts each element
+  // (R-SPEC-4), so `[&circle, &square]` need not share one struct type.
+  const specElement = this.specArrayLiteralTargets.get(expr);
+
   const firstType = this.checkExpression(expr.elements[0]!);
   this.rejectOwningCopy(
     expr.elements[0]!,
@@ -1206,7 +1272,8 @@ export function checkArrayLiteral(
     if (
       firstType &&
       elemType &&
-      !this.areTypesCompatible(firstType, elemType)
+      !this.areTypesCompatible(firstType, elemType) &&
+      !(specElement && this.areTypesCompatible(specElement, elemType))
     ) {
       throw new CompilerError(
         `Array literal has inconsistent element types: ${this.formatDiagnosticType(
@@ -1217,6 +1284,20 @@ export function checkArrayLiteral(
         ARRAY_LITERAL_TYPE_MISMATCH_CODE,
       );
     }
+  }
+
+  if (
+    specElement &&
+    expr.elements.every(
+      (element) =>
+        element.resolvedType &&
+        this.areTypesCompatible(specElement, element.resolvedType),
+    )
+  ) {
+    return {
+      ...specElement,
+      arrayDimensions: [expr.elements.length, ...specElement.arrayDimensions],
+    };
   }
 
   if (
@@ -1350,7 +1431,17 @@ export function checkStructLiteral(
     }
   }
 
+  const seenFields = new Set<string>();
   for (const field of expr.fields) {
+    if (seenFields.has(field.name)) {
+      throw new CompilerError(
+        `Field '${field.name}' is set more than once`,
+        "Give each field one value in a struct literal.",
+        field.value.location,
+        STRUCT_LITERAL_FIELD_DUPLICATE_CODE,
+      );
+    }
+    seenFields.add(field.name);
     const memberResult = this.resolveStructField(decl, field.name);
     if (!memberResult) {
       throw new CompilerError(
@@ -1363,6 +1454,7 @@ export function checkStructLiteral(
 
     const { type: memberType } = memberResult;
 
+    if (memberType) this.noteValueTarget(field.value, memberType);
     const valueType = this.checkExpression(field.value);
     this.rejectOwningCopy(
       field.value,
@@ -1700,6 +1792,49 @@ export function checkCast(
 /**
  * Check a sizeof expression
  */
+/**
+ * The type an expression spells when its root identifier names a type rather
+ * than a value: `int[5]`, `*int`, `**Point[2]`.
+ */
+function sizeofExpressionAsType(
+  checker: CheckerContext,
+  expr: AST.Expression,
+): AST.BasicTypeNode | undefined {
+  const dimensions: number[] = [];
+  let pointerDepth = 0;
+  let current = expr;
+  while (current.kind === "Unary" && current.operator.type === TokenType.Star) {
+    pointerDepth++;
+    current = current.operand;
+  }
+  while (current.kind === "Index") {
+    const size = TypeUtils.getIntegerConstantValue(current.index);
+    if (size === undefined || size <= 0n) return undefined;
+    dimensions.unshift(Number(size));
+    current = current.object;
+  }
+  if (current.kind !== "Identifier") return undefined;
+  if (pointerDepth === 0 && dimensions.length === 0) return undefined;
+  const symbol = checker.currentScope.resolve(current.name);
+  const isType =
+    symbol === undefined
+      ? getPrimitiveType(current.name) !== undefined ||
+        current.name === "string"
+      : symbol.kind === "Struct" ||
+        symbol.kind === "Enum" ||
+        symbol.kind === "Spec" ||
+        symbol.kind === "TypeAlias";
+  if (!isType) return undefined;
+  return {
+    kind: "BasicType",
+    name: current.name,
+    genericArgs: [],
+    pointerDepth,
+    arrayDimensions: dimensions,
+    location: expr.location,
+  };
+}
+
 export function checkSizeof(
   this: CheckerContext,
   expr: AST.SizeofExpr,
@@ -1741,14 +1876,27 @@ export function checkSizeof(
       targetType = this.resolveType(target as AST.TypeNode);
     }
   } else {
-    targetType = this.checkExpression(target as AST.Expression);
+    // `sizeof(int[5])` and `sizeof(*int)` parse as indexing and dereferencing
+    // a value named `int`; when the name is a type, they are that type.
+    const asType = sizeofExpressionAsType(this, target as AST.Expression);
+    if (asType) {
+      expr.target = asType;
+      targetType = this.resolveType(asType);
+    } else {
+      targetType = this.checkExpression(target as AST.Expression);
+    }
   }
 
+  // `sizeof(void)` reaches here as the type name `void`.
+  const sized =
+    targetType?.kind === "MetaType"
+      ? (targetType as AST.MetaType).type
+      : targetType;
   if (
-    targetType &&
-    targetType.kind === "BasicType" &&
-    targetType.name === "void" &&
-    targetType.pointerDepth === 0
+    sized &&
+    sized.kind === "BasicType" &&
+    sized.name === "void" &&
+    sized.pointerDepth === 0
   ) {
     throw new CompilerError(
       "Cannot take size of void",
@@ -2472,6 +2620,25 @@ function checkLambdaBody(
   const analyzer = new CaptureAnalyzer(expr);
   const capturedVars = analyzer.analyze();
   expr.capturedVariables = capturedVars;
+
+  // A capture copies the value into the lambda, which can outlive the frame
+  // whose destructor frees it.
+  for (const captured of capturedVars) {
+    const type =
+      ("typeAnnotation" in captured ? captured.typeAnnotation : undefined) ??
+      ("type" in captured ? captured.type : undefined) ??
+      captured.resolvedType;
+    this.rejectOwningCopy(
+      {
+        kind: "Identifier",
+        name: captured.name as string,
+        location: expr.location,
+      } as AST.IdentifierExpr,
+      type,
+      "into a lambda capture",
+      expr.location,
+    );
+  }
 
   // A capture is a copy, so a write that does not go through a pointer is
   // discarded when the lambda returns. Reject it instead of losing the value.

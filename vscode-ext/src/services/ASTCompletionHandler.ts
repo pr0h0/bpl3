@@ -774,7 +774,8 @@ export class ASTCompletionHandler {
         }
       } else if (stmt.kind === "Defer") {
         if (
-          stmt.statement.kind === "Block" &&
+          // Error recovery can leave a `defer` without its statement.
+          stmt.statement?.kind === "Block" &&
           this.nodeContainsLine(stmt.statement, line)
         ) {
           this.collectVariablesInScope(
@@ -905,7 +906,7 @@ export class ASTCompletionHandler {
       }
     } else if (Array.isArray(decl.name)) {
       // Destructuring
-      for (const target of decl.name) {
+      for (const target of AST.flattenDestructuringPattern(decl.name)) {
         if (!visited.has(target.name)) {
           visited.add(target.name);
           locals.push({

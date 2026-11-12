@@ -241,6 +241,175 @@ export abstract class StatementGenerator extends AsmGenerator {
     address: string,
     declaredType: AST.TypeNode | undefined,
     location: AST.ASTNode["location"],
+  ): void {
+    const scope = this.scopeStack[this.scopeStack.length - 1];
+    if (!scope) return;
+    const before = scope.deferred.length;
+    this.registerAutoDestroyEntries(name, address, declaredType, location);
+    if (scope.deferred.length === before) return;
+    this.registerUnwindNode(address, declaredType!, location);
+  }
+
+  /** Thunks that destroy a local of one type during unwinding, by name. */
+  private unwindThunks = new Map<string, string>();
+  protected pendingUnwindThunks: {
+    name: string;
+    type: AST.TypeNode;
+    llvmType: string;
+    typeMap: Map<string, AST.TypeNode>;
+    location: AST.ASTNode["location"];
+  }[] = [];
+  private unwindNoopEmitted = false;
+
+  /**
+   * A throw in a called function cannot see this frame's static cleanup, so
+   * each owning local also gets a defer node on the runtime stack, like
+   * `defer`. Its callback is a thunk that destroys the local in place. The
+   * node lives in this frame's entry block; normal exits pop it before the
+   * static cleanup runs, and the unwinder skips freeing it (flag 1).
+   */
+  private registerUnwindNode(
+    address: string,
+    declaredType: AST.TypeNode,
+    location: AST.ASTNode["location"],
+  ): void {
+    const typeNode = this.concreteAutoDestroyType(declaredType)!;
+    const llvmType = this.resolveType(typeNode);
+    let thunk = this.unwindThunks.get(llvmType);
+    if (!thunk) {
+      thunk = `__bpl_unwind_destroy.${this.unwindThunks.size}.${llvmType.replace(/[^A-Za-z0-9_.]/g, "_")}`;
+      this.unwindThunks.set(llvmType, thunk);
+      this.pendingUnwindThunks.push({
+        name: thunk,
+        type: typeNode,
+        llvmType,
+        typeMap: new Map(this.currentTypeMap),
+        location,
+      });
+    }
+    const node = this.allocateStackSlot("%struct.DeferNode", "unwind_node");
+    const field = (index: number) => {
+      const pointer = this.newRegister();
+      this.emit(
+        `  ${pointer} = getelementptr inbounds %struct.DeferNode, %struct.DeferNode* ${node}, i32 0, i32 ${index}`,
+      );
+      return pointer;
+    };
+    this.emit(
+      `  store i8* bitcast (void (i8*)* @${thunk} to i8*), i8** ${field(0)}`,
+    );
+    const context = this.newRegister();
+    this.emit(`  ${context} = bitcast ${llvmType}* ${address} to i8*`);
+    this.emit(`  store i8* ${context}, i8** ${field(1)}`);
+    const top = this.newRegister();
+    this.emit(
+      `  ${top} = load %struct.DeferNode*, %struct.DeferNode** @defer_top`,
+    );
+    this.emit(
+      `  store %struct.DeferNode* ${top}, %struct.DeferNode** ${field(2)}`,
+    );
+    this.emit(`  store i64 1, i64* ${field(3)}`);
+    this.emit(
+      `  store %struct.DeferNode* ${node}, %struct.DeferNode** @defer_top`,
+    );
+    this.scopeStack[this.scopeStack.length - 1]!.deferred.push({
+      kind: "UnwindNodePop",
+      node,
+      location,
+    } as unknown as AST.Statement);
+  }
+
+  protected generateUnwindNodePop(stmt: AST.UnwindNodePopStmt): void {
+    const nextPointer = this.newRegister();
+    this.emit(
+      `  ${nextPointer} = getelementptr inbounds %struct.DeferNode, %struct.DeferNode* ${stmt.node}, i32 0, i32 2`,
+    );
+    const next = this.newRegister();
+    this.emit(
+      `  ${next} = load %struct.DeferNode*, %struct.DeferNode** ${nextPointer}`,
+    );
+    this.emit(
+      `  store %struct.DeferNode* ${next}, %struct.DeferNode** @defer_top`,
+    );
+  }
+
+  /** Keeps a node on the stack but makes the unwinder's call do nothing. */
+  private disableUnwindNode(node: string): void {
+    if (!this.unwindNoopEmitted) {
+      this.unwindNoopEmitted = true;
+      this.emitDeclaration(
+        "define internal void @__bpl_unwind_noop(i8* %ctx) {\nentry:\n  ret void\n}",
+      );
+    }
+    const funcPointer = this.newRegister();
+    this.emit(
+      `  ${funcPointer} = getelementptr inbounds %struct.DeferNode, %struct.DeferNode* ${node}, i32 0, i32 0`,
+    );
+    this.emit(
+      `  store i8* bitcast (void (i8*)* @__bpl_unwind_noop to i8*), i8** ${funcPointer}`,
+    );
+  }
+
+  /** Emits the thunks requested by `registerUnwindNode`. */
+  protected generatePendingUnwindThunks(): void {
+    while (this.pendingUnwindThunks.length > 0) {
+      const thunk = this.pendingUnwindThunks.shift()!;
+      const saved = {
+        registerCount: this.registerCount,
+        labelCount: this.labelCount,
+        stackAllocCount: this.stackAllocCount,
+        stackAllocations: this.currentFunctionStackAllocations,
+        typeMap: this.currentTypeMap,
+        scopeStack: this.scopeStack,
+        subprogram: this.currentSubprogramId,
+        handler: this.currentFunctionHasExceptionHandler,
+      };
+      try {
+        this.registerCount = 0;
+        this.labelCount = 0;
+        this.stackAllocCount = 0;
+        this.currentFunctionStackAllocations = [];
+        this.currentFunctionHasExceptionHandler = false;
+        this.currentTypeMap = thunk.typeMap;
+        this.currentSubprogramId = -1;
+        this.scopeStack = [{ deferred: [], isLoop: false, isFunction: true }];
+        this.emit(`define internal void @${thunk.name}(i8* %ctx) {`);
+        this.emit("entry:");
+        const allocationIndex = this.output.length;
+        this.emit("");
+        const address = this.newRegister();
+        this.emit(`  ${address} = bitcast i8* %ctx to ${thunk.llvmType}*`);
+        this.registerAutoDestroyEntries(
+          "unwind",
+          address,
+          thunk.type,
+          thunk.location,
+        );
+        this.emitDeferredStatements(this.scopeStack[0]!.deferred);
+        this.emit("  ret void");
+        this.output[allocationIndex] =
+          this.currentFunctionStackAllocations.join("\n");
+        this.emit("}");
+        this.emit("");
+      } finally {
+        this.registerCount = saved.registerCount;
+        this.labelCount = saved.labelCount;
+        this.stackAllocCount = saved.stackAllocCount;
+        this.currentFunctionStackAllocations = saved.stackAllocations;
+        this.currentTypeMap = saved.typeMap;
+        this.scopeStack = saved.scopeStack;
+        this.currentSubprogramId = saved.subprogram;
+        this.currentFunctionHasExceptionHandler = saved.handler;
+      }
+    }
+  }
+
+  /** Registers the destructors of a value and of everything it owns. */
+  private registerAutoDestroyEntries(
+    name: string,
+    address: string,
+    declaredType: AST.TypeNode | undefined,
+    location: AST.ASTNode["location"],
     ownerAddress: string = address,
   ): void {
     const typeNode = this.concreteAutoDestroyType(declaredType);
@@ -272,7 +441,7 @@ export abstract class StatementGenerator extends AsmGenerator {
         this.emit(
           `  ${elementAddress} = getelementptr inbounds ${tupleType}, ${tupleType}* ${address}, i32 0, i32 ${index}`,
         );
-        this.registerAutoDestroy(
+        this.registerAutoDestroyEntries(
           `${name}.${index}`,
           elementAddress,
           elementType,
@@ -299,7 +468,7 @@ export abstract class StatementGenerator extends AsmGenerator {
           this.emit(
             `  ${fieldAddress} = getelementptr inbounds ${structType}, ${structType}* ${address}, i32 0, i32 ${index + (hasVTable ? 1 : 0)}`,
           );
-          this.registerAutoDestroy(
+          this.registerAutoDestroyEntries(
             `${name}.${field.name}`,
             fieldAddress,
             fieldType,
@@ -361,7 +530,7 @@ export abstract class StatementGenerator extends AsmGenerator {
       this.emit(
         `  ${elementAddress} = getelementptr inbounds ${arrayType}, ${arrayType}* ${address}, i32 0, i32 ${index}`,
       );
-      this.registerAutoDestroy(
+      this.registerAutoDestroyEntries(
         `${name}[${index}]`,
         elementAddress,
         elementType,
@@ -815,6 +984,18 @@ export abstract class StatementGenerator extends AsmGenerator {
     return this.ownsAutoDestroy(typeNode);
   }
 
+  /**
+   * From -O2 a trivial leaf function that only reads through pointers skips
+   * the stack-depth hooks, so accessors such as `return this.data[i];` can
+   * be inlined (BUG-801). A crash inside one then omits that innermost frame
+   * from the BPL stack trace; -O0 and -O1 keep it.
+   */
+  private optimizedPointerReadsElideStackHooks(): boolean {
+    return (
+      this.optimizationLevel >= 2 && this.canElideBoundedCallFreeStackHooks()
+    );
+  }
+
   private expressionBlocksStackHookElision(
     expr: AST.Expression | AST.TypeNode | undefined,
   ): boolean {
@@ -841,7 +1022,8 @@ export abstract class StatementGenerator extends AsmGenerator {
         const unary = expr as AST.UnaryExpr;
         return (
           !!unary.operatorOverload ||
-          unary.operator.type === TokenType.Star ||
+          (unary.operator.type === TokenType.Star &&
+            !this.optimizedPointerReadsElideStackHooks()) ||
           this.expressionBlocksStackHookElision(unary.operand)
         );
       }
@@ -851,11 +1033,23 @@ export abstract class StatementGenerator extends AsmGenerator {
         const objectType = member.object.resolvedType;
         return (
           objectType?.kind === "BasicType" &&
-          (objectType as AST.BasicTypeNode).pointerDepth > 0
+          (objectType as AST.BasicTypeNode).pointerDepth > 0 &&
+          !this.optimizedPointerReadsElideStackHooks()
         );
       }
       case "Index": {
-        return true;
+        // Indexing a raw pointer has no bounds check that could throw.
+        const index = expr as AST.IndexExpr;
+        const objectType = index.object.resolvedType;
+        return !(
+          this.optimizedPointerReadsElideStackHooks() &&
+          !index.operatorOverload &&
+          objectType?.kind === "BasicType" &&
+          objectType.pointerDepth > 0 &&
+          objectType.arrayDimensions.length === 0 &&
+          !this.expressionBlocksStackHookElision(index.object) &&
+          !this.expressionBlocksStackHookElision(index.index)
+        );
       }
       case "ArrayLiteral":
         return (expr as AST.ArrayLiteralExpr).elements.some((element) =>
@@ -1707,6 +1901,14 @@ export abstract class StatementGenerator extends AsmGenerator {
       const deferred = this.scopeStack[i]!.deferred;
       for (let j = deferred.length - 1; j >= 0; j--) {
         const statement = deferred[j]!;
+        // The local is destroyed (or moved) here, so its unwind node must
+        // not destroy it again; the unwinder still unlinks it.
+        if ((statement.kind as string) === "UnwindNodePop") {
+          this.disableUnwindNode(
+            (statement as unknown as AST.UnwindNodePopStmt).node,
+          );
+          continue;
+        }
         if (statement.kind !== "AutoDestroy") continue;
         if ((statement as AST.AutoDestroyStmt).ownerAddress === movedAddress) {
           continue;
@@ -1805,6 +2007,9 @@ export abstract class StatementGenerator extends AsmGenerator {
         break;
       case "AutoDestroy":
         this.generateAutoDestroy(stmt as AST.AutoDestroyStmt);
+        break;
+      case "UnwindNodePop":
+        this.generateUnwindNodePop(stmt as unknown as AST.UnwindNodePopStmt);
         break;
       case "LambdaCall":
         this.generateLambdaCall(stmt as any);
@@ -1981,10 +2186,17 @@ export abstract class StatementGenerator extends AsmGenerator {
         return true;
       }
 
+      // Array elements hold their own hidden vtable pointers.
+      const elementLlvmType = fieldLlvmType
+        .replace(/^(\[\d+ x )+/, "")
+        .replace(/\]+$/, "");
       if (
-        fieldLlvmType.startsWith("%struct.") &&
-        !fieldLlvmType.endsWith("*") &&
-        this.structNeedsDefaultInitialization(fieldLlvmType.substring(8), seen)
+        elementLlvmType.startsWith("%struct.") &&
+        !elementLlvmType.endsWith("*") &&
+        this.structNeedsDefaultInitialization(
+          elementLlvmType.substring(8),
+          seen,
+        )
       ) {
         seen.delete(structName);
         this.structDefaultInitializationRequiredCache.set(structName, true);
@@ -1997,8 +2209,64 @@ export abstract class StatementGenerator extends AsmGenerator {
     return false;
   }
 
+  /**
+   * The all-zero value of an LLVM type as a constant, with every hidden vtable
+   * pointer set, including those of nested structs and array elements. A
+   * value whose hidden pointer is null crashes on its first method call.
+   * Returns undefined when plain zero is already correct.
+   */
+  protected zeroConstantWithVTables(llvmType: string): string | undefined {
+    const array = /^\[(\d+) x (.+)\]$/.exec(llvmType);
+    if (array) {
+      const elementType = array[2]!;
+      const element = this.zeroConstantWithVTables(elementType);
+      if (!element) return undefined;
+      const items = Array.from(
+        { length: Number(array[1]) },
+        () => `${elementType} ${element}`,
+      );
+      return `[${items.join(", ")}]`;
+    }
+    if (!llvmType.startsWith("%struct.") || llvmType.endsWith("*")) {
+      return undefined;
+    }
+    const structName = llvmType.substring(8);
+    const layout = this.structLayouts.get(structName);
+    const decl = this.structMap.get(structName);
+    if (!layout || !decl) return undefined;
+
+    let needed = false;
+    const fields = Array.from(layout.entries())
+      .sort((a, b) => a[1] - b[1])
+      .map(([fieldName]) => {
+        if (fieldName === "__vtable__") {
+          const vtableGlobal = this.vtableGlobalNames.get(structName);
+          if (!vtableGlobal) return "i8* null";
+          needed = true;
+          const methods = this.vtableLayouts.get(structName)!;
+          return `i8* bitcast ([${methods.length} x i8*]* ${vtableGlobal} to i8*)`;
+        }
+        const field = this.getAllStructFields(decl).find(
+          (candidate) => candidate.name === fieldName,
+        );
+        if (!field) return undefined;
+        const fieldType = this.resolveType(field.type);
+        const nested = this.zeroConstantWithVTables(fieldType);
+        if (nested) needed = true;
+        return `${fieldType} ${nested ?? "zeroinitializer"}`;
+      });
+    if (!needed || fields.some((field) => field === undefined)) {
+      return undefined;
+    }
+    return `{ ${fields.join(", ")} }`;
+  }
+
   protected generateDefaultValue(type: AST.TypeNode): string {
     const llvmType = this.resolveType(type);
+
+    if (llvmType.startsWith("[")) {
+      return this.zeroConstantWithVTables(llvmType) ?? "undef";
+    }
 
     if (llvmType.startsWith("%struct.") && !llvmType.endsWith("*")) {
       const structName = llvmType.substring(8);
@@ -2061,6 +2329,23 @@ export abstract class StatementGenerator extends AsmGenerator {
 
     // For primitives and pointers, return undef to represent junk data
     return "undef";
+  }
+
+  /**
+   * A local's declared type with the current generic instantiation applied,
+   * so `local x: T` with `T = K` finds K's constructor and vtable.
+   */
+  private instantiatedLocalType(type: AST.TypeNode): AST.TypeNode {
+    if (this.currentTypeMap.size === 0) return type;
+    const concrete = this.substituteType(type, this.currentTypeMap);
+    if (
+      concrete.kind === "BasicType" &&
+      concrete.resolvedDeclaration === undefined
+    ) {
+      const declaration = this.structMap.get(concrete.name);
+      if (declaration) return { ...concrete, resolvedDeclaration: declaration };
+    }
+    return concrete;
   }
 
   protected generateVariableDecl(decl: AST.VariableDecl) {
@@ -2265,11 +2550,11 @@ export abstract class StatementGenerator extends AsmGenerator {
     // A destructor must never observe uninitialized storage. Locals are
     // otherwise left undefined, so zero the ones whose cleanup will read them
     // before any default value, vtable, or constructor writes to the storage.
-    if (
+    const zeroed =
       !decl.initializer &&
       !type.endsWith("*") &&
-      this.ownsAutoDestroy(decl.resolvedType || decl.typeAnnotation)
-    ) {
+      this.ownsAutoDestroy(decl.resolvedType || decl.typeAnnotation);
+    if (zeroed) {
       this.emit(`  store ${type} zeroinitializer, ${type}* ${addr}`);
     }
 
@@ -2279,8 +2564,13 @@ export abstract class StatementGenerator extends AsmGenerator {
       type.startsWith("%struct.") &&
       !type.endsWith("*")
     ) {
-      const structTypeNode = decl.resolvedType || decl.typeAnnotation!;
-      const defaultVal = this.generateDefaultValue(structTypeNode);
+      const structTypeNode = this.instantiatedLocalType(
+        decl.resolvedType || decl.typeAnnotation!,
+      );
+      // Storage already zeroed keeps its zero fields; only vtables are added.
+      const defaultVal = zeroed
+        ? (this.zeroConstantWithVTables(type) ?? "undef")
+        : this.generateDefaultValue(structTypeNode);
       if (defaultVal !== "undef") {
         this.emit(`  store ${type} ${defaultVal}, ${type}* ${addr}`);
       }
@@ -2346,7 +2636,9 @@ export abstract class StatementGenerator extends AsmGenerator {
 
     // Initialize uninitialized array variables if elements need construction or vtable initialization
     if (!decl.initializer && type.startsWith("[")) {
-      const arrayTypeNode = decl.resolvedType || decl.typeAnnotation!;
+      const arrayTypeNode = this.instantiatedLocalType(
+        decl.resolvedType || decl.typeAnnotation!,
+      );
       if (
         arrayTypeNode.kind === "BasicType" &&
         arrayTypeNode.arrayDimensions.length > 0 &&
@@ -2377,20 +2669,21 @@ export abstract class StatementGenerator extends AsmGenerator {
             matchingNew,
           );
         } else {
-          // No new() method, but if struct has vtable we still need to initialize it
-          // Check if struct has any methods (which means it has a vtable)
-          const hasMethods = structDecl.members.some(
-            (m) => m.kind === "FunctionDecl",
+          // No new() method, but a struct with a vtable (from methods or
+          // inheritance) still needs it in every element. This returns early
+          // when the struct has none.
+          this.generateArrayVTableInitialization(
+            addr,
+            type,
+            arrayTypeNode as AST.BasicTypeNode,
+            structDecl,
           );
-          if (hasMethods) {
-            this.generateArrayVTableInitialization(
-              addr,
-              type,
-              arrayTypeNode as AST.BasicTypeNode,
-              structDecl,
-            );
-          }
         }
+      } else {
+        // An element type from a generic parameter (`T[2]`) has no resolved
+        // declaration; its instantiated LLVM type still names the struct.
+        const vtables = this.zeroConstantWithVTables(type);
+        if (vtables) this.emit(`  store ${type} ${vtables}, ${type}* ${addr}`);
       }
     }
 
@@ -3014,15 +3307,23 @@ export abstract class StatementGenerator extends AsmGenerator {
 
     const firstParam = params[0]!;
     const firstType = this.resolveType(paramTypes[0]!);
-    let result = `${firstType} %${firstParam.name}`;
+    let result = `${firstType} ${this.parameterRegister(firstParam.name)}`;
 
     for (let i = 1; i < params.length; i++) {
       const param = params[i]!;
       const type = this.resolveType(paramTypes[i]!);
-      result += `, ${type} %${param.name}`;
+      result += `, ${type} ${this.parameterRegister(param.name)}`;
     }
 
     return result;
+  }
+
+  /**
+   * The LLVM value of a parameter. Values and blocks share one namespace, so
+   * a parameter named like the `entry` block gets another name (BUG-601).
+   */
+  private parameterRegister(name: string): string {
+    return name === "entry" ? "%param.entry" : `%${name}`;
   }
 
   private getMethodBaseName(functionName: string): string {
@@ -3383,7 +3684,7 @@ export abstract class StatementGenerator extends AsmGenerator {
         this.locals.add(param.name);
         this.localTypes.set(param.name, effectiveFuncType.paramTypes[i]!);
         const type = this.resolveType(effectiveFuncType.paramTypes[i]!);
-        let paramReg = `%${param.name}`;
+        let paramReg = this.parameterRegister(param.name);
         if (name === "main") {
           paramReg = i === 0 ? "%argc" : "%argv";
         }

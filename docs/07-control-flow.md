@@ -159,22 +159,19 @@ if (p != nullptr) {  # false
 
 ### Single-Statement Bodies
 
-Braces are **required** even for single statements:
+A branch may be a single statement instead of a block:
 
 ```bpl
 local x: int = 1;
 
-# CORRECT
 if (x > 0) {
     x = x + 1;
 }
 
-# INCORRECT - will not compile
-# if (x > 0)
-#    x = x + 1;
+if (x > 1) x = x + 1; else x = 0;
 ```
 
-This prevents common errors like the "dangling else" problem.
+An `else` belongs to the nearest `if` without one; braces make that visible.
 
 ## Loop Statements
 
@@ -1013,7 +1010,7 @@ frame createPoint(x: int, y: int) ret Point {
 
 1. **Prefer early returns** over deep nesting
 2. **Use break and continue** instead of goto when possible
-3. **Always include braces** even for single-statement bodies
+3. **Prefer braces** even for single-statement bodies
 4. **Use switch for multi-way branches** on a single value
 5. **Add default cases** to switch statements
 6. **Comment intentional fall-through** in switch statements

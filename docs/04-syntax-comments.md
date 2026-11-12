@@ -91,16 +91,18 @@ my-variable       # Hyphens not allowed
 struct             # Reserved keyword
 ```
 
-**Reserved Keywords** (cannot be used as identifiers):
+**Reserved Keywords** (cannot be used as identifiers; R-LEX-3):
 
 ```
-frame    local    global   import   export   extern
-return   if       else     loop     switch   case
-default  try      catch    throw    break
-continue cast     sizeof   match    type     struct
-fallthrough
-true     false    nullptr  ret      this
+global local const type frame static ret struct enum spec Self
+import from as export extern asm loop if else break continue
+try catch return throw switch case default fallthrough
+cast sizeof typeof offsetof match is Func Lambda
+null nullptr true false
 ```
+
+`defer` is a contextual statement keyword, and `this`, `int` and the other
+type names are ordinary identifiers.
 
 ### Case Sensitivity
 

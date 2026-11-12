@@ -13,17 +13,37 @@ export type TypeResolver = (type: AST.TypeNode) => AST.TypeNode;
  * C ABI. Callback (Func) signatures and variadic externs stay scalar-only
  * because no wrapper can adapt them.
  */
+/**
+ * `parentStructs` names the structs another struct inherits from. They carry
+ * a hidden vtable pointer, which needs the whole program to know, so callers
+ * that have not seen every struct yet leave it out and check again later.
+ */
 export function validateExternSignature(
   decl: AST.ExternDecl,
   resolve: TypeResolver,
+  parentStructs?: ReadonlySet<string>,
 ): void {
   const type = decl.resolvedType;
   if (!type || type.kind !== "FunctionType") return;
   const allowAggregates = !decl.isVariadic;
   for (const parameter of type.paramTypes) {
-    validateValue(parameter, decl.location, resolve, allowAggregates);
+    validateValue(
+      parameter,
+      decl.location,
+      resolve,
+      allowAggregates,
+      false,
+      parentStructs,
+    );
   }
-  validateValue(type.returnType, decl.location, resolve, allowAggregates, true);
+  validateValue(
+    type.returnType,
+    decl.location,
+    resolve,
+    allowAggregates,
+    true,
+    parentStructs,
+  );
 }
 
 // Scalar-only boundary: callback signatures and variadic arguments.
@@ -59,6 +79,7 @@ function validateValue(
   resolve: TypeResolver,
   allowAggregates: boolean,
   allowVoid = false,
+  parentStructs?: ReadonlySet<string>,
 ): void {
   if (isVoidValue(type)) {
     if (!allowVoid)
@@ -74,7 +95,7 @@ function validateValue(
     reject(location, "arrays and slices (pass a pointer)");
   }
   if (!allowAggregates) reject(location, "variadic extern signatures");
-  const reason = cCompatibilityProblem(type, resolve, new Set());
+  const reason = cCompatibilityProblem(type, resolve, new Set(), parentStructs);
   if (reason) reject(location, reason);
 }
 
@@ -89,6 +110,9 @@ function isVoidValue(type: AST.TypeNode): boolean {
 
 function isScalarOrPointer(type: AST.TypeNode): boolean {
   if (type.kind !== "BasicType") return false;
+  // `*Spec` is a `{ data, vtable }` pair held by value, not a C pointer.
+  if (type.pointerDepth === 1 && type.resolvedDeclaration?.kind === "SpecDecl")
+    return false;
   if (type.pointerDepth > 0) {
     return (
       type.isPointerToArray === true ||
@@ -122,6 +146,7 @@ function cCompatibilityProblem(
   type: AST.TypeNode,
   resolve: TypeResolver,
   visiting: Set<AST.StructDecl>,
+  parentStructs?: ReadonlySet<string>,
 ): string | undefined {
   if (type.kind !== "BasicType") {
     return "tuples, lambdas and other non-C value types";
@@ -138,6 +163,14 @@ function cCompatibilityProblem(
   if (type.arrayDimensions.includes(null)) {
     return "slice fields (pass a pointer and length separately)";
   }
+  // `*Spec` is a `{ data, vtable }` pair held by value, not a C pointer.
+  if (
+    type.pointerDepth === 1 &&
+    resolveDeclaration({ ...type, pointerDepth: 0 }, resolve)?.kind ===
+      "SpecDecl"
+  ) {
+    return `spec pointer '*${type.name}' (pass the implementing struct's pointer)`;
+  }
   if (type.pointerDepth > 0) return undefined;
   if (type.arrayDimensions.length > 0) {
     // Arrays are C-compatible as struct fields; top-level arrays are handled
@@ -146,6 +179,7 @@ function cCompatibilityProblem(
       { ...type, arrayDimensions: [] },
       resolve,
       visiting,
+      parentStructs,
     );
   }
   if (isScalarOrPointer(type)) return undefined;
@@ -172,6 +206,9 @@ function cCompatibilityProblem(
   if (declaration.members.some((member) => member.kind === "FunctionDecl")) {
     return `struct '${type.name}' with methods`;
   }
+  if (parentStructs?.has(declaration.name)) {
+    return `struct '${type.name}', which another struct inherits from`;
+  }
   if (visiting.has(declaration)) return `recursive struct '${type.name}'`;
   visiting.add(declaration);
   const fields = declaration.members.filter(
@@ -180,7 +217,12 @@ function cCompatibilityProblem(
   if (fields.length === 0) return `empty struct '${type.name}'`;
   for (const field of fields) {
     const fieldType = field.resolvedType ?? resolve(field.type);
-    const problem = cCompatibilityProblem(fieldType, resolve, visiting);
+    const problem = cCompatibilityProblem(
+      fieldType,
+      resolve,
+      visiting,
+      parentStructs,
+    );
     if (problem) return problem;
   }
   visiting.delete(declaration);

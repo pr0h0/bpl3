@@ -1,0 +1,7 @@
+{
+  "name": "bpl-json",
+  "version": "0.1.0",
+  "description": "Dynamic JSON values: strict parsing, building, querying and serialization",
+  "main": "index.bpl",
+  "license": "MIT"
+}

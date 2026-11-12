@@ -13,6 +13,13 @@ export interface CheckerContext {
   globalScope: SymbolTable;
   currentFunctionReturnType: AST.TypeNode | undefined;
   matchYieldValues: WeakMap<AST.BlockStmt, AST.Expression[]>;
+  specArrayLiteralTargets: WeakMap<AST.ArrayLiteralExpr, AST.BasicTypeNode>;
+  noteValueTarget(value: AST.Expression, target: AST.TypeNode): void;
+  instantiatedGenericReferences: WeakSet<AST.Expression>;
+  functionValueTargets: WeakMap<
+    AST.IdentifierExpr,
+    AST.FunctionTypeNode | AST.LambdaTypeNode
+  >;
   loopDepth: number;
   switchDepth: number;
   inDefer: boolean;
@@ -126,11 +133,6 @@ export interface CheckerContext {
     declaration: AST.ASTNode;
     genericArgs?: AST.TypeNode[];
   };
-  rejectEscapingSpecPointer(
-    type: AST.TypeNode | undefined,
-    position: string,
-    location: AST.ASTNode["location"],
-  ): void;
   rejectOwningCopy(
     expr: AST.Expression | undefined,
     type: AST.TypeNode | undefined,

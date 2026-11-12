@@ -840,7 +840,21 @@ struct JSON {
                     # "
                     sb.appendChar(cast<char>(34));
                 } else {
-                    if ((strcmp(info.name, "float") == 0) || (strcmp(info.name, "double") == 0) || (strcmp(info.name, "f64") == 0)) {
+                    if (strcmp(info.name, "f32") == 0) {
+                        local single: f32 = *cast<*f32>(ptr);
+                        local widened: float = cast<float>(single);
+                        local singleBits: ulong = *cast<*ulong>(&widened);
+                        local singleMask: ulong = cast<ulong>(0x7ff0000000000000);
+                        if ((singleBits & singleMask) == singleMask) {
+                            sb.append("null");
+                        } else {
+                            # 9 significant digits round-trip binary32.
+                            local singleBytes: char[32];
+                            local singleBuf: string = cast<string>(&singleBytes[0]);
+                            snprintf(singleBuf, 32, "%.9g", widened);
+                            sb.append(singleBuf);
+                        }
+                    } else if ((strcmp(info.name, "float") == 0) || (strcmp(info.name, "double") == 0) || (strcmp(info.name, "f64") == 0)) {
                         local f: float = *cast<*float>(ptr);
                         # JSON has no NaN/infinity literals. Match the null fallback
                         # used for values without a JSON representation.
@@ -1319,6 +1333,14 @@ struct JSON {
             *cast<*long>(ptr) = p.parseInteger(cast<long>(0x8000000000000000), cast<long>(0x7fffffffffffffff));
         } else if ((strcmp(info.name, "float") == 0) || (strcmp(info.name, "double") == 0) || (strcmp(info.name, "f64") == 0)) {
             *cast<*float>(ptr) = p.parseFloat();
+        } else if (strcmp(info.name, "f32") == 0) {
+            local value: float = p.parseFloat();
+            # Beyond the largest finite f32 the value has no f32 representation.
+            if ((value >= 340282356779733661637539395458142568448.0) || (value <= -340282356779733661637539395458142568448.0)) {
+                p.fail("Number out of range for f32");
+            } else {
+                *cast<*f32>(ptr) = cast<f32>(value);
+            }
         } else {
             if (strcmp(info.name, "string") == 0) {
                 local s: string = p.parseString();

@@ -12,6 +12,7 @@ import {
 } from "../services/NearbyImportCodeActions";
 import { DiagnosticsProvider } from "../services/DiagnosticsProvider";
 import { SymbolIndex } from "../services/SymbolIndex";
+import { diagnosticText } from "../services/utils";
 
 const testPosix = process.platform === "win32" ? test.skip : test;
 
@@ -105,7 +106,9 @@ testPosix(
       const provider = new DiagnosticsProvider(new SymbolIndex());
       const diagnostic = provider
         .validate(document)
-        .find((item) => item.message.includes("Undefined symbol 'helper'"));
+        .find((item) =>
+          diagnosticText(item).includes("Undefined symbol 'helper'"),
+        );
       expect(diagnostic).toBeDefined();
       const actions = nearbyImportCodeActions(
         document,
@@ -163,7 +166,7 @@ test("nearby auto-imports use actual BPL/X exports and produce compiler-valid ed
     const provider = new DiagnosticsProvider(new SymbolIndex());
     const diagnostic = provider
       .validate(document)
-      .find((item) => item.message.includes("Undefined type 'Widget'"));
+      .find((item) => diagnosticText(item).includes("Undefined type 'Widget'"));
     expect(diagnostic).toBeDefined();
     const typeName = importableTypeName(diagnostic!);
     expect(typeName).toBe("Widget");
@@ -212,7 +215,9 @@ test("value import suggestions accept comments and reject type-only exports", ()
     const provider = new DiagnosticsProvider(new SymbolIndex());
     const diagnostic = provider
       .validate(document)
-      .find((item) => item.message.includes("Undefined symbol 'helper'"));
+      .find((item) =>
+        diagnosticText(item).includes("Undefined symbol 'helper'"),
+      );
     expect(diagnostic).toBeDefined();
     const actions = nearbyImportCodeActions(
       document,

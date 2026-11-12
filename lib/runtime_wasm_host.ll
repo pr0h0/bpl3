@@ -97,6 +97,9 @@ dispatch:
   switch i8 %spec, label %unsupported [
     i8 37, label %format_percent
     i8 100, label %format_decimal
+    i8 105, label %format_decimal
+    i8 117, label %format_unsigned
+    i8 108, label %format_long
     i8 120, label %format_hex_lower
     i8 88, label %format_hex_upper
     i8 102, label %format_float
@@ -126,6 +129,56 @@ format_decimal:
   %decimal_len = call i32 @__bpl_host_write_i32_decimal(i32 %fd, i32 %decimal_value)
   %written_decimal = add i32 %written_with_segment, %decimal_len
   %decimal_after = getelementptr i8, i8* %spec_ptr, i32 1
+  br label %format_done
+
+format_unsigned:
+  %unsigned_value = call i32 @__bpl_host_next_i32(i8** %ap)
+  %unsigned_value64 = zext i32 %unsigned_value to i64
+  %unsigned_len = call i32 @__bpl_host_write_u64_decimal(i32 %fd, i64 %unsigned_value64)
+  %written_unsigned = add i32 %written_with_segment, %unsigned_len
+  %unsigned_after = getelementptr i8, i8* %spec_ptr, i32 1
+  br label %format_done
+
+; `%l` and `%ll` read a 64-bit argument: BPL's `long` is 64 bits on every
+; target, including wasm32.
+format_long:
+  %long_second_ptr = getelementptr i8, i8* %spec_ptr, i32 1
+  %long_second = load i8, i8* %long_second_ptr
+  %long_is_ll = icmp eq i8 %long_second, 108
+  %long_conv_ptr_ll = getelementptr i8, i8* %spec_ptr, i32 2
+  %long_conv_ptr = select i1 %long_is_ll, i8* %long_conv_ptr_ll, i8* %long_second_ptr
+  %long_conv = load i8, i8* %long_conv_ptr
+  %long_after = getelementptr i8, i8* %long_conv_ptr, i32 1
+  switch i8 %long_conv, label %unsupported [
+    i8 100, label %format_long_signed
+    i8 105, label %format_long_signed
+    i8 117, label %format_long_unsigned
+    i8 120, label %format_long_hex_lower
+    i8 88, label %format_long_hex_upper
+  ]
+
+format_long_signed:
+  %long_signed_value = call i64 @__bpl_host_next_i64(i8** %ap)
+  %long_signed_len = call i32 @__bpl_host_write_i64_decimal(i32 %fd, i64 %long_signed_value)
+  %written_long_signed = add i32 %written_with_segment, %long_signed_len
+  br label %format_done
+
+format_long_unsigned:
+  %long_unsigned_value = call i64 @__bpl_host_next_i64(i8** %ap)
+  %long_unsigned_len = call i32 @__bpl_host_write_u64_decimal(i32 %fd, i64 %long_unsigned_value)
+  %written_long_unsigned = add i32 %written_with_segment, %long_unsigned_len
+  br label %format_done
+
+format_long_hex_lower:
+  %long_hex_lower_value = call i64 @__bpl_host_next_i64(i8** %ap)
+  %long_hex_lower_len = call i32 @__bpl_host_write_i64_hex(i32 %fd, i64 %long_hex_lower_value, i32 0)
+  %written_long_hex_lower = add i32 %written_with_segment, %long_hex_lower_len
+  br label %format_done
+
+format_long_hex_upper:
+  %long_hex_upper_value = call i64 @__bpl_host_next_i64(i8** %ap)
+  %long_hex_upper_len = call i32 @__bpl_host_write_i64_hex(i32 %fd, i64 %long_hex_upper_value, i32 1)
+  %written_long_hex_upper = add i32 %written_with_segment, %long_hex_upper_len
   br label %format_done
 
 format_hex_lower:
@@ -215,8 +268,8 @@ unsupported:
   br label %format_done
 
 format_done:
-  %next_segment_start = phi i8* [ %percent_after, %format_percent ], [ %decimal_after, %format_decimal ], [ %hex_lower_after, %format_hex_lower ], [ %hex_upper_after, %format_hex_upper ], [ %string_after, %format_string ], [ %char_after, %format_char ], [ %float_after, %format_float ], [ %precision_float_after, %format_precision_float ], [ %width_decimal_after, %format_width_decimal ], [ %unsupported_after, %unsupported ]
-  %written_after_format = phi i32 [ %written_percent, %format_percent ], [ %written_decimal, %format_decimal ], [ %written_hex_lower, %format_hex_lower ], [ %written_hex_upper, %format_hex_upper ], [ %written_string, %format_string ], [ %written_char, %format_char ], [ %written_float, %format_float ], [ %written_precision_float, %format_precision_float ], [ %written_width_decimal, %format_width_decimal ], [ %written_unsupported, %unsupported ]
+  %next_segment_start = phi i8* [ %percent_after, %format_percent ], [ %decimal_after, %format_decimal ], [ %unsigned_after, %format_unsigned ], [ %long_after, %format_long_signed ], [ %long_after, %format_long_unsigned ], [ %long_after, %format_long_hex_lower ], [ %long_after, %format_long_hex_upper ], [ %hex_lower_after, %format_hex_lower ], [ %hex_upper_after, %format_hex_upper ], [ %string_after, %format_string ], [ %char_after, %format_char ], [ %float_after, %format_float ], [ %precision_float_after, %format_precision_float ], [ %width_decimal_after, %format_width_decimal ], [ %unsupported_after, %unsupported ]
+  %written_after_format = phi i32 [ %written_percent, %format_percent ], [ %written_decimal, %format_decimal ], [ %written_unsigned, %format_unsigned ], [ %written_long_signed, %format_long_signed ], [ %written_long_unsigned, %format_long_unsigned ], [ %written_long_hex_lower, %format_long_hex_lower ], [ %written_long_hex_upper, %format_long_hex_upper ], [ %written_hex_lower, %format_hex_lower ], [ %written_hex_upper, %format_hex_upper ], [ %written_string, %format_string ], [ %written_char, %format_char ], [ %written_float, %format_float ], [ %written_precision_float, %format_precision_float ], [ %written_width_decimal, %format_width_decimal ], [ %written_unsupported, %unsupported ]
   br label %scan
 }
 
@@ -319,6 +372,83 @@ write_decimal:
   %end_int = ptrtoint i8* %end to i32
   %len = sub i32 %end_int, %start_int
   call void @__bpl_host_write(i32 %fd, i8* %start, i32 %len)
+  ret i32 %len
+}
+
+define internal i32 @__bpl_host_write_u64_decimal(i32 %fd, i64 %value) {
+entry:
+  %buffer = alloca [21 x i8], align 1
+  %end = getelementptr inbounds [21 x i8], [21 x i8]* %buffer, i32 0, i32 21
+  br label %digit_loop
+
+digit_loop:
+  %current = phi i64 [ %value, %entry ], [ %quotient, %digit_loop ]
+  %cursor = phi i8* [ %end, %entry ], [ %next_digit_ptr, %digit_loop ]
+  %quotient = udiv i64 %current, 10
+  %remainder = urem i64 %current, 10
+  %remainder32 = trunc i64 %remainder to i32
+  %digit32 = add i32 %remainder32, 48
+  %digit = trunc i32 %digit32 to i8
+  %next_digit_ptr = getelementptr i8, i8* %cursor, i32 -1
+  store i8 %digit, i8* %next_digit_ptr, align 1
+  %has_more_digits = icmp ne i64 %quotient, 0
+  br i1 %has_more_digits, label %digit_loop, label %write_digits
+
+write_digits:
+  %start_int = ptrtoint i8* %next_digit_ptr to i32
+  %end_int = ptrtoint i8* %end to i32
+  %len = sub i32 %end_int, %start_int
+  call void @__bpl_host_write(i32 %fd, i8* %next_digit_ptr, i32 %len)
+  ret i32 %len
+}
+
+define internal i32 @__bpl_host_write_i64_decimal(i32 %fd, i64 %value) {
+entry:
+  %negative = icmp slt i64 %value, 0
+  br i1 %negative, label %write_negative, label %write_nonnegative
+
+write_negative:
+  %minus_len = call i32 @__bpl_host_write_char(i32 %fd, i32 45)
+  ; 0 - INT64_MIN wraps to itself, which is its magnitude read unsigned.
+  %magnitude = sub i64 0, %value
+  %negative_digits = call i32 @__bpl_host_write_u64_decimal(i32 %fd, i64 %magnitude)
+  %negative_len = add i32 %negative_digits, %minus_len
+  ret i32 %negative_len
+
+write_nonnegative:
+  %nonnegative_len = call i32 @__bpl_host_write_u64_decimal(i32 %fd, i64 %value)
+  ret i32 %nonnegative_len
+}
+
+define internal i32 @__bpl_host_write_i64_hex(i32 %fd, i64 %value, i32 %uppercase) {
+entry:
+  %buffer = alloca [16 x i8], align 1
+  %end = getelementptr inbounds [16 x i8], [16 x i8]* %buffer, i32 0, i32 16
+  %use_uppercase = icmp ne i32 %uppercase, 0
+  %letter_base = select i1 %use_uppercase, i32 55, i32 87
+  br label %digit_loop
+
+digit_loop:
+  %current = phi i64 [ %value, %entry ], [ %quotient, %digit_loop ]
+  %cursor = phi i8* [ %end, %entry ], [ %next_digit_ptr, %digit_loop ]
+  %quotient = lshr i64 %current, 4
+  %remainder64 = and i64 %current, 15
+  %remainder = trunc i64 %remainder64 to i32
+  %is_decimal_digit = icmp ult i32 %remainder, 10
+  %decimal_digit = add i32 %remainder, 48
+  %letter_digit = add i32 %remainder, %letter_base
+  %digit32 = select i1 %is_decimal_digit, i32 %decimal_digit, i32 %letter_digit
+  %digit = trunc i32 %digit32 to i8
+  %next_digit_ptr = getelementptr i8, i8* %cursor, i32 -1
+  store i8 %digit, i8* %next_digit_ptr, align 1
+  %has_more_digits = icmp ne i64 %quotient, 0
+  br i1 %has_more_digits, label %digit_loop, label %write_digits
+
+write_digits:
+  %start_int = ptrtoint i8* %next_digit_ptr to i32
+  %end_int = ptrtoint i8* %end to i32
+  %len = sub i32 %end_int, %start_int
+  call void @__bpl_host_write(i32 %fd, i8* %next_digit_ptr, i32 %len)
   ret i32 %len
 }
 
@@ -574,6 +704,20 @@ entry:
   %value_ptr = bitcast i8* %aligned to double*
   %value = load double, double* %value_ptr, align 8
   ret double %value
+}
+
+define internal i64 @__bpl_host_next_i64(i8** %ap) {
+entry:
+  %cursor = load i8*, i8** %ap, align 4
+  %cursor_int = ptrtoint i8* %cursor to i32
+  %aligned_plus = add i32 %cursor_int, 7
+  %aligned_int = and i32 %aligned_plus, -8
+  %aligned = inttoptr i32 %aligned_int to i8*
+  %next = getelementptr i8, i8* %aligned, i32 8
+  store i8* %next, i8** %ap, align 4
+  %value_ptr = bitcast i8* %aligned to i64*
+  %value = load i64, i64* %value_ptr, align 8
+  ret i64 %value
 }
 
 define internal i32 @__bpl_host_next_i32(i8** %ap) {

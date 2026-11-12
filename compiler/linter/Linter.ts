@@ -787,7 +787,9 @@ class SelfComparisonRule implements LintRule {
         if (typeof decl.name === "string") {
           this.declare(decl.name, decl.typeAnnotation);
         } else {
-          for (const target of decl.name) this.declare(target.name, undefined);
+          for (const target of AST.flattenDestructuringPattern(decl.name)) {
+            this.declare(target.name, undefined);
+          }
         }
         return;
       }

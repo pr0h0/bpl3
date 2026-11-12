@@ -4,12 +4,13 @@ import {
   expectRuntimeFailureSuite,
 } from "./helpers/compilerCorrectness";
 
+// `%=` on floating-point values is rejected like `%` (R-EXPR-1, BUG-523).
 test("uses floating-point instructions for f32 and f64 compound assignments", () => {
   expectCorrectnessSuite([
     {
       name: "floating compound assignments",
       validateLlvm: true,
-      expectedStdout: "0.5 0.5 1\n",
+      expectedStdout: "4.5 4.5 1\n",
       source: `
       extern printf(fmt: string, ...);
       global calls: int = 0;
@@ -20,9 +21,8 @@ test("uses floating-point instructions for f32 and f64 compound assignments", ()
         narrow -= cast<f32>(1.5);
         narrow *= cast<f32>(2.0);
         narrow /= cast<f32>(2.0);
-        narrow %= cast<f32>(2.0);
         local wide: f64 = 5.5;
-        wide += 0.5; wide -= 1.5; wide *= 2.0; wide /= 2.0; wide %= 2.0;
+        wide += 0.5; wide -= 1.5; wide *= 2.0; wide /= 2.0;
         local values: f32[1] = [cast<f32>(0.0)];
         values[index()] += narrow;
         printf("%.1f %.1f %d\\n", values[0], wide, calls);

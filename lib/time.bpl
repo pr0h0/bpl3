@@ -10,6 +10,7 @@ extern __bpl_clock(monotonic: int, units: int, result: *long) ret int;
 extern __bpl_sleep_us(microseconds: long) ret int;
 extern malloc(size: long) ret *void;
 extern snprintf(dst: string, size: long, format: string, ...) ret int;
+extern strlen(text: string) ret long;
 
 struct Duration {
     milliseconds: long,
@@ -89,6 +90,256 @@ struct Duration {
             snprintf(output, 40, "%s%lu%ss", sign, seconds, cast<string>(&fraction[0]));
         }
         return output;
+    }
+
+    frame fromDays(days: long) ret Duration {
+        local d: Duration;
+        d.milliseconds = checkedTimeScale(days, 86400000);
+        return d;
+    }
+
+    frame toDays(this: *Duration) ret long {
+        return this.milliseconds / 86400000;
+    }
+
+    frame isZero(this: *Duration) ret bool {
+        return this.milliseconds == 0;
+    }
+
+    frame isNegative(this: *Duration) ret bool {
+        return this.milliseconds < 0;
+    }
+
+    frame abs(this: *Duration) ret Duration {
+        if (this.milliseconds < 0) {
+            return Duration.fromMs(-this.milliseconds);
+        }
+        return *this;
+    }
+
+    frame scale(this: *Duration, factor: long) ret Duration {
+        return Duration.fromMs(checkedTimeScale(this.milliseconds, factor));
+    }
+
+    /#
+        Parses Go-style durations such as "1h30m", "1.5s", "250ms", "-2m"
+        or "1h2m3.25s" (units h, m, s, ms, us and ns; finer units are
+        truncated to milliseconds), and ISO 8601 durations such as "PT1H30M",
+        "P2DT3H" or "PT0.5S" (days count as 24 hours; years, months and weeks
+        are rejected). Returns false, leaving `output` unchanged, otherwise.
+    #/
+    frame parse(text: string, output: *Duration) ret bool {
+        if ((text == nullptr) || (output == nullptr)) {
+            return false;
+        }
+        local n: long = strlen(text);
+        if (n == cast<long>(0)) {
+            return false;
+        }
+        local i: long = 0;
+        local negative: bool = false;
+        if ((text[0] == '-') || (text[0] == '+')) {
+            negative = text[0] == '-';
+            i = 1;
+        }
+        if ((i < n) && ((text[i] == 'P') || (text[i] == 'p'))) {
+            return Duration._parseIso(text, i + 1, n, negative, output);
+        }
+        if (((n - i) == cast<long>(1)) && (text[i] == '0')) {
+            *output = Duration.fromMs(0);
+            return true;
+        }
+        # Total in microseconds keeps "1.5ms" exact before truncation.
+        local totalUs: long = 0;
+        local any: bool = false;
+        loop (i < n) {
+            local whole: long = 0;
+            local fraction: long = 0;
+            local fractionScale: long = 1;
+            local digits: int = 0;
+            loop ((i < n) && (text[i] >= '0') && (text[i] <= '9')) {
+                if (whole > cast<long>(100000000000)) {
+                    return false;
+                }
+                whole = (whole * 10) + cast<long>(cast<int>(text[i]) - 48);
+                i = i + 1;
+                digits = digits + 1;
+            }
+            if ((i < n) && (text[i] == '.')) {
+                i = i + 1;
+                loop ((i < n) && (text[i] >= '0') && (text[i] <= '9')) {
+                    if (fractionScale < cast<long>(1000000000)) {
+                        fraction = (fraction * 10) + cast<long>(cast<int>(text[i]) - 48);
+                        fractionScale = fractionScale * 10;
+                    }
+                    i = i + 1;
+                    digits = digits + 1;
+                }
+            }
+            if (digits == 0) {
+                return false;
+            }
+            local unitUs: long = 0;
+            if (((i + 1) < n) && (text[i] == 'm') && (text[i + 1] == 's')) {
+                unitUs = 1000;
+                i = i + 2;
+            } else if (((i + 1) < n) && (text[i] == 'u') && (text[i + 1] == 's')) {
+                unitUs = 1;
+                i = i + 2;
+            } else if (((i + 1) < n) && (text[i] == 'n') && (text[i + 1] == 's')) {
+                # Nanoseconds: scale the fraction instead.
+                fractionScale = fractionScale * 1000;
+                unitUs = 1;
+                local nanos: long = whole;
+                whole = nanos / 1000;
+                fraction = fraction + ((nanos % 1000) * (fractionScale / 1000));
+                i = i + 2;
+            } else if ((i < n) && (text[i] == 'h')) {
+                unitUs = 3600000000;
+                i = i + 1;
+            } else if ((i < n) && (text[i] == 'm')) {
+                unitUs = 60000000;
+                i = i + 1;
+            } else if ((i < n) && (text[i] == 's')) {
+                unitUs = 1000000;
+                i = i + 1;
+            } else {
+                return false;
+            }
+            if (whole > (cast<long>(9000000000000000) / unitUs)) {
+                return false;
+            }
+            totalUs = totalUs + (whole * unitUs) + ((fraction * unitUs) / fractionScale);
+            any = true;
+        }
+        if (!any) {
+            return false;
+        }
+        local ms: long = totalUs / 1000;
+        if (negative) {
+            ms = -ms;
+        }
+        *output = Duration.fromMs(ms);
+        return true;
+    }
+
+    frame _parseIso(text: string, start: long, n: long, negative: bool, output: *Duration) ret bool {
+        local i: long = start;
+        local inTime: bool = false;
+        local totalMs: long = 0;
+        local any: bool = false;
+        loop (i < n) {
+            if ((text[i] == 'T') || (text[i] == 't')) {
+                if (inTime) {
+                    return false;
+                }
+                inTime = true;
+                i = i + 1;
+                continue;
+            }
+            local whole: long = 0;
+            local fraction: long = 0;
+            local fractionScale: long = 1;
+            local digits: int = 0;
+            loop ((i < n) && (text[i] >= '0') && (text[i] <= '9')) {
+                if (whole > cast<long>(100000000000)) {
+                    return false;
+                }
+                whole = (whole * 10) + cast<long>(cast<int>(text[i]) - 48);
+                i = i + 1;
+                digits = digits + 1;
+            }
+            if ((i < n) && ((text[i] == '.') || (text[i] == ','))) {
+                i = i + 1;
+                loop ((i < n) && (text[i] >= '0') && (text[i] <= '9')) {
+                    if (fractionScale < cast<long>(1000000)) {
+                        fraction = (fraction * 10) + cast<long>(cast<int>(text[i]) - 48);
+                        fractionScale = fractionScale * 10;
+                    }
+                    i = i + 1;
+                }
+            }
+            if ((digits == 0) || (i >= n)) {
+                return false;
+            }
+            local unit: char = text[i];
+            i = i + 1;
+            local unitMs: long = 0;
+            if (!inTime && ((unit == 'D') || (unit == 'd'))) {
+                unitMs = 86400000;
+            } else if (inTime && ((unit == 'H') || (unit == 'h'))) {
+                unitMs = 3600000;
+            } else if (inTime && ((unit == 'M') || (unit == 'm'))) {
+                unitMs = 60000;
+            } else if (inTime && ((unit == 'S') || (unit == 's'))) {
+                unitMs = 1000;
+            } else {
+                return false;
+            }
+            if (whole > (cast<long>(9000000000000000) / unitMs)) {
+                return false;
+            }
+            totalMs = totalMs + (whole * unitMs) + ((fraction * unitMs) / fractionScale);
+            any = true;
+        }
+        if (!any) {
+            return false;
+        }
+        if (negative) {
+            totalMs = -totalMs;
+        }
+        *output = Duration.fromMs(totalMs);
+        return true;
+    }
+
+    # ISO 8601 form such as "PT1H30M", "P1DT2H3.5S" or "PT0S"; a negative
+    # duration gets a leading "-". Returns a new string the caller frees.
+    frame formatIso(this: *Duration) ret string {
+        local text: string = cast<string>(malloc(64));
+        if (text == nullptr) {
+            return text;
+        }
+        local magnitude: ulong = cast<ulong>(this.milliseconds);
+        local sign: string = "";
+        if (this.milliseconds < 0) {
+            magnitude = cast<ulong>(0) - magnitude;
+            sign = "-";
+        }
+        local days: ulong = magnitude / cast<ulong>(86400000);
+        local rest: ulong = magnitude % cast<ulong>(86400000);
+        local hours: ulong = rest / cast<ulong>(3600000);
+        rest = rest % cast<ulong>(3600000);
+        local minutes: ulong = rest / cast<ulong>(60000);
+        rest = rest % cast<ulong>(60000);
+        local seconds: ulong = rest / cast<ulong>(1000);
+        local millis: ulong = rest % cast<ulong>(1000);
+        local at: int = snprintf(text, 64, "%sP", sign);
+        if (days > cast<ulong>(0)) {
+            at = at + snprintf(text + at, cast<long>(64 - at), "%luD", days);
+        }
+        if ((hours + minutes + seconds + millis) > cast<ulong>(0)) {
+            at = at + snprintf(text + at, cast<long>(64 - at), "T");
+            if (hours > cast<ulong>(0)) {
+                at = at + snprintf(text + at, cast<long>(64 - at), "%luH", hours);
+            }
+            if (minutes > cast<ulong>(0)) {
+                at = at + snprintf(text + at, cast<long>(64 - at), "%luM", minutes);
+            }
+            if (millis > cast<ulong>(0)) {
+                at = at + snprintf(text + at, cast<long>(64 - at), "%lu.%03luS", seconds, millis);
+                # Drop trailing zeros of the fraction.
+                loop (text[at - 2] == '0') {
+                    text[at - 2] = 'S';
+                    at = at - 1;
+                }
+                text[at] = cast<char>(0);
+            } else if (seconds > cast<ulong>(0)) {
+                at = at + snprintf(text + at, cast<long>(64 - at), "%luS", seconds);
+            }
+        } else if (days == cast<ulong>(0)) {
+            snprintf(text + at, cast<long>(64 - at), "T0S");
+        }
+        return text;
     }
 
     frame toMs(this: *Duration) ret long {

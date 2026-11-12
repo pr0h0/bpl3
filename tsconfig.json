@@ -22,8 +22,7 @@
 
     // Dead locals, imports and private members are errors.
     "noUnusedLocals": true,
-    // TODO: enable after refactoring is complete
-    "noUnusedParameters": false,
+    "noUnusedParameters": true,
     "noPropertyAccessFromIndexSignature": false
   },
   "exclude": [

@@ -30,7 +30,8 @@ export function emitSpecMethodCall(
   let objVal = host.generateExpression(memberExpr.object);
   const objType = memberExpr.object.resolvedType as AST.BasicTypeNode;
 
-  if (objType.pointerDepth > 0) {
+  // `*Spec` is the pair itself; only `**Spec` needs a load.
+  if (objType.pointerDepth > 1) {
     const loaded = host.newRegister();
     const ptrType = host.resolveType(objType);
     const valType = ptrType.substring(0, ptrType.length - 1);

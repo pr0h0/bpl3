@@ -1563,7 +1563,7 @@ describe("Release metadata", () => {
       );
 
       expect(workflow).toContain("FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true");
-      expect(workflow).toContain("actions/checkout@v6");
+      expect(workflow).toContain("actions/checkout@v7");
       expect(workflow).not.toContain("actions/checkout@v4");
     }
   });

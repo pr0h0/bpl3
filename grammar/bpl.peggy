@@ -232,8 +232,40 @@
     return { kind: "Extern", name, params, isVariadic, returnType, location: loc };
   }
 
-  function asmBlock(content, loc, flavor, clobbers) {
-    return { kind: "Asm", content, flavor, clobbers, location: loc };
+  // Operands are found with the pattern the checker and code generator use:
+  // (name), (&name), (=name), optionally followed by `: "constraint"`.
+  function asmOperands(content, start) {
+    const operands = [];
+    const pattern = /\((=?)(&?)(\w+)(?::\s*"([^"]+)")?\)/g;
+    let match;
+    let line = start.startLine;
+    let column = start.startColumn;
+    let scanned = 0;
+    while ((match = pattern.exec(content)) !== null) {
+      const at = match.index + 1 + match[1].length + match[2].length;
+      for (; scanned < at; scanned++) {
+        const c = content[scanned];
+        if (c === "\n" || (c === "\r" && content[scanned + 1] !== "\n")) {
+          line++;
+          column = 1;
+        } else {
+          column++;
+        }
+      }
+      operands.push(identifier(match[3], {
+        file: start.file,
+        startLine: line,
+        startColumn: column,
+        endLine: line,
+        endColumn: column + match[3].length,
+      }));
+    }
+    return operands;
+  }
+
+  function asmBlock(content, loc, flavor, clobbers, start) {
+    const operands = start ? asmOperands(content, start) : [];
+    return { kind: "Asm", content, flavor, clobbers, operands, location: loc };
   }
 
   function tryStmt(tryBlock, catchClauses, loc) {
@@ -453,7 +485,9 @@
             if (i + 3 < inner.length) {
               const hex = inner.slice(i + 2, i + 4);
               if (/^[0-9a-fA-F]{2}$/.test(hex)) {
-                result += String.fromCharCode(parseInt(hex, 16));
+                // One byte; see compiler/common/StringEncoding.ts.
+                const byte = parseInt(hex, 16);
+                result += String.fromCharCode(byte < 0x80 ? byte : 0xdc00 + byte);
                 i += 4;
                 break;
               }
@@ -468,7 +502,17 @@
             if (i + 5 < inner.length) {
               const hex = inner.slice(i + 2, i + 6);
               if (/^[0-9a-fA-F]{4}$/.test(hex)) {
-                result += String.fromCharCode(parseInt(hex, 16));
+                const unit = parseInt(hex, 16);
+                const high = unit >= 0xd800 && unit <= 0xdbff;
+                const low = unit >= 0xdc00 && unit <= 0xdfff;
+                const pair = high && /^\\u[dD][c-fC-F][0-9a-fA-F]{2}$/.test(inner.slice(i + 6, i + 12));
+                if (pair) {
+                  result += String.fromCharCode(unit, parseInt(inner.slice(i + 8, i + 12), 16));
+                  i += 12;
+                  break;
+                }
+                // An unpaired surrogate is not a character.
+                result += high || low ? "\uFFFD" : String.fromCharCode(unit);
                 i += 6;
                 break;
               }
@@ -635,6 +679,13 @@
 
   function parseChar(raw) {
     const inner = raw.slice(1, -1);
+    // A byte escape, or a Unicode escape that fits one byte as ASCII.
+    if (/^\\x[0-9a-fA-F]{2}$/.test(inner)) {
+      return String.fromCharCode(parseInt(inner.slice(2), 16));
+    }
+    if (/^\\u00[0-7][0-9a-fA-F]$/.test(inner)) {
+      return String.fromCharCode(parseInt(inner.slice(2), 16));
+    }
     // Escape decoding must not discard trailing characters before the width check.
     if (inner.startsWith("\\") && inner.length !== 2) return inner;
     if (inner.startsWith("\\")) {
@@ -906,9 +957,12 @@ ExternParameterList
     }
 
 AsmBlock
-  = K_asm _ flavor:("(" _ s:StringLiteral _ ")" { return s.value; })? _ "{" content:AsmContent clobbers:AsmClobbers? "}" {
-      return asmBlock(content, location(), flavor || undefined, clobbers || undefined);
+  = K_asm _ flavor:("(" _ s:StringLiteral _ ")" { return s.value; })? _ "{" start:AsmStart content:AsmContent clobbers:AsmClobbers? "}" {
+      return asmBlock(content, location(), flavor || undefined, clobbers || undefined, start);
     }
+
+AsmStart
+  = "" { return location(); }
 
 AsmClobbers
   = _ "[" _ head:AsmString tail:(_ "," _ AsmString)* _ "]" _ {
@@ -1383,7 +1437,7 @@ Pattern
   / PatternIdentifier
 
 PatternWildcard
-  = "_" { return patternWildcard(location()); }
+  = "_" ![a-zA-Z0-9_] { return patternWildcard(location()); }
 
 PatternTuple
   = "(" _ patterns:PatternList _ ")" {
@@ -1421,7 +1475,17 @@ LambdaBody
     }
 
 PatternLiteral
-  = lit:(BoolLiteral / NumberLiteral / StringLiteral / CharLiteral / NullptrLiteral) { 
+  = "-" _ lit:NumberLiteral {
+      // A negative number literal (`-3`, `-1.5`), as in switch case labels.
+      const negated = literal(
+        typeof lit.value === "bigint" ? -lit.value : -lit.value,
+        "-" + lit.raw,
+        "number",
+        location(),
+      );
+      return patternLiteral(negated, location());
+    }
+  / lit:(BoolLiteral / NumberLiteral / StringLiteral / CharLiteral / NullptrLiteral) { 
       return patternLiteral(lit, location()); 
     }
 

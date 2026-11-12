@@ -327,6 +327,36 @@ export abstract class BinaryExpressionGenerator extends AddressExpressionGenerat
       return b.pointerDepth === 0 && this.structMap.has(b.name);
     };
 
+    // A `*Spec` compares by the object it points at: its data pointer.
+    if (
+      this.isSpecPointerType(expr.left.resolvedType) ||
+      this.isSpecPointerType(expr.right.resolvedType)
+    ) {
+      const dataPointer = (
+        raw: string,
+        type: string,
+        node: AST.TypeNode | undefined,
+      ) => {
+        if (raw === "null") return "null";
+        if (type === "{ i8*, i8* }" && this.isSpecPointerType(node)) {
+          const data = this.newRegister();
+          this.emit(`  ${data} = extractvalue { i8*, i8* } ${raw}, 0`);
+          return data;
+        }
+        if (type === "i8*") return raw;
+        const cast = this.newRegister();
+        this.emit(`  ${cast} = bitcast ${type} ${raw} to i8*`);
+        return cast;
+      };
+      const left = dataPointer(leftRaw, leftType, expr.left.resolvedType);
+      const right = dataPointer(rightRaw, rightType, expr.right.resolvedType);
+      const result = this.newRegister();
+      const op =
+        expr.operator.type === TokenType.EqualEqual ? "icmp eq" : "icmp ne";
+      this.emit(`  ${result} = ${op} i8* ${left}, ${right}`);
+      return result;
+    }
+
     if (leftType.endsWith("*") && rightType.endsWith("*")) {
       return this.generatePointerEqualityComparison(
         leftRaw,
@@ -403,7 +433,6 @@ export abstract class BinaryExpressionGenerator extends AddressExpressionGenerat
 
       if (isLambdaKind || isLambdaSig) {
         return this.generateLambdaEquality(
-          expr,
           leftRaw,
           rightRaw,
           leftType,
@@ -926,7 +955,7 @@ export abstract class BinaryExpressionGenerator extends AddressExpressionGenerat
 
         // Check for lambda equality
         if (expr.left.resolvedType?.kind === "LambdaType") {
-          return this.generateLambdaEquality(expr, left, right, leftType, true);
+          return this.generateLambdaEquality(left, right, leftType, true);
         }
 
         op = isFloat ? "fcmp oeq" : "icmp eq";
@@ -965,13 +994,7 @@ export abstract class BinaryExpressionGenerator extends AddressExpressionGenerat
 
         // Check for lambda inequality
         if (expr.left.resolvedType?.kind === "LambdaType") {
-          return this.generateLambdaEquality(
-            expr,
-            left,
-            right,
-            leftType,
-            false,
-          );
+          return this.generateLambdaEquality(left, right, leftType, false);
         }
 
         op = isFloat ? "fcmp une" : "icmp ne";
@@ -1046,7 +1069,6 @@ export abstract class BinaryExpressionGenerator extends AddressExpressionGenerat
    * Lambdas are fat pointers { func_ptr, ctx_ptr }
    */
   private generateLambdaEquality(
-    expr: AST.BinaryExpr,
     left: string,
     right: string,
     type: string,

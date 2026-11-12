@@ -1,0 +1,421 @@
+== prng
+prng.uniform_mean = 0.5009
+prng.normal_mean = -0.0030
+prng.normal_sd = 1.0024
+== special
+special.bvn_mixed = 0.283138
+== stats
+stats.skew = 0.656250
+stats.kurt = -0.218750
+stats.reg_r2 = 0.997305
+stats.welch_t = -3.9056
+stats.hist_total = 500
+stats.acf1 = -0.027476
+stats.hurst = 0.5610
+== sort
+== matrix
+matrix.eig0 = 123.477232
+matrix.eig1 = 15.503963
+matrix.eig2 = 0.018805
+== optimize
+== black_scholes
+black_scholes.delta = 0.636831
+black_scholes.gamma = 0.018762
+black_scholes.vega = 0.375240
+black_scholes.theta = -0.017573
+black_scholes.rho = 0.532325
+black_scholes.vanna = -0.281430
+black_scholes.volga = 0.098501
+black_scholes.dividend_call = 9.831949
+black_scholes.black76 = 7.577082
+black_scholes.digital = 0.532325
+black_scholes.margrabe = 12.952273
+black_scholes.kirk = 9.989009
+== implied_vol
+implied_vol.iv_12 = 0.24111689
+== lattice
+lattice.american_put_crr = 6.088810
+lattice.american_put_delta = -0.411170
+lattice.american_put_gamma = 0.023018
+lattice.dividend_american_call = 6.540259
+== monte_carlo
+monte_carlo.european = 10.454840
+monte_carlo.european_se = 0.032891
+monte_carlo.control = 10.451182
+monte_carlo.asian = 6.154298
+monte_carlo.geometric_asian = 5.940192
+monte_carlo.up_and_out = 3.407117
+monte_carlo.lookback = 15.942993
+monte_carlo.longstaff_schwartz = 5.957635
+monte_carlo.heston = 10.314259
+monte_carlo.merton_series = 11.661675
+monte_carlo.basket = 15.426415
+== hashmap
+== matching
+== cancel_replace
+== stops
+== simulation
+simulation.orders = 37451
+simulation.cancels = 2292
+simulation.replaces = 3784
+simulation.trades = 29623
+simulation.volume = 3757610
+simulation.rejected = 3331
+simulation.stops_triggered = 323
+simulation.self_trades_prevented = 598
+simulation.open_orders = 2730
+simulation.tape_total = 29623
+simulation.bid_levels = 118
+simulation.ask_levels = 155
+simulation.best_bid = 994100
+simulation.best_ask = 995000
+simulation.vwap = 99.990024
+simulation.microprice = 99.493136
+simulation.imbalance = 0.855122
+simulation.final_fair = 98.577890
+simulation.order_flow = -43490
+simulation.impact_buy_1000 = 99.615500
+== rolling
+== moving_averages
+== indicators
+indicators.last_close = 138.458580
+indicators.macd_last = -0.948804
+indicators.signal_last = -2.208298
+indicators.bb_upper = 137.003150
+indicators.bb_lower = 123.592852
+indicators.atr_last = 2.584132
+indicators.keltner_upper = 136.194014
+indicators.stoch_k = 98.052527
+indicators.stoch_d = 97.950710
+indicators.williams_r = -1.947473
+indicators.cci = 185.453677
+indicators.adx = 25.824993
+indicators.plus_di = 38.837884
+indicators.minus_di = 20.903060
+indicators.obv = 387790.00
+indicators.mfi = 56.367631
+indicators.vwap = 126.303305
+indicators.rolling_vwap = 130.247098
+indicators.trix = -0.255935
+indicators.aroon_up = 100.000000
+indicators.aroon_down = 80.000000
+indicators.chaikin_osc = 20192.04
+indicators.psar = 125.336321
+indicators.tenkan = 131.595975
+indicators.kijun = 131.595975
+indicators.span_a = 140.757948
+indicators.span_b = 141.442557
+indicators.hma = 130.327946
+indicators.kama = 131.284765
+indicators.realized_vol = 0.255330
+indicators.parkinson_vol = 0.193020
+indicators.garman_klass_vol = 0.165159
+indicators.sma_crossings = 14
+indicators.zscore = 2.372490
+== aggregation
+== covariance
+covariance.avg_corr = 0.351554
+covariance.ledoit_wolf_delta = 0.001573
+covariance.single_index_00 = 1.028753
+== var
+var.historical_99 = 23288.33
+var.historical_es = 27041.78
+var.filtered_historical = 29930.56
+var.backtest_exceptions = 4
+var.backtest_zone = green
+var.kupiec_p = 0.380484
+var.undersized_zone = red
+var.rolling_last = 0.022315
+var.portfolio_var = 24074.05
+== portfolio
+portfolio.gmv_w0 = 0.545427
+portfolio.gmv_vol = 0.00830349
+portfolio.tangency_sharpe = 0.046585
+portfolio.long_only_w2 = 0.122236
+portfolio.risk_parity_w0 = 0.324880
+portfolio.frontier_top_vol = 0.01770830
+portfolio.bl_view_asset = 14.791667
+portfolio.tracking_error = 0.00627411
+portfolio.diversification_ratio = 1.369227
+== qscript_lexer
+== qscript_parser
+== qscript_eval
+== qscript_strategy
+qscript_strategy.sma_cross_return = -0.076365
+qscript_strategy.sma_cross_sharpe = -0.048961
+qscript_strategy.sma_cross_trades = 149
+qscript_strategy.instructions = 10163
+== backtest
+backtest.sma_cross = 0.180399
+backtest.rsi_reversion = -0.295917
+backtest.bollinger = -0.248066
+backtest.macd_trend = -0.429594
+backtest.momentum = 0.141655
+backtest.optimized_fast = 20
+backtest.optimized_slow = 75
+backtest.optimized_sharpe = 1.199864
+== day_counts
+== curves
+curves.zero_10y = 0.04049098
+curves.forward_5y_6y = 0.04199635
+curves.linear_zero_4y = 0.03740674
+curves.cubic_zero_4y = 0.03741326
+== bonds
+bonds.convexity = 73.628731
+bonds.dv01 = 0.07794581
+bonds.yield_at_95 = 0.05661689
+== swaps
+swaps.pv01 = 448.075818
+swaps.key_rate_total = 462.2452
+swaps.cap_5y = 23599.8791
+swaps.payer_1y5y = 15739.2212
+== short_rate
+short_rate.vasicek_5y = 0.79985563
+short_rate.cir_5y = 0.79990360
+short_rate.hw_option = 0.01199174
+== complex
+== fft
+== fourier
+fourier.heston_atm = 10.39421857
+fourier.heston_iv_80 = 0.229614
+fourier.heston_iv_120 = 0.172211
+fourier.variance_gamma = 10.44454469
+== sabr
+sabr.atm_vol = 0.17857520
+== svi
+svi.surface_vol_90_075 = 0.23436989
+svi.local_vol_100_1 = 0.18881845
+== garch
+garch.log_likelihood = 7842.8263
+garch.long_run_vol = 0.011334
+garch.egarch_aic = -15663.5339
+== arma
+arma.arma_aic = 8555.5985
+arma.selected_p = 2
+arma.selected_q = 1
+arma.adf_ar1_stat = -24.3870
+== kalman
+== simplex
+== box_qp
+box_qp.capped_w0 = 0.300000
+box_qp.capped_w2 = 0.100000
+== qql
+== store
+== ledger
+ledger.sim_positions = 51
+== auction
+== exec_algos
+exec_algos.twap = -11.8093
+exec_algos.vwap = -13.8041
+exec_algos.pov = -29.2200
+== market_maker
+market_maker.maker_fills = 374
+market_maker.maker_pnl = -610.3890
+market_maker.maker_spread_bps = 4.0008
+== pca
+== ols
+ols.f_stat = 6976.50
+== kmeans
+== logistic
+logistic.log_likelihood = -1469.133
+== bootstrap_kde
+== credit
+credit.risky_annuity = 4.407411
+credit.pd_5y = 0.089713
+credit.merton_pd = 0.05295421
+credit.vasicek_999 = 0.079348
+== fx
+fx.gk_call = 0.02652012
+== csv_reader
+== option_book
+option_book.book_value = 49.797230
+option_book.book_delta = 405.055964
+option_book.book_gamma = -44.146680
+option_book.book_vega = -1.565272
+option_book.worst_pnl = -180.803549
+option_book.worst_spot = -0.2000
+option_book.all_expired_pnl = 0.202770
+== sobol
+sobol.qmc_error = -0.00348799
+== wire
+wire.crc32_123456789 = 3421780262
+wire.hex = 78563412
+== fix_codec
+fix_codec.time = 20251110-16:00:00.123
+fix_codec.new_order = 8=FIX.4.4|9=97|35=D|49=CLIENT|56=EXCH|34=7|52=20251110-16:00:00.000|11=ord-1|55=ACME|54=1|38=100|40=2|44=101.25|10=116|
+fix_codec.bad_checksum_error = CheckSum mismatch
+fix_codec.bad_length_error = BodyLength mismatch
+fix_codec.unterminated_error = field not terminated
+== fix_session
+fix_session.logon = 8=FIX.4.4|9=65|35=A|49=CLIENT|56=EXCH|34=1|52=19700101-00:00:01.000|98=0|108=30|10=204|
+fix_session.timeout_reason = heartbeat timeout
+== fix_gateway
+fix_gateway.first_fill = 8=FIX.4.4|9=147|35=8|49=EXCH|56=CLIENT|34=3|52=19700101-00:00:02.000|37=3|11=c1|17=E2|150=F|39=1|55=ACME|54=1|38=400|44=101|151=100|14=300|6=100.5|31=100.5|32=300|10=218|
+== itch
+itch.packets = 1240
+itch.messages_total = 20595
+itch.bytes = 616477
+itch.adds = 7990
+itch.executions = 10705
+itch.deletes = 1894
+itch.dropped = 177
+== risk_limits
+risk_limits.breaches = 11
+risk_limits.last_breach = kill_switch
+== journal
+journal.snapshot_seq = 3006
+journal.snapshot_bytes = 481
+journal.records = 5507
+journal.journal_bytes = 143986
+journal.open_orders = 64
+journal.trades = 2053
+journal.torn_error = torn record
+journal.crc_error = CRC mismatch
+journal.snapshot_corrupt = snapshot CRC mismatch
+== stress
+stress.book_value = 243094.3951
+stress.black_monday_1987 = -13720.86
+stress.lehman_2008 = -19926.75
+stress.covid_2020 = -17659.04
+stress.rates_2022 = -31596.10
+stress.taper_tantrum_2013 = -11904.82
+stress.dotcom_2000 = -20636.62
+stress.relief_rally = 12727.56
+stress.lehman_worst = SPX
+stress.lehman_equity = -25513.79
+stress.lehman_vol = 5307.12
+stress.lehman_credit = -3081.27
+stress.reverse_scale = 1.3423
+stress.mc_var99 = 11200.96
+stress.mc_es99 = 14326.89
+== brinson
+brinson.portfolio_return = 0.043050
+brinson.benchmark_return = 0.034000
+brinson.allocation = 0.003550
+brinson.selection = 0.002000
+brinson.interaction = 0.003500
+brinson.compounded_active = 0.00452382
+== rebalance
+rebalance.trade0 = 35
+rebalance.trade1 = 30
+rebalance.trade2 = 65
+rebalance.trade3 = -23
+rebalance.turnover = 0.249074
+rebalance.commission = 13.4500
+rebalance.monthly_rebalances = 23
+rebalance.threshold_rebalances = 7
+rebalance.monthly_turnover = 0.282197
+rebalance.threshold_turnover = 0.213799
+rebalance.buy_and_hold_return = 0.509182
+== columnar
+columnar.raw_bytes = 324984
+columnar.encoded_bytes = 121325
+columnar.matched = 4576
+columnar.bad_column_error = unknown column in where
+== query_cache
+query_cache.hit_rate = 0.5000
+query_cache.render = {"table":"trades","version":51,"rows":50,"scan":{"blocks":1,"pruned":0,"rows_scanned":50,"rows_matched":30},"groups":1,"result":[{"symbol":"ACME","count":30,"sum_notional":30900}]}
+== indicators2
+indicators2.zlema = 117.604991
+indicators2.alma = 117.303563
+indicators2.t3 = 116.223647
+indicators2.vwma = 115.548499
+indicators2.mcginley = 116.205298
+indicators2.cmo = 11.527342
+indicators2.tsi = 3.904625
+indicators2.ppo = 0.402003
+indicators2.dpo = -0.647153
+indicators2.coppock = 1.692413
+indicators2.kst = -4.869993
+indicators2.ultimate = 46.261908
+indicators2.awesome = -0.034340
+indicators2.fisher = 1.120138
+indicators2.connors_rsi = 30.262525
+indicators2.vortex = 0.276353
+indicators2.choppiness = 45.292378
+indicators2.mass_index = 24.562996
+indicators2.ulcer = 1.364630
+indicators2.elder_bull = 1.389734
+indicators2.force_index = -1551.346097
+indicators2.ease_of_movement = 19.579569
+indicators2.linreg_slope = 0.396804
+indicators2.linreg_r2 = 0.538383
+== stats2
+stats2.kendall_random = -0.008120
+stats2.ks_same_d = 0.155000
+stats2.ks_same_p = 0.014428
+stats2.ks_shift_d = 0.192500
+stats2.mann_whitney_u = 61432.0
+stats2.ad_normal = 0.561926
+stats2.omega_0 = 1.216298
+stats2.calmar = 1.895922
+stats2.sortino_kappa2 = 0.116375
+stats2.kappa3 = 0.088156
+stats2.tail_ratio = 0.945176
+stats2.psr = 0.941548
+stats2.expected_max_sr = 0.126530
+stats2.hill_alpha = 3.2066
+stats2.cornish_fisher = 1.773650
+stats2.cf_var_normal_sample = 0.022159
+stats2.nw_slope = 1.864496
+== almgren_chriss
+almgren_chriss.twap_cost = 662500.00
+almgren_chriss.kappa = 0.607076
+almgren_chriss.first_trade = 458044.45
+almgren_chriss.sqrt_impact_bps = 50.5964
+== tca
+tca.total_bps = 25.4000
+tca.avg_price = 100.1875
+tca.vs_arrival_bps = 13.7431
+tca.vs_vwap_bps = -6.2344
+== surveillance
+surveillance.spoofing = spoofer
+surveillance.wash_trade = fund:beta
+surveillance.order_to_trade = hft
+surveillance.quote_stuffing = hft
+surveillance.marking_close = closer
+== strategies
+strategies.pop = 0.391274
+strategies.straddle_cost = 9.950154
+strategies.straddle_delta = 0.081640
+strategies.condor_pop = 0.535704
+== regime
+regime.sigma_calm = 0.00497
+regime.sigma_turbulent = 0.02446
+regime.stay_calm = 0.9885
+regime.calm_duration = 87.22
+regime.viterbi_accuracy = 0.9890
+regime.bic_2 = -13471.66
+== corporate
+corporate.total_return_index = 116.150943
+== liquidity
+liquidity.amihud = 0.02612427
+liquidity.corwin_schultz = 0.004352
+liquidity.vpin = 0.235403
+== span_margin
+span_margin.total_futures = 41900.00
+span_margin.short_put_scan = 10292.73
+span_margin.short_put_worst = -2x extreme
+span_margin.put_spread_margin = 3883.27
+== pricing_models
+pricing_models.black_scholes = 10.450584
+pricing_models.bachelier = 10.276275
+pricing_models.crr_european = 10.448584
+pricing_models.crr_american = 10.448584
+pricing_models.merton_jump = 10.450584
+pricing_models.merton_otm_put = 1.306410
+pricing_models.barrier_down_out = 8.665472
+pricing_models.barrier_up_out = 1.176065
+== immunization
+immunization.liability_duration = 6.161311
+immunization.units_short = 11020.9493
+immunization.units_long = 8214.8576
+== pairs
+pairs.trades = 29
+pairs.total_return = 0.457470
+pairs.sharpe = 2.4815
+pairs.half_life = 4.8740
+== sizing
+sizing.kelly_fraction = 0.4098
+sizing.vol_target_leverage = 0.3181
+selftest: 1139 passed, 0 failed

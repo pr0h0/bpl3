@@ -85,6 +85,12 @@ or historical results rather than guarantees about the current implementation.
 - [Reflection and JSON](55-reflection-and-json.md) - Generic JSON encoding through reflection
 - [View Engine](55-view-engine.md) - `bpl-templ` templates
 - [Runtime Library](66-runtime-library.md) - The native runtime the compiler links
+- [Threads and Synchronization](68-stdlib-concurrency.md) - Threads, atomics, locks and channels
+- [Lazy Iterators](69-stdlib-iterators.md) - Chainable `Iter<T>` adapters and consumers
+- [Hashing, Bits and Random](70-stdlib-hashing-bits-random.md) - Hashes, checksums, bit helpers and PRNGs
+- [Text Formats](71-stdlib-text-formats.md) - CSV, INI, semver, ANSI colours, tables and base85
+- [Compression](72-stdlib-compression.md) - DEFLATE, zlib and gzip
+- [Matrices and Decimals](73-stdlib-numeric.md) - Linear algebra and fixed-point decimals
 
 ### Advanced Topics
 

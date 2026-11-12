@@ -1601,6 +1601,30 @@ export abstract class ExpressionGenerator extends UnaryExpressionGenerator {
       }
     }
 
+    // Field values are evaluated in source order, as call arguments and other
+    // literals are, and then placed in layout order.
+    const evaluated = new Map<string, { value: string; type: string }>();
+    for (const field of expr.fields) {
+      const valExpr = field.value;
+      let fieldTypeNode = valExpr.resolvedType!;
+      if (baseStructDef) {
+        const fieldDef =
+          this.getStructFieldByName(baseStructDef, field.name) ??
+          this.getAllStructFields(baseStructDef).find(
+            (candidate) => candidate.name === field.name,
+          );
+        if (fieldDef) {
+          fieldTypeNode = genericContextMap
+            ? this.substituteType(fieldDef.type, genericContextMap)
+            : fieldDef.type;
+        }
+      }
+      evaluated.set(field.name, {
+        type: this.resolveType(fieldTypeNode),
+        value: this.generateAggregateElementForTarget(valExpr, fieldTypeNode),
+      });
+    }
+
     for (const [fieldName, fieldIndex] of sortedFields) {
       if (fieldName === "__vtable__") {
         const vtableGlobal = this.vtableGlobalNames.get(structName);
@@ -1616,34 +1640,11 @@ export abstract class ExpressionGenerator extends UnaryExpressionGenerator {
         continue;
       }
 
-      let valExpr = fieldValues?.get(fieldName);
-      if (!fieldValues) {
-        for (const field of expr.fields) {
-          if (field.name === fieldName) {
-            valExpr = field.value;
-            break;
-          }
-        }
-      }
-      if (valExpr) {
-        let fieldTypeNode = valExpr.resolvedType!;
-        if (baseStructDef) {
-          const fieldDef = this.getStructFieldByName(baseStructDef, fieldName);
-          if (fieldDef) {
-            fieldTypeNode = genericContextMap
-              ? this.substituteType(fieldDef.type, genericContextMap)
-              : fieldDef.type;
-          }
-        }
-        const expectedFieldType = this.resolveType(fieldTypeNode);
-        const val = this.generateAggregateElementForTarget(
-          valExpr,
-          fieldTypeNode,
-        );
-
+      const field = evaluated.get(fieldName);
+      if (field) {
         const nextVal = this.newRegister();
         this.emit(
-          `  ${nextVal} = insertvalue ${type} ${structVal}, ${expectedFieldType} ${val}, ${fieldIndex}`,
+          `  ${nextVal} = insertvalue ${type} ${structVal}, ${field.type} ${field.value}, ${fieldIndex}`,
         );
         structVal = nextVal;
       }

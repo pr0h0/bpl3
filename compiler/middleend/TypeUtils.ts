@@ -190,7 +190,7 @@ export class TypeUtils {
    */
   static isIntegerType(type: AST.TypeNode): boolean {
     if (type.kind !== "BasicType") return false;
-    if (type.pointerDepth > 0) return false;
+    if (type.pointerDepth > 0 || type.arrayDimensions.length > 0) return false;
     return INTEGER_TYPES.includes(type.name);
   }
 
@@ -359,6 +359,13 @@ export class TypeUtils {
   ): boolean {
     const resolvedTarget = resolveType(targetType);
     if (resolvedTarget.kind !== "BasicType") return false;
+    // `name` is the element type: `*int`, `int[2]` and `int[]` are not integers.
+    if (
+      resolvedTarget.pointerDepth > 0 ||
+      resolvedTarget.arrayDimensions.length > 0
+    ) {
+      return false;
+    }
 
     // Check if target is integer type
     if (!INTEGER_TYPES.includes(resolvedTarget.name)) return false;

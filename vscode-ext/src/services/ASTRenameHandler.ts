@@ -16,7 +16,10 @@ import { fileURLToPath } from "url";
 import * as AST from "../../../compiler/common/AST";
 import { lexWithGrammar } from "../../../compiler/frontend/GrammarLexer";
 import { TokenType } from "../../../compiler/frontend/TokenType";
-import { findMemberReferences } from "./MemberReferences";
+import {
+  findMemberReferences,
+  findSpecMethodImplementations,
+} from "./MemberReferences";
 import { ASTResolver } from "./ASTResolver";
 import {
   collectGlobalValueReferences,
@@ -1169,27 +1172,22 @@ export class ASTRenameHandler {
       references.push(Location.create(document.uri, declarationRange));
     }
 
-    const content = document.getText();
-    const lines = content.split(/\r\n|\r|\n/);
-    for (let lineIdx = 0; lineIdx < lines.length; lineIdx++) {
-      const line = lines[lineIdx];
-      if (!line) continue;
-
-      const lineRegex = new RegExp(`\\.${methodName}\\s*\\(`, "g");
-      let match;
-      while ((match = lineRegex.exec(line)) !== null) {
-        references.push(
-          Location.create(
-            document.uri,
-            Range.create(
-              { line: lineIdx, character: match.index + 1 },
-              {
-                line: lineIdx,
-                character: match.index + 1 + methodName.length,
-              },
-            ),
-          ),
-        );
+    const filePath = fileURLToPath(document.uri);
+    const ast = this.astResolver.getCachedAST(filePath);
+    const spec = ast?.statements.find(
+      (statement): statement is AST.SpecDecl =>
+        statement.kind === "SpecDecl" &&
+        (statement as AST.SpecDecl).methods.includes(methodNode),
+    );
+    if (ast && spec) {
+      for (const range of findSpecMethodImplementations(
+        ast,
+        spec,
+        methodName,
+        document,
+        (expr) => this.astResolver.resolveType(expr, filePath),
+      )) {
+        references.push(Location.create(document.uri, range));
       }
     }
 
@@ -1295,7 +1293,11 @@ export class ASTRenameHandler {
       const nodes = collectGlobalValueReferences(ast, symbolName);
       const allowedStarts = new Set<number>();
       const exportRanges: Range[] = [];
-      for (const node of [declaration, ...nodes]) {
+      // Overloads share the name, so they are renamed together.
+      const declarations = ast.statements.filter(
+        (statement) => this.getSymbolName(statement) === symbolName,
+      );
+      for (const node of [...declarations, ...nodes]) {
         if (node.kind === "Export") {
           const loc = node.location;
           exportRanges.push(
@@ -1347,10 +1349,12 @@ export class ASTRenameHandler {
   ): Location[] {
     const filePath = fileURLToPath(currentDocument.uri);
     const ast = this.astResolver.getCachedAST(filePath);
-    const liveDeclaration = ast?.statements.find(
-      (statement) => this.getSymbolName(statement) === symbolName,
+    const isLiveDeclaration = ast?.statements.some(
+      (statement) =>
+        statement === declarationNode &&
+        this.getSymbolName(statement) === symbolName,
     );
-    if (liveDeclaration && liveDeclaration === declarationNode) {
+    if (isLiveDeclaration) {
       return this.findCurrentDocumentSymbolReferences(
         symbolName,
         currentDocument,
@@ -2253,6 +2257,9 @@ export class ASTRenameHandler {
       case "Block":
         (node as AST.BlockStmt).statements.forEach(callback);
         break;
+      case "Asm":
+        (node as AST.AsmBlockStmt).operands?.forEach(callback);
+        break;
       case "ExpressionStmt":
         const exprStmt = node as AST.ExpressionStmt;
         callback(exprStmt.expression);
@@ -2295,6 +2302,9 @@ export class ASTRenameHandler {
       case "Return":
         const retNode = node as AST.ReturnStmt;
         if (retNode.value) callback(retNode.value);
+        break;
+      case "Throw":
+        callback((node as AST.ThrowStmt).expression);
         break;
       case "VariableDecl":
         const varNode = node as AST.VariableDecl;

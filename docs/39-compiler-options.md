@@ -1037,7 +1037,7 @@ bun test tests/TypeCheckerBinaryOperatorMisuse.test.ts
 bun test tests/CLIJsonParseability.test.ts -t "binary operator misuse"
 ```
 
-Unary operator misuse failures use `BPL_DEREFERENCE_TARGET_INVALID`, `BPL_LOGICAL_NOT_OPERAND_TYPE_MISMATCH`, `BPL_BITWISE_NOT_OPERAND_TYPE_MISMATCH`, `BPL_UNARY_NEGATION_OPERAND_TYPE_MISMATCH`, and `BPL_UNARY_PLUS_UNSUPPORTED`. This covers invalid dereference targets, non-boolean logical-not operands, non-integer bitwise-not operands, non-numeric negation operands, and unsupported primitive unary plus. Representative messages include `Cannot dereference non-pointer type int`, `Logical not requires boolean operand`, `Bitwise not requires integer operand`, `Unary operator '-' cannot be applied to type 'string'`, and `Unary plus operator '+' is not supported`. The corresponding hints include `Dereference requires a pointer type.`, `Ensure the operand is a boolean expression.`, `Ensure the operand is an integer.`, `Negation requires a numeric type.`, and `Simply remove the '+' prefix.`. Valid pointer dereference, logical-not, bitwise-not, and numeric negation forms remain accepted; primitive unary plus remains rejected as a no-op. Reproduce the type-checker and JSON contracts with:
+A method whose `this` parameter is neither the struct nor a pointer to it reports `BPL_METHOD_RECEIVER_TYPE_MISMATCH`. Throwing or catching an array or tuple reports `BPL_EXCEPTION_TYPE_UNSUPPORTED`. Unary operator misuse failures use `BPL_DEREFERENCE_TARGET_INVALID`, `BPL_LOGICAL_NOT_OPERAND_TYPE_MISMATCH`, `BPL_BITWISE_NOT_OPERAND_TYPE_MISMATCH`, `BPL_UNARY_NEGATION_OPERAND_TYPE_MISMATCH`, and `BPL_UNARY_PLUS_UNSUPPORTED`. This covers invalid dereference targets, non-boolean logical-not operands, non-integer bitwise-not operands, non-numeric negation operands, and unsupported primitive unary plus. Representative messages include `Cannot dereference non-pointer type int`, `Logical not requires boolean operand`, `Bitwise not requires integer operand`, `Unary operator '-' cannot be applied to type 'string'`, and `Unary plus operator '+' is not supported`. The corresponding hints include `Dereference requires a pointer type.`, `Ensure the operand is a boolean expression.`, `Ensure the operand is an integer.`, `Negation requires a numeric type.`, and `Simply remove the '+' prefix.`. Valid pointer dereference, logical-not, bitwise-not, and numeric negation forms remain accepted; primitive unary plus remains rejected as a no-op. Reproduce the type-checker and JSON contracts with:
 
 ```bash
 bun test tests/TypeCheckerUnaryOperatorMisuse.test.ts
@@ -1072,7 +1072,7 @@ bun test tests/TypeCheckerStatementSemanticGuards.test.ts
 bun test tests/CLIJsonParseability.test.ts -t "statement semantic guard"
 ```
 
-Struct literal semantic failures use `BPL_STRUCT_LITERAL_UNKNOWN_STRUCT`, `BPL_GENERIC_ARITY_MISMATCH`, `BPL_STRUCT_LITERAL_FIELD_MISSING`, `BPL_STRUCT_LITERAL_FIELD_UNKNOWN`, and `BPL_STRUCT_LITERAL_FIELD_TYPE_MISMATCH`. This covers unknown struct names, generic arity mismatches, missing fields, unknown fields, and field type mismatches in struct literals. Representative messages include `Unknown struct 'Missing'`, `Generic type 'Box' expects 1 arguments, but got 2`, `Missing field 'y' in struct literal for 'Point'`, `Unknown field 'z' in struct 'Point'`, and `Type mismatch for field 'x': expected i32, got string`. The corresponding hints include `Ensure the struct is defined.`, `Provide the correct number of generic arguments.`, `Field 'y' is required.`, `Check the struct definition for valid fields.`, and `Field value must match the declared type.`. Valid concrete and generic struct literals remain accepted. Reproduce the type-checker and JSON contracts with:
+A struct literal naming a field twice reports `BPL_STRUCT_LITERAL_FIELD_DUPLICATE`. Struct literal semantic failures use `BPL_STRUCT_LITERAL_UNKNOWN_STRUCT`, `BPL_GENERIC_ARITY_MISMATCH`, `BPL_STRUCT_LITERAL_FIELD_MISSING`, `BPL_STRUCT_LITERAL_FIELD_UNKNOWN`, and `BPL_STRUCT_LITERAL_FIELD_TYPE_MISMATCH`. This covers unknown struct names, generic arity mismatches, missing fields, unknown fields, and field type mismatches in struct literals. Representative messages include `Unknown struct 'Missing'`, `Generic type 'Box' expects 1 arguments, but got 2`, `Missing field 'y' in struct literal for 'Point'`, `Unknown field 'z' in struct 'Point'`, and `Type mismatch for field 'x': expected i32, got string`. The corresponding hints include `Ensure the struct is defined.`, `Provide the correct number of generic arguments.`, `Field 'y' is required.`, `Check the struct definition for valid fields.`, and `Field value must match the declared type.`. Valid concrete and generic struct literals remain accepted. Reproduce the type-checker and JSON contracts with:
 
 ```bash
 bun test tests/TypeCheckerStructLiteralDiagnostics.test.ts
@@ -1098,6 +1098,12 @@ Match exhaustiveness failures use `BPL_MATCH_EXHAUSTIVENESS_MISMATCH`. This cove
 ```bash
 bun test tests/TypeCheckerMatchExhaustivenessDiagnostics.test.ts
 bun test tests/CLIJsonParseability.test.ts -t "match exhaustiveness diagnostics"
+```
+
+Literal match pattern failures use `BPL_MATCH_LITERAL_PATTERN_TYPE_MISMATCH` when a literal pattern's type cannot match the matched value, such as `"a"`, `1.0` or `true` matched against an integer, or `1` against a `bool`. An integer literal that does not fit the matched integer type uses `BPL_INTEGER_LITERAL_OVERFLOW`. A representative message is `Literal pattern "a" of type string cannot match a value of type u8`. Reproduce with:
+
+```bash
+bun test tests/MatchLiteralPatterns.test.ts
 ```
 
 Tuple match pattern failures use `BPL_MATCH_TUPLE_PATTERN_TYPE_MISMATCH` and `BPL_MATCH_TUPLE_PATTERN_ARITY_MISMATCH`. This covers tuple patterns used on non-tuple values and tuple pattern element-count mismatches. Representative messages include `Tuple pattern used on non-tuple type` and `Tuple pattern has 3 elements, but type has 2`. The corresponding hints include `Expected tuple type, got BasicType` and `Pattern and type must have the same number of elements`. Valid tuple pattern matching and tuple destructuring remain accepted. Reproduce the type-checker and JSON contracts with:
@@ -1352,6 +1358,36 @@ need `bpl run` compiled program execution or `bpl run-script` package script
 execution to fail instead of hanging indefinitely. When unset, both commands
 preserve normal unbounded execution. `BPL_RUN_TIMEOUT_MS` invalid values fall
 back to running without a timeout.
+
+## Large Builds
+
+A native build of a large program is arranged to use less memory and all
+cores:
+
+- **Parallel code generation.** When the LLVM IR of a native build is at least
+  4 MB, it is split into one part per core (at most 8, about 2 MB each).
+  Clang compiles the parts in parallel and the linker joins them. Small
+  functions that a part calls are copied into it as internal functions, so
+  they can still be inlined; functions whose address is taken are never
+  copied, so function pointers compare as usual. Builds with `--dwarf`,
+  `--shared`, a WebAssembly target or LTO flags are compiled as one module.
+  On a 48,000-line program with four cores, this cut the `-O2` clang phase from
+  about 70 s to about 20 s; the executable was 3.2 MB instead of 2.9 MB.
+- **A separate heap for the compile phase.** A project with at least 256 KB
+  of `.bpl` sources under the entry file's directory is parsed, checked and
+  lowered to IR in a worker that ends before clang starts, so the compiler's
+  memory is returned first. The compiler also collects garbage between its
+  phases. On the same program, peak memory fell from about 1.1 GB (compiler
+  and clang together) to about 650 MB (the compiler alone).
+  If the worker cannot start, the build compiles in process instead.
+
+| Variable                   | Effect                                                               |
+| -------------------------- | -------------------------------------------------------------------- |
+| `BPL_SPLIT_IR=0`           | Always compile the IR as one module                                  |
+| `BPL_SPLIT_IR=force`       | Split any module the splitter supports, regardless of size (testing) |
+| `BPL_COMPILE_IN_WORKER=1`  | Compile in a worker whatever the project size                        |
+| `BPL_COMPILE_IN_PROCESS=1` | Never use the worker                                                 |
+| `BPL_TRACE_MEMORY=1`       | Print resident and heap size after each compiler phase to stderr     |
 
 ## Debug Information
 
@@ -1618,21 +1654,32 @@ contract across `lib/runtime_wasm_host.ll`, the browser playground adapter, and
 the wasm runtime test harness, so adding or removing hosted wasm imports should
 update all three surfaces together. Hosted `printf`, `fprintf`, and `dprintf`
 implement a small browser-safe formatting subset: `%s` for null-terminated
-strings, `%d` for signed 32-bit integers, `%x`/`%X` for unsigned 32-bit hex,
-one-digit `%Nd` and `%0Nd` integer widths, `%c` for one byte, `%f`/`%.Nf` for
-fixed-point doubles with one-digit precision, and `%%` for a literal percent
-sign. Unsupported format specifiers are emitted literally with their leading
+strings, `%d`/`%i` for signed 32-bit integers, `%u` for unsigned 32-bit
+integers, `%x`/`%X` for unsigned 32-bit hex, `%ld`/`%lld`, `%lu`/`%llu` and
+`%lx`/`%llx`/`%lX`/`%llX` for 64-bit integers (BPL `long`/`ulong`; `l` and
+`ll` both read 64 bits), one-digit `%Nd` and `%0Nd` integer widths, `%c` for
+one byte, `%f`/`%.Nf` for fixed-point doubles with one-digit precision, and
+`%%` for a literal percent sign. Unsupported format specifiers are emitted literally with their leading
 `%` so output remains predictable. Edge cases are also stable: null `%s`
 arguments print `(null)`; a dangling `%` prints as `%`; unsupported specifiers
 do not consume varargs. Use native targets or a richer host/runtime adapter for
-full libc formatting such as multi-digit widths, long integer modifiers,
-scientific notation, or locale-sensitive output. `wasm32-wasi`,
+full libc formatting such as multi-digit widths, scientific notation, or
+locale-sensitive output. `wasm32-wasi`,
 `wasm32-wasip1`, and
 target triples with an `emscripten` component select hosted mode by default;
 `wasm32-unknown-unknown` stays freestanding unless `--wasm-runtime host` is
 provided. Hosted defaults match target components, so substring-only components
 such as `notwasi` or `notemscripten` stay freestanding unless
 `--wasm-runtime host` is explicit.
+
+`try`/`catch`, `throw` and `defer` during unwinding work on WebAssembly, and
+a checked runtime error (null access, index out of bounds, division by zero)
+inside a `try` is thrown like on native targets. They use WebAssembly
+exception handling (clang's `-fwasm-exceptions -mllvm -wasm-enable-sjlj`), so
+the module needs a host with that feature, and building needs clang 19 or
+newer. With older clang a `try` block runs normally, but a `throw` stops the
+module with an `unreachable` trap, and a checked runtime error reports and
+traps.
 
 Programs that depend on full operating-system APIs such as files, sockets,
 process calls, or platform-specific inline assembly still need a richer

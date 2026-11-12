@@ -9,6 +9,30 @@ import { expectCheckDiagnostics } from "./helpers/languageSpec";
 // Executable checks for LANGUAGE_SPEC.md sections 5 through 7.2.
 
 describe("language specification: declarations", () => {
+  // spec: R-DECL-6
+  test("tuple assignment targets may be parenthesized", () => {
+    expectCorrectnessSuite([
+      {
+        name: "parenthesized-tuple-targets",
+        validateLlvm: true,
+        source: `extern printf(fmt: string, ...);
+struct S { x: int, }
+frame main() ret int {
+  local v: int = 1;
+  local p: *int = &v;
+  local s: S = S { x: 2 };
+  local w: int = 3;
+  ((*p), (s.x)) = (s.x, *p);
+  (((w)), *p) = (*p + 10, w);
+  printf("%d %d %d\\n", v, s.x, w);
+  return 0;
+}
+`,
+        expectedStdout: "3 1 12\n",
+      },
+    ]);
+  });
+
   // spec: R-DECL-2, R-DECL-3, R-DECL-4, R-DECL-5, R-DECL-6, R-DECL-8, R-DECL-9, R-DECL-10
   test("variables, aliases, destructuring, constants, and scopes", () => {
     expectCorrectnessSuite([
@@ -434,25 +458,32 @@ frame main() ret int {
   }, 120000);
 
   // spec: R-SPEC-4
-  test("rejects spec pointers that outlive the frame that built them", () => {
-    expectCheckDiagnostics([
+  test("keeps spec pointers returned, stored in globals and in fields", () => {
+    expectCorrectnessSuite([
       {
-        name: "spec-pointer-return",
-        source:
-          "spec Shape { frame area(this: *Self) ret int; }\nstruct Sq: Shape { side: int, frame area(this: *Sq) ret int { return this.side; } }\nframe make(sq: *Sq) ret *Shape { return sq; }\nframe main() ret int { local s: Sq; s.side = 1; return make(&s).area(); }\n",
-        code: "BPL_SPEC_POINTER_ESCAPES",
-      },
-      {
-        name: "spec-pointer-global",
-        source:
-          "spec Shape { frame area(this: *Self) ret int; }\nglobal current: *Shape = nullptr;\nframe main() ret int { return 0; }\n",
-        code: "BPL_SPEC_POINTER_ESCAPES",
-      },
-      {
-        name: "spec-pointer-field",
-        source:
-          "spec Shape { frame area(this: *Self) ret int; }\nstruct Holder { shape: *Shape, }\nframe main() ret int { local h: Holder; return 0; }\n",
-        code: "BPL_SPEC_POINTER_ESCAPES",
+        name: "spec-pointer-outlives-its-conversion",
+        validateLlvm: true,
+        source: `extern printf(fmt: string, ...);
+spec Shape { frame area(this: *Self) ret int; }
+struct Sq: Shape { side: int, frame area(this: *Sq) ret int { return this.side * this.side; } }
+struct Holder { shape: *Shape, }
+global current: *Shape = nullptr;
+global square: Sq;
+frame make(sq: *Sq) ret *Shape { return sq; }
+frame clobber(a: int) ret int {
+  local arr: int[64];
+  loop (local i: int = 0; i < 64; i++) { arr[i] = a + i; }
+  return arr[5];
+}
+frame main() ret int {
+  square.side = 3;
+  local h: Holder = Holder { shape: make(&square) };
+  printf("%d ", cast<int>(current == nullptr));
+  current = h.shape;
+  printf("%d %d %d\\n", clobber(1), current.area(), h.shape.area());
+  return 0;
+}`,
+        expectedStdout: "1 6 9 9\n",
       },
     ]);
   }, 120000);

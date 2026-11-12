@@ -61,12 +61,72 @@ export abstract class CallExpressionGenerator extends BinaryExpressionGenerator 
     structType: AST.BasicTypeNode,
     specType: AST.BasicTypeNode,
   ): string;
+  protected abstract emitSpecFatPointer(
+    structPointer: string,
+    structPointerType: string,
+    structTypeNode: AST.BasicTypeNode,
+    specTypeNode: AST.BasicTypeNode,
+    specDecl: AST.SpecDecl,
+  ): string;
   protected abstract generateTupleLiteralForTarget(
     expr: AST.TupleLiteralExpr,
     targetTypeNode: AST.TupleTypeNode,
   ): string;
 
   protected noteDirectFunctionCall(_name: string): void {}
+
+  private descendantBaseNames: Set<string> | undefined;
+  private descendantBaseNamesSize = -1;
+
+  /** Whether any struct lists `name` (a struct or generic base name) as a parent. */
+  protected structHasDescendants(name: string): boolean {
+    if (
+      !this.descendantBaseNames ||
+      this.descendantBaseNamesSize !== this.structMap.size
+    ) {
+      const names = new Set<string>();
+      for (const decl of this.structMap.values()) {
+        for (const parent of decl.inheritanceList ?? []) {
+          if (parent.kind !== "BasicType") continue;
+          names.add(parent.name);
+          // A concrete generic parent (`struct C : Box<int>`) is also known
+          // by its instantiated name; a generic child's parent mentions the
+          // child's own parameters, and its base name above covers it.
+          if (
+            parent.genericArgs.length > 0 &&
+            (decl.genericParams ?? []).length === 0
+          ) {
+            try {
+              const resolved = this.resolveType({
+                ...parent,
+                pointerDepth: 0,
+                arrayDimensions: [],
+              });
+              if (resolved.startsWith("%struct."))
+                names.add(resolved.slice("%struct.".length));
+            } catch {
+              // An unresolvable parent cannot have been instantiated.
+            }
+          }
+        }
+      }
+      this.descendantBaseNames = names;
+      this.descendantBaseNamesSize = this.structMap.size;
+    }
+    return this.descendantBaseNames.has(name);
+  }
+
+  protected staticVTableFor(
+    structName: string,
+    typeName?: string,
+  ): { global: string; type: string } | undefined {
+    if (this.structHasDescendants(structName)) return undefined;
+    if (typeName && this.structHasDescendants(typeName)) return undefined;
+    const global = this.vtableGlobalNames.get(structName);
+    const methods = this.vtableLayouts.get(structName);
+    if (!global || !methods || methods.length === 0) return undefined;
+    return { global, type: `[${methods.length} x i8*]` };
+  }
 
   /**
    * Generate virtual method call through vtable
@@ -1268,7 +1328,12 @@ export abstract class CallExpressionGenerator extends BinaryExpressionGenerator 
       const objType = memberExpr.object.resolvedType as AST.BasicTypeNode;
       if (objType && objType.kind === "BasicType") {
         let structName = objType.name;
-        if (this.currentTypeMap.has(structName)) {
+        // Layouts are keyed by the instantiated name (`Holder_i32`), so a
+        // generic receiver such as `*Holder<T>` is resolved first (BUG-600).
+        if (
+          this.currentTypeMap.has(structName) ||
+          objType.genericArgs.length > 0
+        ) {
           const typeStr = this.resolveType(objType); // %struct.Name
           if (typeStr.startsWith("%struct.")) {
             structName = typeStr.substring(8);
@@ -1426,6 +1491,34 @@ export abstract class CallExpressionGenerator extends BinaryExpressionGenerator 
         expr.location,
       );
     }
+    // The checker's callee type is already instantiated (`id<Wrap<T>>` has
+    // parameter `Wrap<T>`). Applying the call's map {T: Wrap<T>} to it again
+    // would give `Wrap<Wrap<T>>` when the callee's parameter is also named T
+    // (BUG-603), so the map is applied to the declared signature instead.
+    const calleeDeclaration = funcType?.declaration as
+      AST.FunctionDecl | undefined;
+    // A method's declared signature also lists `this`, which the call's type
+    // omits, so only free and static calls use it.
+    // Only when a type argument mentions one of the callee's own parameter
+    // names: other calls keep the checker's type, which also carries resolved
+    // array aliases (`select<Row>(grid, 2)` with `type Row = int[2]`).
+    const calleeParameterNames = new Set(
+      (calleeDeclaration?.genericParams ?? []).map((param) => param.name),
+    );
+    const declaredSignature =
+      !isInstanceCall &&
+      calleeDeclaration?.kind === "FunctionDecl" &&
+      calleeDeclaration.genericParams.length > 0 &&
+      calleeDeclaration.genericParams.every((param) =>
+        callSubstitutionMap.has(param.name),
+      ) &&
+      [...callSubstitutionMap.values()].some((argument) =>
+        typeMentionsName(argument, calleeParameterNames),
+      ) &&
+      calleeDeclaration.resolvedType?.kind === "FunctionType"
+        ? (calleeDeclaration.resolvedType as AST.FunctionTypeNode)
+        : undefined;
+    const signature: AST.FunctionTypeNode = declaredSignature ?? funcType;
 
     if (
       funcType.declaration &&
@@ -1483,11 +1576,11 @@ export abstract class CallExpressionGenerator extends BinaryExpressionGenerator 
           } else {
             targetTypeNode = arg.resolvedType;
           }
-        } else if (i - 1 < funcType.paramTypes.length) {
-          targetTypeNode = funcType.paramTypes[i - 1];
+        } else if (i - 1 < signature.paramTypes.length) {
+          targetTypeNode = signature.paramTypes[i - 1];
         }
-      } else if (i < funcType.paramTypes.length) {
-        targetTypeNode = funcType.paramTypes[i];
+      } else if (i < signature.paramTypes.length) {
+        targetTypeNode = signature.paramTypes[i];
       }
 
       if (targetTypeNode) {
@@ -1596,47 +1689,15 @@ export abstract class CallExpressionGenerator extends BinaryExpressionGenerator 
               if (structDecl) {
                 // Generate fat pointer
                 const structType = { ...argType, pointerDepth: 0 };
-                const vtableName = this.getOrGenerateSpecVTable(
+                const srcVal = this.generateExpression(arg);
+                const pair = this.emitSpecFatPointer(
+                  srcVal,
+                  srcType,
                   structType,
                   targetTypeNode,
+                  specDecl,
                 );
-
-                // Allocate fat pointer on stack
-                const fatPtr = this.allocateStack(
-                  `fat_ptr_${this.labelCount++}`,
-                  "{ i8*, i8* }",
-                );
-
-                // Store data pointer (cast to i8*)
-                const dataPtrPtr = this.newRegister();
-                this.emit(
-                  `  ${dataPtrPtr} = getelementptr inbounds { i8*, i8* }, { i8*, i8* }* ${fatPtr}, i32 0, i32 0`,
-                );
-
-                const srcVal = this.generateExpression(arg); // This is the struct pointer
-                const srcVoidPtr = this.newRegister();
-                this.emit(
-                  `  ${srcVoidPtr} = bitcast ${srcType} ${srcVal} to i8*`,
-                );
-                this.emit(`  store i8* ${srcVoidPtr}, i8** ${dataPtrPtr}`);
-
-                // Store vtable pointer (cast to i8*)
-                const vtablePtrPtr = this.newRegister();
-                this.emit(
-                  `  ${vtablePtrPtr} = getelementptr inbounds { i8*, i8* }, { i8*, i8* }* ${fatPtr}, i32 0, i32 1`,
-                );
-
-                const vtableSize = this.getAllSpecMethods(specDecl).length;
-                const vtableType = `[${vtableSize} x i8*]`;
-                const vtableGlobal = `@${vtableName}`;
-
-                const vtableVoidPtr = this.newRegister();
-                this.emit(
-                  `  ${vtableVoidPtr} = bitcast ${vtableType}* ${vtableGlobal} to i8*`,
-                );
-                this.emit(`  store i8* ${vtableVoidPtr}, i8** ${vtablePtrPtr}`);
-
-                return `{ i8*, i8* }* ${fatPtr}`;
+                return `{ i8*, i8* } ${pair}`;
               }
             }
           }
@@ -2158,7 +2219,7 @@ export abstract class CallExpressionGenerator extends BinaryExpressionGenerator 
         }
 
         paramTypes.push(
-          ...funcType.paramTypes.map((t, _i) => {
+          ...signature.paramTypes.map((t, _i) => {
             let resolved = t;
             if (callSubstitutionMap.size > 0) {
               resolved = this.substituteType(t, callSubstitutionMap);
@@ -2195,7 +2256,7 @@ export abstract class CallExpressionGenerator extends BinaryExpressionGenerator 
 
         const substitutedRet =
           callSubstitutionMap.size > 0
-            ? this.substituteType(funcType.returnType, callSubstitutionMap)
+            ? this.substituteType(signature.returnType, callSubstitutionMap)
             : funcType.returnType;
 
         let retTypeStr: string;
@@ -2407,5 +2468,26 @@ export abstract class CallExpressionGenerator extends BinaryExpressionGenerator 
     this.definedFunctions.add(lowered.wrapperName);
     this.cAbiWrappers.set(decl.name, lowered.wrapperName);
     return lowered.wrapperName;
+  }
+}
+
+/** Whether `type` names any of `names`, at any depth. */
+function typeMentionsName(type: AST.TypeNode, names: Set<string>): boolean {
+  switch (type.kind) {
+    case "BasicType":
+      return (
+        names.has(type.name) ||
+        type.genericArgs.some((argument) => typeMentionsName(argument, names))
+      );
+    case "TupleType":
+      return type.types.some((element) => typeMentionsName(element, names));
+    case "FunctionType":
+    case "LambdaType":
+      return (
+        typeMentionsName(type.returnType, names) ||
+        type.paramTypes.some((param) => typeMentionsName(param, names))
+      );
+    default:
+      return false;
   }
 }

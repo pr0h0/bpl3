@@ -71,6 +71,94 @@ enum Option<T> {
         };
     }
 
+    # This option when it holds a value satisfying `predicate`, else None.
+    frame filter(this: Option<T>, predicate: Lambda<bool>(T)) ret Option<T> {
+        return match (this) {
+            Option.Some(val) => Option<T>.filterValue(val, predicate(val)),
+            Option.None => Option<T>.None,
+        };
+    }
+
+    frame filterValue(value: T, keep: bool) ret Option<T> {
+        if (keep) {
+            return Option<T>.Some(value);
+        }
+        return Option<T>.None;
+    }
+
+    # This option when it has a value, otherwise `other`.
+    frame or(this: Option<T>, other: Option<T>) ret Option<T> {
+        return match (this) {
+            Option.Some(_) => this,
+            Option.None => other,
+        };
+    }
+
+    # This option when it has a value, otherwise `fallback()`.
+    frame orElse(this: Option<T>, fallback: Lambda<Option<T>>()) ret Option<T> {
+        return match (this) {
+            Option.Some(_) => this,
+            Option.None => fallback(),
+        };
+    }
+
+    # The one option that has a value, or None when both or neither do.
+    frame xor(this: Option<T>, other: Option<T>) ret Option<T> {
+        if (this.isSome() && other.isNone()) {
+            return this;
+        }
+        if (this.isNone() && other.isSome()) {
+            return other;
+        }
+        return Option<T>.None;
+    }
+
+    # True when there is a value and it satisfies `predicate`.
+    frame isSomeAnd(this: Option<T>, predicate: Lambda<bool>(T)) ret bool {
+        return match (this) {
+            Option.Some(val) => predicate(val),
+            Option.None => false,
+        };
+    }
+
+    # True when there is no value or it satisfies `predicate`.
+    frame isNoneOr(this: Option<T>, predicate: Lambda<bool>(T)) ret bool {
+        return match (this) {
+            Option.Some(val) => predicate(val),
+            Option.None => true,
+        };
+    }
+
+    # `transform(value)`, or `defaultValue` when there is none.
+    frame mapOr<U>(this: Option<T>, defaultValue: U, transform: Lambda<U>(T)) ret U {
+        return match (this) {
+            Option.Some(val) => transform(val),
+            Option.None => defaultValue,
+        };
+    }
+
+    # Calls `action` with the value, if any, and returns the option.
+    frame inspect(this: Option<T>, action: Lambda<void>(T)) ret Option<T> {
+        if (this.isSome()) {
+            action(this.unwrap());
+        }
+        return this;
+    }
+
+    # Takes the value out of the option it points to, leaving None.
+    frame take(this: *Option<T>) ret Option<T> {
+        local value: Option<T> = *this;
+        *this = Option<T>.None;
+        return value;
+    }
+
+    # Stores `value` and returns the previous contents.
+    frame replace(this: *Option<T>, value: T) ret Option<T> {
+        local previous: Option<T> = *this;
+        *this = Option<T>.Some(value);
+        return previous;
+    }
+
     frame __eq__(this: *Option<T>, other: *Option<T>) ret bool {
         return match (*this) {
             Option.Some(v1) => match (*other) {

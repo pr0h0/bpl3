@@ -1965,6 +1965,21 @@ export abstract class MatchExpressionGenerator extends CallExpressionGenerator {
         const targetHasVtable = this.vtableGlobalNames.has(targetStructName);
 
         if (targetCouldBeValid && valueHasVtable && targetHasVtable) {
+          // A null pointer has no runtime type, so it matches nothing; its
+          // vtable slot must not be read.
+          const isNull = this.newRegister();
+          const nullLabel = this.newLabel("is.null");
+          const loadLabel = this.newLabel("is.load");
+          const doneLabel = this.newLabel("is.done");
+          this.emit(
+            `  ${isNull} = icmp eq %struct.${valueStructName}* ${matchValue}, null`,
+          );
+          this.emit(
+            `  br i1 ${isNull}, label %${nullLabel}, label %${loadLabel}`,
+          );
+          this.emit(`${nullLabel}:`);
+          this.emit(`  br label %${doneLabel}`);
+          this.emit(`${loadLabel}:`);
           // Generate runtime vtable comparison
           // 1. Load the vtable pointer from the object (first field)
           const vtablePtrPtr = this.newRegister();
@@ -1985,9 +2000,18 @@ export abstract class MatchExpressionGenerator extends CallExpressionGenerator {
           this.emit(
             `  ${targetVtablePtr} = bitcast ${targetVtableType}* ${targetVtable} to i8*`,
           );
+          const matches = this.newRegister();
+          this.emit(
+            `  ${matches} = icmp eq i8* ${actualVtable}, ${targetVtablePtr}`,
+          );
+          const compared = this.newLabel("is.compared");
+          this.emit(`  br label %${compared}`);
+          this.emit(`${compared}:`);
+          this.emit(`  br label %${doneLabel}`);
+          this.emit(`${doneLabel}:`);
           const result = this.newRegister();
           this.emit(
-            `  ${result} = icmp eq i8* ${actualVtable}, ${targetVtablePtr}`,
+            `  ${result} = phi i1 [ false, %${nullLabel} ], [ ${matches}, %${compared} ]`,
           );
           return result;
         }
@@ -2074,7 +2098,55 @@ export abstract class MatchExpressionGenerator extends CallExpressionGenerator {
     return result;
   }
 
+  /**
+   * For a `*Spec` source, whether the object it points at is exactly the
+   * struct `destName`: the object's own vtable pointer is its first field.
+   * Returns the i1 result and the object's data pointer, or undefined when
+   * the source is not a `*Spec` or the struct has no vtable.
+   */
+  private emitSpecExactTypeCheck(
+    source: AST.Expression,
+    destType: AST.TypeNode,
+  ): { matches: string; data: string; destName: string } | undefined {
+    if (!this.isSpecPointerType(source.resolvedType)) return undefined;
+    if (destType.kind !== "BasicType" || destType.pointerDepth > 1)
+      return undefined;
+    const destName = destType.name;
+    const vtableName = this.vtableGlobalNames.get(destName);
+    if (!vtableName) return undefined;
+    const pair = this.generateExpression(source);
+    const data = this.newRegister();
+    this.emit(`  ${data} = extractvalue { i8*, i8* } ${pair}, 0`);
+    const nonNullLabel = this.newLabel("spec_is.nonnull");
+    const doneLabel = this.newLabel("spec_is.done");
+    const entryLabel = this.newLabel("spec_is.entry");
+    this.emit(`  br label %${entryLabel}`);
+    this.emit(`${entryLabel}:`);
+    const isNull = this.newRegister();
+    this.emit(`  ${isNull} = icmp eq i8* ${data}, null`);
+    this.emit(`  br i1 ${isNull}, label %${doneLabel}, label %${nonNullLabel}`);
+    this.emit(`${nonNullLabel}:`);
+    const slot = this.newRegister();
+    this.emit(`  ${slot} = bitcast i8* ${data} to i8**`);
+    const actual = this.newRegister();
+    this.emit(`  ${actual} = load i8*, i8** ${slot}`);
+    const size = (this.vtableLayouts.get(destName) ?? []).length;
+    const expected = this.newRegister();
+    this.emit(`  ${expected} = bitcast [${size} x i8*]* ${vtableName} to i8*`);
+    const same = this.newRegister();
+    this.emit(`  ${same} = icmp eq i8* ${actual}, ${expected}`);
+    this.emit(`  br label %${doneLabel}`);
+    this.emit(`${doneLabel}:`);
+    const matches = this.newRegister();
+    this.emit(
+      `  ${matches} = phi i1 [ false, %${entryLabel} ], [ ${same}, %${nonNullLabel} ]`,
+    );
+    return { matches, data, destName };
+  }
+
   protected generateIs(expr: AST.IsExpr): string {
+    const specCheck = this.emitSpecExactTypeCheck(expr.expression, expr.type);
+    if (specCheck) return specCheck.matches;
     const typeMatchExpr: AST.TypeMatchExpr = {
       kind: "TypeMatch",
       targetType: expr.type,
@@ -2088,6 +2160,20 @@ export abstract class MatchExpressionGenerator extends CallExpressionGenerator {
     // Check if this is a downcast of struct pointers - need runtime type check
     const srcType = expr.expression.resolvedType;
     const destType = expr.type;
+
+    const specCheck = this.emitSpecExactTypeCheck(expr.expression, destType);
+    if (specCheck) {
+      const destLlvmType = `%struct.${specCheck.destName}*`;
+      const typed = this.newRegister();
+      this.emit(
+        `  ${typed} = bitcast i8* ${specCheck.data} to ${destLlvmType}`,
+      );
+      const result = this.newRegister();
+      this.emit(
+        `  ${result} = select i1 ${specCheck.matches}, ${destLlvmType} ${typed}, ${destLlvmType} null`,
+      );
+      return result;
+    }
 
     // If both are pointers to structs with potential inheritance, do runtime check
     if (

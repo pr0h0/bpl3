@@ -167,7 +167,10 @@ if (p != nullptr) {
 
 Pointers can be incremented, decremented, and used in arithmetic operations:
 
-### Increment/Decrement
+### Moving by one element
+
+`++` and `--` do not apply to pointers; move one element with `+= 1` and
+`-= 1`.
 
 ```bpl
 local arr: int[5] = [10, 20, 30, 40, 50];
@@ -175,10 +178,10 @@ local p: *int = &arr[0];
 
 printf("%d\n", *p);  # 10
 
-p++;                 # Move to next int
+p += 1;              # Move to next int
 printf("%d\n", *p);  # 20
 
-p--;                 # Move back
+p -= 1;              # Move back
 printf("%d\n", *p);  # 10
 ```
 
@@ -227,12 +230,12 @@ Pointer arithmetic automatically scales by the size of the pointed-to type:
 local arr: int[3];
 local p: *int = &arr[0];
 
-p++;  # Adds sizeof(int) bytes (typically 4)
+p += 1;  # Adds sizeof(int) bytes (typically 4)
 
 local chars: char[10];
 local cp: *char = &chars[0];
 
-cp++;  # Adds sizeof(char) bytes (1)
+cp += 1;  # Adds sizeof(char) bytes (1)
 ```
 
 ## Pointers and Arrays
@@ -261,8 +264,10 @@ local p: *int = arr;
 printf("%d\n", arr[2]);   # 30
 printf("%d\n", p[2]);     # 30
 printf("%d\n", *(p + 2)); # 30
-printf("%d\n", *(arr + 2));  # 30
 ```
+
+An array is not a pointer in arithmetic: `arr + 2` is an error, while
+`&arr[2]` and `p + 2` are pointers.
 
 ### Iterating with Pointers
 
@@ -276,10 +281,10 @@ loop (local i: int = 0; i < 5; i++) {
 
 # Using pointer
 local p: *int = arr;
-local end: *int = arr + 5;
+local end: *int = p + 5;
 loop (p < end) {
     printf("%d\n", *p);
-    p++;
+    p += 1;
 }
 ```
 
@@ -648,7 +653,7 @@ struct Iterator {
 
     frame next() ret int {
         local value: int = *this.current;
-        this.current++;
+        this.current += 1;
         return value;
     }
 }

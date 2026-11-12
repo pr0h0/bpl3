@@ -80,6 +80,38 @@ export function generateBplBindings(options: BindgenOptions): string {
     typedefs.map((typedef) => [typedef.name, typedef.mappedType]),
   );
   const prototypes = extractFunctionPrototypes(source);
+  const arrayRows = new Map<string, string>();
+  const formattedPrototypes = prototypes.map((prototype) =>
+    formatPrototype(prototype, aliases, arrayRows),
+  );
+  const integerConstants = new Map<string, bigint>();
+  for (const constant of constants) {
+    const value = evaluateIntegerExpression(constant.value, new Map());
+    if (
+      value !== undefined &&
+      !/^(double|f32|string|char)$/.test(constant.type)
+    )
+      integerConstants.set(constant.name, value);
+  }
+  const formattedEnums = enums.map((enumDecl) =>
+    formatEnum(enumDecl, integerConstants),
+  );
+  const enumConstants = formattedEnums.flatMap((text) =>
+    [...text.matchAll(/^global const (\w+):/gm)].map((match) => match[1]!),
+  );
+  const exports = formatExports(
+    [
+      ...constants.map((constant) => constant.name),
+      ...enumConstants,
+      ...prototypes.map((prototype) => prototype.name),
+    ],
+    [
+      ...typedefs.map((typedef) => typedef.name),
+      ...structs.map((struct) => struct.name),
+      ...enums.map((enumDecl) => enumDecl.name),
+      ...arrayRows.keys(),
+    ],
+  );
   const lines = [
     `# Generated from ${options.headerPath}`,
     "# Review pointer and platform-specific integer mappings before publishing.",
@@ -90,9 +122,13 @@ export function generateBplBindings(options: BindgenOptions): string {
     ...sectionBreak(typedefs.length > 0),
     ...structs.map((struct) => formatStruct(struct, aliases)),
     ...sectionBreak(structs.length > 0),
-    ...enums.map(formatEnum),
+    ...formattedEnums,
     ...sectionBreak(enums.length > 0),
-    ...prototypes.map((prototype) => formatPrototype(prototype, aliases)),
+    ...[...arrayRows].map(([name, type]) => `type ${name} = ${type};`),
+    ...sectionBreak(arrayRows.size > 0),
+    ...formattedPrototypes,
+    ...sectionBreak(exports.length > 0),
+    ...exports,
     "",
   ];
 
@@ -138,7 +174,8 @@ interface CStruct {
 
 interface CEnum {
   name: string;
-  variants: string[];
+  /** Each enumerator with its C initializer, when it has one. */
+  variants: { name: string; value?: string }[];
 }
 
 interface CPrototype {
@@ -526,7 +563,9 @@ function extractEnums(source: string): CEnum[] {
   const enums: CEnum[] = [];
   const typedefPattern =
     /typedef\s+enum(?:\s+[A-Za-z_]\w*)?\s*\{([\s\S]*?)\}\s*([A-Za-z_]\w*)\s*;/g;
-  const plainPattern = /(?:^|;)\s*enum\s+([A-Za-z_]\w*)\s*\{([\s\S]*?)\}\s*;/g;
+  // Consecutive declarations share no separator, so the lookbehind must not
+  // consume one: `enum A {...}; enum B {...};` declares both.
+  const plainPattern = /(?<![\w$])enum\s+([A-Za-z_]\w*)\s*\{([^{}]*)\}\s*;/g;
 
   for (const match of cleaned.matchAll(typedefPattern)) {
     enums.push({
@@ -697,13 +736,102 @@ function extractDeclarationBaseType(declaration: string): string | null {
   return beforeName.replace(/\*+\s*$/, "").trim() || null;
 }
 
-function parseEnumVariants(body: string): string[] {
+function parseEnumVariants(body: string): CEnum["variants"] {
   return body
     .split(",")
     .map((variant) => variant.trim())
     .filter(Boolean)
-    .map((variant) => variant.replace(/\s*=.*$/, "").trim())
-    .filter(Boolean);
+    .flatMap((variant) => {
+      const [name, ...value] = variant.split("=");
+      const trimmed = name!.trim();
+      if (!trimmed) return [];
+      return value.length > 0
+        ? [{ name: trimmed, value: value.join("=").trim() }]
+        : [{ name: trimmed }];
+    });
+}
+
+/**
+ * The value of each enumerator: its initializer, or one more than the
+ * previous value. Undefined from the first initializer that is not an integer
+ * expression of literals, earlier enumerators and integer `#define`s.
+ */
+function enumValues(
+  enumDecl: CEnum,
+  known: Map<string, bigint>,
+): (bigint | undefined)[] {
+  const scope = new Map(known);
+  let next: bigint | undefined = 0n;
+  return enumDecl.variants.map((variant) => {
+    const value =
+      variant.value === undefined
+        ? next
+        : evaluateIntegerExpression(variant.value, scope);
+    if (value !== undefined) scope.set(variant.name, value);
+    next = value === undefined ? undefined : value + 1n;
+    return value;
+  });
+}
+
+/** Evaluates a C integer constant expression; undefined if it is not one. */
+function evaluateIntegerExpression(
+  text: string,
+  scope: ReadonlyMap<string, bigint>,
+): bigint | undefined {
+  const tokens = text.match(
+    /0[xX][0-9A-Fa-f]+[uUlL]*|0[bB][01]+[uUlL]*|\d+[uUlL]*|[A-Za-z_]\w*|<<|>>|\S/g,
+  );
+  if (!tokens) return undefined;
+  let position = 0;
+  const binary: Record<string, [number, (a: bigint, b: bigint) => bigint]> = {
+    "|": [1, (a, b) => a | b],
+    "^": [2, (a, b) => a ^ b],
+    "&": [3, (a, b) => a & b],
+    "<<": [4, (a, b) => a << b],
+    ">>": [4, (a, b) => a >> b],
+    "+": [5, (a, b) => a + b],
+    "-": [5, (a, b) => a - b],
+    "*": [6, (a, b) => a * b],
+    "/": [6, (a, b) => (b === 0n ? fail() : a / b)],
+    "%": [6, (a, b) => (b === 0n ? fail() : a % b)],
+  };
+  class NotConstant extends Error {}
+  function fail(): never {
+    throw new NotConstant();
+  }
+  const primary = (): bigint => {
+    const token = tokens[position++] ?? fail();
+    if (token === "(") {
+      const value = expression(0);
+      if (tokens[position++] !== ")") fail();
+      return value;
+    }
+    if (token === "-") return -primary();
+    if (token === "+") return primary();
+    if (token === "~") return ~primary();
+    if (/^\d/.test(token)) {
+      const digits = token.replace(/[uUlL]+$/, "");
+      return BigInt(/^0[0-7]+$/.test(digits) ? `0o${digits.slice(1)}` : digits);
+    }
+    return scope.get(token) ?? fail();
+  };
+  const expression = (minimum: number): bigint => {
+    let left = primary();
+    for (;;) {
+      const operator = binary[tokens[position] ?? ""];
+      if (!operator || operator[0] <= minimum) return left;
+      position++;
+      left = operator[1](left, expression(operator[0]));
+    }
+  };
+  try {
+    const value = expression(0);
+    return position === tokens.length ? value : undefined;
+  } catch (error) {
+    if (error instanceof NotConstant || error instanceof SyntaxError)
+      return undefined;
+    throw error;
+  }
 }
 
 function parseParameters(rawParams: string): CParameter[] | null {
@@ -882,27 +1010,76 @@ function formatStruct(
   return lines.join("\n");
 }
 
-function formatEnum(enumDecl: CEnum): string {
-  const lines = [`enum ${enumDecl.name} {`];
-  for (const variant of enumDecl.variants) {
-    lines.push(`    ${variant},`);
+/**
+ * A BPL enum passes its variant's index, so a C enum whose values are not
+ * 0, 1, 2, ... becomes an `int` alias with one constant per enumerator.
+ */
+function formatEnum(enumDecl: CEnum, known: Map<string, bigint>): string {
+  const values = enumValues(enumDecl, known);
+  if (values.every((value, index) => value === BigInt(index))) {
+    const lines = [`enum ${enumDecl.name} {`];
+    for (const variant of enumDecl.variants) {
+      lines.push(`    ${variant.name},`);
+    }
+    lines.push("}");
+    return lines.join("\n");
   }
-  lines.push("}");
+  const lines = [`type ${enumDecl.name} = int;`];
+  enumDecl.variants.forEach((variant, index) => {
+    const value = values[index];
+    lines.push(
+      value === undefined
+        ? `# ${variant.name} = ${variant.value ?? "(follows an untranslated value)"}: not translated`
+        : `global const ${variant.name}: int = ${value};`,
+    );
+  });
   return lines.join("\n");
+}
+
+/** The declarations a binding file exports: values by name, types in brackets. */
+function formatExports(values: string[], types: string[]): string[] {
+  return [
+    ...[...new Set(types)].map((name) => `export [${name}];`),
+    ...[...new Set(values)].map((name) => `export ${name};`),
+  ];
 }
 
 function formatPrototype(
   prototype: CPrototype,
   aliases: Record<string, string>,
+  arrayRows: Map<string, string>,
 ): string {
   const params = prototype.parameters
     .map((param, index) =>
       param.variadic
         ? "..."
-        : `${param.name ?? `arg${index}`}: ${mapCType(param.type, aliases)}`,
+        : `${param.name ?? `arg${index}`}: ${mapParameterType(param.type, aliases, arrayRows)}`,
     )
     .join(", ");
   return `extern ${prototype.name}(${params}) ret ${mapCType(prototype.returnType, aliases)};`;
+}
+
+/**
+ * `int matrix[2][3]` decays to a pointer to `int[3]`. BPL spells `*int[3]` as
+ * an array of pointers, so the row needs a name: `*CRow_int_3`.
+ */
+function mapParameterType(
+  rawType: string,
+  aliases: Record<string, string>,
+  arrayRows: Map<string, string>,
+): string {
+  const decayed = /^(.*?)\s*((?:\[\d+\]\s*)+)\*$/.exec(rawType.trim());
+  if (!decayed) return mapCType(rawType, aliases);
+  const element = mapCType(decayed[1]!, aliases);
+  const dimensions = [...decayed[2]!.matchAll(/\[(\d+)\]/g)].map(
+    (dimension) => dimension[1]!,
+  );
+  const name = `CRow_${element.replace(/\*/g, "p").replace(/\W/g, "_")}_${dimensions.join("_")}`;
+  arrayRows.set(
+    name,
+    `${element}${dimensions.map((dimension) => `[${dimension}]`).join("")}`,
+  );
+  return `*${name}`;
 }
 
 function mapCType(

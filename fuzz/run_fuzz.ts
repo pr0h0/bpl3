@@ -7,6 +7,8 @@ interface CliOptions {
   crashDir: string;
   progressInterval: number;
   enableDifferential: boolean;
+  oracleOnly: boolean;
+  wasm: boolean;
   minimizeFailures: boolean;
   maxMinimizePasses?: number;
 }
@@ -22,7 +24,12 @@ const CLI_OPTIONS_WITH_VALUES = new Set([
   "progress",
   "minimize-passes",
 ]);
-const CLI_BOOLEAN_OPTIONS = new Set(["differential", "minimize"]);
+const CLI_BOOLEAN_OPTIONS = new Set([
+  "differential",
+  "oracle-only",
+  "wasm",
+  "minimize",
+]);
 
 function parseCliOptions(argv: string[], env: NodeJS.ProcessEnv): CliOptions {
   const values = new Map<string, string>();
@@ -103,6 +110,9 @@ function parseCliOptions(argv: string[], env: NodeJS.ProcessEnv): CliOptions {
   const progressValue = values.get("progress") ?? env.FUZZ_PROGRESS ?? "1000";
   const differentialValue =
     values.get("differential") ?? env.FUZZ_DIFFERENTIAL ?? "false";
+  const oracleOnlyValue =
+    values.get("oracle-only") ?? env.FUZZ_ORACLE_ONLY ?? "false";
+  const wasmValue = values.get("wasm") ?? env.FUZZ_WASM ?? "false";
   const minimizeValue = values.get("minimize") ?? env.FUZZ_MINIMIZE ?? "false";
   const minimizePassesValue =
     values.get("minimize-passes") ?? env.FUZZ_MINIMIZE_PASSES;
@@ -113,6 +123,8 @@ function parseCliOptions(argv: string[], env: NodeJS.ProcessEnv): CliOptions {
     crashDir,
     progressInterval: parsePositiveInteger(progressValue, "progress"),
     enableDifferential: parseBoolean(differentialValue, "differential"),
+    oracleOnly: parseBoolean(oracleOnlyValue, "oracle-only"),
+    wasm: parseBoolean(wasmValue, "wasm"),
     minimizeFailures: parseBoolean(minimizeValue, "minimize"),
     maxMinimizePasses:
       minimizePassesValue === undefined
@@ -193,13 +205,17 @@ Options:
   --crash-dir <dir>   Directory for .bpl repros and .json metadata
   --progress <n>      Progress log interval per seed (default: 1000)
   --differential      Include deterministic O0/O3 runtime comparison inputs
+  --oracle-only       Run only generated programs, at -O0 and -O3, against
+                     their oracle output
+  --wasm              Also run generated programs as hosted WebAssembly
+                     (needs wasm-ld)
   --minimize <bool>   Write token-minimized .min.bpl artifacts for failures
   --minimize-passes <n>
                      Maximum minimization passes per failed artifact
 
 Environment:
   FUZZ_ITERATIONS, FUZZ_SEEDS, FUZZ_CRASH_DIR, FUZZ_PROGRESS, FUZZ_DIFFERENTIAL,
-  FUZZ_MINIMIZE, FUZZ_MINIMIZE_PASSES
+  FUZZ_ORACLE_ONLY, FUZZ_WASM, FUZZ_MINIMIZE, FUZZ_MINIMIZE_PASSES
 `);
 }
 
@@ -251,6 +267,12 @@ async function main(): Promise<void> {
     `Differential runtime inputs: ${options.enableDifferential ? "enabled" : "disabled"}`,
   );
   console.log(
+    `Oracle-only inputs: ${options.oracleOnly ? "enabled" : "disabled"}`,
+  );
+  console.log(
+    `Hosted WebAssembly runs: ${options.wasm ? "enabled" : "disabled"}`,
+  );
+  console.log(
     `Automatic failure minimization: ${options.minimizeFailures ? "enabled" : "disabled"}`,
   );
 
@@ -259,6 +281,8 @@ async function main(): Promise<void> {
     iterationsPerSeed: options.iterationsPerSeed,
     crashDir: options.crashDir,
     enableDifferential: options.enableDifferential,
+    oracleOnly: options.oracleOnly,
+    wasm: options.wasm,
     minimizeFailures: options.minimizeFailures,
     maxMinimizePasses: options.maxMinimizePasses,
     progressInterval: options.progressInterval,

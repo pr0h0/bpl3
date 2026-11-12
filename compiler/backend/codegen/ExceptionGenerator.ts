@@ -190,6 +190,15 @@ export abstract class ExceptionGenerator extends ExpressionGenerator {
 
       this.emit(`${labels.body}:`);
 
+      const binding =
+        !isCatchAll && clause.variable
+          ? {
+              name: clause.variable,
+              hadLocal: this.locals.has(clause.variable),
+              pointer: this.localPointers.get(clause.variable),
+              type: this.localTypes.get(clause.variable),
+            }
+          : undefined;
       if (!isCatchAll) {
         // Bind variable for typed catch
         const targetTypeStr = this.resolveType(clause.type!);
@@ -265,6 +274,9 @@ export abstract class ExceptionGenerator extends ExpressionGenerator {
             `  store ${targetTypeStr} ${convertedVal}, ${targetTypeStr}* ${localVar}`,
           );
         }
+        // Deferred code and lambdas in the clause capture locals by their
+        // recorded type, so the binding needs one like any other local.
+        this.localTypes.set(clause.variable!, clause.type!);
       }
       // For catch-all, no variable binding needed
 
@@ -276,6 +288,22 @@ export abstract class ExceptionGenerator extends ExpressionGenerator {
         undefined,
         caughtStorage,
       );
+      if (binding) {
+        // The binding is scoped to the clause; restore any outer local of
+        // the same name.
+        if (binding.hadLocal) this.locals.add(binding.name);
+        else this.locals.delete(binding.name);
+        if (binding.pointer !== undefined) {
+          this.localPointers.set(binding.name, binding.pointer);
+        } else {
+          this.localPointers.delete(binding.name);
+        }
+        if (binding.type !== undefined) {
+          this.localTypes.set(binding.name, binding.type);
+        } else {
+          this.localTypes.delete(binding.name);
+        }
+      }
       if (!this.isTerminator(this.output[this.output.length - 1] || "")) {
         hasContinuation = true;
         this.emit(`  br label %${endLabel}`);
@@ -528,11 +556,26 @@ export abstract class ExceptionGenerator extends ExpressionGenerator {
     this.emit(
       `  store %struct.DeferNode* ${nextPtr}, %struct.DeferNode** @defer_top`,
     );
+    // Nodes of `@[auto_destroy]` locals are stack slots (flag 1).
+    const flagPtr = this.newRegister();
+    this.emit(
+      `  ${flagPtr} = getelementptr inbounds %struct.DeferNode, %struct.DeferNode* ${currentDefer}, i32 0, i32 3`,
+    );
+    const flag = this.newRegister();
+    this.emit(`  ${flag} = load i64, i64* ${flagPtr}`);
+    const onHeap = this.newRegister();
+    this.emit(`  ${onHeap} = icmp eq i64 ${flag}, 0`);
+    const freeLabel = this.newLabel("defer.unwind.free");
+    const callLabel = this.newLabel("defer.unwind.call");
+    this.emit(`  br i1 ${onHeap}, label %${freeLabel}, label %${callLabel}`);
+    this.emit(`${freeLabel}:`);
     const currentVoid = this.newRegister();
     this.emit(
       `  ${currentVoid} = bitcast %struct.DeferNode* ${currentDefer} to i8*`,
     );
     this.emit(`  call void @free(i8* ${currentVoid})`);
+    this.emit(`  br label %${callLabel}`);
+    this.emit(`${callLabel}:`);
     this.emit(`  call void ${funcPtr}(i8* ${ctxPtr})`);
 
     this.emit(`  br label %${loopCondLabel}`);
@@ -917,7 +960,8 @@ export abstract class ExceptionGenerator extends ExpressionGenerator {
     this.emit(`  ${ctxVal} = extractvalue ${lambdaType} ${lambdaVal}, 1`);
 
     // 4. Allocate DeferNode
-    const nodeSize = 24; // 8 ptr + 8 ptr + 8 ptr
+    // func, ctx, next, and a flag that is 0 for heap nodes like this one.
+    const nodeSize = 32;
     const nodeVoidPtr = this.newRegister();
     this.emit(`  ${nodeVoidPtr} = call i8* @malloc(i64 ${nodeSize})`);
     this.guardAllocation(
@@ -947,6 +991,12 @@ export abstract class ExceptionGenerator extends ExpressionGenerator {
       `  ${ctxField} = getelementptr inbounds %struct.DeferNode, %struct.DeferNode* ${nodePtr}, i32 0, i32 1`,
     );
     this.emit(`  store i8* ${ctxVal}, i8** ${ctxField}`);
+
+    const heapField = this.newRegister();
+    this.emit(
+      `  ${heapField} = getelementptr inbounds %struct.DeferNode, %struct.DeferNode* ${nodePtr}, i32 0, i32 3`,
+    );
+    this.emit(`  store i64 0, i64* ${heapField}`);
 
     // next
     const currentTop = this.newRegister();

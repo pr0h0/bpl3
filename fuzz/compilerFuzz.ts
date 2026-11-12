@@ -9,6 +9,7 @@ import {
 } from "fs";
 import { tmpdir } from "os";
 import { join, resolve } from "path";
+import { findWasmLinker, supportsWasmExceptions } from "../cli/WasmToolchain";
 import { CodeGenerator } from "../compiler/backend/CodeGenerator";
 import { CompilerError } from "../compiler/common/CompilerError";
 import { lexWithGrammar } from "../compiler/frontend/GrammarLexer";
@@ -17,7 +18,17 @@ import { TypeChecker } from "../compiler/middleend/TypeChecker";
 import { verifyLlvmFile } from "../compiler/common/LlvmVerifier";
 import { Formatter } from "../compiler/formatter/Formatter";
 import { formatterSemantics } from "../compiler/formatter/FormatterSemantics";
-import { generateOracleProgram, readExpectedStdout } from "./programGenerator";
+import {
+  WASM_MARKER,
+  generateOracleProgram,
+  readExpectedStdout,
+} from "./programGenerator";
+import {
+  generateModuleProgram,
+  readFuzzModules,
+} from "./moduleProgramGenerator";
+import { generateStdlibProgram } from "./stdlibProgramGenerator";
+import { mutateProgramTypes } from "./typeMutation";
 import {
   findNonDirectoryPathComponent,
   findSymlinkedPathComponent,
@@ -127,6 +138,8 @@ const TYPES = [
 
 export type FuzzStage = "lexer" | "parser" | "typecheck" | "codegen";
 export type FuzzInputKind =
+  /** A valid program with damaged types: must be rejected or must compile. */
+  | "typeMutated"
   | "structured"
   | "mutated"
   | "tokens"
@@ -235,6 +248,10 @@ export interface FuzzCampaignOptions {
   iterationsPerSeed: number;
   crashDir?: string;
   enableDifferential?: boolean;
+  /** Run only generated programs against their oracle (`--oracle-only`). */
+  oracleOnly?: boolean;
+  /** Also run generated programs as hosted WebAssembly (`--wasm`). */
+  wasm?: boolean;
   minimizeFailures?: boolean;
   maxMinimizePasses?: number;
   progressInterval?: number;
@@ -611,6 +628,25 @@ export function runGeneratedPipeline(
 }
 
 /**
+ * A damaged program must be rejected before code generation, or compile to
+ * valid IR. The backend assumes the checker has validated what it receives.
+ */
+function runTypeMutatedPipeline(
+  source: string,
+  filePath: string,
+): PipelineOutcome {
+  const outcome = runCompilerPipeline(source, filePath, {
+    skipImportResolution: true,
+    verifyIr: true,
+  });
+  if (outcome.ok || outcome.stage !== "codegen" || !outcome.expectedError) {
+    return outcome;
+  }
+  const message = `the checker accepted a program code generation rejects: ${outcome.message ?? ""}`;
+  return { ok: false, stage: "codegen", crash: new Error(message), message };
+}
+
+/**
  * Run a generated program at -O0 and -O3: both must exit 0 and print the
  * output the generator computed. Without an expectation (e.g. a hand-edited
  * artifact) only O0/O3 agreement is checked.
@@ -619,14 +655,34 @@ export function runBplOraclePipeline(
   source: string,
   filePath: string,
 ): PipelineOutcome {
-  const inProcess = runGeneratedPipeline(source, filePath);
-  if (!inProcess.ok) return inProcess;
+  // Imports cannot resolve in-process, so companion modules are only built
+  // by the CLI below; each file still has to survive the formatter.
+  const modules = readFuzzModules(source);
+  if (modules.size === 0 && !/^import /m.test(source)) {
+    const inProcess = runGeneratedPipeline(source, filePath);
+    if (!inProcess.ok) return inProcess;
+  } else {
+    for (const [name, text] of [...modules, [filePath, source] as const]) {
+      const message = checkFormatterRoundTrip(text, name);
+      if (message) {
+        return {
+          ok: false,
+          stage: "parser",
+          crash: new Error(message),
+          message,
+        };
+      }
+    }
+  }
 
   const expectedStdout = readExpectedStdout(source);
   const dir = mkdtempSync(join(tmpdir(), "bpl-fuzz-oracle-"));
   const sourcePath = join(dir, "main.bpl");
   try {
     writeFileSync(sourcePath, source);
+    for (const [name, text] of modules) {
+      writeFileSync(join(dir, name), text);
+    }
     const o0 = runBplCommand(sourcePath, dir, 0);
     const o3 = runBplCommand(sourcePath, dir, 3);
     const wrong = (result: DifferentialCommandResult) =>
@@ -643,9 +699,37 @@ export function runBplOraclePipeline(
         mismatch: { o0, o3, expectedStdout },
       };
     }
+    // Before clang 19, `throw` traps on WebAssembly by design.
+    if (
+      source.startsWith(WASM_MARKER) &&
+      (supportsWasmExceptions() || !source.includes("try {"))
+    ) {
+      const wasm = runBplHostedWasm(sourcePath, dir);
+      if (wasm === "no-linker") return { ok: true, stage: "codegen" };
+      if (wrong(wasm)) {
+        return {
+          ok: false,
+          stage: "codegen",
+          message: `generated program output differs from its oracle as hosted WebAssembly (exit ${wasm.exitCode})${wasm.stderr ? `: ${wasm.stderr.slice(0, 300)}` : ""}`,
+          mismatch: { o0, o3: wasm, expectedStdout },
+        };
+      }
+    }
     return { ok: true, stage: "codegen" };
   } finally {
+    removeOracleDir(dir);
+  }
+}
+
+/**
+ * Bun's `rmSync` occasionally fails with EFAULT late in a long campaign that
+ * runs WebAssembly in-process. A leftover directory must not end the campaign.
+ */
+function removeOracleDir(dir: string): void {
+  try {
     rmSync(dir, { recursive: true, force: true });
+  } catch (error) {
+    console.warn(`fuzz: could not remove ${dir}: ${String(error)}`);
   }
 }
 
@@ -1251,6 +1335,10 @@ export function generateMutatedStructuredSources(
 
 export interface GenerateFuzzInputOptions {
   enableDifferential?: boolean;
+  /** Generated programs are also run as hosted WebAssembly. */
+  wasm?: boolean;
+  /** Every iteration is a generated program checked against its oracle. */
+  oracleOnly?: boolean;
 }
 
 /**
@@ -1260,7 +1348,7 @@ export interface GenerateFuzzInputOptions {
 export function generateOracleSource(
   seed: number,
   iteration: number,
-  options: { trace?: boolean } = {},
+  options: { trace?: boolean; wasm?: boolean } = {},
 ): string {
   return generateOracleProgram(
     createSeededRandom(mixSeed(seed, iteration)),
@@ -1275,7 +1363,9 @@ export function generateFuzzInput(
 ): FuzzInput {
   const lane = iteration % (options.enableDifferential ? 8 : 6);
   let kind: FuzzInputKind;
-  if (options.enableDifferential && (lane === 0 || lane === 4)) {
+  if (options.oracleOnly) {
+    kind = "oracle";
+  } else if (options.enableDifferential && (lane === 0 || lane === 4)) {
     kind = "differential";
   } else if (lane === 3 || (options.enableDifferential && lane === 7)) {
     // Generated programs: run against their oracle in differential mode,
@@ -1291,7 +1381,17 @@ export function generateFuzzInput(
   let source: string;
 
   if (kind === "generated" || kind === "oracle") {
-    source = generateOracleSource(seed, iteration);
+    const rng = createSeededRandom(mixSeed(seed, iteration));
+    if (options.oracleOnly && iteration % 5 === 4) {
+      source = generateModuleProgram(rng, { wasm: options.wasm }).source;
+    } else if (options.oracleOnly && iteration % 5 === 2) {
+      source = generateStdlibProgram(rng).source;
+    } else if (options.oracleOnly && iteration % 5 === 1) {
+      kind = "typeMutated";
+      source = mutateProgramTypes(generateOracleProgram(rng).source, rng);
+    } else {
+      source = generateOracleSource(seed, iteration, { wasm: options.wasm });
+    }
   } else if (kind === "differential") {
     source = generateDifferentialRuntimeSource(seed, Math.floor(iteration / 4));
   } else if (kind === "structured") {
@@ -1322,6 +1422,8 @@ export function runFuzzCampaign(
     ((context: FuzzIterationContext) =>
       generateFuzzInput(context.seed, context.iteration, {
         enableDifferential: options.enableDifferential,
+        oracleOnly: options.oracleOnly,
+        wasm: options.wasm,
       }));
   const stageCounts = createStageCounts();
   const seedSummaries: FuzzSeedSummary[] = [];
@@ -1930,6 +2032,82 @@ export function runBplRuntimePipeline(
   }
 }
 
+let wasmLinkerAvailable: boolean | undefined;
+
+/**
+ * Build `sourcePath` for wasm32 with the hosted runtime and run it with the
+ * playground's host adapter. Returns "no-linker" when wasm-ld is missing.
+ */
+function runBplHostedWasm(
+  sourcePath: string,
+  cwd: string,
+): DifferentialCommandResult | "no-linker" {
+  wasmLinkerAvailable ??= Boolean(findWasmLinker());
+  if (!wasmLinkerAvailable) return "no-linker";
+  const wasmPath = join(cwd, "main.wasm");
+  const build = spawnSync(
+    "bun",
+    [
+      BPL_CLI,
+      "build",
+      sourcePath,
+      "--target",
+      "wasm32-unknown-unknown",
+      "--wasm-runtime",
+      "host",
+      "-o",
+      wasmPath,
+    ],
+    { cwd, encoding: "utf8", timeout: 60000 },
+  );
+  if (build.status !== 0) {
+    return {
+      exitCode: build.status ?? -1,
+      stdout: "",
+      stderr: `wasm build failed: ${build.stderr}${build.stdout}`,
+    } as DifferentialCommandResult;
+  }
+  const adapter = require("../playground/frontend/wasmHostAdapter.js") as {
+    createHostedWasmBrowserHost(argv: string[]): {
+      imports: Record<string, Record<string, unknown>>;
+      attach(exports: Record<string, unknown>): void;
+      setReturnCode(code: number): void;
+      captureException(error: unknown): void;
+      result(): {
+        stdout: string;
+        stderr: string;
+        returnCode: number | null;
+        trapped: boolean;
+        error: string;
+      };
+    };
+  };
+  const host = adapter.createHostedWasmBrowserHost([]);
+  try {
+    const module = new WebAssembly.Module(readFileSync(wasmPath));
+    const instance = new WebAssembly.Instance(
+      module,
+      host.imports as ConstructorParameters<typeof WebAssembly.Instance>[1],
+    );
+    host.attach(instance.exports);
+    const main = instance.exports.main as (
+      argc: number,
+      argv: number,
+    ) => number;
+    host.setReturnCode(main(0, 0));
+  } catch (error) {
+    host.captureException(error);
+  }
+  const result = host.result();
+  return {
+    exitCode: result.trapped ? -1 : (result.returnCode ?? -1),
+    stdout: result.stdout,
+    stderr: result.trapped
+      ? `trap: ${result.error}\n${result.stderr}`
+      : result.stderr,
+  } as DifferentialCommandResult;
+}
+
 function runBplCommand(
   sourcePath: string,
   cwd: string,
@@ -2114,6 +2292,9 @@ function defaultFuzzRunner(
   }
   if (input.kind === "oracle") {
     return runBplOraclePipeline(source, filePath);
+  }
+  if (input.kind === "typeMutated") {
+    return runTypeMutatedPipeline(source, filePath);
   }
   if (input.kind === "generated") {
     return runGeneratedPipeline(source, filePath);

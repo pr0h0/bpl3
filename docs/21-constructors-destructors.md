@@ -184,11 +184,15 @@ attribute and call `destroy` yourself.
 A `throw` also destroys the live locals of the frame it leaves: cleanup runs from
 the innermost scope out to the nearest enclosing `try` in that frame, or to the
 whole function when the frame has no handler. A local moved into the thrown value
-is not destroyed. Two limits apply on that path: a frame between the throwing
-function and the handler that has no `try` of its own is skipped by the unwinder,
-so its locals are not destroyed, and destructors of the throwing frame run before
-`defer` blocks rather than interleaving with them in declaration order. Use
-`defer` for cleanup that must run in every one of those cases.
+is not destroyed. Frames between the throwing function and the handler are
+unwound too: their live owning locals are destroyed, innermost first and
+interleaved with their `defer` blocks, before the handler runs. Each owning local
+registers a stack-allocated node with the same runtime list that `defer` uses,
+so this costs a few stores per declaration and no allocation. One limit remains:
+in the frame that executes `throw`, destructors run before that frame's `defer`
+blocks rather than interleaving with them in declaration order. An exception
+that nobody catches ends the program after destroying the throwing frame's
+locals only, as before.
 
 If a struct inherits from other structs, calling its destructor also runs parent destructors through the generated destructor chain.
 

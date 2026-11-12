@@ -88,6 +88,94 @@ export function isRuntimeHelperName(name: string): boolean {
 }
 
 export abstract class TypeGenerator extends StructEnumGenerator {
+  /** Whether a type is a `*Spec`, held by value as `{ data, vtable }`. */
+  protected isSpecPointerType(type: AST.TypeNode | undefined): boolean {
+    if (type?.kind !== "BasicType" || type.pointerDepth !== 1) return false;
+    if (type.arrayDimensions.length > 0) return false;
+    return (
+      this.getSpecDeclarationForType({ ...type, pointerDepth: 0 }) !== undefined
+    );
+  }
+
+  /** The spec declaration a type node denotes, if it denotes one. */
+  /**
+   * Finds the declaration that implements a spec method for this struct,
+   * following the inheritance chain, and the mangled name of the struct that
+   * owns it. An inherited method's symbol belongs to the ancestor, not to the
+   * struct being converted.
+   */
+  protected findSpecMethodImplementation(
+    structDecl: AST.StructDecl,
+    structMangledName: string,
+    methodName: string,
+    bindings: Map<string, AST.TypeNode> = new Map(),
+  ):
+    | {
+        method: AST.FunctionDecl;
+        owner: string;
+        bindings: Map<string, AST.TypeNode>;
+      }
+    | undefined {
+    const declared = structDecl.members.find(
+      (member) =>
+        member.kind === "FunctionDecl" &&
+        (member as AST.FunctionDecl).name === methodName,
+    ) as AST.FunctionDecl | undefined;
+    if (declared) {
+      return { method: declared, owner: structMangledName, bindings };
+    }
+
+    for (const parent of structDecl.inheritanceList ?? []) {
+      if (parent.kind !== "BasicType") continue;
+      const parentDecl =
+        (parent.resolvedDeclaration as AST.StructDecl | undefined) ??
+        this.structMap.get(parent.name);
+      if (!parentDecl || parentDecl.kind !== "StructDecl") continue;
+
+      // The parent's own type parameters are bound to the arguments this
+      // child supplies, resolved through the bindings gathered so far, so a
+      // method inherited from `Base<T>` is emitted for the concrete `Base<int>`.
+      const parentArgs = (parent.genericArgs ?? []).map((arg) =>
+        bindings.size > 0 ? this.substituteType(arg, bindings) : arg,
+      );
+      const parentBindings = new Map<string, AST.TypeNode>();
+      (parentDecl.genericParams ?? []).forEach((param, index) => {
+        const arg = parentArgs[index];
+        if (arg) parentBindings.set(param.name, arg);
+      });
+
+      let parentMangled = parentDecl.name;
+      if (parentArgs.length > 0) {
+        const resolved = this.resolveMonomorphizedType(parentDecl, parentArgs);
+        parentMangled = resolved.startsWith("%struct.")
+          ? resolved.slice("%struct.".length)
+          : resolved;
+      }
+
+      const inherited = this.findSpecMethodImplementation(
+        parentDecl,
+        parentMangled,
+        methodName,
+        parentBindings,
+      );
+      if (inherited) return inherited;
+    }
+
+    return undefined;
+  }
+
+  protected getSpecDeclarationForType(
+    typeNode: AST.TypeNode,
+  ): AST.SpecDecl | undefined {
+    if (typeNode.kind !== "BasicType") return undefined;
+    const byName = this.specMap.get(typeNode.name);
+    if (byName) return byName;
+    if (typeNode.resolvedDeclaration?.kind === "SpecDecl") {
+      return typeNode.resolvedDeclaration as AST.SpecDecl;
+    }
+    return undefined;
+  }
+
   protected abstract allocateStack(name: string, type: string): string;
 
   protected applyArrayDimensions(
@@ -1786,7 +1874,13 @@ export abstract class TypeGenerator extends StructEnumGenerator {
           }
         }
 
-        for (let i = 0; i < basicType.pointerDepth; i++) {
+        // A `*Spec` is the `{ data, vtable }` pair itself, held by value like
+        // a lambda, so only further pointer levels add a `*` (R-SPEC-4).
+        const pointerLevels =
+          llvmType === "{ i8*, i8* }"
+            ? Math.max(0, basicType.pointerDepth - 1)
+            : basicType.pointerDepth;
+        for (let i = 0; i < pointerLevels; i++) {
           llvmType += "*";
         }
 

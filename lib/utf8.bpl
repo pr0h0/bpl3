@@ -4,6 +4,7 @@ export [UTF8];
 
 import [String] from "std/string.bpl";
 import [Array] from "std/array.bpl";
+import [StringBuilder] from "std/string_builder.bpl";
 
 extern strlen(s: string) ret long;
 extern malloc(size: long) ret *void;
@@ -273,5 +274,171 @@ struct UTF8 {
         }
 
         return result;
+    }
+    # ------------------------------------------------------------------
+    # Codepoint-level operations. Malformed bytes decode as U+FFFD, one per
+    # byte, as in `toCodepoints`. Results are new Strings or arrays the
+    # caller destroys.
+
+    # Encodes codepoints as UTF-8 (invalid values become U+FFFD).
+    frame fromCodepoints(codepoints: *Array<u32>) ret String {
+        local out: StringBuilder = StringBuilder.new(codepoints.length + 1);
+        local bytes: u8[4];
+        loop (local i: int = 0; i < codepoints.length; i = i + 1) {
+            local count: int = UTF8.encodeCodepoint(codepoints.data[i], &bytes[0]);
+            loop (local k: int = 0; k < count; k = k + 1) {
+                out.appendChar(cast<char>(bytes[k]));
+            }
+        }
+        local result: String;
+        result.data = out.buffer;
+        result.length = out.length;
+        return result;
+    }
+
+    # A copy with every malformed byte replaced by U+FFFD.
+    frame sanitize(s: string) ret String {
+        local codepoints: Array<u32> = UTF8.toCodepoints(s);
+        local result: String = UTF8.fromCodepoints(&codepoints);
+        codepoints.destroy();
+        return result;
+    }
+
+    # The codepoints in reverse order.
+    frame reverse(s: string) ret String {
+        local codepoints: Array<u32> = UTF8.toCodepoints(s);
+        codepoints.reverse();
+        local result: String = UTF8.fromCodepoints(&codepoints);
+        codepoints.destroy();
+        return result;
+    }
+
+    # `count` codepoints starting at codepoint `start` (clamped to the text).
+    frame substring(s: string, start: int, count: int) ret String {
+        local codepoints: Array<u32> = UTF8.toCodepoints(s);
+        local end: long = cast<long>(start) + cast<long>(count);
+        if (start < 0) {
+            start = 0;
+        }
+        if (end > cast<long>(codepoints.length)) {
+            end = cast<long>(codepoints.length);
+        }
+        local part: Array<u32> = codepoints.slice(start, cast<int>(end));
+        local result: String = UTF8.fromCodepoints(&part);
+        part.destroy();
+        codepoints.destroy();
+        return result;
+    }
+
+    # At most `maxCodepoints` codepoints from the start.
+    frame truncate(s: string, maxCodepoints: int) ret String {
+        return UTF8.substring(s, 0, maxCodepoints);
+    }
+
+    # The byte offset of codepoint `index` (the byte length for index equal
+    # to the count), or -1 when it is out of range.
+    frame byteOffset(s: string, index: int) ret int {
+        if (index < 0) {
+            return -1;
+        }
+        local n: int = 0;
+        if (s != nullptr) {
+            n = cast<int>(strlen(s));
+        }
+        local ptr: *u8 = cast<*u8>(s);
+        local position: int = 0;
+        local seen: int = 0;
+        loop (position < n) {
+            if (seen == index) {
+                return position;
+            }
+            local cp: u32 = UTF8._decodeCodepoint(s, position, cast<long>(n));
+            local size: int = UTF8.codepointByteLength(ptr[position]);
+            if ((cp == cast<u32>(0xFFFD)) && (((n - position) < 3) || (ptr[position] != cast<u8>(0xEF)) || (ptr[position + 1] != cast<u8>(0xBF)) || (ptr[position + 2] != cast<u8>(0xBD)))) {
+                size = 1;
+            }
+            position = position + size;
+            seen = seen + 1;
+        }
+        if (seen == index) {
+            return n;
+        }
+        return -1;
+    }
+
+    # UTF-16 code units (surrogate pairs above U+FFFF).
+    frame toUtf16(s: string) ret Array<u16> {
+        local codepoints: Array<u32> = UTF8.toCodepoints(s);
+        local units: Array<u16> = Array<u16>.new(codepoints.length);
+        loop (local i: int = 0; i < codepoints.length; i = i + 1) {
+            local cp: u32 = codepoints.data[i];
+            if (cp >= cast<u32>(0x10000)) {
+                local offset: u32 = cp - cast<u32>(0x10000);
+                units.push(cast<u16>(cast<u32>(0xD800) + (offset >> 10)));
+                units.push(cast<u16>(cast<u32>(0xDC00) + (offset & cast<u32>(0x3FF))));
+            } else {
+                units.push(cast<u16>(cp));
+            }
+        }
+        codepoints.destroy();
+        return units;
+    }
+
+    # Decodes UTF-16 code units; unpaired surrogates become U+FFFD.
+    frame fromUtf16(units: *Array<u16>) ret String {
+        local codepoints: Array<u32> = Array<u32>.new(units.length);
+        local i: int = 0;
+        loop (i < units.length) {
+            local unit: u32 = cast<u32>(units.data[i]);
+            if ((unit >= cast<u32>(0xD800)) && (unit <= cast<u32>(0xDBFF)) && ((i + 1) < units.length)) {
+                local low: u32 = cast<u32>(units.data[i + 1]);
+                if ((low >= cast<u32>(0xDC00)) && (low <= cast<u32>(0xDFFF))) {
+                    codepoints.push(cast<u32>(0x10000) + ((unit - cast<u32>(0xD800)) << 10) + (low - cast<u32>(0xDC00)));
+                    i = i + 2;
+                    continue;
+                }
+            }
+            if ((unit >= cast<u32>(0xD800)) && (unit <= cast<u32>(0xDFFF))) {
+                unit = cast<u32>(0xFFFD);
+            }
+            codepoints.push(unit);
+            i = i + 1;
+        }
+        local result: String = UTF8.fromCodepoints(&codepoints);
+        codepoints.destroy();
+        return result;
+    }
+
+    # Unicode White_Space characters.
+    frame isWhitespace(cp: u32) ret bool {
+        local c: uint = cast<uint>(cp);
+        return ((c >= cast<uint>(9)) && (c <= cast<uint>(13))) || (c == cast<uint>(32)) || (c == cast<uint>(0x85)) || (c == cast<uint>(0xA0)) || (c == cast<uint>(0x1680)) || ((c >= cast<uint>(0x2000)) && (c <= cast<uint>(0x200A))) || (c == cast<uint>(0x2028)) || (c == cast<uint>(0x2029)) || (c == cast<uint>(0x202F)) || (c == cast<uint>(0x205F)) || (c == cast<uint>(0x3000));
+    }
+
+    # Terminal columns of one codepoint: 0 for controls, combining marks and
+    # zero-width characters, 2 for East Asian wide and emoji ranges, else 1.
+    frame codepointWidth(cp: u32) ret int {
+        local c: uint = cast<uint>(cp);
+        if ((c < cast<uint>(32)) || ((c >= cast<uint>(0x7F)) && (c < cast<uint>(0xA0)))) {
+            return 0;
+        }
+        if (((c >= cast<uint>(0x300)) && (c <= cast<uint>(0x36F))) || ((c >= cast<uint>(0x200B)) && (c <= cast<uint>(0x200F))) || ((c >= cast<uint>(0xFE00)) && (c <= cast<uint>(0xFE0F))) || ((c >= cast<uint>(0x20D0)) && (c <= cast<uint>(0x20FF))) || (c == cast<uint>(0xFEFF))) {
+            return 0;
+        }
+        if (((c >= cast<uint>(0x1100)) && (c <= cast<uint>(0x115F))) || ((c >= cast<uint>(0x2E80)) && (c <= cast<uint>(0xA4CF)) && (c != cast<uint>(0x303F))) || ((c >= cast<uint>(0xAC00)) && (c <= cast<uint>(0xD7A3))) || ((c >= cast<uint>(0xF900)) && (c <= cast<uint>(0xFAFF))) || ((c >= cast<uint>(0xFE30)) && (c <= cast<uint>(0xFE4F))) || ((c >= cast<uint>(0xFF00)) && (c <= cast<uint>(0xFF60))) || ((c >= cast<uint>(0xFFE0)) && (c <= cast<uint>(0xFFE6))) || ((c >= cast<uint>(0x1F300)) && (c <= cast<uint>(0x1F64F))) || ((c >= cast<uint>(0x1F900)) && (c <= cast<uint>(0x1F9FF))) || ((c >= cast<uint>(0x20000)) && (c <= cast<uint>(0x3FFFD)))) {
+            return 2;
+        }
+        return 1;
+    }
+
+    # Terminal columns of a string (sum of `codepointWidth`).
+    frame displayWidth(s: string) ret int {
+        local codepoints: Array<u32> = UTF8.toCodepoints(s);
+        local width: int = 0;
+        loop (local i: int = 0; i < codepoints.length; i = i + 1) {
+            width = width + UTF8.codepointWidth(codepoints.data[i]);
+        }
+        codepoints.destroy();
+        return width;
     }
 }

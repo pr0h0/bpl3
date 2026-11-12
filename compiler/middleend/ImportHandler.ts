@@ -18,6 +18,7 @@ import {
   IMPORT_STD_PATH_UNSAFE_HINT,
   isSafeStandardLibraryImportPath,
   ModuleResolver,
+  IMPORT_CYCLE_CODE,
 } from "./ModuleResolver";
 
 import {
@@ -61,6 +62,8 @@ export class ImportHandler {
   private ctx: ImportHandlerContext;
   private moduleResolver: ModuleResolver;
   private exportedNamesByAst = new WeakMap<AST.Program, ReadonlySet<string>>();
+  /** Modules whose loading is in progress, outermost first. */
+  private readonly loading: string[] = [];
 
   constructor(context: ImportHandlerContext) {
     this.ctx = context;
@@ -291,6 +294,26 @@ export class ImportHandler {
     ast: AST.Program | undefined,
     location: SourceLocation,
   ): SymbolTable {
+    // A module still loading has no exports yet; importing it again is a
+    // cycle, which `bpl build` rejects as well.
+    const importer = this.ctx.currentModulePath;
+    let chain: string[] = this.loading;
+    if (chain.length === 0) chain = importer ? [path.resolve(importer)] : [];
+    const start = chain.indexOf(path.resolve(importPath));
+    if (start !== -1) {
+      throw new CompilerError(
+        `Circular dependency detected: ${[
+          ...chain.slice(start),
+          path.resolve(importPath),
+        ]
+          .map((file) => path.basename(file))
+          .join(" -> ")}`,
+        "Refactor code to avoid circular imports.",
+        location,
+        IMPORT_CYCLE_CODE,
+      );
+    }
+
     const existingScope = this.ctx.modules.get(importPath);
 
     if (existingScope) {
@@ -328,6 +351,10 @@ export class ImportHandler {
     this.ctx.currentScope = moduleScope;
     this.ctx.currentModulePath = importPath;
 
+    if (this.loading.length === 0 && importer)
+      this.loading.push(path.resolve(importer));
+    const depth = this.loading.length;
+    this.loading.push(path.resolve(importPath));
     try {
       // Exports may precede globals, so validate after both checking passes.
       for (const statement of moduleAst.statements) {
@@ -343,6 +370,7 @@ export class ImportHandler {
       this.ctx.modules.delete(importPath);
       throw error;
     } finally {
+      this.loading.length = depth === 1 ? 0 : depth;
       this.ctx.globalScope = prevGlobal;
       this.ctx.currentScope = prevCurrent;
       this.ctx.currentModulePath = prevModulePath;
@@ -368,7 +396,7 @@ export class ImportHandler {
       this.importAsNamespace(stmt, moduleScope, moduleAst, importPath);
     } else if (stmt.importAll) {
       // Import all exported symbols
-      this.importAllSymbols(stmt, moduleScope, moduleAst, importPath);
+      this.importAllSymbols(moduleScope, moduleAst, importPath);
     }
 
     // Import specific items
@@ -416,6 +444,7 @@ export class ImportHandler {
         "UShort",
         "UInt",
         "ULong",
+        "Float32",
       ];
       for (const name of symbolsToExport) {
         const symbol = moduleScope.resolve(name);
@@ -500,7 +529,6 @@ export class ImportHandler {
    * Import all exported symbols from a module
    */
   private importAllSymbols(
-    stmt: AST.ImportStmt,
     moduleScope: SymbolTable,
     ast: AST.Program | undefined,
     importPath: string,

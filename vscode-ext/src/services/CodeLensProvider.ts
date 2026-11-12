@@ -18,7 +18,7 @@ export class CodeLensProvider {
   /**
    * Provide code lenses for a document
    */
-  provide(params: CodeLensParams, document: TextDocument): CodeLens[] {
+  provide(_params: CodeLensParams, document: TextDocument): CodeLens[] {
     const filePath = fileURLToPath(document.uri);
     const content = document.getText();
 

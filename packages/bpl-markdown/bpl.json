@@ -1,0 +1,7 @@
+{
+  "name": "bpl-markdown",
+  "version": "0.1.0",
+  "description": "Safe Markdown to HTML rendering (CommonMark/GFM subset)",
+  "main": "index.bpl",
+  "license": "MIT"
+}

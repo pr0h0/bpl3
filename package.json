@@ -1,6 +1,6 @@
 {
   "name": "bpl-v3",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "A transpiler for the BPL programming language targeting LLVM IR.",
   "bin": {
     "bpl": "./bpl"
@@ -44,7 +44,7 @@
     "start": "bun index.ts",
     "build": "bun run build:runtime && bun run build:compiler",
     "build:runtime": "cd lib && ./build_runtime.sh",
-    "build:compiler": "bun run generate:embedded && bun build --compile --outfile=bpl ./index.ts",
+    "build:compiler": "bun run generate:embedded && bun build --compile --outfile=bpl ./index.ts ./cli/CompileWorker.ts",
     "generate:parser": "bun tools/generate_peggy_parser.ts",
     "generate:embedded": "bun scripts/generate_embedded_resources.ts",
     "docs:stdlib": "bun scripts/generate_stdlib_reference.ts",
@@ -67,6 +67,7 @@
     "fuzz": "bun tools/fuzz_script_wrapper.ts run",
     "fuzz:long": "FUZZ_ITERATIONS=${FUZZ_ITERATIONS:-100000} FUZZ_SEEDS=${FUZZ_SEEDS:-0x5eed1234,0xc0ffee,0xbad5eed} bun tools/fuzz_script_wrapper.ts run",
     "fuzz:differential": "FUZZ_DIFFERENTIAL=1 FUZZ_ITERATIONS=${FUZZ_DIFFERENTIAL_ITERATIONS:-48} FUZZ_SEEDS=${FUZZ_DIFFERENTIAL_SEEDS:-0xd1ff0,0xd1ff1,0xd1ff2} FUZZ_PROGRESS=${FUZZ_DIFFERENTIAL_PROGRESS:-12} bun tools/fuzz_script_wrapper.ts run",
+    "fuzz:language-server": "bun fuzz/language_server_fuzz.ts",
     "fuzz:promote": "bun tools/fuzz_script_wrapper.ts promote",
     "fuzz:replay": "bun tools/fuzz_script_wrapper.ts replay",
     "fuzz:repro": "bun tools/fuzz_artifact_repro.ts",
@@ -99,18 +100,18 @@
   "private": false,
   "devDependencies": {
     "@types/bun": "1.3.3",
-    "@typescript-eslint/eslint-plugin": "^8.51.0",
-    "@typescript-eslint/parser": "^8.51.0",
-    "eslint": "^9.39.2",
+    "@typescript-eslint/eslint-plugin": "^8.72.1",
+    "@typescript-eslint/parser": "^8.72.1",
+    "eslint": "^10.14.0",
     "prettier": "3.9.10",
-    "vscode-languageserver": "^8.1.0",
-    "vscode-languageserver-textdocument": "^1.0.8"
+    "vscode-languageserver": "^11.0.0",
+    "vscode-languageserver-textdocument": "^1.0.16"
   },
   "peerDependencies": {
     "typescript": "^5"
   },
   "dependencies": {
-    "commander": "^14.0.2",
-    "peggy": "^5.0.6"
+    "commander": "^15.0.0",
+    "peggy": "5.0.6"
   }
 }

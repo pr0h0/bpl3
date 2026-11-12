@@ -31,9 +31,59 @@ or authorization. Same-origin applications usually need no CORS middleware.
 It rejects embedded NULs, malformed escapes, decoded NUL, and bodies over 1 MiB.
 Use `form.get(key)` (Option<string>); repeated keys keep the last value and a
 bare key has an empty value. The form owns its strings; `destroy()` releases
-all fields. Verify the request content type yourself. Multipart uploads are
-not supported. Forms and cookie-authenticated mutations need an application
-CSRF policy; this package does not implement sessions or authentication.
+all fields. Verify the request content type yourself. Forms and
+cookie-authenticated mutations need an application CSRF policy; this package
+does not implement sessions or authentication.
+
+## Multipart uploads
+
+`Multipart.fromRequest(req)` parses a `multipart/form-data` body (RFC 7578),
+such as an HTML form with `enctype="multipart/form-data"`:
+
+```bpl
+import [Multipart], [MultipartPart] from "bpl-web-middleware";
+import [Request], [Response] from "bpl-express";
+import [Option] from "std/option.bpl";
+
+frame upload(req: *Request, res: *Response) {
+    local form: Multipart = Multipart.fromRequest(req);
+    local cleanup: *Multipart = &form;
+    defer cleanup.destroy();
+    local title: Option<string> = form.field("title");
+    local file: *MultipartPart = form.file("attachment");
+    if (!title.isSome() || (file == nullptr) || (file.size > 262144)) {
+        res.status(422).json("{\"error\":\"title and an attachment up to 256 KiB are required\"}");
+        return;
+    }
+    # file.data holds file.size bytes; file.filename and file.content_type
+    # are client-supplied labels, not trusted facts.
+    res.status(201).json("{\"ok\":true}");
+}
+```
+
+- `form.field(name)` returns the first non-file part's text; `form.file(name)`
+  the first file part (`*MultipartPart`, or `nullptr`); `count()` and
+  `get(i)` walk every part in order. A part has `name`, `filename` (`nullptr`
+  for plain fields), `content_type` (`text/plain` when absent), `data` and
+  `size`. Data is binary-safe (it may contain NUL bytes) and is also
+  NUL-terminated for text use. All strings are owned by the form; `destroy()`
+  releases them.
+- `filename` is reduced to its last path component (`../../a.png` and
+  `C:\Users\a.png` become `a.png`). It is still client input: generate
+  your own storage name and validate the content yourself.
+- `fromRequest` throws when the Content-Type is not `multipart/form-data`
+  with a valid boundary (1 to 70 RFC 2046 characters, quoted or not), and on
+  any framing error: missing or malformed delimiters, truncated bodies,
+  headers without a colon or with control characters, parts that are not
+  `form-data` or have no `name`, duplicate Content-Disposition headers, part
+  headers over 8 KiB, or more than 256 parts (`fromRequestLimited(req, n)`
+  takes 1 to 1000). Catch it and answer 400.
+- `Multipart.boundary(contentType)` and `Multipart.parse(boundary, body,
+size, maxParts)` parse bodies from other sources.
+
+The whole request is buffered by bpl-express, whose request limit (about
+1.1 MB including headers) bounds uploads; there is no streaming to disk.
+Part `Content-Transfer-Encoding` and `filename*` parameters are ignored.
 
 ## Request IDs and completion logs
 

@@ -15,6 +15,14 @@ const cases = [
   { raw: String.raw`\u12`, value: String.raw`\u12` },
   { raw: String.raw`\x41\u0042`, value: "AB" },
   { raw: String.raw`\q`, value: String.raw`\q` },
+  // Bytes above 0x7F are held as U+DC00 + byte (common/StringEncoding.ts).
+  { raw: String.raw`\xF0`, value: "\udcf0" },
+  { raw: String.raw`\x7f\x80`, value: "\x7f\udc80" },
+  // Unpaired surrogates cannot be mistaken for those bytes.
+  { raw: String.raw`\udcf0`, value: "\ufffd" },
+  { raw: String.raw`\ud83d`, value: "\ufffd" },
+  { raw: String.raw`\ud83d\xF0`, value: "\ufffd\udcf0" },
+  { raw: String.raw`\ud83d\ude00`, value: "\u{1f600}" },
 ];
 for (const fixture of cases)
   for (const mode of ["lexer", "parser"]) {
@@ -58,3 +66,61 @@ frame main() ret int {
     },
   ]);
 }, 30000);
+
+// spec: R-LEX-8
+test("\\xHH escapes are single raw bytes at O0 and O3", () => {
+  expectCorrectnessSuite([
+    {
+      name: "raw-byte-escapes",
+      validateLlvm: true,
+      source: String.raw`extern printf(fmt: string, ...);
+extern strlen(s: string) ret ulong;
+extern strcmp(a: string, b: string) ret int;
+global raw: string = "\xF0\x80";
+frame dump(s: string) {
+    local i: ulong = cast<ulong>(0);
+    loop (i < strlen(s)) {
+        printf("%02x ", cast<int>(cast<u8>(s[i])));
+        i = i + cast<ulong>(1);
+    }
+    printf("|\n");
+}
+frame main() ret int {
+    dump("\xF0");
+    dump("\xC3\xA9");
+    dump("\u00e9");
+    dump("é");
+    dump(raw);
+    dump("a\xFFb€\xFEc${"\u{1f480}"}\x80");
+    dump("\ud83d\xF0");
+    dump("\udc80");
+    printf("%d\n", strcmp("\xC3\xA9", "é"));
+    printf("%d\n", cast<int>(strlen("\xF0") == cast<ulong>(1)));
+    printf("%d %d\n", cast<int>('\xF0'), cast<int>('\x41'));
+    switch ("\xC3") {
+        case "\xC3": printf("switch\n"); break;
+        default: printf("default\n"); break;
+    }
+    printf("%d\n", match ("\xF1") { "\xF0" => 0, "\xF1" => 1, _ => 2 });
+    return 0;
+}
+`,
+      expectedStdout: [
+        "f0 |",
+        "c3 a9 |",
+        "c3 a9 |",
+        "c3 a9 |",
+        "f0 80 |",
+        "61 ff 62 e2 82 ac fe 63 f0 9f 92 80 80 |",
+        "ef bf bd f0 |",
+        "ef bf bd |",
+        "0",
+        "1",
+        "-16 65",
+        "switch",
+        "1",
+        "",
+      ].join("\n"),
+    },
+  ]);
+});

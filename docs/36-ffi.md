@@ -83,8 +83,12 @@ extern strlen(s: string) ret long;
 extern strlen(s: *char) ret u64;
 ```
 
-For scalar and pointer returns, leaving the return type off allows this module
-to ignore the result, so `extern printf(fmt: string, ...);` and
+An extern of a known C function that returns `int` (`printf`, `fprintf`,
+`dprintf`, `sprintf`, `snprintf`, `puts`, `putchar`, `scanf`, `sscanf`) has
+return type `int` when the declaration leaves it off, so its calls match the
+C definition; WebAssembly rejects a call through a mismatched signature at run
+time. For other scalar and pointer returns, leaving the return type off allows
+this module to ignore the result, so `extern printf(fmt: string, ...);` and
 `extern printf(fmt: string, ...) ret int;` can appear in different modules of
 the same program. A difference in the width or class of the return type, or
 in the parameters, is an error. Aggregate returns cannot be omitted this way:
@@ -179,18 +183,34 @@ struct PackedFields {
     marker: char,
 }
 
-enum Color {
-    COLOR_RED,
-    COLOR_BLUE,
-}
+type Color = int;
+global const COLOR_RED: int = 1;
+global const COLOR_BLUE: int = 2;
+
+type CRow_int_3 = int[3];
 
 extern puts(s: string) ret int;
 extern malloc(size: ulong) ret *void;
 extern pow(base: double, exp: double) ret double;
 extern fill(values: *int, count: ulong) ret void;
-extern fill_matrix(matrix: *int[3]) ret void;
+extern fill_matrix(matrix: *CRow_int_3) ret void;
 extern printf(fmt: string, ...) ret int;
+
+export [bpl_size];
+export [continued_word];
+# ... one export per generated type, constant and function
+export printf;
 ```
+
+A BPL enum crosses the C ABI as its variant's index. A C enum whose values are
+0, 1, 2, ... in order becomes a BPL `enum`; any other becomes an `int` alias
+with one constant per enumerator, so `COLOR_RED` above still passes 1. An
+enumerator whose initializer is not an integer expression of literals, earlier
+enumerators and integer `#define`s (such as `sizeof(int)`) is left as a
+comment, together with the implicit values that follow it.
+
+Every generated declaration is exported, so `import [Point], puts from
+"./c_bindings.bpl";` works without editing the file.
 
 C `float` declarations map to BPL `f32`, including typedefs, pointers, and
 struct fields. C `double` maps to BPL `double`. Constants with an `f` or `F`
@@ -200,8 +220,10 @@ subnormal values. Simple `(float)` constant casts also produce `f32`.
 
 For function parameters, C array declarations such as `int values[]` or
 `const int values[4]` are emitted as pointers because the C ABI receives them as
-pointers. Multidimensional parameter arrays decay at the outer dimension, so
-`int matrix[2][3]` becomes `*int[3]`. Fixed arrays inside structs stay fixed
+pointers. Multidimensional parameter arrays decay at the outer dimension, and
+the row gets a generated alias because `*int[3]` would be an array of pointers:
+`int matrix[2][3]` becomes `*CRow_int_3` with `type CRow_int_3 = int[3];`.
+Fixed arrays inside structs stay fixed
 arrays. Legacy C octal constants such as `0755` are normalized to BPL `0o755`
 syntax, binary constants keep `0b` syntax, and exponent-only floating constants
 such as `1e-3` are emitted as `double` so generated bindings preserve C numeric

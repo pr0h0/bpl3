@@ -288,18 +288,20 @@ frame main() ret int {
 
 ### Array Bounds Errors
 
-When bounds checking is enabled, out-of-bounds array access throws an exception:
+Indexing a fixed array or a slice out of range throws an
+`IndexOutOfBoundsError` (from the prelude), which carries the index and size:
 
 ```bpl
 extern printf(fmt: string, ...);
 
 frame main() ret int {
     local arr: int[5] = [1, 2, 3, 4, 5];
+    local i: int = 10;
 
     try {
-        local _val: int = arr[10];  # Out of bounds
-    } catch (e: string) {
-        printf("Bounds error: %s\n", e);
+        local _val: int = arr[i];  # Out of bounds
+    } catch (e: IndexOutOfBoundsError) {
+        printf("Bounds error: index %d, size %d\n", e.index, e.size);
     }
 
     return 0;

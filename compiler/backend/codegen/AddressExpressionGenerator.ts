@@ -481,14 +481,15 @@ export abstract class AddressExpressionGenerator extends ReflectionGenerator {
       }
     }
 
+    const gepIndex = this.formatGepIndex(indexVal);
     const addr = this.newRegister();
     if (llvmType.startsWith("[")) {
       this.emit(
-        `  ${addr} = getelementptr inbounds ${llvmType}, ${llvmType}* ${objectAddr}, i64 0, i64 ${indexVal}`,
+        `  ${addr} = getelementptr inbounds ${llvmType}, ${llvmType}* ${objectAddr}, i64 0, ${gepIndex}`,
       );
     } else {
       this.emit(
-        `  ${addr} = getelementptr inbounds ${llvmType}, ${llvmType}* ${objectAddr}, i64 ${indexVal}`,
+        `  ${addr} = getelementptr inbounds ${llvmType}, ${llvmType}* ${objectAddr}, ${gepIndex}`,
       );
     }
     return addr;
@@ -589,9 +590,10 @@ export abstract class AddressExpressionGenerator extends ReflectionGenerator {
       );
     }
 
+    const gepIndex = this.formatGepIndex(indexVal);
     const addr = this.newRegister();
     this.emit(
-      `  ${addr} = getelementptr inbounds ${arrayType}, ${ptrType} ${ptrReg}, i64 0, i64 ${indexVal}`,
+      `  ${addr} = getelementptr inbounds ${arrayType}, ${ptrType} ${ptrReg}, i64 0, ${gepIndex}`,
     );
     return addr;
   }
@@ -789,142 +791,22 @@ export abstract class AddressExpressionGenerator extends ReflectionGenerator {
   }
 
   /**
-   * Emit throw for an exception value
-   */
-  protected emitThrow(value: string, type: string): void {
-    const typeId = this.getTypeId(type);
-    this.emit(`  store i32 ${typeId}, i32* @exception_type`);
-
-    const valueSize = this.newRegister();
-    this.emit(`  ${valueSize} = ptrtoint ${type}* null to i64`);
-    const allocSize = this.newRegister();
-    this.emit(`  ${allocSize} = add i64 ${valueSize}, 0`);
-
-    const exceptionMem = this.newRegister();
-    this.emit(
-      `  ${exceptionMem} = call i8* @malloc(i64 ptrtoint (${type}* getelementptr (${type}, ${type}* null, i32 1) to i64))`,
-    );
-    const exceptionPtr = this.newRegister();
-    this.emit(`  ${exceptionPtr} = bitcast i8* ${exceptionMem} to ${type}*`);
-    this.emit(`  store ${type} ${value}, ${type}* ${exceptionPtr}`);
-
-    const castVal = this.newRegister();
-    this.emit(`  ${castVal} = ptrtoint ${type}* ${exceptionPtr} to i64`);
-    this.emit(`  store i64 ${castVal}, i64* @exception_value`);
-
-    const framePtr = this.newRegister();
-    this.emit(
-      `  ${framePtr} = load %struct.ExceptionFrame*, %struct.ExceptionFrame** @exception_top`,
-    );
-
-    const isNull = this.newRegister();
-    this.emit(
-      `  ${isNull} = icmp eq %struct.ExceptionFrame* ${framePtr}, null`,
-    );
-
-    const abortLabel = this.newLabel("throw.abort");
-    const jumpLabel = this.newLabel("throw.jump");
-
-    this.emit(`  br i1 ${isNull}, label %${abortLabel}, label %${jumpLabel}`);
-
-    this.emit(`${abortLabel}:`);
-    this.emit(`  call void @exit(i32 1)`);
-    this.emit(`  unreachable`);
-
-    this.emit(`${jumpLabel}:`);
-
-    // Unwind defer stack
-    this.emitDeferUnwind(framePtr);
-
-    const bufFieldPtr = this.newRegister();
-    this.emit(
-      `  ${bufFieldPtr} = getelementptr inbounds %struct.ExceptionFrame, %struct.ExceptionFrame* ${framePtr}, i32 0, i32 0`,
-    );
-
-    const bufVoidPtr = this.newRegister();
-    this.emit(`  ${bufVoidPtr} = bitcast [32 x i64]* ${bufFieldPtr} to i8*`);
-
-    this.emit(`  call void @longjmp(i8* ${bufVoidPtr}, i32 1)`);
-    this.emit(`  unreachable`);
-  }
-
-  /**
-   * Emit defer stack unwinding during throw
-   */
-  private emitDeferUnwind(framePtr: string): void {
-    const targetDeferTopPtr = this.newRegister();
-    this.emit(
-      `  ${targetDeferTopPtr} = getelementptr inbounds %struct.ExceptionFrame, %struct.ExceptionFrame* ${framePtr}, i32 0, i32 2`,
-    );
-    const targetDeferTop = this.newRegister();
-    this.emit(
-      `  ${targetDeferTop} = load %struct.DeferNode*, %struct.DeferNode** ${targetDeferTopPtr}`,
-    );
-
-    const unwindCond = this.newLabel("defer.unwind.cond");
-    const unwindBody = this.newLabel("defer.unwind.body");
-    const unwindEnd = this.newLabel("defer.unwind.end");
-
-    this.emit(`  br label %${unwindCond}`);
-
-    this.emit(`${unwindCond}:`);
-    const currentDeferTop = this.newRegister();
-    this.emit(
-      `  ${currentDeferTop} = load %struct.DeferNode*, %struct.DeferNode** @defer_top`,
-    );
-    const isDone = this.newRegister();
-    this.emit(
-      `  ${isDone} = icmp eq %struct.DeferNode* ${currentDeferTop}, ${targetDeferTop}`,
-    );
-    this.emit(`  br i1 ${isDone}, label %${unwindEnd}, label %${unwindBody}`);
-
-    this.emit(`${unwindBody}:`);
-    const funcPtrPtr = this.newRegister();
-    this.emit(
-      `  ${funcPtrPtr} = getelementptr inbounds %struct.DeferNode, %struct.DeferNode* ${currentDeferTop}, i32 0, i32 0`,
-    );
-    const funcVoidPtr = this.newRegister();
-    this.emit(`  ${funcVoidPtr} = load i8*, i8** ${funcPtrPtr}`);
-    const funcPtr = this.newRegister();
-    this.emit(`  ${funcPtr} = bitcast i8* ${funcVoidPtr} to void (i8*)*`);
-
-    const ctxPtrPtr = this.newRegister();
-    this.emit(
-      `  ${ctxPtrPtr} = getelementptr inbounds %struct.DeferNode, %struct.DeferNode* ${currentDeferTop}, i32 0, i32 1`,
-    );
-    const ctxPtr = this.newRegister();
-    this.emit(`  ${ctxPtr} = load i8*, i8** ${ctxPtrPtr}`);
-
-    this.emit(`  call void ${funcPtr}(i8* ${ctxPtr})`);
-
-    const nextPtrPtr = this.newRegister();
-    this.emit(
-      `  ${nextPtrPtr} = getelementptr inbounds %struct.DeferNode, %struct.DeferNode* ${currentDeferTop}, i32 0, i32 2`,
-    );
-    const nextPtr = this.newRegister();
-    this.emit(
-      `  ${nextPtr} = load %struct.DeferNode*, %struct.DeferNode** ${nextPtrPtr}`,
-    );
-    this.emit(
-      `  store %struct.DeferNode* ${nextPtr}, %struct.DeferNode** @defer_top`,
-    );
-
-    this.emit(`  call void @free(i8* ${ctxPtr})`);
-
-    const nodeVoidPtr = this.newRegister();
-    this.emit(
-      `  ${nodeVoidPtr} = bitcast %struct.DeferNode* ${currentDeferTop} to i8*`,
-    );
-    this.emit(`  call void @free(i8* ${nodeVoidPtr})`);
-
-    this.emit(`  br label %${unwindCond}`);
-
-    this.emit(`${unwindEnd}:`);
-  }
-
-  /**
    * Allocate stack space for a local variable
    */
+  /**
+   * The typed index operand of an element GEP. On wasm32 it is pointer-sized:
+   * LLVM's -O0 instruction selector emits an invalid module (a 64-bit address
+   * for a load) when a global array is indexed with an `i64`.
+   */
+  private formatGepIndex(indexVal: string): string {
+    if (!this.target?.toLowerCase().startsWith("wasm32")) {
+      return `i64 ${indexVal}`;
+    }
+    const truncated = this.newRegister();
+    this.emit(`  ${truncated} = trunc i64 ${indexVal} to i32`);
+    return `i32 ${truncated}`;
+  }
+
   protected allocateStack(name: string, type: string): string {
     const ptr = this.allocateStackSlot(type, name);
     this.locals.add(name);

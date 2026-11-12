@@ -115,6 +115,30 @@ const CALLEE_MEMBERS = new WeakSet<AST.Expression>();
 /** `case Enum.Variant:` labels name a data-carrying variant without its data. */
 export const ENUM_VARIANT_LABELS = new WeakSet<AST.Expression>();
 
+/** Whether a spec method names `Self` in a parameter after `this` or its result. */
+function mentionsSelf(method: AST.SpecMethod): boolean {
+  const mentions = (type: AST.TypeNode | undefined): boolean => {
+    if (!type) return false;
+    switch (type.kind) {
+      case "BasicType":
+        return type.name === "Self" || type.genericArgs.some(mentions);
+      case "TupleType":
+        return type.types.some(mentions);
+      case "FunctionType":
+      case "LambdaType":
+        return mentions(type.returnType) || type.paramTypes.some(mentions);
+      default:
+        return false;
+    }
+  };
+  const params =
+    method.params[0]?.name === "this" ? method.params.slice(1) : method.params;
+  return (
+    params.some((parameter) => mentions(parameter.type)) ||
+    mentions(method.returnType)
+  );
+}
+
 export function checkCall(
   this: CheckerContext,
   expr: AST.CallExpr,
@@ -203,6 +227,18 @@ export function checkCall(
 
     if (symbol && symbol.kind === "Function") {
       const candidates = [symbol, ...(symbol.overloads || [])];
+      // With one candidate, an array-literal argument may convert its
+      // elements to the parameter's spec-pointer element type.
+      const only = candidates.length === 1 ? symbol.type : undefined;
+      if (
+        only?.kind === "FunctionType" &&
+        !(symbol.declaration as AST.FunctionDecl | undefined)?.genericParams
+          ?.length
+      )
+        expr.args.forEach((arg, index) => {
+          const parameter = only.paramTypes[index];
+          if (parameter) this.noteValueTarget(arg, parameter);
+        });
       const argTypes = expr.args.map((arg) => this.checkExpression(arg));
 
       const match = this.resolveOverload(
@@ -278,6 +314,8 @@ export function checkCall(
   }
 
   if (expr.callee.kind === "Member") CALLEE_MEMBERS.add(expr.callee);
+  // A called generic function infers its type arguments from the call.
+  this.instantiatedGenericReferences.add(expr.callee);
   const calleeType = this.checkExpression(expr.callee);
   const argTypes = expr.args.map((arg) => this.checkExpression(arg));
 
@@ -860,6 +898,7 @@ export function checkMember(
         `Module has no exported member '${expr.property}'`,
         "Check the module's exports.",
         expr.location,
+        MEMBER_NOT_FOUND_CODE,
       );
     }
 
@@ -1105,7 +1144,8 @@ export function checkMember(
         resolvedStruct,
         expr.property,
       );
-      if (directField) {
+      // A primitive borrows only its wrapper's methods, not its fields.
+      if (directField && effectiveObjectType === objectType) {
         let resultType = this.resolveType(directField.type);
         if (effectiveObjectType.isConst && resultType.kind === "BasicType") {
           resultType = { ...resultType, isConst: true };
@@ -1126,7 +1166,11 @@ export function checkMember(
       const { members, genericMap } = memberContext;
       const member = members[0];
 
-      if (member && member.kind === "StructField") {
+      if (
+        member &&
+        member.kind === "StructField" &&
+        effectiveObjectType === objectType
+      ) {
         const fieldType = this.resolveType(
           member.resolvedType ?? (member as AST.StructField).type,
         );
@@ -1274,6 +1318,23 @@ export function checkMember(
           throw new CompilerError(
             `Cannot use spec method '${specValue.name}' as a value`,
             `Call it directly (${expr.property}(...)), or wrap the call in a lambda.`,
+            expr.location,
+            INSTANCE_METHOD_NOT_COMPATIBLE_CODE,
+          );
+        }
+
+        // Through a `*Spec` the implementing type is not known, so a method
+        // that takes or returns `Self` beyond its receiver cannot be called:
+        // the implementation expects its own struct there.
+        if (
+          compatibleMethod?.kind === "SpecMethod" &&
+          this.currentScope.resolve((baseType as AST.BasicTypeNode).name)
+            ?.kind === "Spec" &&
+          mentionsSelf(compatibleMethod)
+        ) {
+          throw new CompilerError(
+            `Spec method '${compatibleMethod.name}' uses 'Self' outside its receiver, so it cannot be called through a spec pointer`,
+            "Call it on the implementing struct, or through a generic parameter constrained by the spec (frame f<T: Spec>(x: *T)).",
             expr.location,
             INSTANCE_METHOD_NOT_COMPATIBLE_CODE,
           );

@@ -23,7 +23,7 @@ export class DocumentLinkProvider {
   /**
    * Provide document links for imports
    */
-  provide(params: DocumentLinkParams, document: TextDocument): DocumentLink[] {
+  provide(_params: DocumentLinkParams, document: TextDocument): DocumentLink[] {
     const filePath = fileURLToPath(document.uri);
     const content = document.getText();
 
