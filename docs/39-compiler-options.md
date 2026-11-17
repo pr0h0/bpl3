@@ -1359,6 +1359,45 @@ execution to fail instead of hanging indefinitely. When unset, both commands
 preserve normal unbounded execution. `BPL_RUN_TIMEOUT_MS` invalid values fall
 back to running without a timeout.
 
+### Unchecked functions
+
+Optimized builds keep BPL's runtime checks: fixed-array and slice bounds
+checks, null checks on pointer dereferences, and a stack-depth guard in
+functions that call other functions. A function marked `@[unchecked]` is
+compiled without them (rule R-FN-11 in the language specification):
+
+```bpl
+extern printf(fmt: string, ...);
+
+@[unchecked]
+frame sum(values: *int, table: int[8], n: int) ret int {
+    local total: int = 0;
+    loop (local i: int = 0; i < n; i = i + 1) {
+        total = total + values[i] + table[i & 7];
+    }
+    return total;
+}
+
+frame main() ret int {
+    local values: int[4] = [1, 2, 3, 4];
+    local table: int[8] = [0, 1, 0, 1, 0, 1, 0, 1];
+    printf("%d\n", sum(&values[0], table, 4));
+    return 0;
+}
+```
+
+An out-of-range index or null dereference in such a function is undefined
+behavior, as in C, and deep recursion crashes instead of raising a stack
+overflow error. Use it only for hot code whose indexes are already known to
+be valid. The attribute covers only the function's own body: lambdas declared
+inside it and the functions it calls keep their checks. Division-by-zero checks
+remain.
+
+Separately, native builds without debug information give no stack-depth
+guard to a function that calls nothing and has no check that can fail, because
+it cannot deepen the stack. Loops no longer prevent this, so a bit-counting
+helper with a `loop` over plain integer arithmetic has no guard.
+
 ## Large Builds
 
 A native build of a large program is arranged to use less memory and all
@@ -1633,11 +1672,20 @@ bpl build main.bpl --target wasm32-unknown-unknown -o main.wasm
 ```
 
 The default wasm runtime is freestanding. It supports pure BPL control flow,
-enums, generics, lambdas, simple memory allocation, memory intrinsics
+enums, generics, lambdas, heap allocation, memory intrinsics
 (`memcpy`, `memmove`, `memset`), and small helpers such as `strlen`, `strcmp`,
 `strncmp`, `strcpy`, `strcat`, and `atoi`. Formatting and debug-only C symbols
 that can be pulled in by stdlib modules are present as no-op stubs so unused
 methods do not prevent standalone wasm linking.
+
+The freestanding `malloc` starts at `__heap_base` and grows linear memory with
+`memory.grow` when a block does not fit; it returns null when memory cannot
+grow (wasm32 addresses at most 4 GiB). `free` makes a block reusable: requests
+up to 64 KiB are rounded to a power of two and reuse freed blocks of the same
+size, and larger freed blocks are reused first-fit without splitting. Freed
+memory is not returned to the host, and adjacent free blocks are not merged.
+`free` ignores null, a pointer that `malloc` did not return, and a second
+`free` of the same block. The allocator is not thread-safe.
 
 Transcendental math can require external math functions. The bundled Wasm
 runtimes and browser adapter do not supply a platform math library. In particular,

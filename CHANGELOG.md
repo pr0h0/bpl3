@@ -6,6 +6,21 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Added
+
+- `@[unchecked]` function attribute: the function's body is compiled without
+  bounds, null-pointer and stack-depth checks (rule R-FN-11, BUG-822).
+
+### Changed
+
+- Functions whose loops call nothing no longer get a stack-depth guard when
+  they have no other check that can fail (native builds without debug info).
+
+### Fixed
+
+- Freestanding wasm `malloc` grows linear memory and returns null when it
+  cannot, and `free` makes blocks reusable (BUG-821).
+
 ## [0.1.3] - 2026-11-12
 
 ### Added

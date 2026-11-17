@@ -251,4 +251,136 @@ describe("Function Attributes", () => {
 
     expect(ir).toContain('"frame-pointer"="all"');
   });
+
+  // spec: R-FN-11
+  describe("unchecked", () => {
+    function functionBody(ir: string, name: string): string {
+      const match = ir.match(
+        new RegExp(`^define[^\\n]*@${name}[^\\n]*\\{[\\s\\S]*?^\\}`, "m"),
+      );
+      expect(match).not.toBeNull();
+      return match![0];
+    }
+    const runtimeChecks =
+      /__bpl_check_null|__bpl_throw_index_out_of_bounds|__bpl_stack_depth|__bpl_enter_stack_frame|__bpl_stack_limit/;
+
+    it("accepts the attribute", () => {
+      expect(
+        checkSource(`
+          @[unchecked, hot]
+          frame f() {}
+        `),
+      ).toEqual([]);
+    });
+
+    for (const optimizationLevel of [0, 2, 3]) {
+      it(`omits bounds, null and stack checks at -O${optimizationLevel}`, () => {
+        const source = `
+          frame callee(n: int) ret int {
+            return n;
+          }
+
+          @[unchecked]
+          frame fast(values: *int, table: int[8], n: int) ret int {
+            local total: int = 0;
+            loop (local i: int = 0; i < n; i = i + 1) {
+              total = total + values[i] + table[i & 7] + callee(i);
+            }
+            return total;
+          }
+
+          frame checked(values: *int, table: int[8], n: int) ret int {
+            local total: int = 0;
+            loop (local i: int = 0; i < n; i = i + 1) {
+              total = total + values[i] + table[i & 7] + callee(i);
+            }
+            return total;
+          }
+        `;
+        const ir = compileToLLVM(source, "unchecked_test.bpl", {
+          optimizationLevel,
+        });
+        expect(functionBody(ir, "fast_")).not.toMatch(runtimeChecks);
+        const checked = functionBody(ir, "checked_");
+        expect(checked).toContain("__bpl_throw_index_out_of_bounds");
+        expect(checked).toContain("__bpl_check_null");
+      });
+    }
+
+    it("applies to generic instantiations and methods", () => {
+      const ir = compileToLLVM(
+        `
+          struct Table {
+            cells: int[4],
+
+            @[unchecked]
+            frame at(this: *Table, i: int) ret int {
+              return this.cells[i];
+            }
+          }
+
+          @[unchecked]
+          frame first<T>(values: *T) ret T {
+            return values[0];
+          }
+
+          frame main() ret int {
+            local t: Table = Table { cells: [1, 2, 3, 4] };
+            local v: int[2] = [5, 6];
+            return t.at(2) + first<int>(&v[0]);
+          }
+        `,
+        "unchecked_generic_test.bpl",
+      );
+      expect(functionBody(ir, "Table_at")).not.toMatch(runtimeChecks);
+      expect(functionBody(ir, "first_")).not.toMatch(runtimeChecks);
+    });
+
+    it("does not extend to lambdas declared inside", () => {
+      const ir = compileToLLVM(
+        `
+          @[unchecked]
+          frame make() ret Lambda<int>(*int) {
+            return |p: *int| ret int {
+              return p[0];
+            };
+          }
+        `,
+        "unchecked_lambda_test.bpl",
+      );
+      expect(functionBody(ir, "make_")).not.toMatch(runtimeChecks);
+      expect(ir).toContain("call void @__bpl_check_null");
+    });
+  });
+
+  it("gives call-free loops no stack guard at -O2", () => {
+    const ir = compileToLLVM(
+      `
+        frame countBits(x: u32) ret int {
+          local count: int = 0;
+          local value: u32 = x;
+          loop (value != 0) {
+            count = count + cast<int>(value & 1);
+            value = value >> 1;
+          }
+          return count;
+        }
+
+        frame countCalls(x: int) ret int {
+          local count: int = 0;
+          loop (local i: int = 0; i < x; i = i + 1) {
+            count = count + countBits(cast<u32>(i));
+          }
+          return count;
+        }
+      `,
+      "call_free_loop_test.bpl",
+      { optimizationLevel: 2 },
+    );
+    const stackGuard = /__bpl_stack_depth|__bpl_stack_limit/;
+    const body = (name: string) =>
+      ir.match(new RegExp(`^define[^\\n]*@${name}[\\s\\S]*?^\\}`, "m"))![0];
+    expect(body("countBits_")).not.toMatch(stackGuard);
+    expect(body("countCalls_")).toMatch(stackGuard);
+  });
 });

@@ -353,6 +353,64 @@ frame main() ret int {
     expect(getMain(exports)(0, 0)).toBe(112);
   });
 
+  // BUG-821: malloc grows linear memory, returns null when it cannot, and
+  // free makes blocks reusable.
+  wasmIt("grows memory in malloc and reuses freed blocks", async () => {
+    const exports = await compileWasmSource(`
+extern malloc(size: long) ret *void;
+extern free(ptr: *void) ret void;
+
+frame main() ret int {
+    local size: int = 64 * 1024 * 1024;
+    local big: *u8 = cast<*u8>(malloc(cast<long>(size)));
+    if (big == nullptr) {
+        return 1;
+    }
+    big[size - 1] = cast<u8>(7);
+    loop (local i: int = 0; i < 20000; i = i + 1) {
+        local small: *u8 = cast<*u8>(malloc(cast<long>(1000)));
+        small[999] = cast<u8>(1);
+        free(cast<*void>(small));
+        local large: *u8 = cast<*u8>(malloc(cast<long>(200000)));
+        large[199999] = cast<u8>(1);
+        free(cast<*void>(large));
+    }
+    # A second free of the same block is ignored.
+    local twice: *void = malloc(cast<long>(100));
+    free(twice);
+    free(twice);
+    local a: *void = malloc(cast<long>(100));
+    local b: *void = malloc(cast<long>(100));
+    if (a == b) {
+        return 2;
+    }
+    # Freeing pointers malloc never returned is ignored.
+    free(nullptr);
+    free(cast<*void>(&size));
+    return cast<int>(big[size - 1]);
+}
+`);
+    const memory = exports.memory as WebAssembly.Memory;
+    const malloc = exports.malloc as (size: bigint) => number;
+    const free = exports.free as (ptr: number) => void;
+
+    expect(getMain(exports)(0, 0)).toBe(7);
+    // 64 MiB plus a few pages: the allocate/free loop reused its blocks.
+    const afterMain = memory.buffer.byteLength;
+    expect(afterMain).toBeGreaterThanOrEqual(64 * 1024 * 1024);
+    expect(afterMain).toBeLessThan(66 * 1024 * 1024);
+
+    expect(malloc(1n << 40n)).toBe(0);
+    expect(malloc(3n << 30n)).toBe(0);
+    expect(memory.buffer.byteLength).toBe(afterMain);
+
+    const block = malloc(5000n);
+    expect(block).not.toBe(0);
+    expect(block % 8).toBe(0);
+    free(block);
+    expect(malloc(6000n)).toBe(block);
+  });
+
   wasmIt("runs freestanding string helpers through runtime_wasm", async () => {
     const exports = await compileWasmSource(`
 extern strlen(value: string) ret long;

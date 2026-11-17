@@ -35,6 +35,7 @@ const ALLOWED_FUNCTION_ATTRIBUTES = new Set([
   "minsize",
   "auto_destroy",
   "c_export",
+  "unchecked",
 ]);
 
 const FUNCTION_ATTRIBUTE_CONFLICT_GROUPS = [

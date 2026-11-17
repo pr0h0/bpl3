@@ -25,10 +25,6 @@ target triple = "wasm32-unknown-unknown"
 
 @.str.Type = private unnamed_addr constant [5 x i8] c"Type\00", align 1
 
-; The WebAssembly linker defines __heap_base after static data, stack, and
-; runtime segments. Start the bump allocator there instead of guessing a fixed
-; address; small standalone modules may have less than 1 MiB of initial memory.
-@__bpl_heap_cursor = internal global i32 0
 
 define linkonce_odr i8* @Type_getTypeName_Type_ptr(%struct.Type* %this) {
 entry:
@@ -52,23 +48,189 @@ entry:
   ret void
 }
 
+; The WebAssembly linker defines __heap_base after static data, stack, and
+; runtime segments, so the heap starts there.
+; Heap allocator. Each block has an 8-byte header before its payload: the
+; payload capacity (i32) and a state word (i32) that tells allocated blocks from
+; freed ones, so a double free or a pointer that never came from malloc is
+; ignored rather than corrupting the free lists. Requests up to 64 KiB are
+; rounded to a power of two (16 B .. 64 KiB, 13 classes) and reuse freed blocks
+; of their class; larger blocks keep their size and are reused first-fit. New
+; blocks come from a bump cursor that starts at __heap_base and grows linear
+; memory with memory.grow; malloc returns null when memory cannot grow.
+@__bpl_heap_cursor = internal global i32 0
+@__bpl_heap_small_free = internal global [13 x i32] zeroinitializer
+@__bpl_heap_large_free = internal global i32 0
+
+declare i32 @llvm.wasm.memory.size.i32(i32)
+declare i32 @llvm.wasm.memory.grow.i32(i32, i32)
+declare i32 @llvm.ctlz.i32(i32, i1)
+
+define internal i32 @__bpl_heap_class(i32 %capacity) {
+entry:
+  %minus_one = sub i32 %capacity, 1
+  %leading = call i32 @llvm.ctlz.i32(i32 %minus_one, i1 false)
+  %class = sub i32 28, %leading
+  ret i32 %class
+}
+
 define i8* @malloc(i64 %size) {
 entry:
+  %too_big = icmp ugt i64 %size, 2147483392
+  br i1 %too_big, label %fail, label %sized
+
+sized:
   %size32 = trunc i64 %size to i32
   %plus_align = add i32 %size32, 7
   %aligned = and i32 %plus_align, -8
+  %tiny = icmp ult i32 %aligned, 16
+  %need = select i1 %tiny, i32 16, i32 %aligned
+  %small = icmp ule i32 %need, 65536
+  br i1 %small, label %small_class, label %large_search
+
+small_class:
+  %class = call i32 @__bpl_heap_class(i32 %need)
+  %class_cap = shl i32 16, %class
+  %head_ptr = getelementptr [13 x i32], [13 x i32]* @__bpl_heap_small_free, i32 0, i32 %class
+  %head = load i32, i32* %head_ptr
+  %has_head = icmp ne i32 %head, 0
+  br i1 %has_head, label %small_reuse, label %bump
+
+small_reuse:
+  %head_next_ptr = inttoptr i32 %head to i32*
+  %head_next = load i32, i32* %head_next_ptr
+  store i32 %head_next, i32* %head_ptr
+  br label %reuse
+
+large_search:
+  %first = load i32, i32* @__bpl_heap_large_free
+  br label %large_loop
+
+large_loop:
+  %prev = phi i32 [ 0, %large_search ], [ %cur, %large_next ]
+  %cur = phi i32 [ %first, %large_search ], [ %next, %large_next ]
+  %at_end = icmp eq i32 %cur, 0
+  br i1 %at_end, label %bump, label %large_check
+
+large_check:
+  %cur_cap_addr = sub i32 %cur, 8
+  %cur_cap_ptr = inttoptr i32 %cur_cap_addr to i32*
+  %cur_cap = load i32, i32* %cur_cap_ptr
+  %next_ptr = inttoptr i32 %cur to i32*
+  %next = load i32, i32* %next_ptr
+  %fits = icmp uge i32 %cur_cap, %need
+  br i1 %fits, label %large_unlink, label %large_next
+
+large_next:
+  br label %large_loop
+
+large_unlink:
+  %unlink_head = icmp eq i32 %prev, 0
+  %prev_link = inttoptr i32 %prev to i32*
+  %link = select i1 %unlink_head, i32* @__bpl_heap_large_free, i32* %prev_link
+  store i32 %next, i32* %link
+  br label %reuse
+
+reuse:
+  %block = phi i32 [ %head, %small_reuse ], [ %cur, %large_unlink ]
+  %state_addr = sub i32 %block, 4
+  %state_ptr = inttoptr i32 %state_addr to i32*
+  store i32 -1180626676, i32* %state_ptr
+  %reused = inttoptr i32 %block to i8*
+  ret i8* %reused
+
+bump:
+  %capacity = phi i32 [ %class_cap, %small_class ], [ %need, %large_loop ]
   %cursor = load i32, i32* @__bpl_heap_cursor
   %needs_init = icmp eq i32 %cursor, 0
   %heap_base = ptrtoint i8* @__heap_base to i32
-  %old = select i1 %needs_init, i32 %heap_base, i32 %cursor
-  %new = add i32 %old, %aligned
-  store i32 %new, i32* @__bpl_heap_cursor
-  %ptr = inttoptr i32 %old to i8*
-  ret i8* %ptr
+  %raw_start = select i1 %needs_init, i32 %heap_base, i32 %cursor
+  %start_plus = add i32 %raw_start, 7
+  %start = and i32 %start_plus, -8
+  %start64 = zext i32 %start to i64
+  %capacity64 = zext i32 %capacity to i64
+  %payload64 = add i64 %start64, 8
+  %end64 = add i64 %payload64, %capacity64
+  %beyond_address_space = icmp ugt i64 %end64, 4294967296
+  br i1 %beyond_address_space, label %fail, label %check_memory
+
+check_memory:
+  %pages = call i32 @llvm.wasm.memory.size.i32(i32 0)
+  %pages64 = zext i32 %pages to i64
+  %memory_end = shl i64 %pages64, 16
+  %needs_growth = icmp ugt i64 %end64, %memory_end
+  br i1 %needs_growth, label %grow, label %commit
+
+grow:
+  %missing = sub i64 %end64, %memory_end
+  %missing_round = add i64 %missing, 65535
+  %missing_pages64 = lshr i64 %missing_round, 16
+  %missing_pages = trunc i64 %missing_pages64 to i32
+  %grown = call i32 @llvm.wasm.memory.grow.i32(i32 0, i32 %missing_pages)
+  %grow_failed = icmp eq i32 %grown, -1
+  br i1 %grow_failed, label %fail, label %commit
+
+commit:
+  %end = trunc i64 %end64 to i32
+  store i32 %end, i32* @__bpl_heap_cursor
+  %cap_ptr = inttoptr i32 %start to i32*
+  store i32 %capacity, i32* %cap_ptr
+  %payload = trunc i64 %payload64 to i32
+  %new_state_addr = add i32 %start, 4
+  %new_state_ptr = inttoptr i32 %new_state_addr to i32*
+  store i32 -1180626676, i32* %new_state_ptr
+  %fresh = inttoptr i32 %payload to i8*
+  ret i8* %fresh
+
+fail:
+  ret i8* null
 }
 
 define void @free(i8* %ptr) {
 entry:
+  %addr = ptrtoint i8* %ptr to i32
+  %heap_base = ptrtoint i8* @__heap_base to i32
+  %lowest = add i32 %heap_base, 8
+  %below = icmp ult i32 %addr, %lowest
+  %cursor = load i32, i32* @__bpl_heap_cursor
+  %above = icmp uge i32 %addr, %cursor
+  %outside = or i1 %below, %above
+  %misaligned_bits = and i32 %addr, 7
+  %misaligned = icmp ne i32 %misaligned_bits, 0
+  %reject = or i1 %outside, %misaligned
+  br i1 %reject, label %done, label %check_state
+
+check_state:
+  %state_addr = sub i32 %addr, 4
+  %state_ptr = inttoptr i32 %state_addr to i32*
+  %state = load i32, i32* %state_ptr
+  %allocated = icmp eq i32 %state, -1180626676
+  br i1 %allocated, label %release, label %done
+
+release:
+  store i32 -1180610322, i32* %state_ptr
+  %cap_addr = sub i32 %addr, 8
+  %cap_ptr = inttoptr i32 %cap_addr to i32*
+  %capacity = load i32, i32* %cap_ptr
+  %next_ptr = inttoptr i32 %addr to i32*
+  %small = icmp ule i32 %capacity, 65536
+  br i1 %small, label %release_small, label %release_large
+
+release_small:
+  %class = call i32 @__bpl_heap_class(i32 %capacity)
+  %head_ptr = getelementptr [13 x i32], [13 x i32]* @__bpl_heap_small_free, i32 0, i32 %class
+  %head = load i32, i32* %head_ptr
+  store i32 %head, i32* %next_ptr
+  store i32 %addr, i32* %head_ptr
+  br label %done
+
+release_large:
+  %large_head = load i32, i32* @__bpl_heap_large_free
+  store i32 %large_head, i32* %next_ptr
+  store i32 %addr, i32* @__bpl_heap_large_free
+  br label %done
+
+done:
   ret void
 }
 

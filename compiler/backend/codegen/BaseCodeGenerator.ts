@@ -297,6 +297,11 @@ export class BaseCodeGenerator {
   protected currentTypeMap: Map<string, AST.TypeNode> = new Map(); // For generic function instantiation
   protected pendingGenerations: (() => void)[] = [];
   protected emittedMemIsZero: boolean = false;
+  /**
+   * True while emitting a function marked `@[unchecked]`: bounds, null-pointer
+   * and stack-depth checks are omitted from its body (BUG-822).
+   */
+  protected currentFunctionUnchecked = false;
   protected generatingFunctionBody: boolean = false; // Track if we're currently generating a function body
   protected deferMethodGeneration: boolean = false; // Defer method generation to avoid recursion
   protected resolvingMonomorphizedTypes: Set<string> = new Set(); // Track types currently being resolved to prevent re-entry
