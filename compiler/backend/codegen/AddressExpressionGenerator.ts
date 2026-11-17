@@ -690,6 +690,7 @@ export abstract class AddressExpressionGenerator extends ReflectionGenerator {
     _msg: string,
     expressionKey?: string,
   ): void {
+    if (this.currentFunctionUnchecked) return;
     if (this.isBasicBlockPointerProvenNonNull(ptrVal, expressionKey)) {
       return;
     }
@@ -732,6 +733,7 @@ export abstract class AddressExpressionGenerator extends ReflectionGenerator {
     size: number,
     location: SourceLocation,
   ): void {
+    if (this.currentFunctionUnchecked) return;
     const inBounds = this.newRegister();
     this.emit(`  ${inBounds} = icmp ult i64 ${indexVal}, ${size}`);
 
@@ -762,6 +764,7 @@ export abstract class AddressExpressionGenerator extends ReflectionGenerator {
     sizeVal: string,
     location: SourceLocation,
   ): void {
+    if (this.currentFunctionUnchecked) return;
     const inBounds = this.newRegister();
     this.emit(`  ${inBounds} = icmp ult i64 ${indexVal}, ${sizeVal}`);
 

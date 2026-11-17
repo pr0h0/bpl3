@@ -188,6 +188,35 @@ describe("CodeGen - Stack Overflow", () => {
   });
 
   it("keeps alloca stack-limit probes for optimized native non-recursive functions", () => {
+    // The call keeps the guard: a call-free loop has none (BUG-822).
+    const source = `
+      frame step(value: int) ret int {
+        return value + 1;
+      }
+
+      frame sum(limit: int) ret int {
+        local total: int = 0;
+        local i: int = 0;
+        loop (i < limit) {
+          total = total + i;
+          i = step(i);
+        }
+        return total;
+      }
+
+      frame main() ret int {
+        return sum(10);
+      }
+    `;
+    const ir = generateOptimized(source);
+
+    const sumBody = ir.match(/define dso_local i32 @sum_i32[\s\S]*?\n}\n/)?.[0];
+    expect(sumBody).toBeDefined();
+    expect(sumBody!).toContain("alloca i8");
+    expect(sumBody!).not.toContain("call i8* @llvm.frameaddress.p0i8(i32 0)");
+  });
+
+  it("omits optimized stack-limit probes for call-free loops", () => {
     const source = `
       frame sum(limit: int) ret int {
         local total: int = 0;
@@ -207,8 +236,8 @@ describe("CodeGen - Stack Overflow", () => {
 
     const sumBody = ir.match(/define dso_local i32 @sum_i32[\s\S]*?\n}\n/)?.[0];
     expect(sumBody).toBeDefined();
-    expect(sumBody!).toContain("alloca i8");
-    expect(sumBody!).not.toContain("call i8* @llvm.frameaddress.p0i8(i32 0)");
+    expect(sumBody!).not.toContain("__bpl_stack_limit");
+    expect(sumBody!).not.toContain("__bpl_throw_stack_overflow");
   });
 
   it("omits optimized stack-limit probes for call-free bounded helper bodies", () => {

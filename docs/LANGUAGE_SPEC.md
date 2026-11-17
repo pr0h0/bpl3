@@ -399,6 +399,13 @@ printf("%d", x); # Prints 10
   overload whose signature the destination declares: a typed local, an
   assignment, a struct field, a return value, or an argument of a function
   that is not itself overloaded (`local f: Func<string>(long) = describe;`).
+- **[R-FN-11]** A function marked `@[unchecked]` is compiled without the
+  runtime checks of R-ARR-5, R-ARR-6 and R-ARR-10 or the stack-depth guard:
+  out-of-range indexes and null dereferences in its body are undefined
+  behavior, and unbounded recursion through it crashes instead of raising a
+  stack overflow error. It applies to the function's own body, including every
+  generic instantiation, but not to lambdas declared inside it or to the
+  functions it calls. Other checks, such as division by zero, remain.
 
 <!-- bpl-doc: run=spec-methods -->
 

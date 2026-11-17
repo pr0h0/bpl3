@@ -24,14 +24,16 @@ test.skipIf(process.platform !== "linux")(
       writeFileSync(
         join(dir, "api.bpl"),
         `
+      frame same(value:long) ret long {return value;}
+      # The calls keep the stack guard: call-free loops have none.
       @[c_export] frame compute(value:long) ret long {
         local result:long=0;
-        loop(local index:int=0;index<10;index++) {result=result+value;}
+        loop(local index:int=0;index<10;index++) {result=result+same(value);}
         return result;
       }
       frame private_callback(value:long) ret long {
         local result:long=0;
-        loop(local index:int=0;index<10;index++) {result=result+value;}
+        loop(local index:int=0;index<10;index++) {result=result+same(value);}
         return result;
       }
       @[c_export] frame factory() ret Func<long>(long) {return private_callback;}

@@ -1,0 +1,8 @@
+{
+  "expectedOutput": [
+    "weighted 100",
+    "buckets 1 4 0 1",
+    "largest 9 7.25",
+    "checked index caught"
+  ]
+}

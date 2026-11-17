@@ -2,6 +2,87 @@
 
 This file tracks bugs and edge cases found during comprehensive testing.
 
+## Compression codec port (2026-11-17)
+
+Found while porting a context-mixing compressor (a C reference, ~600 lines of
+hot integer code) to BPL and building it native and `wasm32-unknown-unknown`.
+Output was byte-identical to C on both targets.
+
+### BUG-821: Freestanding wasm `malloc` never grows memory and `free` never reclaims
+
+**Status**: Fixed · **Priority**: P2
+
+The freestanding runtime's `malloc` (`lib/runtime_wasm.ll`) is a bump pointer
+that never calls `memory.grow` and never checks the current memory size, and
+`free` is a no-op. A module links with 2 pages (128 KiB). `malloc(1 GiB)`
+returns a non-null pointer and advances the cursor without growing memory, so
+the first write past 128 KiB traps with `memory access out of bounds` far from
+the allocation. Programs that allocate and free in a loop also run out of
+memory, because nothing is reclaimed.
+
+```js
+const x = new WebAssembly.Instance(new WebAssembly.Module(bytes), {}).exports;
+x.memory.buffer.byteLength; // 131072
+x.malloc(1n << 30n); // returns a pointer; memory is still 131072 bytes
+```
+
+**Workaround**: allocate large buffers once and reuse them (a global arena that
+only reallocates when a request is bigger than its capacity). Export a function
+that reports how many bytes the next call may allocate; before each call the
+host reads the cursor with `malloc(0)` and calls `memory.grow` to cover cursor
+plus that amount.
+
+**Suggested fix**: grow memory in `malloc` when `cursor + size` exceeds
+`memory.size * 65536` (`llvm.wasm.memory.grow.i32`), return null when growth
+fails, and consider a simple free list so `free` reclaims blocks.
+
+**Resolution**: `malloc` grows memory with `memory.grow` when a new block does
+not fit and returns null when growth fails or the block would pass 4 GiB. Each
+block has an 8-byte header (capacity and an allocated/free marker). `free`
+puts a block on a free list: blocks up to 64 KiB use 13 power-of-two size
+classes, and larger ones go on a first-fit list without splitting. `free`
+ignores null, foreign pointers and double frees. Freed memory is not returned
+to the host and neighbours are not merged. The cursor workaround no longer
+applies: `malloc(0)` now returns a 16-byte block. Documented under
+"WebAssembly Output" in docs/39-compiler-options.md; tests/WasmRuntime.test.ts
+("grows memory in malloc and reuses freed blocks").
+
+### BUG-822: No build option to turn off runtime safety checks in hot code
+
+**Status**: Fixed · **Priority**: P3
+
+Optimized builds (`-O 3`) keep every runtime check: fixed-array bounds checks,
+`__bpl_check_null` on pointer indexing, and a stack-depth guard
+(`__bpl_initialize_stack_limit` / `__bpl_throw_stack_overflow`) in each
+function that contains a loop. The codec's per-byte routine had 49 bounds
+checks and 49 null checks. A per-bit helper with a loop paid the stack guard
+8 times per input byte, and at the cheapest compression level BPL was 40%
+slower than the same C code. At heavier levels, where memory latency
+dominates, BPL matched C. There is no `--release`/unchecked mode or
+per-function attribute to drop these checks.
+
+**Workaround**: inline small helpers that contain loops into the hot loop by
+hand. Removing the per-bit call cut the gap from 40% to 23%. Keep small scratch
+arrays as fixed-size locals: moving them to raw pointers removed the bounds
+checks, but added null checks and stopped LLVM from keeping them in registers,
+which made the code 7–13% slower overall.
+
+**Suggested fix**: an opt-in unchecked mode (build flag or a function attribute
+such as `@[unchecked]`) that omits bounds, null and stack-depth checks, and no
+stack guard on small leaf functions that do not recurse.
+
+**Resolution**: a new function attribute, `@[unchecked]` (spec rule R-FN-11),
+omits bounds checks, null checks and the stack-depth guard from the function's
+own body, including every generic instantiation and method. Lambdas declared
+inside it and the functions it calls keep their checks, and division-by-zero
+checks remain. Separately, loops no longer stop the existing stack-guard
+elision for functions that call nothing and have no check that can fail
+(native builds without debug info), so a call-free bit-counting loop has no
+guard even when checked. There is no build-wide flag: unchecked code is opted
+into per function. Documented under "Unchecked functions" in
+docs/39-compiler-options.md; tests/FunctionAttributes.test.ts and
+examples/unchecked_functions.
+
 ## Build pipeline (2026-11-10)
 
 Found while measuring the memory and time of the bpl-quant build.

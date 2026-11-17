@@ -587,6 +587,7 @@ export abstract class StatementGenerator extends AsmGenerator {
     if (isRuntimeHelperName(decl.name) || emittedName.startsWith("Type_")) {
       return false;
     }
+    if (this.currentFunctionUnchecked) return false;
 
     return (
       !this.isTrivialLeafReturnFunction(decl) &&
@@ -971,6 +972,20 @@ export abstract class StatementGenerator extends AsmGenerator {
         return !this.expressionBlocksStackHookElision(
           (stmt as AST.ExpressionStmt).expression,
         );
+      // A loop without calls cannot deepen the stack, so it needs no guard
+      // (BUG-822); its parts are held to the same rules as straight-line code.
+      case "Loop": {
+        const loop = stmt as AST.LoopStmt;
+        return (
+          (!loop.init || this.isBoundedCallFreeStatement(loop.init)) &&
+          !this.expressionBlocksStackHookElision(loop.condition) &&
+          !this.expressionBlocksStackHookElision(loop.step) &&
+          this.isBoundedCallFreeStatement(loop.body)
+        );
+      }
+      case "Break":
+      case "Continue":
+        return true;
       default:
         return false;
     }
@@ -3406,6 +3421,7 @@ export abstract class StatementGenerator extends AsmGenerator {
     const prevFunctionDebugLocation = this.currentFunctionDebugLocation;
     const prevCurrentFunctionEmitsStackFrameHooks =
       this.currentFunctionEmitsStackFrameHooks;
+    const prevCurrentFunctionUnchecked = this.currentFunctionUnchecked;
     const prevCurrentFunctionUsesAllocaStackLimitProbe =
       this.currentFunctionUsesAllocaStackLimitProbe;
 
@@ -3419,6 +3435,9 @@ export abstract class StatementGenerator extends AsmGenerator {
       this.currentFunctionReturnType = decl.returnType;
       this.currentFunctionName = decl.name;
       this.currentFunctionIsCExport = Boolean(decl.cExportName);
+      this.currentFunctionUnchecked = (decl.attributes ?? []).some(
+        (attribute) => attribute.name === "unchecked",
+      );
       this.locals = new Set();
       this.localPointers = new Map();
       this.localTypes = new Map();
@@ -3940,6 +3959,7 @@ export abstract class StatementGenerator extends AsmGenerator {
       this.generatingFunctionBody = prevGeneratingFunctionBody;
       this.currentFunctionEmitsStackFrameHooks =
         prevCurrentFunctionEmitsStackFrameHooks;
+      this.currentFunctionUnchecked = prevCurrentFunctionUnchecked;
       this.currentFunctionUsesAllocaStackLimitProbe =
         prevCurrentFunctionUsesAllocaStackLimitProbe;
     }
