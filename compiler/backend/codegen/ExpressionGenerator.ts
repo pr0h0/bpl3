@@ -487,7 +487,8 @@ export abstract class ExpressionGenerator extends UnaryExpressionGenerator {
     const targetConstant = targetConstantName(expr.resolvedDeclaration);
     if (targetConstant) {
       const value = this.targetConstantValue(targetConstant);
-      return typeof value === "boolean" ? (value ? "1" : "0") : String(value);
+      if (typeof value === "number") return String(value);
+      return value ? "1" : "0";
     }
     if (!expr.resolvedType) {
       throw new CompilerError(
