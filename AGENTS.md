@@ -79,7 +79,7 @@ frame identity<T>(val: T) ret T {
 
 Function attributes go in `@[...]` before `frame` (`inline`, `always_inline`,
 `noinline`, `hot`, `cold`, `noreturn`, `nounwind`, `optnone`, `optsize`,
-`minsize`, `unchecked`, `auto_destroy`, `c_export`; spec rule R-FN-12). A
+`minsize`, `unchecked`, `nsw`, `auto_destroy`, `c_export`; spec rule R-FN-12). A
 pointer parameter may be marked `@[noalias]` (R-FN-13).
 
 Target constants `__TARGET_WASM__`, `__TARGET_LINUX__`, `__TARGET_MACOS__`,

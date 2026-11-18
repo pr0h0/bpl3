@@ -1945,6 +1945,16 @@ export abstract class TypeGenerator extends StructEnumGenerator {
     return isSignedTypeName(basic.name);
   }
 
+  /** ` nsw` for a signed integer operation inside an `@[nsw]` function. */
+  protected noSignedWrapFlag(
+    type: AST.TypeNode | undefined,
+    llvmType: string,
+  ): string {
+    if (!this.currentFunctionNoSignedWrap || !type) return "";
+    if (!/^i(8|16|32|64)$/.test(llvmType)) return "";
+    return this.isSigned(type) ? " nsw" : "";
+  }
+
   /** Resolve concrete aliases while preserving a value's pointer/array shape. */
   protected resolveInstantiatedValueType(
     input: AST.TypeNode,

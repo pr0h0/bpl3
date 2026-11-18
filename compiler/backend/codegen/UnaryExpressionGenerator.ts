@@ -59,11 +59,14 @@ export abstract class UnaryExpressionGenerator extends MatchExpressionGenerator 
       const currentValue = this.newRegister();
       this.emit(`  ${currentValue} = load ${type}, ${type}* ${addr}`);
 
+      const wrapFlag = isFloat
+        ? ""
+        : this.noSignedWrapFlag(expr.operand.resolvedType, type);
       let op = "";
       if (expr.operator.type === TokenType.PlusPlus) {
-        op = isFloat ? "fadd" : "add";
+        op = isFloat ? "fadd" : `add${wrapFlag}`;
       } else {
-        op = isFloat ? "fsub" : "sub";
+        op = isFloat ? "fsub" : `sub${wrapFlag}`;
       }
 
       const newValue = this.newRegister();
@@ -89,7 +92,8 @@ export abstract class UnaryExpressionGenerator extends MatchExpressionGenerator 
       if (type === "double" || type === "float") {
         this.emit(`  ${reg} = fneg ${type} ${val}`);
       } else {
-        this.emit(`  ${reg} = sub ${type} 0, ${val}`);
+        const wrapFlag = this.noSignedWrapFlag(expr.resolvedType, type);
+        this.emit(`  ${reg} = sub${wrapFlag} ${type} 0, ${val}`);
       }
       return reg;
     } else if (expr.operator.type === TokenType.Bang) {

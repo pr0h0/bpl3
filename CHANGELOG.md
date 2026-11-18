@@ -10,6 +10,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 - `@[unchecked]` function attribute: the function's body is compiled without
   bounds, null-pointer and stack-depth checks (rule R-FN-11, BUG-822).
+- `@[nsw]` function attribute: signed integer arithmetic in the function is
+  emitted with LLVM `nsw` and overflow there is undefined, so `int` loop
+  indexes no longer need a sign extension per access (rule R-FN-14, BUG-828).
 - `@[noalias]` on pointer parameters emits LLVM `noalias` (rule R-FN-13,
   BUG-825), with the new diagnostic `BPL_FUNCTION_ATTRIBUTE_PARAMETER_INVALID`.
 - Target constants `__TARGET_WASM__`, `__TARGET_LINUX__`, `__TARGET_MACOS__`,

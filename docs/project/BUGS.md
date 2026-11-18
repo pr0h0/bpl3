@@ -242,6 +242,31 @@ and the constants are not accepted in global initializers.
 examples/target_specific_code; "Target-specific code" in
 docs/39-compiler-options.md.
 
+### BUG-828: `int` loop indexes are slower than `long` ones
+
+**Status**: Fixed · **Priority**: P3
+
+Signed `int` `+`, `-` and `*` are emitted without `nsw`, because BPL integers
+wrap (R-TYPE-13). LLVM therefore cannot widen an `i32` induction variable and
+keeps a `sext` per index. In a nested loop
+`m[j * 40 + k] = m[j * 40 + k] - 0.5 * col[k]` (`-O 3 --march native`, 20M
+calls, n=16) the `int` version took 2.08-2.18 s and the `long` one 1.65-1.75 s;
+both vectorize, but the `int` one keeps 8 `sext`. The codec's 16-input
+least-squares solve took 1.52 s with `int` indexes, 1.22 s with `long` and
+1.25 s in C. The codec relies on 32-bit wrapping in some unchecked kernels, so
+dropping checks must not also drop wrapping.
+
+**Workaround**: `long` loop variables.
+
+**Suggested fix**: an opt-in function attribute that emits `nsw` on signed
+arithmetic, independent of `@[unchecked]`.
+
+**Resolution**: `@[nsw]` (spec rule R-FN-14) emits `nsw` on signed integer
+`+`, `-`, `*`, `<<`, `++`, `--` and negation in the function's body; overflow
+there is undefined behavior. It is not implied by `@[unchecked]` and does not
+extend to lambdas declared inside the function. With it, clang `-O3` removes
+every `sext` from the loop above.
+
 ## Build pipeline (2026-11-10)
 
 Found while measuring the memory and time of the bpl-quant build.
