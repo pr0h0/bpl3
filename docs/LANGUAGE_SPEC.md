@@ -120,7 +120,8 @@ Tests and code generation must preserve it.
   type and with no other type; `local s: Point = null;` is rejected.
 - **[R-TYPE-12]** `string` lowers as a C-compatible `i8*` string pointer.
 - **[R-TYPE-13]** Integer `+`, `-`, and `*` wrap in two's complement on
-  overflow at every optimization level.
+  overflow at every optimization level, except signed arithmetic inside an
+  `@[nsw]` function (R-FN-14).
 - **[R-TYPE-14]** Integer division or remainder by zero stops the program with
   a `Division by zero` runtime failure. Signed division of the minimum value by
   `-1` stops it with an `Integer division overflow` failure.
@@ -417,8 +418,8 @@ printf("%d", x); # Prints 10
 - **[R-FN-12]** `@[name, ...]` before `frame` lists function attributes. The
   accepted attributes are `inline` (an inlining hint), `always_inline`,
   `noinline`, `hot`, `cold`, `noreturn` (only on `ret void` functions),
-  `nounwind`, `optnone`, `optsize`, `minsize`, `unchecked` (R-FN-11),
-  `auto_destroy` (on `destroy` methods) and `c_export`. An unknown, repeated or
+  `nounwind`, `optnone`, `optsize`, `minsize`, `unchecked` (R-FN-11), `nsw`
+  (R-FN-14), `auto_destroy` (on `destroy` methods) and `c_export`. An unknown, repeated or
   conflicting attribute (`inline`/`always_inline`/`noinline`, `hot`/`cold`,
   `optsize`/`minsize`, or `optnone` with an inlining or size attribute) is
   rejected.
@@ -428,6 +429,12 @@ printf("%d", x); # Prints 10
   LLVM `noalias`; breaking the promise is undefined behavior. It is rejected
   (`BPL_FUNCTION_ATTRIBUTE_PARAMETER_INVALID`) on a parameter that is not a
   pointer and on `extern` and spec method parameters.
+- **[R-FN-14]** In a function marked `@[nsw]`, signed integer `+`, `-`, `*`,
+  `<<`, `++`, `--` and unary `-` do not wrap: they are emitted with LLVM `nsw`,
+  and a result that does not fit the type is undefined behavior, as in C.
+  Unsigned and floating-point arithmetic are unchanged. Like `@[unchecked]`,
+  which does not imply it, it applies to the function's own body and generic
+  instantiations, not to lambdas declared inside it or to functions it calls.
 
 <!-- bpl-doc: run=spec-methods -->
 

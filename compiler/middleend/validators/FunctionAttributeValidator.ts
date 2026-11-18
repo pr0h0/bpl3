@@ -37,6 +37,7 @@ const ALLOWED_FUNCTION_ATTRIBUTES = new Set([
   "auto_destroy",
   "c_export",
   "unchecked",
+  "nsw",
 ]);
 
 const FUNCTION_ATTRIBUTE_CONFLICT_GROUPS = [

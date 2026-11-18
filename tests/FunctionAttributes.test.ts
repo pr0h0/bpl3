@@ -1,5 +1,7 @@
 import { describe, expect, it } from "bun:test";
-import { readFileSync } from "fs";
+import { spawnSync } from "child_process";
+import { mkdtempSync, readFileSync, writeFileSync } from "fs";
+import { tmpdir } from "os";
 import { join } from "path";
 
 import type * as AST from "../compiler/common/AST";
@@ -351,6 +353,115 @@ describe("Function Attributes", () => {
       );
       expect(functionBody(ir, "make_")).not.toMatch(runtimeChecks);
       expect(ir).toContain("call void @__bpl_check_null");
+    });
+  });
+
+  // spec: R-FN-14
+  describe("nsw", () => {
+    function functionBody(ir: string, name: string): string {
+      const match = ir.match(
+        new RegExp(`^define[^\\n]*@${name}[^\\n]*\\{[\\s\\S]*?^\\}`, "m"),
+      );
+      expect(match).not.toBeNull();
+      return match![0];
+    }
+
+    const source = `
+      @[nsw]
+      frame fast(a: int, b: long, c: u32, d: double, n: int) ret long {
+        local x: int = a + n;
+        x = x - 1;
+        x = x * 3;
+        x = x << 2;
+        x += 5;
+        x++;
+        local y: long = -b;
+        local z: u32 = c + c;
+        local w: double = d + d;
+        return cast<long>(x) + y + cast<long>(z) + cast<long>(w);
+      }
+
+      frame wrapping(a: int, n: int) ret int {
+        return a * n + 1;
+      }
+
+      @[unchecked]
+      frame stillWraps(a: int, n: int) ret int {
+        return a * n + 1;
+      }
+    `;
+
+    it("marks signed integer arithmetic nsw only in @[nsw] functions", () => {
+      const ir = compileToLLVM(source, "nsw_test.bpl", {
+        optimizationLevel: 0,
+      });
+      const fast = functionBody(ir, "fast_");
+      expect(fast).toMatch(/= add nsw i32 /);
+      expect(fast).toMatch(/= sub nsw i32 /);
+      expect(fast).toMatch(/= mul nsw i32 /);
+      expect(fast).toMatch(/= shl nsw i32 /);
+      expect(fast).toMatch(/= sub nsw i64 0, /);
+      expect(fast).toMatch(/= add nsw i64 /);
+      // Unsigned and floating-point arithmetic keep their usual flags.
+      expect(fast).toMatch(/= add i32 /);
+      expect(fast).toMatch(/= fadd double /);
+      for (const name of ["wrapping_", "stillWraps_"]) {
+        expect(functionBody(ir, name)).not.toContain(" nsw ");
+      }
+    });
+
+    it("lets LLVM drop the sign extension of int loop indexes", () => {
+      const loops = (attribute: string) => `
+        ${attribute}
+        frame sub(m: *double, col: *double, n: int) {
+          loop (local j: int = 1; j < n; j = j + 1) {
+            loop (local k: int = 1; k <= j; k = k + 1) {
+              m[j * 40 + k] = m[j * 40 + k] - 0.5 * col[k];
+            }
+          }
+        }
+      `;
+      // Count the sign extensions left in `sub` after clang optimizes it.
+      const optimizedSext = (attribute: string, file: string) => {
+        const dir = mkdtempSync(join(tmpdir(), "bpl-nsw-"));
+        const input = join(dir, "in.ll");
+        const output = join(dir, "out.ll");
+        writeFileSync(
+          input,
+          compileToLLVM(loops(attribute), file, { optimizationLevel: 3 }),
+        );
+        const result = spawnSync(
+          process.env.BPL_CC ?? "clang",
+          ["-O3", "-S", "-emit-llvm", "-x", "ir", input, "-o", output],
+          { encoding: "utf8" },
+        );
+        expect(result.stderr).not.toContain("error");
+        expect(result.status).toBe(0);
+        const body = functionBody(readFileSync(output, "utf8"), "sub_");
+        return (body.match(/= sext i32 /g) ?? []).length;
+      };
+      const plain = optimizedSext("@[unchecked]", "nsw_loop_a.bpl");
+      const nsw = optimizedSext("@[unchecked, nsw]", "nsw_loop_b.bpl");
+      expect(plain).toBeGreaterThan(0);
+      expect(nsw).toBe(0);
+    });
+
+    it("does not extend to lambdas declared inside", () => {
+      const ir = compileToLLVM(
+        `
+          @[nsw]
+          frame make(k: int) ret Lambda<int>(int) {
+            local _scaled: int = k * 2;
+            return |v: int| ret int {
+              return v * 3;
+            };
+          }
+        `,
+        "nsw_lambda_test.bpl",
+        { optimizationLevel: 0 },
+      );
+      expect(functionBody(ir, "make_")).toContain("mul nsw i32");
+      expect(ir.match(/= mul nsw i32 /g)?.length).toBe(1);
     });
   });
 

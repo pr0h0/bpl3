@@ -1414,12 +1414,41 @@ in the language specification):
 | `optnone`             | Turns off optimization of this function.                                                                                      |
 | `optsize` / `minsize` | Optimizes this function for size, `minsize` more aggressively.                                                                |
 | `unchecked`           | Omits bounds, null and stack-depth checks (see above).                                                                        |
+| `nsw`                 | Signed `+ - * <<`, `++`, `--` and negation do not wrap; overflow is undefined (see below).                                    |
 | `auto_destroy`        | On a `destroy` method: runs it when a value goes out of scope.                                                                |
 | `c_export`            | Exports the function to C under its own name.                                                                                 |
 
 `inline`, `always_inline` and `noinline` exclude each other, as do `hot` and
 `cold` and `optsize` and `minsize`; `optnone` cannot be combined with an
 inlining or size attribute.
+
+### Signed arithmetic without wrapping
+
+BPL integers wrap on overflow (rule R-TYPE-13), so a loop such as
+`loop (local k: int = 1; k <= j; k = k + 1) { m[j * 40 + k] = ...; }` keeps a
+32-bit index and sign-extends it on every access, because LLVM cannot assume
+`j * 40 + k` stays in range. C compilers assume signed overflow never happens
+and widen the index once. Mark such a function `@[nsw]` to get the same code:
+signed `+`, `-`, `*`, `<<`, `++`, `--` and negation in its body are emitted
+with LLVM `nsw`, and overflow there is undefined behavior (rule R-FN-14). A
+nested `int`-indexed loop like the one above ran 20-25% faster with it.
+
+```bpl
+@[nsw]
+frame eliminate(m: *double, col: *double, n: int) {
+    loop (local j: int = 1; j < n; j = j + 1) {
+        loop (local k: int = 1; k <= j; k = k + 1) {
+            m[(j * 40) + k] = m[(j * 40) + k] - (0.5 * col[k]);
+        }
+    }
+}
+```
+
+`@[nsw]` is separate from `@[unchecked]`, so an unchecked kernel can still rely
+on wrapping (an `int` hash or checksum). Unsigned and floating-point
+arithmetic, lambdas declared inside the function and the functions it calls
+are not affected. Using `long` loop variables avoids the sign extension without
+the attribute.
 
 A pointer parameter can be marked `@[noalias]` (rule R-FN-13). It promises that
 no other pointer reaches the parameter's memory while the function runs, which

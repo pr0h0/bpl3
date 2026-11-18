@@ -3492,6 +3492,7 @@ export abstract class StatementGenerator extends AsmGenerator {
     const prevCurrentFunctionEmitsStackFrameHooks =
       this.currentFunctionEmitsStackFrameHooks;
     const prevCurrentFunctionUnchecked = this.currentFunctionUnchecked;
+    const prevCurrentFunctionNoSignedWrap = this.currentFunctionNoSignedWrap;
     const prevCurrentFunctionUsesAllocaStackLimitProbe =
       this.currentFunctionUsesAllocaStackLimitProbe;
 
@@ -3507,6 +3508,9 @@ export abstract class StatementGenerator extends AsmGenerator {
       this.currentFunctionIsCExport = Boolean(decl.cExportName);
       this.currentFunctionUnchecked = (decl.attributes ?? []).some(
         (attribute) => attribute.name === "unchecked",
+      );
+      this.currentFunctionNoSignedWrap = (decl.attributes ?? []).some(
+        (attribute) => attribute.name === "nsw",
       );
       this.locals = new Set();
       this.localPointers = new Map();
@@ -4030,6 +4034,7 @@ export abstract class StatementGenerator extends AsmGenerator {
       this.currentFunctionEmitsStackFrameHooks =
         prevCurrentFunctionEmitsStackFrameHooks;
       this.currentFunctionUnchecked = prevCurrentFunctionUnchecked;
+      this.currentFunctionNoSignedWrap = prevCurrentFunctionNoSignedWrap;
       this.currentFunctionUsesAllocaStackLimitProbe =
         prevCurrentFunctionUsesAllocaStackLimitProbe;
     }

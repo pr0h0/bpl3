@@ -311,6 +311,12 @@ export class BaseCodeGenerator {
    * and stack-depth checks are omitted from its body (BUG-822).
    */
   protected currentFunctionUnchecked = false;
+  /**
+   * True while emitting a function marked `@[nsw]`: signed integer `+`, `-`,
+   * `*`, `<<`, `++`, `--` and negation carry LLVM `nsw`, so overflow there is
+   * undefined instead of wrapping (BUG-828).
+   */
+  protected currentFunctionNoSignedWrap = false;
 
   /** The value of a target constant such as __TARGET_WASM__ (BUG-827). */
   protected targetConstantValue(name: TargetConstantName): boolean | number {

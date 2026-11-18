@@ -901,13 +901,19 @@ export abstract class BinaryExpressionGenerator extends AddressExpressionGenerat
 
     switch (expr.operator.type) {
       case TokenType.Plus:
-        op = isFloat ? "fadd" : "add";
+        op = isFloat
+          ? "fadd"
+          : `add${this.noSignedWrapFlag(expr.left.resolvedType, leftType)}`;
         break;
       case TokenType.Minus:
-        op = isFloat ? "fsub" : "sub";
+        op = isFloat
+          ? "fsub"
+          : `sub${this.noSignedWrapFlag(expr.left.resolvedType, leftType)}`;
         break;
       case TokenType.Star:
-        op = isFloat ? "fmul" : "mul";
+        op = isFloat
+          ? "fmul"
+          : `mul${this.noSignedWrapFlag(expr.left.resolvedType, leftType)}`;
         break;
       case TokenType.Slash: {
         const isUnsigned = !isFloat && !this.isSigned(expr.left.resolvedType!);
@@ -1042,7 +1048,7 @@ export abstract class BinaryExpressionGenerator extends AddressExpressionGenerat
         op = "xor";
         break;
       case TokenType.LessLess:
-        op = "shl";
+        op = `shl${this.noSignedWrapFlag(expr.left.resolvedType, leftType)}`;
         finalRight = this.maskShiftAmount(right, leftType, leftType);
         break;
       case TokenType.GreaterGreater:
