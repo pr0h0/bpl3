@@ -1398,6 +1398,93 @@ guard to a function that calls nothing and has no check that can fail, because
 it cannot deepen the stack. Loops no longer prevent this, so a bit-counting
 helper with a `loop` over plain integer arithmetic has no guard.
 
+### Function attributes
+
+`@[name, ...]` on the line before `frame` sets function attributes (rule R-FN-12
+in the language specification):
+
+| Attribute             | Effect                                                                                                                        |
+| --------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| `inline`              | Hints LLVM to inline the function (`inlinehint`).                                                                             |
+| `always_inline`       | Inlines the function wherever LLVM can.                                                                                       |
+| `noinline`            | Never inlines the function, for example to keep a hot chunk function separate so a wasm engine can optimize it between calls. |
+| `hot` / `cold`        | Marks the function as frequently or rarely called, which steers code layout and inlining.                                     |
+| `noreturn`            | The function never returns; it must be `ret void`.                                                                            |
+| `nounwind`            | The function never throws.                                                                                                    |
+| `optnone`             | Turns off optimization of this function.                                                                                      |
+| `optsize` / `minsize` | Optimizes this function for size, `minsize` more aggressively.                                                                |
+| `unchecked`           | Omits bounds, null and stack-depth checks (see above).                                                                        |
+| `auto_destroy`        | On a `destroy` method: runs it when a value goes out of scope.                                                                |
+| `c_export`            | Exports the function to C under its own name.                                                                                 |
+
+`inline`, `always_inline` and `noinline` exclude each other, as do `hot` and
+`cold` and `optsize` and `minsize`; `optnone` cannot be combined with an
+inlining or size attribute.
+
+A pointer parameter can be marked `@[noalias]` (rule R-FN-13). It promises that
+no other pointer reaches the parameter's memory while the function runs, which
+lets LLVM vectorize straight-line code over two buffers that it would otherwise
+have to assume overlap:
+
+```bpl
+frame mix(@[noalias] w: *i16, @[noalias] st: *i16) {
+    w[0] = cast<i16>(w[0] + (st[0] >> 2));
+    w[1] = cast<i16>(w[1] + (st[1] >> 2));
+}
+
+frame main() ret int {
+    local w: i16[2] = [1, 2];
+    local st: i16[2] = [8, 8];
+    mix(&w[0], &st[0]);
+    return cast<int>(w[1]);
+}
+```
+
+Calling such a function with overlapping buffers is undefined behavior.
+`@[noalias]` is rejected on a parameter that is not a pointer and on `extern`
+and spec method parameters.
+
+### Global pointers in loops
+
+From `-O 1`, a loop that only reads a global pointer reads a local copy taken
+before the loop, so the pointer is loaded and null-checked once instead of on
+every iteration and the loop can vectorize. This applies when the global is not
+`const`, not exported, never has its address taken, and the loop makes no
+calls, declares no lambdas, has no inline assembly or overloaded operators, and
+does not assign the global. Otherwise the loop reads the global itself.
+
+### Target-specific code
+
+The built-in constants `__TARGET_WASM__`, `__TARGET_LINUX__`,
+`__TARGET_MACOS__`, `__TARGET_WINDOWS__` and `__TARGET_POINTER_BITS__` describe
+the build target (rule R-DECL-11). When an `if` condition uses only these
+constants, literals, `!`, `&&`, `||` and comparisons, only the branch for the
+target is compiled, so the other branch can call functions the target lacks:
+
+```bpl
+extern malloc(size: ulong) ret *void;
+extern posix_memalign(out: **void, alignment: ulong, size: ulong) ret int;
+
+frame allocate(size: ulong) ret *void {
+    if (__TARGET_WASM__ || __TARGET_WINDOWS__) {
+        return malloc(size);
+    }
+    local out: *void = nullptr;
+    if (posix_memalign(&out, cast<ulong>(64), size) != 0) {
+        return nullptr;
+    }
+    return out;
+}
+
+frame main() ret int {
+    local block: *void = allocate(cast<ulong>(256));
+    return block == nullptr ? 1 : 0;
+}
+```
+
+Both branches are still type-checked. The constants can be read like any
+`const` value but are not accepted in global initializers.
+
 ## Large Builds
 
 A native build of a large program is arranged to use less memory and all
@@ -1670,6 +1757,20 @@ BPL_WASM_CC="$(brew --prefix llvm)/bin/clang" \
 WASM_LD="$(brew --prefix lld)/bin/wasm-ld" \
 bpl build main.bpl --target wasm32-unknown-unknown -o main.wasm
 ```
+
+Every function in a wasm module carries a `target-features` attribute, because
+LLVM requires the exception-handling feature on each function. The wasm feature
+flags given with `--clang-flag` (`-msimd128`, `-mrelaxed-simd`,
+`-mbulk-memory`, `-mno-<feature>`, ...) are copied into that attribute, so
+`--clang-flag -msimd128` enables SIMD vectorization:
+
+```bash
+bpl build main.bpl --target wasm32-unknown-unknown -O 3 --clang-flag -msimd128 -o main.wasm
+```
+
+SIMD needs Chrome 91, Firefox 89, Safari 16.4 or Node.js 16.4. `--cpu
+bleeding-edge` also enables it, together with newer features that raise the
+browser floor further.
 
 The default wasm runtime is freestanding. It supports pure BPL control flow,
 enums, generics, lambdas, heap allocation, memory intrinsics

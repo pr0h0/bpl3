@@ -1015,6 +1015,7 @@ function compileSingleFile(
     debugIrPath: options.debugIrPath,
     optimizationLevel: options.O ? parseInt(options.O) : 0,
     treeShakeTopLevelFunctions: shouldTreeShakeTopLevelFunctions(options),
+    clangFlags: getCompilerDriverFlags(options),
   });
   const ir = generator.generate(ast, filePath);
   endCodeGeneration();

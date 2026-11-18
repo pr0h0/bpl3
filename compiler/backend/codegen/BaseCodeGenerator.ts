@@ -1,3 +1,8 @@
+import {
+  type TargetConstantName,
+  targetConstantValue,
+} from "../../common/TargetConstants";
+import { wasmTargetFeatures } from "./attributes/WasmTargetFeatures";
 import { CompilerError, type SourceLocation } from "../../common/CompilerError";
 import type * as AST from "../../common/AST";
 import { DebugInfoGenerator } from "./DebugInfoGenerator";
@@ -173,6 +178,8 @@ export class BaseCodeGenerator {
       optimizationLevel?: number;
       treeShakeTopLevelFunctions?: boolean;
       debugIrPath?: string | false;
+      /** Clang flags of the build; wasm feature flags reach function attributes. */
+      clangFlags?: readonly string[];
     } = {},
   ) {
     this.stdLibPath = options.stdLibPath;
@@ -198,7 +205,9 @@ export class BaseCodeGenerator {
         : this.getDebugIrPathFromEnv();
     this.functionAttributeGroups = new FunctionAttributeGroups({
       preserveFramePointer: this.shouldPreserveFramePointers(),
-      wasmExceptions: isWasmTargetArch(this.target),
+      wasmTargetFeatures: isWasmTargetArch(this.target)
+        ? wasmTargetFeatures(options.clangFlags)
+        : [],
     });
     this.debugInfoGenerator = new DebugInfoGenerator(
       "unknown.bpl",
@@ -302,6 +311,21 @@ export class BaseCodeGenerator {
    * and stack-depth checks are omitted from its body (BUG-822).
    */
   protected currentFunctionUnchecked = false;
+
+  /** The value of a target constant such as __TARGET_WASM__ (BUG-827). */
+  protected targetConstantValue(name: TargetConstantName): boolean | number {
+    const layout = getDataLayoutForTarget(this.target);
+    const pointerBits = Number(/(?:^|-)p:(\d+):/.exec(layout)?.[1] ?? 64);
+    return targetConstantValue(
+      name,
+      this.target ?? getHostTargetTriple(),
+      pointerBits,
+    );
+  }
+  /** Globals a loop may not read through a local copy (BUG-824). */
+  protected unsnapshottableGlobals = new Set<AST.VariableDecl>();
+  /** Local copies of globals that the loops being generated read. */
+  protected loopGlobalSnapshots = new Map<AST.VariableDecl, string>();
   protected generatingFunctionBody: boolean = false; // Track if we're currently generating a function body
   protected deferMethodGeneration: boolean = false; // Defer method generation to avoid recursion
   protected resolvingMonomorphizedTypes: Set<string> = new Set(); // Track types currently being resolved to prevent re-entry

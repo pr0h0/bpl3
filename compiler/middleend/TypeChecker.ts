@@ -59,7 +59,10 @@ import { PRIMITIVE_STRUCT_MAP } from "./BuiltinTypes";
 import type { CheckerContext } from "./CheckerContext";
 import { validateModuleExports } from "./validators/ExportValidator";
 import { validateExternSignature } from "./validators/ExternAbiValidator";
-import { validateFunctionAttributes } from "./validators/FunctionAttributeValidator";
+import {
+  validateFunctionAttributes,
+  validateParameterAttributes,
+} from "./validators/FunctionAttributeValidator";
 
 // Import checker functions
 import * as ExprChecker from "./ExpressionChecker";
@@ -789,6 +792,13 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
         this.checkEnumBody(stmt);
         break;
       case "SpecDecl":
+        for (const method of stmt.methods) {
+          validateParameterAttributes(
+            this,
+            method.params,
+            "spec method declarations",
+          );
+        }
         this.checkSpecBody(stmt);
         break;
       case "TypeAlias":
@@ -843,6 +853,7 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
         // Already handled in hoisting phase
         break;
       case "Extern":
+        validateParameterAttributes(this, stmt.params, "extern declarations");
         validateExternSignature(stmt, (type) => this.resolveType(type));
         this.checkedExterns.push(stmt);
         break;
@@ -1045,6 +1056,7 @@ export class TypeChecker extends TypeCheckerBase implements CheckerContext {
     decl: AST.FunctionDecl,
     parentType?: AST.StructDecl | AST.EnumDecl,
   ): void {
+    validateParameterAttributes(this, decl.params);
     if (decl.attributes.length === 0) return;
     validateFunctionAttributes(this, decl, { parentType });
   }

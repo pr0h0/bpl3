@@ -14,6 +14,8 @@
  * @extends AsmGenerator
  * @see ARCHITECTURE.md for the full inheritance hierarchy
  */
+import { evaluateTargetCondition } from "../../common/TargetConstants";
+import { findLoopGlobalSnapshots } from "./LoopGlobalSnapshots";
 import { isRuntimeHelperName } from "./TypeGenerator";
 import * as AST from "../../common/AST";
 import { CompilerError } from "../../common/CompilerError";
@@ -2842,6 +2844,29 @@ export abstract class StatementGenerator extends AsmGenerator {
   }
 
   protected generateIf(stmt: AST.IfStmt) {
+    // A condition on target constants keeps only the branch that runs, so
+    // the other may use functions the target lacks (BUG-827).
+    const folded = evaluateTargetCondition(stmt.condition, (name) =>
+      this.targetConstantValue(name),
+    );
+    if (folded !== undefined) {
+      const taken = folded ? stmt.thenBranch : stmt.elseBranch;
+      if (!taken) return;
+      if (taken.kind === "If") {
+        this.generateIf(taken as AST.IfStmt);
+        return;
+      }
+      const block: AST.BlockStmt =
+        taken.kind === "Block"
+          ? (taken as AST.BlockStmt)
+          : { kind: "Block", statements: [taken], location: taken.location };
+      this.generateBlock(block);
+      // Code after a branch that returns is unreachable; give it a block.
+      if (this.isTerminator(this.output[this.output.length - 1] || "")) {
+        this.emit(`${this.newLabel("target.after")}:`);
+      }
+      return;
+    }
     const nullGuardProof = this.getTerminatingNullGuardProof(stmt.condition);
     const cond = this.generateExpression(stmt.condition);
     const thenLabel = this.newLabel("then");
@@ -3053,6 +3078,8 @@ export abstract class StatementGenerator extends AsmGenerator {
       savedInitTypes.set(name, this.localTypes.get(name));
     }
 
+    const snapshotted = this.snapshotLoopGlobals(stmt);
+
     // Generate init
     if (stmt.init) {
       this.generateStatement(stmt.init);
@@ -3115,7 +3142,37 @@ export abstract class StatementGenerator extends AsmGenerator {
       if (type === undefined) this.localTypes.delete(name);
       else this.localTypes.set(name, type);
     }
+    for (const global of snapshotted) this.loopGlobalSnapshots.delete(global);
     this.emit(`${endLabel}:`);
+  }
+
+  /**
+   * Copies the global pointers this loop only reads into locals, which the
+   * loop then reads instead (BUG-824; see LoopGlobalSnapshots). Returns the
+   * globals copied here, for the caller to forget after the loop.
+   */
+  private snapshotLoopGlobals(stmt: AST.LoopStmt): AST.VariableDecl[] {
+    if (this.optimizationLevel < 1) return [];
+    const outerDeferred = this.scopeStack.flatMap((scope) => scope.deferred);
+    const globals = findLoopGlobalSnapshots(
+      stmt,
+      this.unsnapshottableGlobals,
+      outerDeferred,
+      (decl) => this.variableDeclMayEmitAutoDestroy(decl),
+    ).filter((global) => !this.loopGlobalSnapshots.has(global));
+
+    for (const global of globals) {
+      const type = this.resolveType(
+        global.typeAnnotation ?? global.resolvedType!,
+      );
+      const address = this.generateIdentifierAddressForGlobal(global);
+      const value = this.newRegister();
+      this.emit(`  ${value} = load ${type}, ${type}* ${address}`);
+      const copy = this.allocateStack(`${global.name as string}.copy`, type);
+      this.emit(`  store ${type} ${value}, ${type}* ${copy}`);
+      this.loopGlobalSnapshots.set(global, copy);
+    }
+    return globals;
   }
 
   protected generateSwitch(stmt: AST.SwitchStmt) {
@@ -3321,16 +3378,29 @@ export abstract class StatementGenerator extends AsmGenerator {
     if (params.length === 0) return "";
 
     const firstParam = params[0]!;
-    const firstType = this.resolveType(paramTypes[0]!);
-    let result = `${firstType} ${this.parameterRegister(firstParam.name)}`;
+    let result = this.formatFunctionParameter(firstParam, paramTypes[0]!);
 
     for (let i = 1; i < params.length; i++) {
-      const param = params[i]!;
-      const type = this.resolveType(paramTypes[i]!);
-      result += `, ${type} ${this.parameterRegister(param.name)}`;
+      result += `, ${this.formatFunctionParameter(params[i]!, paramTypes[i]!)}`;
     }
 
     return result;
+  }
+
+  private formatFunctionParameter(
+    param: AST.Parameter,
+    paramType: AST.TypeNode,
+  ): string {
+    const type = this.resolveType(paramType);
+    // BUG-825: `@[noalias]` promises that no other pointer reaches the
+    // parameter's memory while the function runs.
+    const noalias =
+      param.attributes !== undefined &&
+      type.endsWith("*") &&
+      param.attributes.some((attr) => attr.name === "noalias")
+        ? " noalias"
+        : "";
+    return `${type}${noalias} ${this.parameterRegister(param.name)}`;
   }
 
   /**

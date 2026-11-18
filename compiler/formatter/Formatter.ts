@@ -462,11 +462,18 @@ export class Formatter {
   }
 
   private formatParameter(
-    param: Pick<AST.Parameter, "name" | "type" | "isConst" | "isVariadic">,
+    param: Pick<
+      AST.Parameter,
+      "name" | "type" | "isConst" | "isVariadic" | "attributes"
+    >,
   ): string {
+    const attributes =
+      param.attributes && param.attributes.length > 0
+        ? `@[${param.attributes.map((attr) => attr.name).join(", ")}] `
+        : "";
     const constPrefix = param.isConst ? "const " : "";
     const variadicPrefix = param.isVariadic ? "..." : "";
-    return `${constPrefix}${param.name}: ${variadicPrefix}${this.formatType(param.type)}`;
+    return `${attributes}${constPrefix}${param.name}: ${variadicPrefix}${this.formatType(param.type)}`;
   }
 
   /** JSON escapes align with BPL except for the short backspace/form-feed forms. */

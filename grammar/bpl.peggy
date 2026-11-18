@@ -1668,8 +1668,9 @@ ParameterList
     }
 
 Parameter
-  = isConstPrefix:K_const? _ isVariadicPrefix:"..."? _ name:Identifier _ ":" _ isConstType:K_const? _ isVariadicSuffix:"..."? _ type:Type? {
+  = attrs:(AttributeList _)? isConstPrefix:K_const? _ isVariadicPrefix:"..."? _ name:Identifier _ ":" _ isConstType:K_const? _ isVariadicSuffix:"..."? _ type:Type? {
       const isVariadic = !!isVariadicPrefix || !!isVariadicSuffix;
+      const attributes = attrs ? attrs[0] : undefined;
       
       if (isVariadic && !type) {
          // Heterogeneous variadic: name: ...
@@ -1680,6 +1681,7 @@ Parameter
             type: { kind: "BasicType", name: "Any", genericArgs: [], pointerDepth: 0, arrayDimensions: [], location: location() },
             isConst: !!isConstPrefix || !!isConstType,
             isVariadic: true,
+            ...(attributes ? { attributes } : {}),
             location: location(),
          };
       }
@@ -1694,6 +1696,7 @@ Parameter
         type,
         isConst: !!isConstPrefix || !!isConstType,
         isVariadic: isVariadic,
+        ...(attributes ? { attributes } : {}),
         location: location(),
       };
     }

@@ -1,3 +1,4 @@
+import { targetConstantName } from "../../common/TargetConstants";
 import { isTemporaryArrayElement } from "../../common/ArrayElementStorage";
 import type { ArrayTypeNode } from "../../middleend/lowering/ImplicitConversions";
 /**
@@ -88,27 +89,45 @@ export abstract class AddressExpressionGenerator extends ReflectionGenerator {
     );
   }
 
+  /** The address of a global's own storage, declaring it when needed. */
+  protected generateIdentifierAddressForGlobal(
+    declaration: AST.VariableDecl,
+  ): string {
+    // Imports and re-exports can expose another spelling of this global.
+    // Its resolved declaration owns the linker name, even when a local or
+    // unrelated global happens to use the imported spelling.
+    const globalName = declaration.name as string;
+    if (!this.globals.has(globalName)) {
+      const type = this.resolveType(
+        declaration.typeAnnotation ?? declaration.resolvedType!,
+      );
+      const keyword = declaration.isConst ? "constant" : "global";
+      this.emitDeclaration(`@${globalName} = external ${keyword} ${type}`);
+      this.globals.add(globalName);
+    }
+    return `@${globalName}`;
+  }
+
   private generateIdentifierAddress(expr: AST.IdentifierExpr): string {
     const name = expr.name;
+    if (targetConstantName(expr.resolvedDeclaration)) {
+      // A target constant has no storage; spill its value like an r-value.
+      const type = this.resolveType(expr.resolvedType!);
+      const value = this.generateExpression(expr);
+      const spill = this.allocateStack(`${name}.value`, type);
+      this.emit(`  store ${type} ${value}, ${type}* ${spill}`);
+      return spill;
+    }
     const declaration = expr.resolvedDeclaration;
     if (
       declaration?.kind === "VariableDecl" &&
       declaration.isGlobal &&
       typeof declaration.name === "string"
     ) {
-      // Imports and re-exports can expose another spelling of this global.
-      // Its resolved declaration owns the linker name, even when a local or
-      // unrelated global happens to use the imported spelling.
-      const globalName = declaration.name;
-      if (!this.globals.has(globalName)) {
-        const type = this.resolveType(
-          declaration.typeAnnotation ?? declaration.resolvedType!,
-        );
-        const keyword = declaration.isConst ? "constant" : "global";
-        this.emitDeclaration(`@${globalName} = external ${keyword} ${type}`);
-        this.globals.add(globalName);
-      }
-      return `@${globalName}`;
+      return (
+        this.loopGlobalSnapshots.get(declaration) ??
+        this.generateIdentifierAddressForGlobal(declaration)
+      );
     }
     if (this.locals.has(name)) {
       const ptr = this.localPointers.get(name);
