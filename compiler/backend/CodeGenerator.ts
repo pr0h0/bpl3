@@ -1,3 +1,4 @@
+import { collectUnsnapshottableGlobals } from "./codegen/LoopGlobalSnapshots";
 import { traceMemory } from "../common/MemoryTrace";
 import {
   getCExportFunctions,
@@ -167,6 +168,7 @@ export class CodeGenerator extends StatementGenerator {
       optimizationLevel?: number;
       treeShakeTopLevelFunctions?: boolean;
       debugIrPath?: string | false;
+      clangFlags?: readonly string[];
     } = {},
   ) {
     super(options);
@@ -202,6 +204,11 @@ export class CodeGenerator extends StatementGenerator {
     this.clearDefaultValueCaches();
     this.registerBuiltinLayouts();
     this.loopStack = [];
+    this.loopGlobalSnapshots.clear();
+    this.unsnapshottableGlobals =
+      this.optimizationLevel >= 1
+        ? collectUnsnapshottableGlobals(program)
+        : new Set();
     this.declaredFunctions.clear();
     this.definedFunctions.clear();
     this.emittedFunctions.clear();

@@ -3,6 +3,7 @@
  * Provides base types, type aliases, and built-in struct definitions
  */
 
+import { TARGET_CONSTANT_DECLARATIONS } from "../common/TargetConstants";
 import * as AST from "../common/AST";
 import {
   PRIMITIVE_CANONICAL_NAMES,
@@ -576,6 +577,17 @@ export function initializeBuiltinsInScope(scope: SymbolTable): void {
     type: createBasicType("Type"),
     declaration: typeDecl,
   });
+
+  // Target constants such as __TARGET_WASM__; codegen supplies their values.
+  for (const [name, declaration] of TARGET_CONSTANT_DECLARATIONS) {
+    scope.define({
+      name,
+      kind: "Variable",
+      type: declaration.typeAnnotation,
+      declaration,
+      isConst: true,
+    });
+  }
 
   // Register Long struct
   const longDecl = createLongStructDecl();

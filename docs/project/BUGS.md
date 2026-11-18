@@ -83,6 +83,165 @@ into per function. Documented under "Unchecked functions" in
 docs/39-compiler-options.md; tests/FunctionAttributes.test.ts and
 examples/unchecked_functions.
 
+### BUG-823: wasm SIMD cannot be enabled because of the per-function `target-features` attribute
+
+**Status**: Fixed · **Priority**: P3
+
+On `wasm32-unknown-unknown` every function gets
+`"target-features"="+exception-handling"`
+(`WASM_EXCEPTIONS_ATTRIBUTE` in
+`compiler/backend/codegen/attributes/FunctionAttributeGroups.ts`). A
+per-function `target-features` attribute replaces the features given on the
+clang command line, so `--clang-flag -msimd128` has no effect: loops that
+vectorize on native stay scalar in the wasm module.
+
+```bpl
+frame main() ret int { return 1; }
+```
+
+```
+$ bpl build w.bpl --target wasm32-unknown-unknown --emit llvm -o w.ll
+attributes #0 = { "frame-pointer"="all" "target-features"="+exception-handling" }
+```
+
+**Impact**: the codec's wasm build was 1.2-1.45x slower than it is with SIMD
+(text 7.44 s vs 5.14 s, image 2.35 s vs 1.99 s, Node 24).
+
+**Workaround**: `--cpu bleeding-edge` enables SIMD, but it also turns on tail
+calls and other newer features, which raises the browser floor (Chrome 112,
+Firefox 121, Safari 18.2).
+
+**Suggested fix**: append the command-line features to the attribute (for
+example `+exception-handling,+simd128` when `-msimd128` or a `--wasm-simd`
+option is given), or drop the per-function attribute and pass
+`-mexception-handling` to clang instead.
+
+**Resolution**: the attribute stays (LLVM 23 checks the feature per function),
+and the wasm feature flags among the clang flags (`-m<feature>` and
+`-mno-<feature>` for the wasm features clang knows; the last flag for a feature
+wins) are appended to it, so `--clang-flag -msimd128` gives
+`"+exception-handling,+simd128"` and vector code. No new CLI option.
+`compiler/backend/codegen/attributes/WasmTargetFeatures.ts`;
+tests/WasmTargetFeatures.test.ts; "WebAssembly Output" in
+docs/39-compiler-options.md.
+
+### BUG-824: A global pointer indexed in a loop is reloaded and null-checked on every iteration
+
+**Status**: Fixed · **Priority**: P3
+
+When a loop indexes a global pointer and also stores through another pointer,
+the global is loaded again and passed to `__bpl_check_null` on each iteration,
+because the store might alias the global. The loop does not vectorize. Copying
+the global to a local first gives one check before the loop and vector code.
+
+```bpl
+extern malloc(n: ulong) ret *u8;
+global TAB: *int;
+
+frame viaGlobal(t: *int, n: int) {
+    loop (local i: int = 0; i < n; i = i + 1) { t[i] = TAB[i] + 1; }
+}
+
+frame viaLocal(t: *int, n: int) {
+    local r: *int = TAB;
+    loop (local i: int = 0; i < n; i = i + 1) { t[i] = r[i] + 1; }
+}
+```
+
+Built with `--emit llvm` and compiled by `clang -O3 -march=native`:
+`viaGlobal` contains no vector instructions, `viaLocal` does.
+
+**Impact**: in the codec, hoisting two lookup-table globals into locals and
+splitting the update loops took text compression from 3.90 s to 3.65 s.
+
+**Workaround**: copy global pointers to locals before hot loops.
+
+**Suggested fix**: null-check a global pointer once per loop when the loop
+body cannot assign it (no direct assignment and no call), and consider marking
+loads of non-escaping globals so LLVM can hoist them.
+
+**Resolution**: from `-O 1` the code generator does the workaround itself. A
+loop that reads a global pointer reads a local copy taken before the loop when
+nothing in the loop can change the global: the global is not `const`, not
+exported and never has its address taken anywhere in the program, and the loop
+makes no calls, declares no lambdas, has no inline assembly, overloaded
+operators or automatically destroyed values, and does not assign the global
+(`compiler/backend/codegen/LoopGlobalSnapshots.ts`). `viaGlobal` now compiles to
+the same vector code as `viaLocal`. tests/LoopGlobalSnapshots.test.ts; "Global
+pointers in loops" in docs/39-compiler-options.md.
+
+### BUG-825: No way to state that pointers do not alias
+
+**Status**: Fixed · **Priority**: P4
+
+There is no `noalias`/`restrict` equivalent for pointer parameters or locals.
+LLVM therefore has to assume that a store through one pointer may change what
+another points at. In the codec's mixer update (`w[k] = f(w[k], st[k])` over
+two `*i16` blocks of fixed size, written as straight-line code for 8 or 16
+elements) the SLP vectorizer gave scalar code. Simple counted loops over two
+pointers do vectorize, with a runtime overlap check.
+
+**Workaround**: compute results into a local fixed array and copy them out in
+a second loop.
+
+**Suggested fix**: a parameter attribute (for example `@[noalias]` on a
+pointer parameter) that emits LLVM `noalias`.
+
+**Resolution**: parameters accept attributes, and `@[noalias]` on a pointer
+parameter of a `frame` emits LLVM `noalias` (spec rule R-FN-13). An 8-element
+`i16` mixer update written as straight-line code now uses SSE vector adds. It is
+rejected with `BPL_FUNCTION_ATTRIBUTE_PARAMETER_INVALID` on non-pointer
+parameters and on `extern` and spec method parameters; unknown and repeated
+parameter attributes reuse the function-attribute codes. Locals have no
+`noalias`. tests/NoaliasParameters.test.ts.
+
+### BUG-826: Function attributes `inline`, `always_inline`, `noinline`, `hot`, `cold` are not documented
+
+**Status**: Fixed · **Priority**: P4
+
+`FunctionAttributeGroups.ts` maps `inline`, `always_inline`, `noinline`, `cold`
+and `hot` to LLVM attributes and the tests cover them, but the user docs only
+describe `unchecked`, `c_export` and `auto_destroy`. The names appear only
+inside an error-message example in docs/39-compiler-options.md.
+`@[noinline]` was needed in the codec to keep a chunk function separate, so
+that wasm engines can switch it to optimized code between calls.
+
+**Suggested fix**: list all accepted function attributes and their effect in
+docs/39-compiler-options.md and the language specification.
+
+**Resolution**: spec rule R-FN-12 lists every accepted attribute and the
+conflicting combinations, and "Function attributes" in
+docs/39-compiler-options.md has a table of their effects.
+
+### BUG-827: No compile-time target or configuration switch
+
+**Status**: Fixed · **Priority**: P4
+
+There is no conditional compilation and no constant that names the target.
+The codec needs different loop shapes on native (blocks of 8/16 for the
+vectorizer) and on scalar wasm32 (a plain loop is 10% faster), and a
+different allocator call on native (`posix_memalign` + `madvise`) than in a
+freestanding module.
+
+**Workaround**: branch on `sizeof(*u8)` (4 on wasm32, 8 on native), which the
+optimizer folds; target-specific externs have to live in separate entry files.
+
+**Suggested fix**: built-in constants such as `__TARGET_WASM__` /
+`__TARGET_POINTER_BITS__`, or a `when` block evaluated at compile time.
+
+**Resolution**: built-in constants `__TARGET_WASM__`, `__TARGET_LINUX__`,
+`__TARGET_MACOS__`, `__TARGET_WINDOWS__` (`bool`) and `__TARGET_POINTER_BITS__`
+(`int`) (spec rule R-DECL-11). The type checker knows only their types, so
+`bpl check` stays target-independent; code generation substitutes the target's
+values. An `if` whose condition uses only these constants, literals, `!`, `&&`,
+`||` and comparisons compiles only the branch that runs, at every optimization
+level, so a native-only extern can be called in the other branch of a
+freestanding wasm build. Limits: no `when` blocks or conditional declarations,
+and the constants are not accepted in global initializers.
+`compiler/common/TargetConstants.ts`; tests/TargetConstants.test.ts;
+examples/target_specific_code; "Target-specific code" in
+docs/39-compiler-options.md.
+
 ## Build pipeline (2026-11-10)
 
 Found while measuring the memory and time of the bpl-quant build.

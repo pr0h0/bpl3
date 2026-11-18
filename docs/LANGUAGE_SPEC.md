@@ -346,6 +346,14 @@ local (x: int, y: int) = (1, 2);
   access preserve the defining global's constant protection.
 - **[R-DECL-8]** A constant pointer binding, including a `const *T` parameter,
   does not by itself make its pointee immutable.
+- **[R-DECL-11]** The built-in constants `__TARGET_WASM__`, `__TARGET_LINUX__`,
+  `__TARGET_MACOS__` and `__TARGET_WINDOWS__` (`bool`) and
+  `__TARGET_POINTER_BITS__` (`int`) describe the compilation target. When an
+  `if` condition is built only from these constants, literals, `!`, `&&`, `||`
+  and comparisons, only the branch that runs is compiled, so the other branch
+  may call functions the target does not provide; both branches are still
+  type-checked. The constants cannot be assigned or have their address taken,
+  and they are not compile-time constants for global initializers.
 
 ```bpl
 local const PI: float = 3.14159;
@@ -406,6 +414,20 @@ printf("%d", x); # Prints 10
   stack overflow error. It applies to the function's own body, including every
   generic instantiation, but not to lambdas declared inside it or to the
   functions it calls. Other checks, such as division by zero, remain.
+- **[R-FN-12]** `@[name, ...]` before `frame` lists function attributes. The
+  accepted attributes are `inline` (an inlining hint), `always_inline`,
+  `noinline`, `hot`, `cold`, `noreturn` (only on `ret void` functions),
+  `nounwind`, `optnone`, `optsize`, `minsize`, `unchecked` (R-FN-11),
+  `auto_destroy` (on `destroy` methods) and `c_export`. An unknown, repeated or
+  conflicting attribute (`inline`/`always_inline`/`noinline`, `hot`/`cold`,
+  `optsize`/`minsize`, or `optnone` with an inlining or size attribute) is
+  rejected.
+- **[R-FN-13]** `@[noalias]` before a pointer parameter of a `frame` promises
+  that, while the function runs, the memory reached through that parameter is
+  not accessed through any pointer that is not derived from it. It is emitted as
+  LLVM `noalias`; breaking the promise is undefined behavior. It is rejected
+  (`BPL_FUNCTION_ATTRIBUTE_PARAMETER_INVALID`) on a parameter that is not a
+  pointer and on `extern` and spec method parameters.
 
 <!-- bpl-doc: run=spec-methods -->
 

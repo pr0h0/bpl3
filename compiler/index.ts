@@ -259,6 +259,7 @@ export class Compiler {
         debugIrPath: this.options.debugIrPath,
         optimizationLevel: this.options.optimizationLevel,
         treeShakeTopLevelFunctions: this.options.treeShakeTopLevelFunctions,
+        clangFlags: this.options.clangFlags,
       });
       const llvmIR = codeGenerator.generate(ast, this.options.filePath);
 
@@ -554,6 +555,7 @@ export class Compiler {
         debugIrPath: this.options.debugIrPath,
         optimizationLevel: this.options.optimizationLevel,
         treeShakeTopLevelFunctions: this.options.treeShakeTopLevelFunctions,
+        clangFlags: this.options.clangFlags,
       });
 
       const llvmIR = codeGenerator.generate(combinedAST, this.options.filePath);
@@ -656,6 +658,7 @@ export class Compiler {
         debugIrPath: this.options.debugIrPath,
         optimizationLevel: this.options.optimizationLevel,
         treeShakeTopLevelFunctions: this.options.treeShakeTopLevelFunctions,
+        clangFlags: this.options.clangFlags,
       });
       const llvmIR = codeGenerator.generate(combinedAST, entryModule.path);
 
@@ -764,6 +767,7 @@ export class Compiler {
           ),
           optimizationLevel: this.options.optimizationLevel,
           treeShakeTopLevelFunctions: this.options.treeShakeTopLevelFunctions,
+          clangFlags: this.options.clangFlags,
         });
         const restoreExternalizedBodies =
           this.externalizeNonCurrentFunctionBodies(modules, module);

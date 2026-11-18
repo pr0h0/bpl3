@@ -13,6 +13,7 @@
  * @extends UnaryExpressionGenerator
  * @see ARCHITECTURE.md for the full inheritance hierarchy
  */
+import { targetConstantName } from "../../common/TargetConstants";
 import * as AST from "../../common/AST";
 import { CompilerError } from "../../common/CompilerError";
 import { codeGenLog } from "../../common/Logger";
@@ -483,6 +484,11 @@ export abstract class ExpressionGenerator extends UnaryExpressionGenerator {
 
   protected generateIdentifier(expr: AST.IdentifierExpr): string {
     const name = expr.name;
+    const targetConstant = targetConstantName(expr.resolvedDeclaration);
+    if (targetConstant) {
+      const value = this.targetConstantValue(targetConstant);
+      return typeof value === "boolean" ? (value ? "1" : "0") : String(value);
+    }
     if (!expr.resolvedType) {
       throw new CompilerError(
         `Identifier '${name}' has no resolved type`,

@@ -10,6 +10,7 @@ import {
   FUNCTION_ATTRIBUTE_CONFLICT_CODE,
   FUNCTION_ATTRIBUTE_DUPLICATE_CODE,
   FUNCTION_ATTRIBUTE_NORETURN_RETURN_TYPE_MISMATCH_CODE,
+  FUNCTION_ATTRIBUTE_PARAMETER_INVALID_CODE,
   FUNCTION_ATTRIBUTE_UNKNOWN_CODE,
 } from "../TypeCheckerBase";
 
@@ -47,6 +48,79 @@ const FUNCTION_ATTRIBUTE_CONFLICT_GROUPS = [
   ["optnone", "optsize"],
   ["optnone", "minsize"],
 ];
+
+const ALLOWED_PARAMETER_ATTRIBUTES = new Set(["noalias"]);
+
+/**
+ * Checks parameter attributes (`@[noalias] p: *T`). `context` names where the
+ * parameters are declared when attributes are not allowed there at all.
+ */
+export function validateParameterAttributes(
+  context: FunctionAttributeValidationContext,
+  params: readonly Pick<
+    AST.Parameter,
+    "name" | "type" | "isVariadic" | "attributes"
+  >[],
+  unsupportedContext?: string,
+): void {
+  for (const param of params) {
+    const attributes = param.attributes ?? [];
+    if (attributes.length === 0) continue;
+    if (unsupportedContext) {
+      context.addError(
+        new CompilerError(
+          `Parameter attributes are not allowed on ${unsupportedContext}`,
+          "Put parameter attributes on frame declarations only.",
+          attributes[0]!.location,
+          FUNCTION_ATTRIBUTE_PARAMETER_INVALID_CODE,
+        ),
+      );
+      continue;
+    }
+    const seen = new Set<string>();
+    for (const attr of attributes) {
+      if (!ALLOWED_PARAMETER_ATTRIBUTES.has(attr.name)) {
+        context.addError(
+          new CompilerError(
+            `Unknown parameter attribute '${attr.name}'`,
+            "The only parameter attribute is 'noalias'.",
+            attr.location,
+            FUNCTION_ATTRIBUTE_UNKNOWN_CODE,
+          ),
+        );
+        continue;
+      }
+      if (seen.has(attr.name)) {
+        context.addError(
+          new CompilerError(
+            `Duplicate parameter attribute '${attr.name}'`,
+            "Remove the duplicate attribute.",
+            attr.location,
+            FUNCTION_ATTRIBUTE_DUPLICATE_CODE,
+          ),
+        );
+      }
+      seen.add(attr.name);
+    }
+    if (!seen.has("noalias")) continue;
+    const type = context.resolveType(param.type);
+    if (
+      param.isVariadic ||
+      type.kind !== "BasicType" ||
+      type.pointerDepth === 0 ||
+      type.arrayDimensions.length > 0
+    ) {
+      context.addError(
+        new CompilerError(
+          `Parameter attribute 'noalias' requires a pointer parameter, but '${param.name}' is not one`,
+          "Use 'noalias' on parameters of type '*T'.",
+          attributes.find((attr) => attr.name === "noalias")!.location,
+          FUNCTION_ATTRIBUTE_PARAMETER_INVALID_CODE,
+        ),
+      );
+    }
+  }
+}
 
 export function validateFunctionAttributes(
   context: FunctionAttributeValidationContext,

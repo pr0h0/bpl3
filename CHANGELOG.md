@@ -10,6 +10,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 - `@[unchecked]` function attribute: the function's body is compiled without
   bounds, null-pointer and stack-depth checks (rule R-FN-11, BUG-822).
+- `@[noalias]` on pointer parameters emits LLVM `noalias` (rule R-FN-13,
+  BUG-825), with the new diagnostic `BPL_FUNCTION_ATTRIBUTE_PARAMETER_INVALID`.
+- Target constants `__TARGET_WASM__`, `__TARGET_LINUX__`, `__TARGET_MACOS__`,
+  `__TARGET_WINDOWS__` and `__TARGET_POINTER_BITS__`; an `if` on them compiles
+  only the target's branch (rule R-DECL-11, BUG-827).
+- A loop that only reads a global pointer reads a local copy from `-O 1`, so it
+  can vectorize (BUG-824).
 
 ### Changed
 
@@ -20,6 +27,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 - Freestanding wasm `malloc` grows linear memory and returns null when it
   cannot, and `free` makes blocks reusable (BUG-821).
+- wasm feature flags such as `--clang-flag -msimd128` reach the per-function
+  `target-features` attribute, so wasm SIMD can be enabled (BUG-823).
+- Every function attribute is documented (rule R-FN-12, BUG-826).
 
 ## [0.1.3] - 2026-11-12
 

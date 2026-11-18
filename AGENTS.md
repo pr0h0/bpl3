@@ -77,6 +77,16 @@ frame identity<T>(val: T) ret T {
 
 ```
 
+Function attributes go in `@[...]` before `frame` (`inline`, `always_inline`,
+`noinline`, `hot`, `cold`, `noreturn`, `nounwind`, `optnone`, `optsize`,
+`minsize`, `unchecked`, `auto_destroy`, `c_export`; spec rule R-FN-12). A
+pointer parameter may be marked `@[noalias]` (R-FN-13).
+
+Target constants `__TARGET_WASM__`, `__TARGET_LINUX__`, `__TARGET_MACOS__`,
+`__TARGET_WINDOWS__` (`bool`) and `__TARGET_POINTER_BITS__` (`int`) describe
+the build target; an `if` on only these constants compiles just the branch
+that runs (R-DECL-11).
+
 **Note**: Functions (`Func<T>`) are raw function pointers (compatible with C ABI). Lambdas (`Lambda<T>`) are fat pointers (struct `{ func*, ctx* }`). You can cast a `Func` to a `Lambda` (wrapping it), but casting a `Lambda` to a `Func` is forbidden.
 
 ### Structs

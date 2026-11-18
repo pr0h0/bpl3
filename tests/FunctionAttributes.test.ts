@@ -151,6 +151,7 @@ describe("Function Attributes", () => {
     );
   });
 
+  // spec: R-FN-12
   it("emits LLVM attributes for attributed functions", () => {
     const ir = compileToLLVM(`
       @[inline]

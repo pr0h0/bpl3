@@ -420,6 +420,8 @@ export interface Parameter extends ASTNode {
   type: TypeNode;
   isConst?: boolean;
   isVariadic?: boolean;
+  /** `@[noalias]` and other attributes written before the parameter. */
+  attributes?: FunctionAttribute[];
 }
 
 /** A single destructuring target with name and optional type */
@@ -613,7 +615,10 @@ export interface ExportStmt extends ASTNode {
 export interface ExternDecl extends ASTNode {
   kind: "Extern";
   name: string;
-  params: Pick<Parameter, "name" | "type" | "isConst" | "isVariadic">[];
+  params: Pick<
+    Parameter,
+    "name" | "type" | "isConst" | "isVariadic" | "attributes"
+  >[];
   isVariadic: boolean;
   returnType?: TypeNode;
 }

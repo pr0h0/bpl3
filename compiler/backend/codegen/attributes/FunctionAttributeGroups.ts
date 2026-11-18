@@ -1,7 +1,6 @@
 import * as AST from "../../../common/AST";
 
 const FRAME_POINTER_ATTRIBUTE = `"frame-pointer"="all"`;
-const WASM_EXCEPTIONS_ATTRIBUTE = `"target-features"="+exception-handling"`;
 
 const LLVM_FUNCTION_ATTRIBUTE_MAP = new Map([
   ["inline", "inlinehint"],
@@ -19,22 +18,24 @@ const LLVM_FUNCTION_ATTRIBUTE_MAP = new Map([
 interface FunctionAttributeGroupOptions {
   preserveFramePointer?: boolean;
   /**
-   * WebAssembly lowers try/catch to its exception-handling instructions, and
-   * LLVM 23 requires the feature on each function that uses setjmp/longjmp.
+   * The `target-features` of every function on WebAssembly. try/catch lowers
+   * to exception-handling instructions, and LLVM 23 requires that feature on
+   * each function that uses setjmp/longjmp; the attribute replaces the clang
+   * command-line features, so it also lists those (see WasmTargetFeatures).
    */
-  wasmExceptions?: boolean;
+  wasmTargetFeatures?: readonly string[];
 }
 
 export class FunctionAttributeGroups {
   private groupIds: Map<string, number> = new Map();
   private groups: Map<number, string[]> = new Map();
   private preserveFramePointer: boolean;
-  private wasmExceptions: boolean;
+  private wasmTargetFeatures: readonly string[];
   private defaultGroupId: number | undefined;
 
   constructor(options: FunctionAttributeGroupOptions = {}) {
     this.preserveFramePointer = options.preserveFramePointer ?? true;
-    this.wasmExceptions = options.wasmExceptions ?? false;
+    this.wasmTargetFeatures = options.wasmTargetFeatures ?? [];
     this.reset();
   }
 
@@ -91,7 +92,9 @@ export class FunctionAttributeGroups {
   private getDefaultAttributes(): string[] {
     return [
       ...(this.preserveFramePointer ? [FRAME_POINTER_ATTRIBUTE] : []),
-      ...(this.wasmExceptions ? [WASM_EXCEPTIONS_ATTRIBUTE] : []),
+      ...(this.wasmTargetFeatures.length > 0
+        ? [`"target-features"="${this.wasmTargetFeatures.join(",")}"`]
+        : []),
     ];
   }
 }
