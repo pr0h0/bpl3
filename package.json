@@ -112,6 +112,6 @@
   },
   "dependencies": {
     "commander": "^15.0.0",
-    "peggy": "5.0.6"
+    "peggy": "5.1.1"
   }
 }
