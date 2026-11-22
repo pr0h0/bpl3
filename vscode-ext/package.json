@@ -28,12 +28,12 @@
   },
   "devDependencies": {
     "@types/node": "^26.6.6",
-    "@types/vscode": "~1.91.0",
-    "@vscode/vsce": "^4.1.0",
+    "@types/vscode": "~1.146.0",
+    "@vscode/vsce": "^4.1.1",
     "typescript": "^7.0.2"
   },
   "dependencies": {
-    "peggy": "5.0.6",
+    "peggy": "5.1.1",
     "vscode-languageclient": "^11.0.0",
     "vscode-languageserver": "^11.0.0",
     "vscode-languageserver-textdocument": "^1.0.8"
